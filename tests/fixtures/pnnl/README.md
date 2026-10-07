@@ -1,0 +1,39 @@
+# PNNL IM3 test fixtures
+
+Small inputs for the tests of `atlas/sources/pnnl.py` (the PNNL cross-check of the OSM seed).
+
+**Source: Pacific Northwest National Laboratory (IM3), *IM3 Open Source Data Center Atlas*,
+v2026.02.09, MSD-LIVE, <https://doi.org/10.57931/3017294>. Available under the Open Database
+License 1.0.** The atlas is derived from OpenStreetMap: © OpenStreetMap contributors, ODbL 1.0.
+Web map: <https://im3.pnnl.gov/datacenter-atlas> (mirror:
+<https://immm-sfa.github.io/datacenter-atlas/>).
+
+## `centroids-sample.geojson`
+
+17 of the 1,382 features of the public web-map file
+<https://immm-sfa.github.io/datacenter-atlas/im3_datacenter_centroids.geojson> (retrieved
+2026-10-07; 373,790 bytes; Last-Modified 2026-03-31; SHA-256
+`2e7bd7e650fe86fe0d156b4e483ebd331cfa98a0468ce33b932f8c1b6c3245df`). Features and properties are
+verbatim, under the file's own `type`, `name` and `crs` header. They are the original file's
+features 318, 322, 323, 330, 331, 332, 459, 489, 497, 498, 573, 592, 593, 731, 1042, 1043 and 258
+(0-based), in that order.
+
+- The first 16 lie in the bounding box of `tests/fixtures/osm/overpass-sample.json` and each
+  matches one OSM building there (the unnamed feature 1043 is Cologix ASH1's footprint).
+- The last one, "Equinix Ashburn DC2" (OSM way 234722029), lies just outside that box, so it
+  matches nothing in the OSM sample and becomes an `unmatched` review item. The sample's match rate
+  is 16/17 = 94.1%, below the 95% threshold, which exercises the warning.
+
+## `msdlive-sample.csv`
+
+**Constructed for tests; it is not a PNNL file.** The MSD-LIVE GPKG and CSV files need an MSD-LIVE
+sign-in, so the importer never downloads them. This CSV only reproduces their column layout (`id,
+state, state_abb, state_id, county, county_id, ref, operator, name, sqft, lat, lon, type`) so that
+the id join can be tested:
+
+- one row per feature of `centroids-sample.geojson`, in the same order, with its `state_abb`,
+  `county`, `operator`, `name`, `sqft` and `type`, and `lat`/`lon` rounded to 7 decimals;
+- `id` is the OSM way id that the spatial join assigns to the feature (way 234722029 for Equinix
+  Ashburn DC2, from the 2026-10-07 Overpass snapshot);
+- `state` "Virginia", `state_id` "51" and `county_id` "51107" (Loudoun County) for every row;
+- `ref` is the OSM `ref` tag of that way, where it has one.

@@ -1,0 +1,18 @@
+id,state,state_abb,state_id,county,county_id,ref,operator,name,sqft,lat,lon,type
+298126010,Virginia,VA,51,Loudoun County,51107,ACC4,Digital Realty,Digital Realty ACC4,294156.0,39.0179018,-77.4625491,building
+298242260,Virginia,VA,51,Loudoun County,51107,DC3,Equinix,Equinix Ashburn DC3,186227.0,39.0219480,-77.4602871,building
+298242335,Virginia,VA,51,Loudoun County,51107,ACC3,Digital Realty,Digital Realty ACC3,151562.0,39.0199359,-77.4598418,building
+300162689,Virginia,VA,51,Loudoun County,51107,,Lumen Technologies,Level 3 Ashburn,49022.0,39.0221726,-77.4575953,building
+300163074,Virginia,VA,51,Loudoun County,51107,IAD4,Centersquare,Centersquare IAD4-B,90029.0,39.0221403,-77.4536097,building
+300163083,Virginia,VA,51,Loudoun County,51107,VA1,NTT,NTT Ashburn VA1 Data Center,138507.0,39.0227645,-77.4548692,building
+460050155,Virginia,VA,51,Loudoun County,51107,DC10,Equinix,Equinix Ashburn DC10,152397.0,39.0210142,-77.4515128,building
+460175666,Virginia,VA,51,Loudoun County,51107,IAD4,Centersquare,Centersquare IAD4-A,77749.0,39.0217337,-77.4527469,building
+463571875,Virginia,VA,51,Loudoun County,51107,IAD-78,Amazon Web Services,Amazon IAD78,147979.0,39.0263680,-77.4495202,building
+463571876,Virginia,VA,51,Loudoun County,51107,IAD-79,Amazon Web Services,Amazon IAD79,148678.0,39.0263574,-77.4508703,building
+556599693,Virginia,VA,51,Loudoun County,51107,IAD-71,Amazon Web Services,Amazon IAD71,121176.0,39.0279081,-77.4575029,building
+596690174,Virginia,VA,51,Loudoun County,51107,IAD-80,Amazon Web Services,Amazon IAD80,150443.0,39.0271087,-77.4528289,building
+596690175,Virginia,VA,51,Loudoun County,51107,DC12,Equinix,Equinix Ashburn DC12,96380.0,39.0230066,-77.4497581,building
+793888408,Virginia,VA,51,Loudoun County,51107,DC15,Equinix,Equinix Ashburn DC15,76665.0,39.0225001,-77.4502559,building
+1188715508,Virginia,VA,51,Loudoun County,51107,ABX-1,PowerHouse,PowerHouse ABX-1,131309.0,39.0195779,-77.4504655,building
+1188715510,Virginia,VA,51,Loudoun County,51107,ASH1,,,158127.0,39.0179478,-77.4594739,building
+234722029,Virginia,VA,51,Loudoun County,51107,,Equinix,Equinix Ashburn DC2,175215.0,39.0164707,-77.4590063,building
