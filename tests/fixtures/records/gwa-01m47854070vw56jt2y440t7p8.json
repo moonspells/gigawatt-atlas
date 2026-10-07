@@ -1,0 +1,135 @@
+{
+  "aliases": [],
+  "buildings": [],
+  "canonical_name": "Example Colocation Ashburn Expansion (Ashburn, VA)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-06T00:00:00Z",
+  "dates": {
+    "announced": {
+      "precision": "month",
+      "value": "2026-02"
+    },
+    "first_reported": {
+      "precision": "month",
+      "value": "2026-02"
+    }
+  },
+  "evidence_level": "reported",
+  "external_ids": {},
+  "field_meta": {},
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m47854070vw56jt2y440t7p8",
+  "incentives": [],
+  "last_verified_at": "2026-10-06T00:00:00Z",
+  "location": {
+    "city": "Ashburn",
+    "county_fips": "51107",
+    "county_name": "Loudoun",
+    "geocode_method": "manual",
+    "geometry_ref": null,
+    "lat": 39.046,
+    "lon": -77.48,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "site",
+    "state_abbr": "VA",
+    "street": null
+  },
+  "merged_into": "gwa-01m47854008j5vt37xkj5ag72d",
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [
+      {
+        "name": "Example Colocation",
+        "org_id": "gwo-01m4785400yqzp3nxn6f6q6wfh",
+        "source_ids": []
+      }
+    ],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "project",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "copyrighted-cite-only",
+      "published_at": "2026-02-03T10:00:00Z",
+      "publisher": "Example Local News",
+      "quote": "Example Colocation plans to expand its Ashburn campus next to the existing buildings.",
+      "quote_end": 85,
+      "quote_match": "exact",
+      "quote_start": 0,
+      "retrieved_at": "2026-10-06T00:00:00Z",
+      "source_type": "news",
+      "supports": [
+        "/canonical_name",
+        "/parties",
+        "/location"
+      ],
+      "text_sha256": "d8c02470a8a3ac8bf34e035aa5fad110f351b114c879225638c657190f2d6f23",
+      "title": "Ashburn campus to grow",
+      "url": "https://example.org/news/ashburn-expansion"
+    }
+  ],
+  "status": "announced",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2026-02"
+      },
+      "event": "announced",
+      "note": null,
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "announced"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-06T00:00:00Z"
+}

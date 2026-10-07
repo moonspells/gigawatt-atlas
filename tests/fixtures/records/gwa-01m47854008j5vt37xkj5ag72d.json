@@ -1,0 +1,205 @@
+{
+  "aliases": [
+    {
+      "kind": "osm_name",
+      "name": "EXC Ashburn",
+      "source_ids": []
+    }
+  ],
+  "buildings": [
+    {
+      "name": "Building A",
+      "phase_id": null,
+      "ref": "osm:way/990000002",
+      "sqft": 250000.0
+    },
+    {
+      "name": "Building B",
+      "phase_id": null,
+      "ref": "osm:way/990000003",
+      "sqft": 240000.0
+    }
+  ],
+  "canonical_name": "Example Colocation Ashburn Campus (Ashburn, VA)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": 36.0,
+    "mw_as_stated": "36 MW of critical IT load",
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-06T00:00:00Z",
+  "dates": {
+    "first_reported": {
+      "precision": "month",
+      "value": "2026-10"
+    },
+    "operating_since": {
+      "precision": "month",
+      "value": "2026-10"
+    }
+  },
+  "evidence_level": "reported",
+  "external_ids": {
+    "osm": [
+      "way/990000001",
+      "way/990000002",
+      "way/990000003"
+    ]
+  },
+  "field_meta": {
+    "/capacity/it_mw": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "stated",
+      "source_ids": [
+        "s2"
+      ]
+    },
+    "/grid/iso_rto": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": []
+    },
+    "/location/county_fips": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": []
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "PJM",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": "Example Electric Cooperative"
+  },
+  "id": "gwa-01m47854008j5vt37xkj5ag72d",
+  "incentives": [],
+  "last_verified_at": "2026-10-06T00:00:00Z",
+  "location": {
+    "city": "Ashburn",
+    "county_fips": "51107",
+    "county_name": "Loudoun",
+    "geocode_method": "source_coords",
+    "geometry_ref": "osm:way/990000001",
+    "lat": 39.0438,
+    "lon": -77.4874,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "footprint",
+    "state_abbr": "VA",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [
+      {
+        "name": "Example Colocation",
+        "org_id": "gwo-01m4785400yqzp3nxn6f6q6wfh",
+        "source_ids": []
+      }
+    ],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "colocation",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": 42.0,
+    "building_count": 2,
+    "building_sqft": 490000.0
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors (fixture extract)",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-06T00:00:00Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/location",
+        "/buildings",
+        "/site",
+        "/purpose"
+      ],
+      "text_sha256": null,
+      "title": "Overpass extract: telecom=data_center, building=data_center",
+      "url": "https://example.org/osm-extract/2026-10-05"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": "copyrighted-cite-only",
+      "published_at": "2026-09-15T14:00:00Z",
+      "publisher": "Example Colocation",
+      "quote": "The two-building Ashburn campus now delivers 36 MW of critical IT load.",
+      "quote_end": 71,
+      "quote_match": "exact",
+      "quote_start": 0,
+      "retrieved_at": "2026-10-06T00:00:00Z",
+      "source_type": "company_release",
+      "supports": [
+        "/capacity",
+        "/grid/utility_name"
+      ],
+      "text_sha256": "fe9e7bfa703836ed072a947a6362a4f2e5b3fb8d919491da1ddf76d5e8d3b0e1",
+      "title": "Example Colocation completes its Ashburn campus",
+      "url": "https://example.com/news/ashburn-campus-complete"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2026-10"
+      },
+      "event": "first_reported",
+      "note": "OSM telecom=data_center (assumed operating)",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-06T00:00:00Z"
+}
