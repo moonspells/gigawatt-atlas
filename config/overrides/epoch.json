@@ -1,0 +1,11 @@
+{
+  "Meta Hyperion": {
+    "county_fips": "22083",
+    "note": "Meta's Richland Parish Data Center page (the first of Epoch's Selected Sources for this site) says Meta is building the data center that houses Hyperion in Richland Parish, Louisiana. Read 2026-10-07. Epoch's address, Holly Ridge, LA 71269, matches no Census place.",
+    "precision": "county",
+    "publisher": "Meta",
+    "source_type": "company_release",
+    "source_url": "https://datacenters.atmeta.com/richland-parish-data-center/",
+    "state_abbr": "LA"
+  }
+}
