@@ -1,0 +1,93 @@
+# The CONUS z10 basemap (07 §11.2, 13 §5.2): extract from a Protomaps daily build, verify, and
+# re-host it on R2 at basemap/conus-z10-{build}.pmtiles. Never hotlink Protomaps builds.
+# go-pmtiles is the release binary, checked against its SHA-256 before it runs (10 §11.8).
+name: basemap
+
+on:
+  workflow_dispatch:
+    inputs:
+      build:
+        description: Protomaps build (YYYYMMDD), listed in https://build-metadata.protomaps.dev/builds.json
+        type: string
+        default: '20261006'
+
+permissions: {}
+
+concurrency: { group: atlas-basemap, cancel-in-progress: false }
+
+jobs:
+  extract:
+    name: extract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions: { contents: read }
+    steps:
+      - name: Check the build id
+        env:
+          BUILD: ${{ inputs.build }}
+        run: '[[ "$BUILD" =~ ^20[0-9]{6}$ ]] || { echo "::error::build must be YYYYMMDD"; exit 1; }'
+      - name: Install go-pmtiles
+        env:
+          PMTILES_VERSION: '1.31.2'
+          PMTILES_SHA256: '3ed7dbf4ec2e6dfe5e25b6f70d1ffc932729f93c86db353bf514dd71010a312f'
+        run: |
+          mkdir -p "$RUNNER_TEMP/pmtiles" && cd "$RUNNER_TEMP/pmtiles"
+          curl -fsSL --retry 3 -o pmtiles.tar.gz \
+            "https://github.com/protomaps/go-pmtiles/releases/download/v$PMTILES_VERSION/go-pmtiles_${PMTILES_VERSION}_Linux_x86_64.tar.gz"
+          echo "$PMTILES_SHA256  pmtiles.tar.gz" | sha256sum -c -
+          tar -xzf pmtiles.tar.gz pmtiles
+          echo "$RUNNER_TEMP/pmtiles" >> "$GITHUB_PATH"
+      - name: Extract and verify
+        env:
+          BUILD: ${{ inputs.build }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/out" && cd "$RUNNER_TEMP/out"
+          pmtiles extract "https://build.protomaps.com/$BUILD.pmtiles" "conus-z10-$BUILD.pmtiles" \
+            --bbox=-125.0,24.4,-66.9,49.4 --maxzoom=10
+          pmtiles verify "conus-z10-$BUILD.pmtiles"
+          pmtiles show "conus-z10-$BUILD.pmtiles"
+          size="$(stat -c %s "conus-z10-$BUILD.pmtiles")"
+          [ "$size" -lt 500000000 ] || { echo "::error::$size bytes: over the 512 MB cacheable limit (07 §11.2)"; exit 1; }
+          sha256sum "conus-z10-$BUILD.pmtiles" > "conus-z10-$BUILD.pmtiles.sha256"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: basemap
+          path: ${{ runner.temp }}/out
+          retention-days: 30
+          if-no-files-found: error
+          compression-level: 0 # PMTiles tiles are already compressed
+
+  upload:
+    name: upload
+    needs: extract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: production
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with: { version: '0.11.32', enable-cache: false }
+      - run: uv sync --locked
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: basemap, path: '${{ runner.temp }}/out' }
+      - name: Upload to R2 basemap/
+        env:
+          BUILD: ${{ inputs.build }}
+          CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          R2_TILES_ACCESS_KEY_ID: ${{ secrets.R2_TILES_ACCESS_KEY_ID }}
+          R2_TILES_SECRET_ACCESS_KEY: ${{ secrets.R2_TILES_SECRET_ACCESS_KEY }}
+        run: |
+          cd "$RUNNER_TEMP/out" && sha256sum -c "conus-z10-$BUILD.pmtiles.sha256"
+          uv run --locked --directory "$GITHUB_WORKSPACE" atlas publish put "$RUNNER_TEMP/out/conus-z10-$BUILD.pmtiles" \
+            --key "basemap/conus-z10-$BUILD.pmtiles" --immutable --no-overwrite
+      - name: Check the tiles host serves ranges
+        env:
+          BUILD: ${{ inputs.build }}
+        run: |
+          url="https://tiles.moonspells.dev/basemap/conus-z10-$BUILD.pmtiles"
+          curl -fsS -o /dev/null -D headers.txt -H 'Range: bytes=0-16383' "$url"
+          cat headers.txt
+          grep -qi '^HTTP/[0-9.]* 206' headers.txt || { echo "::error::expected 206"; exit 1; }
+          if grep -qi '^content-encoding:' headers.txt; then echo "::error::content-encoding must be absent"; exit 1; fi

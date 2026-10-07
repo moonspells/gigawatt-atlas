@@ -1,0 +1,26 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "headers": [
+          "range",
+          "if-match"
+        ],
+        "methods": [
+          "GET",
+          "HEAD"
+        ],
+        "origins": [
+          "https://moonspells.dev",
+          "http://localhost:4321"
+        ]
+      },
+      "exposeHeaders": [
+        "etag",
+        "content-length",
+        "content-range"
+      ],
+      "maxAgeSeconds": 3000
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+# Builds a release from main and uploads it to R2 `atlas-tiles` (07 §6.8, §11; 10 §11.8).
+# The build job holds no secrets; only the upload step sees the bucket-scoped R2 token, from the
+# `production` Environment (deployment branch main only). Nothing reaches v/ without a merge to main.
+name: publish
+
+on:
+  push:
+    branches: [main]
+    paths: ['data/**', 'overlays/out/**']
+  workflow_dispatch:
+    inputs:
+      allow_count_change:
+        description: Skip the ±10% record-count check against the last release (bulk imports)
+        type: boolean
+        default: false
+      fixture:
+        description: Upload the committed fixture release (fixtures/release, 20000101-0000) instead; never touches atlas/latest.json
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency: { group: atlas-publish, cancel-in-progress: false }
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read # labels of the merged PR (`bulk` skips the count check)
+    outputs:
+      release: ${{ steps.build.outputs.release }}
+      latest: ${{ steps.build.outputs.latest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with: { version: '0.11.32', enable-cache: false }
+      - run: uv sync --locked
+      - name: Build tippecanoe 2.79.0 (facilities.pmtiles)
+        if: inputs.fixture != true
+        env:
+          TIPPECANOE_COMMIT: 68ab8dcc229f95b8b25877697d5e8d66783af503 # tag 2.79.0
+        run: |
+          sudo apt-get install -y --no-install-recommends libsqlite3-dev zlib1g-dev
+          git init -q "$RUNNER_TEMP/tippecanoe" && cd "$RUNNER_TEMP/tippecanoe"
+          git fetch -q --depth 1 https://github.com/felt/tippecanoe "$TIPPECANOE_COMMIT"
+          git checkout -q FETCH_HEAD
+          make -j"$(nproc)" tippecanoe
+          echo "$RUNNER_TEMP/tippecanoe" >> "$GITHUB_PATH"
+      - run: uv run --locked atlas validate
+        if: inputs.fixture != true
+      - name: Was the merged PR a bulk import?
+        id: bulk
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pr="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0] | {number, labels: [.labels[].name]}' || echo '{}')"
+          echo "pr_number=$(jq -r '.number // empty' <<<"$pr")" >> "$GITHUB_OUTPUT"
+          if jq -e '.labels // [] | index("bulk")' <<<"$pr" > /dev/null; then echo "bulk=true" >> "$GITHUB_OUTPUT"; else echo "bulk=false" >> "$GITHUB_OUTPUT"; fi
+      - id: build
+        name: Build the release (or stage the committed fixture)
+        env:
+          FIXTURE: ${{ inputs.fixture == true }}
+          ALLOW_COUNT_CHANGE: ${{ steps.bulk.outputs.bulk == 'true' || inputs.allow_count_change == true }}
+          ATLAS_PR_NUMBER: ${{ steps.bulk.outputs.pr_number }}
+        run: |
+          if [ "$FIXTURE" = "true" ]; then
+            uv run --locked atlas publish fixture --check   # the committed fixture must match its records
+            cp -R fixtures/release "$RUNNER_TEMP/release"
+            echo "release=20000101-0000" >> "$GITHUB_OUTPUT"
+            echo "latest=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          args=(--out "$RUNNER_TEMP/release" --previous https://tiles.moonspells.dev/atlas/latest.json)
+          if [ "$ALLOW_COUNT_CHANGE" = "true" ]; then args+=(--allow-count-change); fi
+          uv run --locked atlas publish build "${args[@]}" --github-output "$GITHUB_OUTPUT"   # writes release=… and latest=true
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release
+          path: ${{ runner.temp }}/release
+          retention-days: 7
+          if-no-files-found: error
+
+  upload:
+    name: upload
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: production
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with: { version: '0.11.32', enable-cache: false }
+      - run: uv sync --locked
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: release, path: '${{ runner.temp }}/release' }
+      - name: Upload to R2 (v/, rec/, then atlas/latest.json unless the fixture)
+        env:
+          RELEASE: ${{ needs.build.outputs.release }}
+          LATEST: ${{ needs.build.outputs.latest }}
+          CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          R2_TILES_ACCESS_KEY_ID: ${{ secrets.R2_TILES_ACCESS_KEY_ID }}
+          R2_TILES_SECRET_ACCESS_KEY: ${{ secrets.R2_TILES_SECRET_ACCESS_KEY }}
+        run: |
+          args=("$RUNNER_TEMP/release" --release "$RELEASE")
+          if [ "$LATEST" != "true" ]; then args+=(--no-latest); fi
+          uv run --locked atlas publish upload "${args[@]}"
