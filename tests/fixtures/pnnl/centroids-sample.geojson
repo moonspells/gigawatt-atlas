@@ -1,0 +1,318 @@
+{
+  "type": "FeatureCollection",
+  "name": "im3_datacenter_centroids",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "Digital Realty",
+        "name": "Digital Realty ACC4",
+        "sqft": 294156.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.46254911136609,
+          39.01790179545806
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "Equinix",
+        "name": "Equinix Ashburn DC3",
+        "sqft": 186227.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.46028711676801,
+          39.021947985098286
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "Digital Realty",
+        "name": "Digital Realty ACC3",
+        "sqft": 151562.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.45984179692825,
+          39.019935905457515
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "Lumen Technologies",
+        "name": "Level 3 Ashburn",
+        "sqft": 49022.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.45759526225972,
+          39.022172555750075
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "Centersquare",
+        "name": "Centersquare IAD4-B",
+        "sqft": 90029.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.45360971695399,
+          39.02214033824212
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "NTT",
+        "name": "NTT Ashburn VA1 Data Center",
+        "sqft": 138507.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.45486922912973,
+          39.02276446224665
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "Equinix",
+        "name": "Equinix Ashburn DC10",
+        "sqft": 152397.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.4515128317989,
+          39.02101419474307
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "Centersquare",
+        "name": "Centersquare IAD4-A",
+        "sqft": 77749.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.45274689405193,
+          39.021733686561724
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "Amazon Web Services",
+        "name": "Amazon IAD78",
+        "sqft": 147979.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.44952022705412,
+          39.026368047566855
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "Amazon Web Services",
+        "name": "Amazon IAD79",
+        "sqft": 148678.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.45087034741265,
+          39.0263573753995
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "Amazon Web Services",
+        "name": "Amazon IAD71",
+        "sqft": 121176.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.45750287480858,
+          39.027908069308836
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "Amazon Web Services",
+        "name": "Amazon IAD80",
+        "sqft": 150443.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.45282885000002,
+          39.02710865
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "Equinix",
+        "name": "Equinix Ashburn DC12",
+        "sqft": 96380.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.44975814420093,
+          39.02300663947302
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "Equinix",
+        "name": "Equinix Ashburn DC15",
+        "sqft": 76665.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.45025585000002,
+          39.02250015
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "PowerHouse",
+        "name": "PowerHouse ABX-1",
+        "sqft": 131309.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.45046549398683,
+          39.019577925475055
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": null,
+        "name": null,
+        "sqft": 158127.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.45947386640835,
+          39.017947770701504
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Loudoun County",
+        "operator": "Equinix",
+        "name": "Equinix Ashburn DC2",
+        "sqft": 175215.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.45900625386373,
+          39.01647070668764
+        ]
+      }
+    }
+  ]
+}

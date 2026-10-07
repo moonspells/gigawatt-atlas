@@ -1,0 +1,724 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.4 2390de5a",
+  "osm3s": {
+    "timestamp_osm_base": "2026-10-07T22:19:21Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+    {
+      "type": "node",
+      "id": 10014176940,
+      "lat": 18.4174359,
+      "lon": -66.1089895,
+      "tags": {
+        "addr:city": "Guaynabo",
+        "addr:housenumber": "48",
+        "addr:postcode": "00968",
+        "addr:state": "PR",
+        "addr:street": "Avenida El Caño",
+        "name": "Microsoft",
+        "operator": "Microsoft",
+        "operator:wikidata": "Q2283",
+        "phone": "+1 787-273-3600",
+        "telecom": "data_center",
+        "website": "www,microsoft.com/es-pr"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11721960464,
+      "lat": 45.5706361,
+      "lon": -122.9206693,
+      "tags": {
+        "name": "QTS Data Center - Hillsboro 3",
+        "proposed:telecom": "data_center",
+        "source": "https://www.hillsboro-oregon.gov/home/showpublisheddocument/30425"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13154826379,
+      "lat": 38.7999731,
+      "lon": -77.6099636,
+      "tags": {
+        "addr:city": "Gainesville",
+        "addr:housenumber": "7251",
+        "addr:postcode": "20155",
+        "addr:state": "VA",
+        "addr:street": "Grove Hill Boulevard",
+        "construction:telecom": "data_center",
+        "it_power": "96 MW",
+        "name": "NTT VA11",
+        "operator": "NTT",
+        "operator:wikidata": "Q1054787",
+        "ref": "VA11",
+        "website": "https://services.global.ntt/en-us/services-and-products/global-data-centers/global-locations/americas/ashburn-va11-data-center"
+      }
+    },
+    {
+      "type": "node",
+      "id": 14156477686,
+      "lat": 39.025458,
+      "lon": -77.4542815,
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44690",
+        "addr:postcode": "20147",
+        "addr:street": "Performance Circle",
+        "name": "Equinix Ashburn DC18",
+        "operator": "Equinix",
+        "operator:wikidata": "Q851641",
+        "ref": "DC18",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 298126010,
+      "bounds": {
+        "minlat": 39.016447,
+        "minlon": -77.4639081,
+        "maxlat": 39.0192714,
+        "maxlon": -77.4610335
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44480",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Hastings Drive",
+        "building": "data_center",
+        "input:electricity": "72 MW",
+        "it_power": "36 MW",
+        "name": "Digital Realty ACC4",
+        "operator": "Digital Realty",
+        "operator:wikidata": "Q5275969",
+        "ref": "ACC4",
+        "telecom": "data_center",
+        "website": "https://www.digitalrealty.com/data-centers/americas/northern-virginia/acc4"
+      }
+    },
+    {
+      "type": "way",
+      "id": 298242260,
+      "bounds": {
+        "minlat": 39.021668,
+        "minlon": -77.4621378,
+        "maxlat": 39.0230489,
+        "maxlon": -77.4600456
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44470",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Chilum Place",
+        "building": "data_center",
+        "name": "Equinix DC3",
+        "operator": "Equinix",
+        "operator:wikidata": "Q851641",
+        "owner": "Digital Realty",
+        "ref": "DC3",
+        "telecom": "data_center",
+        "website": "https://www.equinix.com/data-centers/americas-colocation/united-states-colocation/washington-dc-data-centers/dc3"
+      }
+    },
+    {
+      "type": "way",
+      "id": 298242335,
+      "bounds": {
+        "minlat": 39.0191176,
+        "minlon": -77.4607532,
+        "maxlat": 39.0206425,
+        "maxlon": -77.4588534
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44520",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Hastings Drive",
+        "building": "data_center",
+        "input:electricity": "30 MW",
+        "it_power": "14 MW",
+        "name": "Digital Realty ACC3",
+        "operator": "Digital Realty",
+        "operator:wikidata": "Q5275969",
+        "ref": "ACC3",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 300162674,
+      "bounds": {
+        "minlat": 39.0193439,
+        "minlon": -77.465063,
+        "maxlat": 39.0209729,
+        "maxlon": -77.4611437
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44521",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Hastings Drive",
+        "building": "data_center",
+        "input:electricity": "72 MW",
+        "it_power": "34 MW",
+        "name": "Digital Realty ACC5",
+        "operator": "Digital Realty",
+        "operator:wikidata": "Q5275969",
+        "ref": "ACC5",
+        "telecom": "data_center",
+        "website": "https://www.digitalrealty.com/data-centers/americas/northern-virginia/acc5"
+      }
+    },
+    {
+      "type": "way",
+      "id": 300162689,
+      "bounds": {
+        "minlat": 39.0218105,
+        "minlon": -77.4583228,
+        "maxlat": 39.0225535,
+        "maxlon": -77.456896
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44633",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Guilford Drive",
+        "building": "data_center",
+        "fixme": "Might not exist anymore",
+        "name": "Lumen Ashburn",
+        "operator": "Lumen Technologies",
+        "operator:wikidata": "Q5063092",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 300163074,
+      "bounds": {
+        "minlat": 39.0213813,
+        "minlon": -77.4544801,
+        "maxlat": 39.0229544,
+        "maxlon": -77.4527092
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "21561;21571",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Beaumeade Circle",
+        "building": "data_center",
+        "name": "Centersquare IAD4-B",
+        "operator": "Centersquare",
+        "operator:wikidata": "Q127304226",
+        "ref": "IAD4",
+        "telecom": "data_center",
+        "website": "https://centersquaredc.com/data-centers/northern-virginia#ashburn-iad4"
+      }
+    },
+    {
+      "type": "way",
+      "id": 300163083,
+      "bounds": {
+        "minlat": 39.0217031,
+        "minlon": -77.4557926,
+        "maxlat": 39.0237841,
+        "maxlon": -77.4539897
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44664",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Guilford Drive",
+        "building": "data_center",
+        "clli": "CLPPVA01",
+        "it_power": "12.6 MW",
+        "name": "NTT VA1",
+        "operator": "NTT",
+        "operator:wikidata": "Q1054787",
+        "ref": "VA1",
+        "telecom": "data_center",
+        "website": "https://services.global.ntt/en-us/services-and-products/global-data-centers/global-locations/americas/ashburn-va-1-data-center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 460050155,
+      "bounds": {
+        "minlat": 39.0201915,
+        "minlon": -77.4524611,
+        "maxlat": 39.0218178,
+        "maxlon": -77.4505165
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "21551",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Beaumeade Circle",
+        "building": "data_center",
+        "name": "Equinix DC10",
+        "operator": "Equinix",
+        "operator:wikidata": "Q851641",
+        "owner": "Digital Realty",
+        "ref": "DC10",
+        "telecom": "data_center",
+        "website": "https://www.equinix.com/data-centers/americas-colocation/united-states-colocation/washington-dc-data-centers/dc10"
+      }
+    },
+    {
+      "type": "way",
+      "id": 460053028,
+      "bounds": {
+        "minlat": 39.0249298,
+        "minlon": -77.454534,
+        "maxlat": 39.0277324,
+        "maxlon": -77.448729
+      },
+      "tags": {
+        "barrier": "fence",
+        "landuse": "industrial",
+        "name": "Amazon Web Services Datacenter Complex",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 460053030,
+      "bounds": {
+        "minlat": 39.0271005,
+        "minlon": -77.4616398,
+        "maxlat": 39.030514,
+        "maxlon": -77.456036
+      },
+      "tags": {
+        "barrier": "fence",
+        "landuse": "industrial",
+        "name": "Amazon Web Services",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 460175666,
+      "bounds": {
+        "minlat": 39.0211056,
+        "minlon": -77.4536971,
+        "maxlat": 39.0224577,
+        "maxlon": -77.4518986
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "21561;21571",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Beaumeade Circle",
+        "building": "data_center",
+        "name": "Centersquare IAD4-A",
+        "operator": "Centersquare",
+        "operator:wikidata": "Q127304226",
+        "ref": "IAD4",
+        "source_ref": "https://centersquaredc.com/hubfs/CenterSquare/docs/Centersquare-IAD-SpecSheet.pdf",
+        "telecom": "data_center",
+        "website": "https://centersquaredc.com/data-centers/northern-virginia#ashburn-iad4"
+      }
+    },
+    {
+      "type": "way",
+      "id": 463571875,
+      "bounds": {
+        "minlat": 39.0252898,
+        "minlon": -77.4498723,
+        "maxlat": 39.0274463,
+        "maxlon": -77.4491681
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44862",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Interconnection Plaza",
+        "building": "data_center",
+        "input:electricity": "45 MW",
+        "it_power": "45 MW",
+        "name": "Amazon IAD-78",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "ref": "IAD-78",
+        "start_date": "2019",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 463571876,
+      "bounds": {
+        "minlat": 39.0252802,
+        "minlon": -77.4512198,
+        "maxlat": 39.0274346,
+        "maxlon": -77.4505209
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44858",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Interconnection Plaza",
+        "building": "data_center",
+        "input:electricity": "45 MW",
+        "it_power": "47 MW",
+        "name": "Amazon IAD-79",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "ref": "IAD-79",
+        "start_date": "2019",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 556599693,
+      "bounds": {
+        "minlat": 39.0272365,
+        "minlon": -77.4585914,
+        "maxlat": 39.0285763,
+        "maxlon": -77.4564081
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "21263",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Smith Switch Road",
+        "building": "data_center",
+        "input:electricity": "32.5 MW",
+        "it_power": "28 MW",
+        "name": "Amazon IAD-71",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "ref": "IAD-71",
+        "start_date": "2016",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 556599694,
+      "bounds": {
+        "minlat": 39.0288956,
+        "minlon": -77.4614453,
+        "maxlat": 39.0302275,
+        "maxlon": -77.4578639
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "21271",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Smith Switch Road",
+        "building": "data_center",
+        "input:electricity": "65 MW",
+        "it_power": "59 MW",
+        "name": "Amazon IAD-50",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "ref": "IAD-50",
+        "start_date": "2015",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 556599695,
+      "bounds": {
+        "minlat": 39.0281423,
+        "minlon": -77.4592572,
+        "maxlat": 39.0294051,
+        "maxlon": -77.457235
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "21267",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Smith Switch Road",
+        "building": "data_center",
+        "input:electricity": "32.5 MW",
+        "it_power": "28 MW",
+        "name": "Amazon IAD-60",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "ref": "IAD-60",
+        "start_date": "2016",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 596690174,
+      "bounds": {
+        "minlat": 39.0268311,
+        "minlon": -77.4542073,
+        "maxlat": 39.0273862,
+        "maxlon": -77.4514504
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44854",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Interconnection Plaza",
+        "building": "data_center",
+        "input:electricity": "40 MW",
+        "it_power": "38 MW",
+        "name": "Amazon IAD-80",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "ref": "IAD-80",
+        "start_date": "2019",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 596690175,
+      "bounds": {
+        "minlat": 39.0222952,
+        "minlon": -77.4507581,
+        "maxlat": 39.0237359,
+        "maxlon": -77.4488169
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44790",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Performance Circle",
+        "building": "data_center",
+        "name": "Equinix DC12",
+        "operator": "Equinix",
+        "operator:wikidata": "Q851641",
+        "ref": "DC12",
+        "start_date": "2017",
+        "telecom": "data_center",
+        "website": "https://www.equinix.com/data-centers/americas-colocation/united-states-colocation/washington-dc-data-centers/dc12"
+      }
+    },
+    {
+      "type": "way",
+      "id": 610977485,
+      "bounds": {
+        "minlat": 39.0244335,
+        "minlon": -77.4583256,
+        "maxlat": 39.0255919,
+        "maxlon": -77.4569547
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44610",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Guilford Drive",
+        "building": "data_center",
+        "it_power": "14 MW",
+        "name": "NTT VA2",
+        "operator": "NTT",
+        "operator:wikidata": "Q1054787",
+        "ref": "VA2",
+        "telecom": "data_center",
+        "website": "https://services.global.ntt/en-us/services-and-products/global-data-centers/global-locations/americas/ashburn-va-2-data-center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 793888408,
+      "bounds": {
+        "minlat": 39.0218634,
+        "minlon": -77.4512226,
+        "maxlat": 39.0231369,
+        "maxlon": -77.4492891
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44780",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Performance Circle",
+        "building": "data_center",
+        "name": "Equinix DC15",
+        "operator": "Equinix",
+        "operator:wikidata": "Q851641",
+        "ref": "DC15",
+        "telecom": "data_center",
+        "website": "https://www.equinix.com/data-centers/americas-colocation/united-states-colocation/washington-dc-data-centers/dc15"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1123249721,
+      "bounds": {
+        "minlat": 39.0236017,
+        "minlon": -77.4530313,
+        "maxlat": 39.0248674,
+        "maxlon": -77.4515436
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44740",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Performance Circle",
+        "building": "data_center",
+        "building:levels": "4",
+        "name": "Equinix DC16",
+        "operator": "Equinix",
+        "operator:wikidata": "Q851641",
+        "ref": "DC16",
+        "telecom": "data_center",
+        "website": "https://www.equinix.com/data-centers/americas-colocation/united-states-colocation/washington-dc-data-centers/dc16"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1188715508,
+      "bounds": {
+        "minlat": 39.0190068,
+        "minlon": -77.4515501,
+        "maxlat": 39.0201916,
+        "maxlon": -77.4493634
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "21529",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Beaumeade Circle",
+        "building": "data_center",
+        "name": "CyrusOne NVA14",
+        "operator": "PowerHouse",
+        "ref": "ABX-1",
+        "telecom": "data_center",
+        "website": "https://www.powerhousedata.com/data-center/powerhouse-abx-1"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1188715510,
+      "bounds": {
+        "minlat": 39.0175555,
+        "minlon": -77.460951,
+        "maxlat": 39.0182959,
+        "maxlon": -77.4580818
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "21745",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Beaumeade Circle",
+        "building": "data_center",
+        "name": "Cologix ASH1",
+        "operator": "Cologix",
+        "operator:wikidata": "Q18348355",
+        "ref": "ASH1",
+        "telecom": "data_center",
+        "website": "https://cologix.com/data-centers/ashburn/ash1/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1543931282,
+      "bounds": {
+        "minlat": 39.0209819,
+        "minlon": -77.4601977,
+        "maxlat": 39.0221577,
+        "maxlon": -77.4583321
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44490",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Chilum Place",
+        "building": "data_center",
+        "input:electricity": "25 MW",
+        "it_power": "10 MW",
+        "name": "Digital Realty ACC2",
+        "operator": "Digital Realty",
+        "operator:wikidata": "Q5275969",
+        "owner": "Digital Realty",
+        "ref": "ACC2",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1543931283,
+      "bounds": {
+        "minlat": 39.0242514,
+        "minlon": -77.4541702,
+        "maxlat": 39.02553,
+        "maxlon": -77.4526671
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "44710",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Performance Circle",
+        "building": "data_center",
+        "building:levels": "4",
+        "name": "Equinix DC17",
+        "operator": "Equinix",
+        "operator:wikidata": "Q851641",
+        "ref": "DC17",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1560827027,
+      "bounds": {
+        "minlat": 39.0191538,
+        "minlon": -77.4587506,
+        "maxlat": 39.0201349,
+        "maxlon": -77.4574687
+      },
+      "tags": {
+        "addr:city": "Ashburn",
+        "addr:housenumber": "21673",
+        "addr:postcode": "20147",
+        "addr:state": "VA",
+        "addr:street": "Beaumeade Circle",
+        "building": "construction",
+        "construction": "data_center",
+        "input:electricity": "51 MW",
+        "name": "Cologix ASH2",
+        "operator": "Cologix",
+        "operator:wikidata": "Q18348355",
+        "ref": "ASH2",
+        "telecom": "data_center",
+        "website": "https://cologix.com/data-centers/ashburn/ash2"
+      }
+    }
+  ]
+}
