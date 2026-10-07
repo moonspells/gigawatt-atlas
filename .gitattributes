@@ -1,0 +1,6 @@
+# LF everywhere (07 §3.1: record files are UTF-8 with LF); binary formats are never normalized.
+* text=auto eol=lf
+*.zip binary
+*.parquet binary
+*.pmtiles binary
+*.gz binary

@@ -1,0 +1,78 @@
+# CI for every pull request and for main (07 §7, 10 §8.4). Each job is a required check in the main
+# ruleset (.github/rulesets/main.json), so renaming a job needs a ruleset change in the same PR.
+# Action SHAs resolved with `git ls-remote` on 2026-10-07 (lightweight tags, so the tag SHA is the
+# commit); Dependabot keeps them current. zizmor is pinned by hash in .github/zizmor-requirements.txt.
+name: ci
+
+on:
+  # All pull_request types: the repo is public, so CI minutes are free and drafts are not skipped.
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with: { version: '0.11.32', enable-cache: false }
+      - run: uv sync --locked
+      - run: uv run --locked ruff check .
+      - run: uv run --locked ruff format --check .
+      - run: uv run --locked mypy
+
+  test:
+    name: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with: { version: '0.11.32', enable-cache: false }
+      - run: uv sync --locked
+      - run: uv run --locked python -m atlas.geo.duck --install # DuckDB spatial extension (signed), once
+      - run: uv run --locked pytest
+
+  validate:
+    name: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with: { version: '0.11.32', enable-cache: false }
+      - run: uv sync --locked
+      - run: uv run --locked atlas schema export --check # schema/facility.v1.json matches atlas/schema/record.py
+      - run: uv run --locked atlas validate # 07 §3.6 over data/records/ and data/orgs.json
+
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - name: Install zizmor
+        run: |
+          python3 -m venv "$RUNNER_TEMP/zizmor"
+          "$RUNNER_TEMP/zizmor/bin/pip" install --quiet --disable-pip-version-check \
+            --require-hashes --only-binary :all: -r .github/zizmor-requirements.txt
+      - run: '"$RUNNER_TEMP/zizmor/bin/zizmor" --min-severity medium .'
+        env:
+          GH_TOKEN: ${{ github.token }}

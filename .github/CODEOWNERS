@@ -1,0 +1,5 @@
+# Review requests go to the owner (10 §8.1). The main ruleset does not require code-owner review
+# (one maintainer), so this file routes notifications rather than blocking merges. Data changes under
+# data/ are always the owner's to review (07 §6.7).
+* @moonman36
+/data/ @moonman36

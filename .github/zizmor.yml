@@ -1,0 +1,7 @@
+# zizmor (10 §8.7), read by `zizmor --min-severity medium .` in the ci zizmor job (workflows and dependabot.yml).
+# Findings are fixed, not ignored; an inline `# zizmor: ignore[rule]` needs a comment saying why.
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        '*': hash-pin
