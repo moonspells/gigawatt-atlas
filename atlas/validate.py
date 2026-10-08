@@ -5,13 +5,14 @@ apply_import runs it on every candidate. validate_dataset adds the file, JSON Sc
 and org rules over a records directory.
 
 Rule ids: file, schema, jsonschema, rollup, dates, sources, support, quote, merged_into, geo,
-range, privacy, org, phase, scope.
+range, privacy, text, org, phase, scope.
 """
 
 from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field, replace
 from datetime import date
@@ -33,7 +34,7 @@ from atlas.schema.rollup import (
     period_start,
     rollup_status,
 )
-from atlas.text import find_personal_data
+from atlas.text import find_personal_data, hidden_characters, published_form
 
 if TYPE_CHECKING:
     from atlas.geo.counties import CountyIndex
@@ -51,6 +52,7 @@ RULES = (
     "geo",
     "range",
     "privacy",
+    "text",
     "org",
     "phase",
     "scope",
@@ -74,6 +76,19 @@ EARLIEST_DATE = date(1990, 1, 1)
 FUTURE_YEARS = 15
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+# Identifier strings: parcel numbers, queue ids and external ids are dashed digit runs that the
+# phone pattern would flag (a Cook County PIN, 08-35-302-012-0000), so they get the email check only.
+_IDENTIFIER_RE = re.compile(
+    r"^/(?:location/parcel_apns/\d+|location/geometry_ref|grid/queue_ids/\d+|external_ids(?:/.*)?"
+    r"|buildings/\d+/ref)$"
+)
+# Strings that other values refer to by exact text.
+_REFERENCE_RE = re.compile(r"^/(?:.*/)?(?:phase_id|org_id|source_ids/\d+)$")
+# Control characters (Cc) and line or paragraph separators: never part of a stored string.
+_CONTROL_CATEGORIES = frozenset({"Cc", "Zl", "Zp"})
+# Characters escaped in Issue.format, so record text cannot start a new output line (a GitHub
+# Actions workflow command such as "::error::") or reorder the line on screen.
+_UNPRINTABLE_CATEGORIES = frozenset({"Cc", "Cf", "Cs", "Zl", "Zp"})
 _ORGS = TypeAdapter(list[Org])
 _PARTY_ROLES = ("operator", "owner", "developer", "tenant", "filing_entities")
 
@@ -87,9 +102,11 @@ class Issue:
     pointer: str | None = None
 
     def format(self) -> str:
-        """`{file}:{pointer} [{rule}] {message}`; the record id stands in for a missing file."""
+        """`{file}:{pointer} [{rule}] {message}` on one line; the record id stands in for a missing
+        file. Control, format and separator characters are written as \\uXXXX escapes."""
         where = self.file or self.record_id or "-"
-        return f"{where}:{self.pointer or ''} [{self.rule}] {self.message}"
+        line = _escape_unprintable(f"{where}:{self.pointer or ''} [{self.rule}] {self.message}")
+        return "\\u003a" + line[1:] if line.startswith("::") else line
 
     def to_json(self) -> dict[str, str | None]:
         return {
@@ -99,6 +116,17 @@ class Issue:
             "file": self.file,
             "pointer": self.pointer,
         }
+
+
+def _escape_unprintable(s: str) -> str:
+    if s.isprintable():
+        return s
+    return "".join(
+        (f"\\u{ord(ch):04x}" if ord(ch) <= 0xFFFF else f"\\U{ord(ch):08x}")
+        if unicodedata.category(ch) in _UNPRINTABLE_CATEGORIES
+        else ch
+        for ch in s
+    )
 
 
 @dataclass
@@ -327,13 +355,36 @@ def _strings(value: Any, pointer: str) -> Iterator[tuple[str, str]]:
 
 
 def _check_privacy(record: FacilityRecord, add: Add) -> None:
+    """Rule 7 on the text publish emits (invisible characters removed), in NFKC form."""
     for pointer, text in _strings(record, ""):
-        found = find_personal_data(text)
+        phones = not _IDENTIFIER_RE.match(pointer)
+        found = find_personal_data(published_form(text), phones=phones)
         if found:
             add(
                 "privacy",
                 f"looks like an email address or phone number ({len(found)} match(es)); "
                 "records hold organizations only (07 §5.3)",
+                pointer,
+            )
+
+
+def _codepoints(chars: list[str]) -> str:
+    shown = ", ".join(dict.fromkeys(f"U+{ord(ch):04X}" for ch in chars))
+    return f"{len(chars)} ({shown})"
+
+
+def _check_text(record: FacilityRecord, add: Add) -> None:
+    """No control characters in any string, so record text cannot break an output line, and no
+    invisible characters in identifiers and references, which publish's strip_invisible would
+    otherwise change (other text is published without them, and rule 7 checks that form)."""
+    for pointer, text in _strings(record, ""):
+        bad = [ch for ch in text if unicodedata.category(ch) in _CONTROL_CATEGORIES]
+        if _IDENTIFIER_RE.match(pointer) or _REFERENCE_RE.match(pointer):
+            bad += hidden_characters(text)
+        if bad:
+            add(
+                "text",
+                f"has control or invisible characters: {_codepoints(bad)}; remove them",
                 pointer,
             )
 
@@ -364,8 +415,8 @@ def _check_scope(record: FacilityRecord, add: Add) -> None:
 def validate_record(
     record: FacilityRecord, *, counties: CountyIndex | None, today: date
 ) -> list[Issue]:
-    """The per-record rules: rollup, dates, sources, support, quote, geo, range, privacy, phase
-    and scope. counties=None skips the polygon checks."""
+    """The per-record rules: rollup, dates, sources, support, quote, geo, range, privacy, text,
+    phase and scope. counties=None skips the polygon checks."""
     issues: list[Issue] = []
 
     def add(rule: str, message: str, pointer: str | None = None) -> None:
@@ -378,6 +429,7 @@ def validate_record(
     _check_geo(record, counties, add)
     _check_ranges(record, today, add)
     _check_privacy(record, add)
+    _check_text(record, add)
     _check_phases(record, add)
     _check_scope(record, add)
     return issues

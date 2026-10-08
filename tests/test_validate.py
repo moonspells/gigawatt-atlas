@@ -25,7 +25,12 @@ ALSO_ALLOWED = {"schema": {"jsonschema"}, "jsonschema": {"file"}}
 
 
 def invalid_cases() -> list[str]:
+    """Case names: {rule}.json, {rule}-{variant}.json or a {rule} directory."""
     return sorted(p.stem if p.is_file() else p.name for p in INVALID.iterdir())
+
+
+def case_rule(case: str) -> str:
+    return case.split("-", 1)[0]
 
 
 def stage_case(case: str, dest: Path) -> Path:
@@ -63,7 +68,8 @@ def test_every_fixture_record_passes(
 
 
 def test_every_rule_has_an_invalid_case() -> None:
-    assert set(invalid_cases()) == set(RULES)
+    assert {case_rule(c) for c in invalid_cases()} == set(RULES)
+    assert set(RULES) <= set(invalid_cases())
 
 
 @pytest.mark.parametrize("case", invalid_cases())
@@ -79,8 +85,9 @@ def test_invalid_case_fails_with_its_rule(
         today=TODAY,
     )
     assert not report.ok
-    assert case in rules_of(report.issues)
-    assert rules_of(report.issues) <= {case} | ALSO_ALLOWED.get(case, set())
+    rule = case_rule(case)
+    assert rule in rules_of(report.issues)
+    assert rules_of(report.issues) <= {rule} | ALSO_ALLOWED.get(case, set())
 
 
 def test_file_name_must_match_id(
