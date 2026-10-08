@@ -6,25 +6,30 @@ joined with union-find:
 
 1. Containment: an object whose center lies inside a campus object's bounding box, expanded by
    30 m, joins that campus; inside several, it joins the smallest one. A campus and an object
-   whose operators are both known and differ (neither the normalized operator nor
-   operator:wikidata agree) do not join this way, because a bounding box is only an
-   approximation of the campus polygon and in dense areas such as Ashburn it covers other
-   operators' buildings.
-2. Operator radius: two non-campus objects whose centers are within radius_m (haversine) join when
-   they have the same normalize_org(operator) or the same operator:wikidata.
+   whose operators disagree do not join this way (operators_compatible), because a bounding box
+   is only an approximation of the campus polygon and in dense areas such as Ashburn it covers
+   other operators' buildings.
+2. Operator distance: two non-campus objects whose bounding boxes (a node is its point) are within
+   radius_m of each other join when they have the same normalize_org(operator) or the same
+   operator:wikidata.
+3. Neighbours without an operator: two non-campus objects that both have no operator information
+   join when their bounding boxes are within NEIGHBOR_GAP_M and they have the same
+   normalize_name(name) or neither has a name, or when they have the same addr:housenumber and
+   addr:street and their boxes are within radius_m.
 
-Objects without an operator join only through rule 1, and two campus objects never join each other
-directly. The result does not depend on input order.
+Distances are gaps between bounding boxes, not between centers, so two large buildings that touch
+join although their centers are far apart. Two campus objects never join each other directly. The
+result does not depend on input order.
 """
 
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
-from atlas.text import normalize_org
+from atlas.text import normalize_name, normalize_org
 
 ObjectKind = Literal["campus", "building", "point"]
 
@@ -32,6 +37,7 @@ EARTH_RADIUS_M = 6_371_008.8
 METERS_PER_DEGREE_LAT = math.pi * EARTH_RADIUS_M / 180  # about 111,195 m, the same sphere
 CONTAIN_MARGIN_M = 30.0
 DEFAULT_RADIUS_M = 300.0
+NEIGHBOR_GAP_M = 50.0  # rule 3; 100 m chained unnamed buildings across 1.5 km on 2026-10-07
 _TYPE_ORDER = {"node": 0, "way": 1, "relation": 2}
 
 
@@ -86,6 +92,17 @@ class Bounds:
     def contains(self, lat: float, lon: float) -> bool:
         return self.minlat <= lat <= self.maxlat and self.minlon <= lon <= self.maxlon
 
+    def gap_m(self, other: Bounds) -> float:
+        """The distance in metres between the two boxes, 0 when they touch or overlap
+        (equirectangular at the mean latitude, like area_m2)."""
+        lat = (self.minlat + self.maxlat + other.minlat + other.maxlat) / 4
+        dlat = max(0.0, other.minlat - self.maxlat, self.minlat - other.maxlat)
+        dlon = max(0.0, other.minlon - self.maxlon, self.minlon - other.maxlon)
+        return math.hypot(
+            dlat * METERS_PER_DEGREE_LAT,
+            dlon * METERS_PER_DEGREE_LAT * math.cos(math.radians(lat)),
+        )
+
 
 @dataclass(frozen=True)
 class OsmObject:
@@ -125,8 +142,29 @@ class OsmObject:
     def operator_qid(self) -> str | None:
         return self.tags.get("operator:wikidata") or None
 
+    @property
+    def has_operator(self) -> bool:
+        """True when the object has a usable operator or an operator:wikidata."""
+        return self.operator_key is not None or self.operator_qid is not None
+
+    @property
+    def extent(self) -> Bounds:
+        """The bounding box, or the point itself for a node."""
+        return self.bounds or Bounds(self.lat, self.lon, self.lat, self.lon)
+
+    @property
+    def address_key(self) -> tuple[str, str] | None:
+        """(addr:housenumber, addr:street), normalized, when the object has both."""
+        number = normalize_name(self.tags.get("addr:housenumber", ""))
+        street = normalize_name(self.tags.get("addr:street", ""))
+        return (number, street) if number and street else None
+
     def area_m2(self) -> float:
         return self.bounds.area_m2() if self.bounds is not None else 0.0
+
+    def gap_m(self, other: OsmObject) -> float:
+        """The distance in metres between the two objects' extents, 0 when they overlap."""
+        return self.extent.gap_m(other.extent)
 
 
 @dataclass(frozen=True)
@@ -145,22 +183,28 @@ class Cluster:
         return tuple(m for m in self.members if m.kind == "campus")
 
 
-def same_operator(a: OsmObject, b: OsmObject) -> bool:
-    """Same normalized operator name, or same operator:wikidata."""
-    ka, kb = a.operator_key, b.operator_key
-    if ka is not None and ka == kb:
-        return True
-    qa, qb = a.operator_qid, b.operator_qid
-    return qa is not None and qa == qb
+def _word_prefix(a: str, b: str) -> bool:
+    """True when the shorter of two normalized names is the start of the longer, word by word."""
+    wa, wb = a.split(), b.split()
+    n = min(len(wa), len(wb))
+    return n > 0 and wa[:n] == wb[:n]
 
 
 def operators_compatible(obj: OsmObject, campus: OsmObject) -> bool:
-    """False only when both carry operator information and it disagrees."""
-    obj_known = obj.operator_key is not None or obj.operator_qid is not None
-    campus_known = campus.operator_key is not None or campus.operator_qid is not None
-    if not obj_known or not campus_known:
-        return True
-    return same_operator(obj, campus)
+    """False only when obj and campus carry comparable operator information that disagrees.
+
+    When both have an operator:wikidata, the ids decide. Otherwise the normalized operators are
+    compared, and one that starts the other agrees with it ("Amazon" and "Amazon Web Services
+    us-east-2 datacenter" both agree with "Amazon Web Services"). An object that lacks what the
+    other has is compatible.
+    """
+    qa, qb = obj.operator_qid, campus.operator_qid
+    if qa is not None and qb is not None:
+        return qa == qb
+    ka, kb = obj.operator_key, campus.operator_key
+    if ka is not None and kb is not None:
+        return _word_prefix(ka, kb)
+    return True
 
 
 class _UnionFind:
@@ -208,6 +252,29 @@ def choose_representative(members: Sequence[OsmObject]) -> OsmObject:
     return min(members, key=lambda m: ref_key(m.ref))
 
 
+def _join_close(
+    uf: _UnionFind,
+    index: Mapping[str, int],
+    groups: Iterable[Sequence[OsmObject]],
+    limit_m: float,
+) -> None:
+    """Union every two objects of a group whose extents are within limit_m of each other.
+
+    Each group is swept in order of the extents' southern edge, so only pairs that overlap in
+    latitude (within limit_m) are measured.
+    """
+    dlat = limit_m / METERS_PER_DEGREE_LAT
+    for members in groups:
+        swept = sorted(members, key=lambda o: (o.extent.minlat, ref_key(o.ref)))
+        for i, a in enumerate(swept):
+            north = a.extent.maxlat + dlat
+            for b in swept[i + 1 :]:
+                if b.extent.minlat > north:
+                    break
+                if a.gap_m(b) <= limit_m:
+                    uf.union(index[a.ref], index[b.ref])
+
+
 def dissolve(objects: Sequence[OsmObject], *, radius_m: float = DEFAULT_RADIUS_M) -> list[Cluster]:
     """Group objects into clusters (see the module docstring). Clusters are sorted by their
     representative's ref_key, and each cluster's members by ref_key."""
@@ -231,19 +298,27 @@ def dissolve(objects: Sequence[OsmObject], *, radius_m: float = DEFAULT_RADIUS_M
         if campus is not None:
             uf.union(index[obj.ref], index[campus.ref])
 
-    # Rule 2: same operator (name or Wikidata id) within radius_m.
-    groups: dict[str, list[OsmObject]] = {}
+    # Rule 2: same operator (name or Wikidata id), extents within radius_m.
+    by_operator: dict[str, list[OsmObject]] = {}
     for obj in others:
         if obj.operator_key is not None:
-            groups.setdefault("name:" + obj.operator_key, []).append(obj)
+            by_operator.setdefault("name:" + obj.operator_key, []).append(obj)
         if obj.operator_qid is not None:
-            groups.setdefault("qid:" + obj.operator_qid, []).append(obj)
-    for key in sorted(groups):
-        members = groups[key]
-        for i, a in enumerate(members):
-            for b in members[i + 1 :]:
-                if haversine_m(a.lat, a.lon, b.lat, b.lon) <= radius_m:
-                    uf.union(index[a.ref], index[b.ref])
+            by_operator.setdefault("qid:" + obj.operator_qid, []).append(obj)
+    _join_close(uf, index, by_operator.values(), radius_m)
+
+    # Rule 3: objects without operator information, by name (or both unnamed) within
+    # NEIGHBOR_GAP_M, or by street address within radius_m.
+    by_name: dict[str, list[OsmObject]] = {}
+    by_address: dict[tuple[str, str], list[OsmObject]] = {}
+    for obj in others:
+        if obj.has_operator:
+            continue
+        by_name.setdefault(normalize_name(obj.name) if obj.name else "", []).append(obj)
+        if obj.address_key is not None:
+            by_address.setdefault(obj.address_key, []).append(obj)
+    _join_close(uf, index, by_name.values(), NEIGHBOR_GAP_M)
+    _join_close(uf, index, by_address.values(), radius_m)
 
     grouped: dict[int, list[OsmObject]] = {}
     for obj in ordered:

@@ -300,23 +300,46 @@ def test_overpass_input_file(make_test_context: MakeContext) -> None:
 # ---------------------------------------------------------------------------- records
 
 
+AWS_REFS = (
+    "way/460053028",
+    "way/460053030",
+    "way/463571875",
+    "way/463571876",
+    "way/556599693",
+    "way/556599694",
+    "way/556599695",
+    "way/596690174",
+)
+
+
 def test_campus_record(built: BuildResult) -> None:
+    # The two AWS campus polygons and their six buildings: IAD-80's box lies within 300 m of
+    # IAD-71's, so the campuses form one site. The larger campus, way/460053030, represents it.
     c = candidate(built, "way/460053028")
     r = c.record
-    assert c.match_values == ("way/460053028", "way/463571875", "way/463571876", "way/596690174")
+    assert c.match_values == AWS_REFS
     assert r.id == PLACEHOLDER_ID
     assert r.record_type == "campus" and r.scope == "in_scope"
-    assert r.canonical_name == "Amazon Web Services Datacenter Complex (Ashburn, VA)"
-    assert [a.name for a in r.aliases] == ["Amazon IAD-78", "Amazon IAD-79", "Amazon IAD-80"]
+    assert r.canonical_name == "Amazon Web Services (Ashburn, VA)"
+    assert [a.name for a in r.aliases] == [
+        "Amazon Web Services Datacenter Complex",
+        "Amazon IAD-78",
+        "Amazon IAD-79",
+        "Amazon IAD-71",
+        "Amazon IAD-50",
+        "Amazon IAD-60",
+        "Amazon IAD-80",
+    ]
     assert all(a.kind == "osm_name" and a.source_ids == ["s1"] for a in r.aliases)
     assert [(o.name, o.source_ids) for o in r.parties.operator] == [("Amazon Web Services", ["s1"])]
     assert r.parties.owner == []
 
-    center = Bounds(39.0249298, -77.454534, 39.0277324, -77.448729).center
+    rep = next(o for o in parse_overpass(fixture_doc())[0] if o.ref == "way/460053030")
+    assert rep.bounds is not None
     loc = r.location
-    assert (loc.lat, loc.lon) == (round(center[0], 7), round(center[1], 7))
+    assert (loc.lat, loc.lon) == (round(rep.lat, 7), round(rep.lon, 7))
     assert loc.precision == "footprint" and loc.geocode_method == "osm"
-    assert loc.geometry_ref == "osm:way/460053028"
+    assert loc.geometry_ref == "osm:way/460053030"
     assert (loc.county_fips, loc.county_name, loc.state_abbr) == ("51107", "Loudoun", "VA")
     assert (loc.street, loc.city, loc.postcode) == (
         "44862 Interconnection Plaza",
@@ -324,20 +347,25 @@ def test_campus_record(built: BuildResult) -> None:
         "20147",
     )
 
-    assert r.capacity.it_mw == 130.0  # 45 + 47 + 38
-    assert r.capacity.facility_mw == 130.0  # 45 + 45 + 40
+    assert r.capacity.it_mw == 245.0  # 45 + 47 + 28 + 59 + 28 + 38
+    assert r.capacity.facility_mw == 260.0  # 45 + 45 + 32.5 + 65 + 32.5 + 40
     assert r.capacity.mw_as_stated == (
-        "OSM it_power: Amazon IAD-78 45 MW; Amazon IAD-79 47 MW; Amazon IAD-80 38 MW | "
-        "OSM input:electricity: Amazon IAD-78 45 MW; Amazon IAD-79 45 MW; Amazon IAD-80 40 MW"
+        "OSM it_power: Amazon IAD-78 45 MW; Amazon IAD-79 47 MW; Amazon IAD-71 28 MW; "
+        "Amazon IAD-50 59 MW; Amazon IAD-60 28 MW; Amazon IAD-80 38 MW | "
+        "OSM input:electricity: Amazon IAD-78 45 MW; Amazon IAD-79 45 MW; "
+        "Amazon IAD-71 32.5 MW; Amazon IAD-50 65 MW; Amazon IAD-60 32.5 MW; Amazon IAD-80 40 MW"
     )
     assert [(b.ref, b.name, b.sqft) for b in r.buildings] == [
         ("osm:way/463571875", "Amazon IAD-78", 147979.0),
         ("osm:way/463571876", "Amazon IAD-79", 148678.0),
+        ("osm:way/556599693", "Amazon IAD-71", 121176.0),
+        ("osm:way/556599694", "Amazon IAD-50", None),
+        ("osm:way/556599695", "Amazon IAD-60", None),
         ("osm:way/596690174", "Amazon IAD-80", 150443.0),
     ]
-    assert r.site.building_sqft == 447100.0 and r.site.acreage is None
+    assert r.site.building_sqft == 568276.0 and r.site.acreage is None
 
-    # The buildings carry start_date=2019 and the campus is operating: energized in 2019.
+    # The campus has no start_date and the earliest building's is 2015 (IAD-50): energized 2015.
     (event,) = r.status_history
     assert (event.seq, event.status, event.event, event.planned) == (
         1,
@@ -345,16 +373,16 @@ def test_campus_record(built: BuildResult) -> None:
         "energized",
         False,
     )
-    assert (event.as_of.value, event.as_of.precision) == ("2019", "year")
+    assert (event.as_of.value, event.as_of.precision) == ("2015", "year")
     assert event.source_ids == ["s1"]
     assert (
         event.note
-        == "start_date=2019 on way/463571875; tagged telecom=data_center in OpenStreetMap"
+        == "start_date=2015 on way/556599694; tagged telecom=data_center in OpenStreetMap"
     )
     assert r.status == "operating" and r.evidence_level == "reported" and r.purpose == "unknown"
     assert {k: v.value for k, v in r.dates.items()} == {
-        "first_reported": "2019",
-        "operating_since": "2019",
+        "first_reported": "2015",
+        "operating_since": "2015",
     }
 
     assert r.external_ids == {
@@ -363,16 +391,17 @@ def test_campus_record(built: BuildResult) -> None:
             "building@-77.449520,39.026368",
             "building@-77.450870,39.026357",
             "building@-77.452829,39.027109",
+            "building@-77.457503,39.027908",
         ],
     }
     s1, s2 = r.sources
     assert (s1.id, str(s1.url), s1.publisher) == (
         "s1",
-        "https://www.openstreetmap.org/way/460053028",
+        "https://www.openstreetmap.org/way/460053030",
         "OpenStreetMap contributors",
     )
     assert (s1.title, s1.source_type, s1.license) == (
-        "OpenStreetMap way/460053028",
+        "OpenStreetMap way/460053030",
         "open_dataset",
         "ODbL-1.0",
     )
@@ -474,7 +503,7 @@ def test_out_of_scope(built: BuildResult) -> None:
 def test_metrics(built: BuildResult) -> None:
     assert built.metrics == {
         "objects": 30,
-        "clusters": 14,
+        "clusters": 12,
         "out_of_scope": 1,
         "unit_parse": 0,
         "pnnl_rows": 17,
@@ -489,7 +518,7 @@ def test_metrics(built: BuildResult) -> None:
 
 
 def test_every_candidate_validates(built: BuildResult, counties: CountyIndex) -> None:
-    assert len(built.candidates) == 14
+    assert len(built.candidates) == 12
     for c in built.candidates:
         assert validate_record(c.record, counties=counties, today=TODAY) == [], c.match_values
         assert FacilityRecord.model_validate(record_json(c.record)) == c.record
@@ -500,7 +529,7 @@ def test_without_pnnl(counties: CountyIndex) -> None:
     r = candidate(result, "way/460053028").record
     assert [s.id for s in r.sources] == ["s1"]
     assert "pnnl_im3" not in r.external_ids
-    assert [b.sqft for b in r.buildings] == [None, None, None]
+    assert [b.sqft for b in r.buildings] == [None] * 6
     assert r.site.building_sqft is None
     assert "pnnl_rows" not in result.metrics
 
@@ -643,7 +672,7 @@ def test_run_uses_overpass_urls(make_test_context: MakeContext) -> None:
     )
     assert calls == ["https://overpass.example/api/interpreter"]
     assert [i.name for i in result.inputs] == ["overpass"]
-    assert result.metrics["clusters"] == 14
+    assert result.metrics["clusters"] == 12
 
 
 def tree(root: Path) -> dict[str, bytes]:
@@ -674,10 +703,10 @@ def test_cli_import_is_idempotent(tmp_repo: Path, capsys: pytest.CaptureFixture[
     ]
     assert main(argv) == 0
     out = capsys.readouterr()
-    assert "candidates=14 new=14" in out.out
+    assert "candidates=12 new=12" in out.out
     assert "warning: 94.1% of PNNL rows matched" in out.err
     before = tree(tmp_repo)
-    assert len([k for k in before if k.startswith("data/records/")]) == 14
+    assert len([k for k in before if k.startswith("data/records/")]) == 12
     receipt = json.loads(before["data/imports/osm.json"])
     assert receipt["counts"]["invalid"] == 0
     assert [i["name"] for i in receipt["inputs"]] == ["overpass", "pnnl"]
@@ -689,7 +718,7 @@ def test_cli_import_is_idempotent(tmp_repo: Path, capsys: pytest.CaptureFixture[
     # Run 2 rewrites nothing but the receipt, whose counts now say unchanged; run 3 changes nothing.
     assert main(argv) == 0
     out = capsys.readouterr()
-    assert "new=0 updated=0 unchanged=14" in out.out
+    assert "new=0 updated=0 unchanged=12" in out.out
     second = tree(tmp_repo)
     changed = sorted(k for k in second if second[k] != before.get(k))
     assert changed == ["data/imports/osm.json"]

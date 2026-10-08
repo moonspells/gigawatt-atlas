@@ -127,7 +127,12 @@ def test_spatial_join() -> None:
     assert [r.key for r in result.unmatched] == [UNMATCHED_KEY]
     assert result.total == 17 and result.by_id == 0
     assert result.match_rate == pytest.approx(16 / 17)
-    assert names_by_rep(result)["way/460053028"] == ["Amazon IAD78", "Amazon IAD79", "Amazon IAD80"]
+    assert names_by_rep(result)["way/460053030"] == [
+        "Amazon IAD71",
+        "Amazon IAD78",
+        "Amazon IAD79",
+        "Amazon IAD80",
+    ]
     assert result.members["building@-77.449520,39.026368"] == "way/463571875"
     # The unnamed PNNL row lies in Cologix ASH1's footprint.
     assert result.members["building@-77.459474,39.017948"] == "way/1188715510"
@@ -281,7 +286,7 @@ def test_county_mismatch_review_item(counties: CountyIndex) -> None:
     )
     (item,) = [i for i in built.review if i.kind == "county_mismatch"]
     assert (item.source, item.external_id) == ("pnnl", row.key)
-    assert item.data["osm"] == "way/460053028" and item.data["county_fips"] == "51107"
+    assert item.data["osm"] == "way/460053030" and item.data["county_fips"] == "51107"
     assert built.metrics["pnnl_match_rate"] == 1.0
 
 

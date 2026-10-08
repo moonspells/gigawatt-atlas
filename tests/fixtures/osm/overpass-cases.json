@@ -1,0 +1,483 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.4 2390de5a",
+  "osm3s": {
+    "timestamp_osm_base": "2026-10-07T22:39:49Z",
+    "timestamp_areas_base": "2026-10-07T21:28:20Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+    {
+      "type": "way",
+      "id": 300974499,
+      "bounds": {
+        "minlat": 33.3449094,
+        "minlon": -111.6057634,
+        "maxlat": 33.3491573,
+        "maxlon": -111.6025203
+      },
+      "tags": {
+        "addr:city": "Mesa",
+        "addr:housenumber": "3740",
+        "addr:postcode": "85212",
+        "addr:state": "AZ",
+        "addr:street": "South Signal Butte Road",
+        "building": "industrial",
+        "building:use": "data_center",
+        "name": "Apple Data Center",
+        "operator": "Apple Inc.",
+        "operator:wikidata": "Q312",
+        "owner": "Platypus Development LLC",
+        "source": "https://www.datacenters.com/apple-inc-mesa",
+        "start_date": "2012",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 459188725,
+      "bounds": {
+        "minlat": 40.8432629,
+        "minlon": -72.8838328,
+        "maxlat": 40.8440409,
+        "maxlon": -72.8829186
+      },
+      "tags": {
+        "addr:city": "Shirley",
+        "addr:housenumber": "21",
+        "addr:postcode": "11967",
+        "addr:street": "Ramsey Road",
+        "building": "commercial",
+        "name": "Cable & Wireless Cable Landing Station",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 460067225,
+      "bounds": {
+        "minlat": 40.0566765,
+        "minlon": -83.1372571,
+        "maxlat": 40.0630548,
+        "maxlon": -83.1313107
+      },
+      "tags": {
+        "landuse": "industrial",
+        "name": "Amazon AWS: Hilliard Data Center",
+        "operator": "Amazon Web Services us-east-2 datacenter",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 567575425,
+      "bounds": {
+        "minlat": 33.3449094,
+        "minlon": -111.6057634,
+        "maxlat": 33.3491573,
+        "maxlon": -111.6027724
+      },
+      "tags": {
+        "building": "yes",
+        "roof:shape": "flat",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 673532692,
+      "bounds": {
+        "minlat": 40.0606163,
+        "minlon": -83.1366715,
+        "maxlat": 40.061688,
+        "maxlon": -83.1336743
+      },
+      "tags": {
+        "building": "industrial",
+        "name": "Amazon Web Services",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 832656125,
+      "bounds": {
+        "minlat": 43.083472,
+        "minlon": -79.003005,
+        "maxlat": 43.083513,
+        "maxlon": -79.002876
+      },
+      "tags": {
+        "addr:city": "Niagara Falls",
+        "addr:housenumber": "5380",
+        "addr:postcode": "14304",
+        "addr:state": "NY",
+        "addr:street": "Frontier Avenue",
+        "building": "industrial",
+        "building:use": "data_center",
+        "industrial": "data_center",
+        "name": "Blockfusion Niagra Falls",
+        "source:data": "https://finance.yahoo.com/news/blockfusion-wins-approval-reopen-bitcoin-035900770.html?guccounter=1&guce_referrer=aHR0cHM6Ly93d3cuYXJjZ2lzLmNvbS9hcHBzL2luc3RhbnQvc2lkZWJhci9pbmRleC5odG1sP2FwcGlkPWZkYjc2NzhmYjJlMzQ1ZWI4YjBhM2E0OTk3MTI0MGM0&guce_referrer_si",
+        "source:name": "FracTracker Alliance",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 844352473,
+      "bounds": {
+        "minlat": 33.7481932,
+        "minlon": -84.5864184,
+        "maxlat": 33.7512614,
+        "maxlon": -84.5832216
+      },
+      "tags": {
+        "building": "yes",
+        "name": "Google",
+        "operator": "Google",
+        "operator:wikidata": "Q95",
+        "start_date": "2003",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 844352474,
+      "bounds": {
+        "minlat": 33.7511281,
+        "minlon": -84.5881175,
+        "maxlat": 33.7530407,
+        "maxlon": -84.5855093
+      },
+      "tags": {
+        "building": "yes",
+        "name": "Google",
+        "operator": "Google",
+        "operator:wikidata": "Q95",
+        "start_date": "2003",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 874506250,
+      "bounds": {
+        "minlat": 40.059616,
+        "minlon": -83.1363761,
+        "maxlat": 40.0606785,
+        "maxlon": -83.1334386
+      },
+      "tags": {
+        "building": "industrial",
+        "name": "Amazon Web Services",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 975064000,
+      "bounds": {
+        "minlat": 33.7460884,
+        "minlon": -84.5814742,
+        "maxlat": 33.7470326,
+        "maxlon": -84.5780072
+      },
+      "tags": {
+        "addr:city": "Austell",
+        "addr:housenumber": "101",
+        "addr:postcode": "30122",
+        "addr:state": "GA",
+        "addr:street": "Aquila Way",
+        "building": "yes",
+        "name": "Digital Realty Atlanta ATL11",
+        "operator": "Digital Realty",
+        "operator:wikidata": "Q5275969",
+        "ref": "ATL11",
+        "telecom": "data_center",
+        "website": "https://www.digitalrealty.com/data-centers/atlanta/101-aquila-way-austell-ga"
+      }
+    },
+    {
+      "type": "way",
+      "id": 975484796,
+      "bounds": {
+        "minlat": 40.0587673,
+        "minlon": -83.1360793,
+        "maxlat": 40.0598831,
+        "maxlon": -83.1331334
+      },
+      "tags": {
+        "building": "industrial",
+        "name": "Amazon Web Services",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 975484797,
+      "bounds": {
+        "minlat": 40.0578107,
+        "minlon": -83.1352244,
+        "maxlat": 40.0588072,
+        "maxlon": -83.1329568
+      },
+      "tags": {
+        "building": "industrial",
+        "name": "Amazon Web Services",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 975484798,
+      "bounds": {
+        "minlat": 40.0597089,
+        "minlon": -83.1334005,
+        "maxlat": 40.0618501,
+        "maxlon": -83.1321052
+      },
+      "tags": {
+        "building": "industrial",
+        "name": "Amazon Web Services",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1229749890,
+      "bounds": {
+        "minlat": 43.0819444,
+        "minlon": -79.0034708,
+        "maxlat": 43.0821131,
+        "maxlon": -79.0033639
+      },
+      "tags": {
+        "addr:city": "Niagara Falls",
+        "addr:housenumber": "5380",
+        "addr:postcode": "14304",
+        "addr:state": "NY",
+        "addr:street": "Frontier Avenue",
+        "building": "industrial",
+        "building:use": "data_center",
+        "industrial": "data_center",
+        "name": "Blockfusion Niagra Falls",
+        "source:data": "https://finance.yahoo.com/news/blockfusion-wins-approval-reopen-bitcoin-035900770.html?guccounter=1&guce_referrer=aHR0cHM6Ly93d3cuYXJjZ2lzLmNvbS9hcHBzL2luc3RhbnQvc2lkZWJhci9pbmRleC5odG1sP2FwcGlkPWZkYjc2NzhmYjJlMzQ1ZWI4YjBhM2E0OTk3MTI0MGM0&guce_referrer_si",
+        "source:name": "FracTracker Alliance",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1365213539,
+      "bounds": {
+        "minlat": 44.7751333,
+        "minlon": -122.61601,
+        "maxlat": 44.7753137,
+        "maxlon": -122.6158524
+      },
+      "tags": {
+        "building": "yes",
+        "name": "PTC",
+        "operator": "Stayton Cooperative Telephone Company",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1422191468,
+      "bounds": {
+        "minlat": 46.011808,
+        "minlon": -98.5735423,
+        "maxlat": 46.0128347,
+        "maxlon": -98.5726544
+      },
+      "tags": {
+        "building": "industrial",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1422191469,
+      "bounds": {
+        "minlat": 46.0118833,
+        "minlon": -98.574201,
+        "maxlat": 46.0129142,
+        "maxlon": -98.5732828
+      },
+      "tags": {
+        "building": "industrial",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1422191470,
+      "bounds": {
+        "minlat": 46.0130643,
+        "minlon": -98.5720556,
+        "maxlat": 46.013939,
+        "maxlon": -98.5712866
+      },
+      "tags": {
+        "building": "industrial",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1422191471,
+      "bounds": {
+        "minlat": 46.0130557,
+        "minlon": -98.5714943,
+        "maxlat": 46.0139227,
+        "maxlon": -98.5707169
+      },
+      "tags": {
+        "building": "industrial",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1422191472,
+      "bounds": {
+        "minlat": 46.0130877,
+        "minlon": -98.5726746,
+        "maxlat": 46.0139291,
+        "maxlon": -98.5719242
+      },
+      "tags": {
+        "building": "industrial",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1422191473,
+      "bounds": {
+        "minlat": 46.0130963,
+        "minlon": -98.5732808,
+        "maxlat": 46.0139487,
+        "maxlon": -98.5725197
+      },
+      "tags": {
+        "building": "industrial",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1422191474,
+      "bounds": {
+        "minlat": 46.0131057,
+        "minlon": -98.5744109,
+        "maxlat": 46.0139558,
+        "maxlon": -98.5736811
+      },
+      "tags": {
+        "building": "industrial",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1422191475,
+      "bounds": {
+        "minlat": 46.0130875,
+        "minlon": -98.5738617,
+        "maxlat": 46.013945,
+        "maxlon": -98.5731184
+      },
+      "tags": {
+        "building": "industrial",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1422191476,
+      "bounds": {
+        "minlat": 46.011952,
+        "minlon": -98.5730121,
+        "maxlat": 46.0128386,
+        "maxlon": -98.572223
+      },
+      "tags": {
+        "building": "industrial",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1422191477,
+      "bounds": {
+        "minlat": 46.0123671,
+        "minlon": -98.5747213,
+        "maxlat": 46.0129151,
+        "maxlon": -98.5742045
+      },
+      "tags": {
+        "building": "industrial",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1530966380,
+      "bounds": {
+        "minlat": 32.4975206,
+        "minlon": -99.7839613,
+        "maxlat": 32.4986337,
+        "maxlon": -99.7830951
+      },
+      "tags": {
+        "building": "data_center",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1530966381,
+      "bounds": {
+        "minlat": 32.4975009,
+        "minlon": -99.7859421,
+        "maxlat": 32.498598,
+        "maxlon": -99.7850728
+      },
+      "tags": {
+        "building": "data_center",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1530966382,
+      "bounds": {
+        "minlat": 32.4974919,
+        "minlon": -99.7870446,
+        "maxlat": 32.4985898,
+        "maxlon": -99.7861794
+      },
+      "tags": {
+        "building": "data_center",
+        "telecom": "data_center"
+      }
+    }
+  ]
+}

@@ -887,7 +887,7 @@ class OsmImporter:
             type=_positive_m,
             default=DEFAULT_RADIUS_M,
             metavar="M",
-            help="same-operator join radius in metres (default 300)",
+            help="same-operator join distance between bounding boxes in metres (default 300)",
         )
 
     def run(self, ctx: ImportContext, args: argparse.Namespace) -> ImportResult:

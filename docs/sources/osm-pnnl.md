@@ -18,7 +18,7 @@ uv run atlas import osm --no-pnnl --overpass-url https://overpass.example/api/in
 | `--pnnl PATH` | A PNNL file: the public GeoJSON, or a CSV in the MSD-LIVE layout. Without it, the public GeoJSON is fetched. |
 | `--no-pnnl` | Skip the cross-check. |
 | `--overpass-url URL` | Repeatable; replaces the default endpoint list. |
-| `--dissolve-m M` | The same-operator join radius, default 300 m. |
+| `--dissolve-m M` | The same-operator join distance between bounding boxes, default 300 m (also the same-address distance of rule 3). |
 
 The common `atlas import` options (`--records`, `--review-dir`, `--receipts-dir`, `--cache-dir`,
 `--now`, `--dry-run`, `--offline`) are described in the README. The importer's name, match key and
@@ -84,23 +84,45 @@ invisible characters removed and whitespace collapsed. `kind` is:
 
 ## 4. Dissolving objects into campuses
 
-`dissolve(objects, radius_m=300)` joins objects with union-find:
+`dissolve(objects, radius_m=300)` joins objects with union-find. Distances are gaps between
+bounding boxes (a node is its point; 0 when the boxes touch or overlap), not distances between
+centers, so two large halls that touch join although their centers are 320 m apart (Google,
+Douglas County, GA, ways 844352473 and 844352474).
 
 1. **Campus containment.** An object whose center lies inside a campus object's bounding box,
    expanded by 30 m, joins that campus. If it lies in several, it joins the smallest one.
-   *Operator guard:* the object does not join when both it and the campus carry operator
-   information (`operator` or `operator:wikidata`) and neither the normalized operator
-   (`text.normalize_org`) nor the Wikidata id agrees. A bounding box overstates a polygon, and in
-   Ashburn the box of the fenced "Amazon Web Services Datacenter Complex" (way 460053028) covers
-   Equinix DC17 and DC18; without the guard the whole Equinix row of buildings would chain into
-   the AWS campus. On the 2026-10-07 snapshot the guard separates 6 such cross-operator merges
-   (1,367 clusters instead of 1,361).
-2. **Operator radius.** Two non-campus objects whose centers are within `radius_m` (haversine) join
-   when they have the same `normalize_org(operator)` or the same `operator:wikidata`.
+   *Operator guard:* the object does not join when the two carry comparable operator information
+   that disagrees: different `operator:wikidata` ids when both have one, otherwise normalized
+   operators (`text.normalize_org`) of which neither starts the other, word by word. "Amazon" and
+   "Amazon Web Services us-east-2 datacenter" both agree with "Amazon Web Services", so AWS
+   buildings join AWS campus polygons tagged that way (Hilliard, OH, way 460067225, and way
+   697021949). A bounding box overstates a polygon, and in Ashburn the box of the fenced "Amazon
+   Web Services Datacenter Complex" (way 460053028) covers Equinix DC17 and DC18; without the guard
+   the whole Equinix row of buildings would chain into the AWS campus. On the 2026-10-07 snapshot
+   the guard blocks 8 containment joins, all between different companies (Equinix in an AWS box,
+   AWS in Microsoft and Google boxes, Compass in a True North box).
+2. **Operator distance.** Two non-campus objects whose boxes are within `radius_m` of each other
+   join when they have the same `normalize_org(operator)` or the same `operator:wikidata`.
+3. **Neighbours without an operator.** Two non-campus objects that both have no operator
+   information join when their boxes are within 50 m and they have the same `normalize_name(name)`
+   or neither has a name, or when they have the same `addr:housenumber` and `addr:street` and
+   their boxes are within `radius_m`. Most unnamed `telecom=data_center` buildings carry no
+   operator, and without this rule each one became its own record: 32 records "Data center
+   (Venango, PA)" within 213 m, and 11 "Blockfusion Niagra Falls" at 5380 Frontier Avenue. The gap
+   is 50 m because at 100 m unnamed buildings chain across 1.5 km (8 buildings in Kendall County,
+   IL). An object without an operator does not join a neighbour that has one this way (no such
+   pair with the same name was found on 2026-10-07).
 
-Objects without an operator join only through rule 1. Two campus objects never join each other
-directly (they can meet through a shared member). Joins are transitive, so a row of same-operator
-buildings 250 m apart forms one cluster; the widest cluster on 2026-10-07 spans about 1 km.
+Two campus objects never join each other directly (they can meet through a shared member). Joins
+are transitive, so a row of same-operator buildings 250 m apart forms one cluster; the widest
+cluster on 2026-10-07 spans about 1.6 km (16 AWS objects in Ashburn). Each group of candidates is
+swept in latitude order, so only pairs that overlap in latitude are measured.
+
+On the 2026-10-07 snapshot (1,886 objects) the rules give 1,117 clusters. The earlier rules
+(center distances, an exact operator guard, no rule 3) gave 1,367; box gaps alone give 1,280, the
+word-prefix guard 1,278, and rule 3 the rest (its address clause adds 4 joins). Single objects
+without an operator fell from 601 clusters to 393, and canonical names used by more than one
+record from 79 (414 records) to 51 (188 records).
 
 The **representative** is the campus object (the largest, if a cluster has two), else the way or
 relation with the largest bounding box, else the node with the lowest id. Members and clusters are
@@ -249,7 +271,9 @@ The receipt `data/imports/osm.json` has the metrics `objects`, `clusters`, `out_
   unrelated object without an operator inside the box still joins. Footprints (`out geom` and a
   real point-in-polygon test) are the refinement.
 - **Single-linkage chaining.** Same-operator buildings join transitively, so a long row of one
-  operator's buildings becomes one campus (about 1 km at most on 2026-10-07).
+  operator's buildings becomes one campus (about 1.6 km at most on 2026-10-07). Unnamed buildings
+  without an operator join only within 50 m, so a large unnamed site still splits into several
+  records (40 unnamed halls near Abilene, in Taylor County, TX, give 8).
 - **The spatial PNNL join.** Without ids a row matches whatever OSM object is within reach, so a
   PNNL row for a building OSM has deleted can match its neighbour. 15 of the 27 unmatched rows on
   2026-10-07 are PNNL `campus` rows, polygons the query no longer returns. Ids would make the

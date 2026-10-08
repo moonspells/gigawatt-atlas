@@ -24,6 +24,21 @@ features 318, 322, 323, 330, 331, 332, 459, 489, 497, 498, 573, 592, 593, 731, 1
   matches nothing in the OSM sample and becomes an `unmatched` review item. The sample's match rate
   is 16/17 = 94.1%, below the 95% threshold, which exercises the warning.
 
+## `centroids-cases.geojson`
+
+13 features of the same web-map file (same retrieval, same SHA-256), verbatim under its header:
+the original file's features 344, 458, 577, 640, 806, 855, 856, 858, 859, 860, 1206, 1337 and 1363
+(0-based). They are every feature that the PNNL join matches to `tests/fixtures/osm/overpass-cases.json`:
+
+- 344 and 577: two building rows on the Apple Data Center (way 300974499) in Mesa, AZ, one named
+  and one unnamed (two footprints of one building; 1,338,261 and 1,263,277 sq ft);
+- 855 and 856: Digital Realty Atlanta ATL11 twice, once in Douglas County and once in Cobb County;
+- 1337 and 1363: `campus` rows whose campus polygons OpenStreetMap no longer has, so their points
+  land on buildings ("Google Datacenter - Douglas County" and "Applied Digital / Ellendale Data
+  Center");
+- 640, 806, 858, 859 and 860: the AWS buildings in Hilliard, OH;
+- 458 and 1206: the cable landing station and the telephone cooperative.
+
 ## `msdlive-sample.csv`
 
 **Constructed for tests; it is not a PNNL file.** The MSD-LIVE GPKG and CSV files need an MSD-LIVE
