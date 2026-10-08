@@ -149,6 +149,7 @@ source = { editable = "." }
 dependencies = [
     { name = "boto3" },
     { name = "duckdb" },
+    { name = "httpcore" },
     { name = "httpx" },
     { name = "jsonschema" },
     { name = "pydantic" },
@@ -166,6 +167,7 @@ dev = [
 requires-dist = [
     { name = "boto3", specifier = "~=1.43.108" },
     { name = "duckdb", specifier = "~=1.5.6" },
+    { name = "httpcore", specifier = "~=1.0.9" },
     { name = "httpx", specifier = "~=0.28.1" },
     { name = "jsonschema", specifier = "~=4.26.0" },
     { name = "pydantic", specifier = "~=2.13.5" },

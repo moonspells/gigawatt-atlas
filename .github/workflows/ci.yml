@@ -72,7 +72,7 @@ jobs:
   test:
     name: test
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25 # the tippecanoe build adds about a minute; the suite itself takes a few
     permissions: { contents: read }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -85,11 +85,11 @@ jobs:
       # and the fixture's PMTiles comparison run on every PR instead of first failing on main.
       # Built from source each run (about a minute); no actions/cache, so nothing a PR writes is
       # reused.
-      - name: Build tippecanoe 2.79.0
+      - name: Build tippecanoe 2.79.0 (the PMTiles build test and fixture --check compare)
         env:
           TIPPECANOE_COMMIT: 68ab8dcc229f95b8b25877697d5e8d66783af503 # tag 2.79.0
         run: |
-          sudo apt-get update -q
+          sudo apt-get update -q   # the runner image's package index may be stale
           sudo apt-get install -y --no-install-recommends libsqlite3-dev zlib1g-dev
           git init -q "$RUNNER_TEMP/tippecanoe" && cd "$RUNNER_TEMP/tippecanoe"
           git fetch -q --depth 1 https://github.com/felt/tippecanoe "$TIPPECANOE_COMMIT"
