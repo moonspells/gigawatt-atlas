@@ -74,6 +74,7 @@ from atlas.validate import EARLIEST_DATE, FUTURE_YEARS, add_years
 
 if TYPE_CHECKING:
     from atlas.geo.counties import County, CountyIndex
+    from atlas.geocode import Gazetteer
 
 __all__ = [
     "IMPORTER",
@@ -93,6 +94,7 @@ __all__ = [
     "osm_date",
     "parse_mw",
     "parse_overpass",
+    "telecom_site",
 ]
 
 OVERPASS_ENDPOINTS = (
@@ -145,6 +147,14 @@ _POWER_FACTOR = {"gw": 1000.0, "mw": 1.0, "kw": 0.001}
 _DATE_RE = re.compile(r"^\d{4}(?:-\d{2}(?:-\d{2})?)?$")
 _DATE_PRECISION: dict[int, DatePrecision] = {4: "year", 7: "month", 10: "day"}
 _MAX_MW = 10_000.0
+# 07 §2.2 puts telecom central offices and edge sites out of scope. OSM telecom=data_center also
+# tags cable landing stations and telephone company offices, whose names or operators say so.
+_TELECOM_RE = re.compile(
+    r"\b(?:cable landing|landing station|central office|wire center"
+    r"|telephone (?:co|coop|cooperative|company)|cooperative telephone)\b",
+    re.IGNORECASE,
+)
+_TELECOM_TAGS = frozenset({"exchange", "central_office"})  # telecom=* on a building=data_center
 
 
 class OverpassError(ValueError):
@@ -340,13 +350,14 @@ class _Context:
     """What every cluster's record shares."""
 
     counties: CountyIndex
+    gazetteer: Gazetteer  # county full names ("Taylor County", "Manassas city") for names
     now: datetime
     as_of: FuzzyDate  # the snapshot date (timestamp_osm_base), day precision
     as_of_date: date
     latest_date: date  # as_of_date + 15 years: the latest date validation accepts
     osm_retrieved_at: datetime
     pnnl_join: pnnl.JoinResult | None
-    pnnl_retrieved_at: datetime | None
+    pnnl_snapshot: InputSnapshot | None
     existing: Mapping[str, FacilityRecord]
     existing_by_ref: Mapping[str, set[str]]
 
@@ -547,18 +558,30 @@ def _events(
 def _keep_first_reported(
     events: list[StatusEvent], existing: FacilityRecord | None
 ) -> list[StatusEvent]:
-    """Keep the stored as_of of an unchanged first_reported event, so weekly runs do not move it."""
+    """Keep the earliest stored as_of of a first_reported event with the same status and sources,
+    so weekly runs never move it forward.
+
+    The phase is not compared: when a cluster gains or loses a status group, its events move
+    between phase_id None and "osm-{status}", but the status itself has not changed.
+    """
     if existing is None:
         return events
-    stored = {
-        (e.status, e.event, e.phase_id, tuple(e.source_ids)): e.as_of
-        for e in existing.status_history
-        if not e.planned
-    }
+    stored: dict[tuple[str, tuple[str, ...]], FuzzyDate] = {}
+    for e in existing.status_history:
+        if e.planned or e.event != "first_reported":
+            continue
+        key = (e.status, tuple(e.source_ids))
+        if key not in stored or period_start(e.as_of) < period_start(stored[key]):
+            stored[key] = e.as_of
     out: list[StatusEvent] = []
     for e in events:
-        old = stored.get((e.status, e.event, e.phase_id, tuple(e.source_ids)))
-        if e.event == "first_reported" and not e.planned and old is not None:
+        old = stored.get((e.status, tuple(e.source_ids)))
+        if (
+            e.event == "first_reported"
+            and not e.planned
+            and old is not None
+            and period_start(old) <= period_start(e.as_of)
+        ):
             e = e.model_copy(update={"as_of": old.model_copy()})
         out.append(e)
     return out
@@ -607,6 +630,26 @@ def _canonical_name(
     return (f"{base} ({place}, {st})" if place else f"{base} ({st})"), base_name
 
 
+def telecom_site(cluster: Cluster) -> str | None:
+    """Why the cluster is a telecom site rather than a data center (07 §2.2), or None.
+
+    It is one when every member that has a name, alt_name or operator names a cable landing
+    station, a central office, a wire center or a telephone company or cooperative, or is tagged
+    telecom=exchange; unnamed members do not count either way.
+    """
+    reasons: list[str] = []
+    for m in cluster.members:
+        text = " ".join(v for v in (m.name, m.tags.get("alt_name"), m.operator) if v)
+        found = _TELECOM_RE.search(text)
+        if m.tags.get("telecom") in _TELECOM_TAGS:
+            reasons.append(f"{m.ref} is tagged telecom={m.tags['telecom']}")
+        elif found is not None:
+            reasons.append(f"{m.ref} is named as a telecom site ({found.group(0)!r})")
+        elif text:
+            return None
+    return reasons[0] if reasons else None
+
+
 def _cluster_point(cluster: Cluster) -> tuple[float, float]:
     rep = cluster.representative
     if rep.kind == "campus":
@@ -653,11 +696,15 @@ def _build_one(
         return None
 
     st = county.state_abbr
-    scope: Literal["in_scope", "out_of_scope"] = "in_scope" if st in IN_SCOPE else "out_of_scope"
+    telecom = telecom_site(cluster)
+    scope: Literal["in_scope", "out_of_scope"] = (
+        "in_scope" if st in IN_SCOPE and telecom is None else "out_of_scope"
+    )
     location = _location(cluster, ordered, county, *point)
     operator = _most_common(m.operator for m in ordered)
     owner = _most_common(m.tags.get("owner") for m in ordered)
-    name, base_name = _canonical_name(rep, ordered, operator, location.city or county.name, st)
+    place = location.city or ctx.gazetteer.county_full_name(county.fips) or county.name
+    name, base_name = _canonical_name(rep, ordered, operator, place, st)
 
     aliases: list[Alias] = []
     seen_names = {normalize_name(base_name)} if base_name else set()
@@ -672,12 +719,16 @@ def _build_one(
     events, phases, phase_of = _events(groups, rep, ctx)
     events = _keep_first_reported(events, existing)
 
-    pnnl_rows = ctx.pnnl_join.matched.get(rep.ref, []) if ctx.pnnl_join is not None else []
-    sqft = pnnl.building_sqft(pnnl_rows, ctx.pnnl_join.members) if ctx.pnnl_join else {}
-    building_total, acreage = pnnl.site_values(pnnl_rows)
+    join = ctx.pnnl_join
+    pnnl_rows = join.matched.get(rep.ref, []) if join is not None else []
+    site = pnnl.site_values(cluster, pnnl_rows, join.members if join is not None else {})
+    review.extend(site.review)
     buildings = [
         Building(
-            ref=f"osm:{m.ref}", name=m.name, sqft=sqft.get(m.ref), phase_id=phase_of.get(m.ref)
+            ref=f"osm:{m.ref}",
+            name=m.name,
+            sqft=site.building_sqft.get(m.ref),
+            phase_id=phase_of.get(m.ref),
         )
         for m in cluster.members
         if m.kind != "campus"
@@ -692,27 +743,26 @@ def _build_one(
             source_type="open_dataset",
             license=OSM_LICENSE,
             retrieved_at=ctx.osm_retrieved_at,
-            supports=list(OSM_SUPPORTS),
+            supports=[*OSM_SUPPORTS, "/purpose"] if telecom is not None else list(OSM_SUPPORTS),
         )
     ]
     external_ids: dict[str, list[str]] = {"osm": sorted(cluster.refs, key=ref_key)}
-    if pnnl_rows and ctx.pnnl_retrieved_at is not None:
-        sources.append(pnnl.pnnl_source(ctx.pnnl_retrieved_at, PNNL_SOURCE_ID))
+    if pnnl_rows and ctx.pnnl_snapshot is not None:
+        sources.append(pnnl.pnnl_source(ctx.pnnl_snapshot, PNNL_SOURCE_ID))
         external_ids["pnnl_im3"] = sorted({r.key for r in pnnl_rows})
-        for row in pnnl_rows:
-            reason = pnnl.county_mismatch(
-                row, county_fips=county.fips, state_abbr=st, counties=ctx.counties
-            )
-            if reason is not None:
-                review.append(
-                    _review(
-                        "county_mismatch",
-                        reason,
-                        external_id=row.key,
-                        data={"osm": rep.ref, "county_fips": county.fips, "pnnl": row.to_json()},
-                        source=pnnl.REVIEW_SOURCE,
-                    )
+        mismatches = pnnl.county_mismatches(
+            pnnl_rows, county_fips=county.fips, state_abbr=st, counties=ctx.counties
+        )
+        for row, reason in mismatches:
+            review.append(
+                _review(
+                    "county_mismatch",
+                    reason,
+                    external_id=row.key,
+                    data={"osm": rep.ref, "county_fips": county.fips, "pnnl": row.to_json()},
+                    source=pnnl.REVIEW_SOURCE,
                 )
+            )
 
     field_meta = {
         "/location/county_fips": FieldMeta(confidence=COUNTY_CONFIDENCE, method="derived"),
@@ -736,7 +786,7 @@ def _build_one(
                 operator=[OrgRef(name=operator, source_ids=[OSM_SOURCE_ID])] if operator else [],
                 owner=[OrgRef(name=owner, source_ids=[OSM_SOURCE_ID])] if owner else [],
             ),
-            purpose="unknown",
+            purpose="telecom" if telecom is not None else "unknown",
             status=groups[0].status.status,
             evidence_level="reported",
             status_history=events,
@@ -744,7 +794,7 @@ def _build_one(
             capacity=capacity,
             phases=phases,
             buildings=buildings,
-            site=Site(building_sqft=building_total, acreage=acreage),
+            site=Site(building_sqft=site.site_sqft, acreage=site.acreage),
             external_ids=external_ids,
             sources=sources,
             field_meta=field_meta,
@@ -764,10 +814,15 @@ def _build_one(
         )
         return None
     if scope == "out_of_scope":
+        why = (
+            f"{st} is outside the 50 states and DC"
+            if st not in IN_SCOPE
+            else f"a telecom site, not a data center: {telecom}"
+        )
         review.append(
             _review(
                 "out_of_scope",
-                f"{st} is outside the 50 states and DC; kept with scope out_of_scope (07 §2.2)",
+                f"{why}; kept with scope out_of_scope (07 §2.2)",
                 external_id=rep.ref,
             )
         )
@@ -783,10 +838,16 @@ def build_candidates(
     pnnl_join: pnnl.JoinResult | None = None,
     pnnl_snapshot: InputSnapshot | None = None,
     existing: Mapping[str, FacilityRecord] | None = None,
+    gazetteer: Gazetteer | None = None,
 ) -> BuildResult:
-    """One campus candidate per cluster, the review items, and metrics."""
+    """One campus candidate per cluster, the review items, and metrics. gazetteer (default: the
+    committed Census Gazetteer) gives the county's full name for clusters without a city."""
     if snapshot.upstream_version is None:
         raise ValueError("the Overpass snapshot has no timestamp_osm_base")
+    if gazetteer is None:
+        from atlas.geocode import Gazetteer  # the Census files load on use
+
+        gazetteer = Gazetteer.load()
     as_of_date = date.fromisoformat(snapshot.upstream_version[:10])
     stored = dict(existing or {})
     by_ref: dict[str, set[str]] = {}
@@ -795,13 +856,14 @@ def build_candidates(
             by_ref.setdefault(ref, set()).add(rid)
     ctx = _Context(
         counties=counties,
+        gazetteer=gazetteer,
         now=now,
         as_of=FuzzyDate(value=as_of_date.isoformat(), precision="day"),
         as_of_date=as_of_date,
         latest_date=add_years(as_of_date, FUTURE_YEARS),
         osm_retrieved_at=snapshot.retrieved_at,
         pnnl_join=pnnl_join,
-        pnnl_retrieved_at=pnnl_snapshot.retrieved_at if pnnl_snapshot is not None else None,
+        pnnl_snapshot=pnnl_snapshot,
         existing=stored,
         existing_by_ref=by_ref,
     )
@@ -887,7 +949,7 @@ class OsmImporter:
             type=_positive_m,
             default=DEFAULT_RADIUS_M,
             metavar="M",
-            help="same-operator join radius in metres (default 300)",
+            help="same-operator join distance between bounding boxes in metres (default 300)",
         )
 
     def run(self, ctx: ImportContext, args: argparse.Namespace) -> ImportResult:

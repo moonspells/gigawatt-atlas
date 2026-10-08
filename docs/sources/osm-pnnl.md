@@ -18,7 +18,7 @@ uv run atlas import osm --no-pnnl --overpass-url https://overpass.example/api/in
 | `--pnnl PATH` | A PNNL file: the public GeoJSON, or a CSV in the MSD-LIVE layout. Without it, the public GeoJSON is fetched. |
 | `--no-pnnl` | Skip the cross-check. |
 | `--overpass-url URL` | Repeatable; replaces the default endpoint list. |
-| `--dissolve-m M` | The same-operator join radius, default 300 m. |
+| `--dissolve-m M` | The same-operator join distance between bounding boxes, default 300 m (also the same-address distance of rule 3). |
 
 The common `atlas import` options (`--records`, `--review-dir`, `--receipts-dir`, `--cache-dir`,
 `--now`, `--dry-run`, `--offline`) are described in the README. The importer's name, match key and
@@ -84,23 +84,45 @@ invisible characters removed and whitespace collapsed. `kind` is:
 
 ## 4. Dissolving objects into campuses
 
-`dissolve(objects, radius_m=300)` joins objects with union-find:
+`dissolve(objects, radius_m=300)` joins objects with union-find. Distances are gaps between
+bounding boxes (a node is its point; 0 when the boxes touch or overlap), not distances between
+centers, so two large halls that touch join although their centers are 320 m apart (Google,
+Douglas County, GA, ways 844352473 and 844352474).
 
 1. **Campus containment.** An object whose center lies inside a campus object's bounding box,
    expanded by 30 m, joins that campus. If it lies in several, it joins the smallest one.
-   *Operator guard:* the object does not join when both it and the campus carry operator
-   information (`operator` or `operator:wikidata`) and neither the normalized operator
-   (`text.normalize_org`) nor the Wikidata id agrees. A bounding box overstates a polygon, and in
-   Ashburn the box of the fenced "Amazon Web Services Datacenter Complex" (way 460053028) covers
-   Equinix DC17 and DC18; without the guard the whole Equinix row of buildings would chain into
-   the AWS campus. On the 2026-10-07 snapshot the guard separates 6 such cross-operator merges
-   (1,367 clusters instead of 1,361).
-2. **Operator radius.** Two non-campus objects whose centers are within `radius_m` (haversine) join
-   when they have the same `normalize_org(operator)` or the same `operator:wikidata`.
+   *Operator guard:* the object does not join when the two carry comparable operator information
+   that disagrees: different `operator:wikidata` ids when both have one, otherwise normalized
+   operators (`text.normalize_org`) of which neither starts the other, word by word. "Amazon" and
+   "Amazon Web Services us-east-2 datacenter" both agree with "Amazon Web Services", so AWS
+   buildings join AWS campus polygons tagged that way (Hilliard, OH, way 460067225, and way
+   697021949). A bounding box overstates a polygon, and in Ashburn the box of the fenced "Amazon
+   Web Services Datacenter Complex" (way 460053028) covers Equinix DC17 and DC18; without the guard
+   the whole Equinix row of buildings would chain into the AWS campus. On the 2026-10-07 snapshot
+   the guard blocks 8 containment joins, all between different companies (Equinix in an AWS box,
+   AWS in Microsoft and Google boxes, Compass in a True North box).
+2. **Operator distance.** Two non-campus objects whose boxes are within `radius_m` of each other
+   join when they have the same `normalize_org(operator)` or the same `operator:wikidata`.
+3. **Neighbours without an operator.** Two non-campus objects that both have no operator
+   information join when their boxes are within 50 m and they have the same `normalize_name(name)`
+   or neither has a name, or when they have the same `addr:housenumber` and `addr:street` and
+   their boxes are within `radius_m`. Most unnamed `telecom=data_center` buildings carry no
+   operator, and without this rule each one became its own record: 32 records "Data center
+   (Venango, PA)" within 213 m, and 11 "Blockfusion Niagra Falls" at 5380 Frontier Avenue. The gap
+   is 50 m because at 100 m unnamed buildings chain across 1.5 km (8 buildings in Kendall County,
+   IL). An object without an operator does not join a neighbour that has one this way (no such
+   pair with the same name was found on 2026-10-07).
 
-Objects without an operator join only through rule 1. Two campus objects never join each other
-directly (they can meet through a shared member). Joins are transitive, so a row of same-operator
-buildings 250 m apart forms one cluster; the widest cluster on 2026-10-07 spans about 1 km.
+Two campus objects never join each other directly (they can meet through a shared member). Joins
+are transitive, so a row of same-operator buildings 250 m apart forms one cluster; the widest
+cluster on 2026-10-07 spans about 1.6 km (16 AWS objects in Ashburn). Each group of candidates is
+swept in latitude order, so only pairs that overlap in latitude are measured.
+
+On the 2026-10-07 snapshot (1,886 objects) the rules give 1,117 clusters. The earlier rules
+(center distances, an exact operator guard, no rule 3) gave 1,367; box gaps alone give 1,280, the
+word-prefix guard 1,278, and rule 3 the rest (its address clause adds 4 joins). Single objects
+without an operator fell from 601 clusters to 393, and canonical names used by more than one
+record from 79 (414 records) to 51 (188 records).
 
 The **representative** is the campus object (the largest, if a cluster has two), else the way or
 relation with the largest bounding box, else the node with the lowest id. Members and clusters are
@@ -114,8 +136,8 @@ deleted; a cluster that disappears upstream becomes a `removed_upstream` review 
 
 | Field | Value |
 |---|---|
-| `record_type` / `scope` | `campus`; `in_scope`, or `out_of_scope` outside the 50 states and DC (the record is kept, 07 §2.2) |
-| `canonical_name` | base = the representative's `name`, else the most common member name, else "{operator} data center", else "Data center". The operator is prefixed unless the base already starts with the operator, its `operator:short`, or the operator's first word ("Lumen Ashburn" for Lumen Technologies stays as is; "CyrusOne NVA14" operated by PowerHouse becomes "PowerHouse CyrusOne NVA14"). Then " ({city or county}, {ST})". |
+| `record_type` / `scope` | `campus`; `in_scope`, or `out_of_scope` outside the 50 states and DC or for a telecom site (the record is kept, 07 §2.2; see below) |
+| `canonical_name` | base = the representative's `name`, else the most common member name, else "{operator} data center", else "Data center". The operator is prefixed unless the base already starts with the operator, its `operator:short`, or the operator's first word ("Lumen Ashburn" for Lumen Technologies stays as is; "CyrusOne NVA14" operated by PowerHouse becomes "PowerHouse CyrusOne NVA14"). Then " ({city}, {ST})" with `location.city`, else with the county's full Census name from the Gazetteer ("Taylor County", "Manassas city", "Orleans Parish"), as in the Epoch and AI GridWatch importers. A bare county name reads as a city and sometimes is one elsewhere: Taylor County, TX is Abilene, while the city of Taylor, TX is 300 km away. |
 | `aliases[]` | the other distinct member names (`osm_name`, source s1) |
 | `parties.operator` / `owner` | the most common `operator` / `owner` tag (source s1) |
 | `location.lat`, `lon` | the campus object's bounding-box center, else the mean of the member centers; 7 decimals |
@@ -126,7 +148,7 @@ deleted; a cluster that disappears upstream becomes a `removed_upstream` review 
 | `buildings[]` | one per building or point member: `ref` "osm:{ref}", `name`, `sqft` from PNNL, `phase_id` when the cluster has phases |
 | `capacity` | see below |
 | `status_history`, `phases` | see below; `field_meta["/status"]` = 0.60, `imported`, s1 |
-| `evidence_level` / `purpose` | `reported` / `unknown` |
+| `evidence_level` / `purpose` | `reported` / `unknown`, or `telecom` for a telecom site (then s1 also supports `/purpose`) |
 | `site.building_sqft`, `site.acreage` | from PNNL (section 7) |
 | `sources[0]` (s1) | `https://www.openstreetmap.org/{representative}`, "OpenStreetMap contributors", title "OpenStreetMap {representative}", `open_dataset`, `ODbL-1.0`, supports `/canonical_name`, `/aliases`, `/parties`, `/location`, `/buildings`, `/capacity`, `/status_history/0` |
 | `sources[1]` (s2) | PNNL, only when a PNNL row matched (section 7) |
@@ -136,6 +158,21 @@ deleted; a cluster that disappears upstream becomes a `removed_upstream` review 
 `operator:wikidata` (for joins), `owner`, the `addr:*` fields above, `it_power`,
 `input:electricity`, `start_date`, `opening_date` and the status tags. Contact tags such as `phone`,
 `email` and `website` are never copied.
+
+### Telecom sites
+
+07 §2.2 puts telecom central offices and edge sites out of scope, and OSM `telecom=data_center`
+also tags cable landing stations and telephone company offices. A cluster is a telecom site when
+every member that has a `name`, `alt_name` or `operator` names a cable landing station, a landing
+station, a central office, a wire center, or a telephone company or cooperative ("Telephone Co",
+"Telephone Coop", "Cooperative Telephone"), or is tagged `telecom=exchange` or
+`telecom=central_office`. Unnamed members count neither way, and one data center name in the
+cluster keeps it in scope. The record gets `scope: "out_of_scope"`, `purpose: "telecom"` and an
+`out_of_scope` review item naming the member and the words that matched. On 2026-10-07 this
+catches 10 sites: 8 cable landing stations (Tuckerton, Manasquan, Wall Township, Shirley, Norma
+Beach, Myrtle Beach) and 2 telephone cooperative offices. "AT&T Center" in San Diego, operated by
+"American Telephone & Telegraph", stays in scope: neither its name nor its operator says what the
+building is.
 
 ### Capacity
 
@@ -160,7 +197,7 @@ operating). Members are grouped by the resulting status.
   YYYY-MM or YYYY-MM-DD between 1990-01-01 and the snapshot date, the event is `energized` at that
   date instead. Earlier dates (old buildings converted to data centers, such as "1938") are
   ignored, because validation accepts nothing before 1990.
-- **Several statuses (12 clusters on 2026-10-07).** Each status group becomes a phase,
+- **Several statuses (13 clusters on 2026-10-07).** Each status group becomes a phase,
   `osm-operating`, `osm-under_construction` or `osm-proposed`, named after its members ("Under
   construction in OpenStreetMap: NTT VA8"), with one event per phase and `buildings[].phase_id`
   set. The rollup (07 §2.3) then gives the most advanced active status, so an operating campus with
@@ -168,9 +205,12 @@ operating). Members are grouped by the resulting status.
   showing as under construction.
 - **`opening_date`** on a group that is not operating adds a planned `energized` event, which never
   changes the status.
-- On later runs, a `first_reported` event whose status, phase and source are unchanged keeps the
-  `as_of` already stored, so weekly runs do not move the date. A status change replaces the event;
-  recording transitions as new events is the M2 diff (07 §4.2 step 5).
+- On later runs, a `first_reported` event keeps the earliest `as_of` already stored for the same
+  status and source, so weekly runs never move `dates.first_reported` or `operating_since`
+  forward. The phase is not compared: when a building under construction appears next to an
+  operating campus, or later goes, the operating event moves between no phase and `osm-operating`
+  but its status has not changed. A status change replaces the event; recording transitions as
+  new events is the M2 diff (07 §4.2 step 5).
 
 ## 6. PNNL inputs
 
@@ -183,16 +223,32 @@ PNNL v2026.02.09 (DOI 10.57931/3017294, ODbL 1.0) is derived from OSM, with coun
   `operator`, `name`, `sqft` and `type`. It has **no OSM id and no FIPS code**, so the join is
   spatial. Fetched with the crawler policy (robots.txt, 2 s per host), kept at
   `.cache/atlas/raw/pnnl/{sha256}.geojson`.
+
+  The file does not say which dataset version it is, so `WEBMAP_VERSIONS` records the files whose
+  version is established, by SHA-256. The one served on 2026-10-07 and 2026-10-08
+  (`2e7bd7e6…45df`, 373,790 bytes) is the v2026.02.09 export: the repository behind the web map,
+  `immm-sfa/datacenter-atlas`, committed it on 2026-02-12 in the commit that also set the map's
+  own citation to v2026.02.09 (DOI 10.57931/3017294) and its legend to "Last Updated Feb 09,
+  2026". The repository README still links the v1 record (MSD-LIVE 65g71-a4731, DOI
+  10.57931/2550666) for the layer, a link from before that update, and the file's Last-Modified
+  (2026-03-31) is a later deploy that changed only the projected layers. The snapshot's
+  `upstream_version` is the file's established version, or null with a warning for any other
+  file, which records then cite as the file itself (section 7). The repository is BSD 2-Clause,
+  © 2025 Battelle Memorial Institute; the notice is in `ATTRIBUTION.md` and the PNNL fixture
+  README. MSD-LIVE gives the dataset as ODbL 1.0, and records keep `ODbL-1.0`.
 - **A CSV in the MSD-LIVE layout** (`id, state, state_abb, state_id, county, county_id, ref,
   operator, name, sqft, lat, lon, type`), passed with `--pnnl`, if the owner mirrors the MSD-LIVE
-  files. Those need an MSD-LIVE sign-in, so the importer never downloads them. With a CSV the join
-  uses ids and the snapshot cites the DOI.
+  v2026.02.09 files. Those need an MSD-LIVE sign-in, so the importer never downloads them. With a
+  CSV the join uses ids, and the snapshot cites the v2026.02.09 DOI with `upstream_version`
+  v2026.02.09.
 - **Version check:** `GET https://data.msdlive.org/api/records/p147s-4h760/versions/latest`
-  (the public records API, which redirects to the latest record), `metadata.version` →
-  the snapshot's `upstream_version`. It is an API read once per run, so robots.txt is not consulted
-  (its robots.txt answered 502 on 2026-10-07, which the crawler policy would read as "disallow
-  everything"). A failure is a warning, not an error. A version other than v2026.02.09 prints a
-  warning, because the mapping was checked against that version.
+  (the public records API, which redirects to the latest record). It is an API read once per run,
+  so robots.txt is not consulted (its robots.txt answered 502 on 2026-10-07, which the crawler
+  policy would read as "disallow everything"). A failure is a warning, not an error. A
+  `metadata.version` other than v2026.02.09 prints a warning, because the mapping was checked
+  against that version. It is not the snapshot's `upstream_version`: a newer MSD-LIVE version
+  says nothing about which version the web-map file is, and the receipt and the records must name
+  the same one.
 
 ## 7. The PNNL join
 
@@ -209,15 +265,30 @@ Effects on a matched cluster:
 
 - `external_ids.pnnl_im3` gets each row's key: `{type}:{id}` when the row has an id, else
   `{type}@{lon:.6f},{lat:.6f}` (for example `building@-77.449520,39.026368`).
-- `sources` gets s2: `https://doi.org/10.57931/3017294`, "Pacific Northwest National Laboratory
-  (IM3)", title "IM3 Open Source Data Center Atlas v2026.02.09", `open_dataset`, `ODbL-1.0`,
-  supports `/site` and `/buildings`.
-- A `building` row's `sqft` goes to the matched building's `buildings[].sqft`;
-  `site.building_sqft` is the sum over the cluster's building rows. A `campus` row gives
-  `site.acreage` = sqft / 43,560, one decimal. Rows with the same key are counted once (PNNL repeats
-  a site that straddles a county line).
-- A row whose county differs from the record's point-in-polygon county is a `county_mismatch`
-  review item (by `county_id` when the row has one, else by name through `CountyIndex.by_name`).
+- `sources` gets s2 for the file actually read, "Pacific Northwest National Laboratory (IM3)",
+  `open_dataset`, `ODbL-1.0`, supports `/site` and `/buildings`. When the file's version is
+  established it cites that version: `https://doi.org/10.57931/3017294`, title "IM3 Open Source
+  Data Center Atlas v2026.02.09, web map file im3_datacenter_centroids.geojson" (just "IM3 Open
+  Source Data Center Atlas v2026.02.09" for the CSV). Otherwise it cites the web-map file URL,
+  title "IM3 Open Source Data Center Atlas, web map file im3_datacenter_centroids.geojson".
+- A `building` row's `sqft` goes to the matched building's (or point's) `buildings[].sqft`. When
+  several building rows hit one member, PNNL has kept an older footprint next to the current one
+  (Apple Data Center, Mesa, AZ: 1,338,261 and 1,263,277 sq ft on way 300974499, whose bounding box
+  is 1,531,607 sq ft). The row with the member's name, else the nearest, is kept and the others
+  are `possible_duplicate` items. A kept `sqft` more than 5% above the member's bounding-box area
+  describes another footprint (PNNL's `sqft` is the polygon's area, which the box bounds; the
+  projection difference was at most 1.3%), so it is a `conflict` item and is not applied.
+- Building rows that hit a campus object count towards `site.building_sqft` only.
+  `site.building_sqft` is the sum of the applied building values.
+- A `campus` row gives `site.acreage` = sqft / 43,560, one decimal, only when it hit a campus
+  object. A campus row whose polygon has left OpenStreetMap lands on a building (Microsoft Boydton,
+  258.8 acres, on a 4.9-acre building), so it is a `conflict` item instead.
+- Rows with the same key are counted once: PNNL repeats a site that straddles a county line, once
+  per county.
+- A row key whose every row's county differs from the record's point-in-polygon county is a
+  `county_mismatch` review item (by `county_id` when the row has one, else by name through
+  `CountyIndex.by_name`). A county-line site therefore raises no item when one of its two rows
+  agrees.
 
 Every unmatched row is an `unmatched` review item with the row in `data`. `pnnl_match_rate` =
 matched rows / all rows; below 0.95 (the 07 §15 M1 acceptance threshold) the import prints a
@@ -227,13 +298,15 @@ warning.
 
 | File | Kind | When |
 |---|---|---|
-| `osm.jsonl` | `out_of_scope` | the record's state is outside the 50 states and DC (the record is still written, with `scope: "out_of_scope"`) |
+| `osm.jsonl` | `out_of_scope` | the record's state is outside the 50 states and DC, or it is a telecom site (the record is still written, with `scope: "out_of_scope"`) |
 | `osm.jsonl` | `unit_parse` | an `it_power` or `input:electricity` value that is not a power value |
 | `osm.jsonl` | `missing_location` | an element without a position, or a cluster no Census county contains |
 | `osm.jsonl` | `unknown_status` | no member tag the crosswalk knows (not seen; every query clause maps) |
 | `osm.jsonl` | `invalid` | a cluster that does not fit the record schema (for example a point in Guam, whose longitude the schema does not accept) |
 | `pnnl.jsonl` | `unmatched` | a PNNL row with no OSM-derived record |
-| `pnnl.jsonl` | `county_mismatch` | PNNL's county is not the record's county |
+| `pnnl.jsonl` | `county_mismatch` | PNNL's county is not the record's county (no row with that key agrees) |
+| `pnnl.jsonl` | `possible_duplicate` | a second building row on one OSM building (not applied) |
+| `pnnl.jsonl` | `conflict` | a campus row on a building, or a building row larger than its building's box (not applied) |
 
 `atlas import` adds its own kinds (`conflict`, `held_human_reviewed`, `held_merged`, `invalid`,
 `removed_upstream`) to `osm.jsonl`. Review files are rewritten on every run, sorted.
@@ -249,7 +322,9 @@ The receipt `data/imports/osm.json` has the metrics `objects`, `clusters`, `out_
   unrelated object without an operator inside the box still joins. Footprints (`out geom` and a
   real point-in-polygon test) are the refinement.
 - **Single-linkage chaining.** Same-operator buildings join transitively, so a long row of one
-  operator's buildings becomes one campus (about 1 km at most on 2026-10-07).
+  operator's buildings becomes one campus (about 1.6 km at most on 2026-10-07). Unnamed buildings
+  without an operator join only within 50 m, so a large unnamed site still splits into several
+  records (40 unnamed halls near Abilene, in Taylor County, TX, give 8).
 - **The spatial PNNL join.** Without ids a row matches whatever OSM object is within reach, so a
   PNNL row for a building OSM has deleted can match its neighbour. 15 of the 27 unmatched rows on
   2026-10-07 are PNNL `campus` rows, polygons the query no longer returns. Ids would make the
@@ -265,9 +340,14 @@ The receipt `data/imports/osm.json` has the metrics `objects`, `clusters`, `out_
   Data Center - Hillsboro 3's two polygons (ways 1465196735 and 1465196736, tagged
   `proposed:building=industrial`) become two operating records, one of them with the proposed node
   11721960464 as a phase.
-- **Names.** 329 records have no name and no operator and are called "Data center ({county},
-  {ST})"; several share a name and differ only by id. Operator tags are copied as written; a few
-  name a person or a non-data-center business, which the seed review should catch.
+- **Names.** 187 records have no name and no operator and are called "Data center ({county},
+  {ST})", for example "Data center (Taylor County, TX)"; 51 names are shared by 186 records that
+  differ only by id. Operator tags are copied as written; a few name a person or a
+  non-data-center business, which the seed review should catch.
+- **Doubly mapped buildings.** Rule 3 joins only objects that both lack an operator, so an
+  unnamed way drawn on the footprint of a named building with an operator stays a record of its
+  own (way 567575425 on the Apple Data Center, way 300974499, in Mesa, AZ). A footprint-overlap
+  rule needs real geometry (`out geom`).
 - **Cross-source duplicates.** OSM and Epoch or AI GridWatch can describe the same site; entity
   resolution is M4.
 
@@ -280,17 +360,23 @@ The receipt `data/imports/osm.json` has the metrics `objects`, `clusters`, `out_
   `timestamp_osm_base` 2026-10-07T22:39:49Z. The same query took 26–27 s in the live test and the
   earlier probe. An attempt a few minutes before failed on all four endpoints (reset, 504, 500,
   500) and stopped cleanly with exit 1.
-- **Dissolve:** 88 campus objects, 1,663 buildings, 135 points → 1,367 clusters (1,141 single
-  objects, 226 with several members, at most 12).
-- **Records:** 1,367 candidates, 0 invalid; `atlas validate` passes for all 1,367 (1,365 in scope,
-  2 out of scope in Puerto Rico). Status: 1,314 operating, 52 under construction, 1 proposed; 12
-  with phases. Precision: 1,248 footprint, 119 site. `it_mw` on 19 records and `facility_mw` on 24;
-  31 dated by `start_date`; 2 planned `opening_date` events.
-- **PNNL:** MSD-LIVE latest version v2026.02.09; 1,355 of 1,382 rows matched (**98.05%**, above
-  the 95% threshold), all spatially; 971 records gained s2 and `pnnl_im3`, 34 an acreage.
-- **Review:** 27 `unmatched` (15 campus, 7 building, 5 point rows) and 7 `county_mismatch` in
-  `pnnl.jsonl` (clusters near a county line, for example Manassas city against Prince William
-  County); 2 `out_of_scope` in `osm.jsonl`.
+- **Dissolve:** 88 campus objects, 1,663 buildings, 135 points → 1,117 clusters (834 single
+  objects, 283 with several members, at most 32). The rules before the 2026-10-08 review fixes
+  gave 1,367 (section 4).
+- **Records:** 1,117 candidates, 0 invalid; `atlas validate` passes for all 1,117 (1,105 in scope;
+  12 out of scope: 2 in Puerto Rico and 10 telecom sites). Status: 1,073 operating, 43 under
+  construction, 1 proposed; 13 with phases. Precision: 1,002 footprint, 115 site. `it_mw` on 13
+  records and `facility_mw` on 19; 27 dated by `start_date`; 2 planned `opening_date` events.
+- **PNNL:** MSD-LIVE latest version v2026.02.09, and the web-map file read is the established
+  v2026.02.09 export (`upstream_version` v2026.02.09); 1,355 of 1,382 rows matched (**98.05%**,
+  above the 95% threshold), all spatially; 863 records gained s2 and `pnnl_im3`, 30 an acreage.
+- **Review:** in `pnnl.jsonl`, 27 `unmatched` (15 campus, 7 building, 5 point rows), 9 `conflict`
+  (4 campus rows on buildings, 5 building rows larger than their building's box), 7
+  `county_mismatch` (clusters near a county line, for example Manassas city against Prince
+  William County) and 4 `possible_duplicate`; in `osm.jsonl`, 12 `out_of_scope`.
+
+These counts were measured on the saved 22:39:49Z response with the code after the 2026-10-08
+review fixes; the first run (22:42 UTC) gave the figures before them, quoted in section 4.
 
 The seed records are not committed by this change; the bulk seed pull request runs the import after
 integration (07 §6.7).
