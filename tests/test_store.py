@@ -55,3 +55,40 @@ def test_load_orgs(tmp_repo: Path, fixture_orgs_path: Path) -> None:
 def test_repo_data_is_empty_until_the_seed_pr(repo_root: Path) -> None:
     assert load_orgs(repo_root / "data" / "orgs.json") == []
     assert (repo_root / "data" / "orgs.json").read_text(encoding="utf-8") == "[]\n"
+
+
+def test_failed_write_keeps_the_stored_record(tmp_repo: Path, make_record: MakeRecord) -> None:
+    """SV-4: a record that cannot be written (lone surrogate, NaN) leaves the old file intact."""
+    root = tmp_repo / "data" / "records"
+    store = RecordStore(root)
+    good = make_record()
+    path = store.write(good)
+    before = path.read_bytes()
+    lone = json.loads('"Example \\ud83d Campus"')
+    for bad in (
+        good.model_copy(update={"canonical_name": lone}),
+        good.model_copy(update={"site": good.site.model_copy(update={"acreage": float("nan")})}),
+    ):
+        with pytest.raises(ValueError):  # UnicodeEncodeError is a ValueError
+            store.write(bad)
+        assert path.read_bytes() == before
+    assert [p.name for p in root.iterdir()] == [path.name]
+
+
+def test_load_reports_unparsable_files(tmp_repo: Path, make_record: MakeRecord) -> None:
+    """SV-13 and SV-3: deep nesting and NaN are problems, not a crash or a NaN record."""
+    root = tmp_repo / "data" / "records"
+    store = RecordStore(root)
+    good = make_record()
+    store.write(good)
+    (root / "deep.json").write_text("[" * 200_000 + "]" * 200_000, encoding="utf-8")
+    data = record_json(make_record())
+    text = json.dumps(data, sort_keys=True, indent=2).replace('"acreage": null', '"acreage": NaN')
+    assert "NaN" in text
+    (root / f"{data['id']}.json").write_text(text, encoding="utf-8")
+    with pytest.raises(StoreError) as info:
+        store.load()
+    problems = info.value.problems
+    assert len(problems) == 2
+    assert any("deep.json" in p and "nested too deeply" in p for p in problems)
+    assert any("NaN is not valid JSON" in p for p in problems)

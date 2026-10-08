@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from pydantic import JsonValue
 
 from atlas.cli import main
 from atlas.geo.counties import CountyIndex
@@ -25,7 +26,12 @@ ALSO_ALLOWED = {"schema": {"jsonschema"}, "jsonschema": {"file"}}
 
 
 def invalid_cases() -> list[str]:
+    """Case names: {rule}.json, {rule}-{variant}.json or a {rule} directory."""
     return sorted(p.stem if p.is_file() else p.name for p in INVALID.iterdir())
+
+
+def case_rule(case: str) -> str:
+    return case.split("-", 1)[0]
 
 
 def stage_case(case: str, dest: Path) -> Path:
@@ -63,7 +69,8 @@ def test_every_fixture_record_passes(
 
 
 def test_every_rule_has_an_invalid_case() -> None:
-    assert set(invalid_cases()) == set(RULES)
+    assert {case_rule(c) for c in invalid_cases()} == set(RULES)
+    assert set(RULES) <= set(invalid_cases())
 
 
 @pytest.mark.parametrize("case", invalid_cases())
@@ -79,8 +86,9 @@ def test_invalid_case_fails_with_its_rule(
         today=TODAY,
     )
     assert not report.ok
-    assert case in rules_of(report.issues)
-    assert rules_of(report.issues) <= {case} | ALSO_ALLOWED.get(case, set())
+    rule = case_rule(case)
+    assert rule in rules_of(report.issues)
+    assert rules_of(report.issues) <= {rule} | ALSO_ALLOWED.get(case, set())
 
 
 def test_file_name_must_match_id(
@@ -228,14 +236,9 @@ def test_geo_passes_for_locality_and_state(make_record: MakeRecord, counties: Co
 def test_range_rules(make_record: MakeRecord, changes: dict[str, Any], pointer: str) -> None:
     sources = record_json(make_record())["sources"]
     assert isinstance(sources, list) and isinstance(sources[0], dict)
-    sources[0]["supports"] = [
-        "/canonical_name",
-        "/location",
-        "/capacity",
-        "/money",
-        "/site",
-        "/cooling",
-    ]
+    supports: list[JsonValue] = ["/canonical_name", "/location", "/capacity", "/money", "/site"]
+    supports += ["/cooling", *(f"/dates/{key}" for key in changes.get("dates", {}))]
+    sources[0]["supports"] = supports
     r = make_record(sources=sources, **changes)
     issues = validate_record(r, counties=None, today=TODAY)
     assert [(i.rule, i.pointer) for i in issues] == [("range", pointer)]
@@ -325,7 +328,7 @@ def test_cli_text_and_json(
         "--schema",
         str(repo_root / "schema" / "facility.v1.json"),
         "--counties",
-        str(repo_root / "reference/census/cb_2025_us_county_5m.zip"),
+        str(repo_root / "reference/census/cb_2025_us_county_500k.zip"),
     ]
     assert main(["validate", "--records", str(fixture_records_dir), *common]) == 0
     out = capsys.readouterr().out
@@ -354,3 +357,48 @@ def test_store_round_trip_is_byte_identical(fixture_records_dir: Path, tmp_path:
         out.write(r)
     for path in fixture_records_dir.glob("*.json"):
         assert (tmp_path / path.name).read_bytes() == path.read_bytes()
+
+
+def test_unparsable_file_is_an_issue_and_the_rest_is_still_checked(
+    tmp_path: Path,
+    fixture_records_dir: Path,
+    fixture_orgs_path: Path,
+    repo_root: Path,
+    counties: CountyIndex,
+) -> None:
+    """SV-13: one deeply nested file ended the run with a RecursionError traceback."""
+    records = tmp_path / "records"
+    records.mkdir()
+    for path in fixture_records_dir.glob("*.json"):
+        shutil.copy(path, records / path.name)
+    (records / "gwa-01m478540h0000000000000009.json").write_text(
+        "[" * 200_000 + "]" * 200_000, encoding="utf-8"
+    )
+    report = validate_dataset(
+        records,
+        fixture_orgs_path,
+        schema_path=repo_root / "schema" / "facility.v1.json",
+        counties=counties,
+        today=TODAY,
+    )
+    assert [(i.rule, i.message) for i in report.issues] == [
+        ("file", "not a UTF-8 JSON file: JSON is nested too deeply to parse")
+    ]
+    assert report.records == 9
+
+
+def test_deep_orgs_file_is_an_issue(
+    tmp_path: Path, fixture_records_dir: Path, repo_root: Path, counties: CountyIndex
+) -> None:
+    orgs = tmp_path / "orgs.json"
+    orgs.write_text("[" * 200_000 + "]" * 200_000, encoding="utf-8")
+    report = validate_dataset(
+        fixture_records_dir,
+        orgs,
+        schema_path=repo_root / "schema" / "facility.v1.json",
+        counties=counties,
+        today=TODAY,
+    )
+    assert ("org", "cannot read orgs: JSON is nested too deeply to parse") in [
+        (i.rule, i.message) for i in report.issues
+    ]

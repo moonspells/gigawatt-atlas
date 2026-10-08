@@ -8,6 +8,11 @@ Field names, types, defaults and constraints follow 07 §3.2. Deviations, all de
 - FieldMeta.conflicts is list[dict[str, JsonValue]], and Correction.old/new are JsonValue | None,
   because §3.2's `dict` and `object` have no JSON Schema.
 - Mutable defaults use Field(default_factory=...).
+- Patterns use [0-9], not \\d, which also matches other scripts' digits in Python and pydantic-core
+  but not in ECMA-262, so the JSON Schema and the models accept the same strings. Source ids,
+  org_id and merged_into carry their id patterns.
+- No float field accepts NaN or Infinity (they are not JSON), and no string may hold a lone
+  surrogate (it cannot be written as UTF-8).
 
 Serialization is always record.model_dump(mode="json") (atlas.jsonio.record_json): nothing is
 excluded and every key is present. HttpUrl normalizes a bare host with a trailing slash
@@ -18,7 +23,7 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from typing import Literal, Self
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import (
     AwareDatetime,
@@ -27,6 +32,7 @@ from pydantic import (
     Field,
     HttpUrl,
     JsonValue,
+    field_validator,
     model_validator,
 )
 
@@ -35,7 +41,8 @@ RECORD_ID_PATTERN = r"^gwa-[0-9a-hjkmnp-tv-z]{26}$"
 ORG_ID_PATTERN = r"^gwo-[0-9a-hjkmnp-tv-z]{26}$"
 # Importers build candidates with this id; atlas.sources.base.apply_import replaces it.
 PLACEHOLDER_ID = "gwa-" + "0" * 26
-FUZZY_DATE_PATTERN = r"^\d{4}(-Q[1-4]|-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?$"
+SOURCE_ID_PATTERN = r"^s[0-9]+$"
+FUZZY_DATE_PATTERN = r"^[0-9]{4}(-Q[1-4]|-(0[1-9]|1[0-2])(-(0[1-9]|[12][0-9]|3[01]))?)?$"
 
 Status = Literal[
     "announced",
@@ -90,10 +97,12 @@ GeocodeMethod = Literal[
 ]
 DatePrecision = Literal["day", "month", "quarter", "year"]
 
-_DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-_MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
-_QUARTER_RE = re.compile(r"^\d{4}-Q[1-4]$")
-_YEAR_RE = re.compile(r"^\d{4}$")
+_DAY_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+_MONTH_RE = re.compile(r"^[0-9]{4}-[0-9]{2}$")
+_QUARTER_RE = re.compile(r"^[0-9]{4}-Q[1-4]$")
+_YEAR_RE = re.compile(r"^[0-9]{4}$")
+
+SourceId = Annotated[str, Field(pattern=SOURCE_ID_PATTERN)]
 
 
 def _shape_precision(value: str) -> DatePrecision:
@@ -108,10 +117,37 @@ def _shape_precision(value: str) -> DatePrecision:
     raise ValueError(f"not a fuzzy date: {value!r}")
 
 
-class AtlasModel(BaseModel):
-    """Base for every Atlas model: no unknown keys; defaults are required in the JSON Schema."""
+def _check_encodable(value: object) -> None:
+    if isinstance(value, str):
+        try:
+            value.encode("utf-8")
+        except UnicodeEncodeError as e:
+            bad = value[e.start]
+            raise ValueError(
+                f"lone surrogate U+{ord(bad):04X} at offset {e.start}; text must be valid UTF-8"
+            ) from None
+    elif isinstance(value, list):
+        for item in value:
+            _check_encodable(item)
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            _check_encodable(key)
+            _check_encodable(item)
 
-    model_config = ConfigDict(extra="forbid", json_schema_serialization_defaults_required=True)
+
+class AtlasModel(BaseModel):
+    """Base for every Atlas model: no unknown keys; defaults are required in the JSON Schema; no
+    NaN or Infinity; every string (and dict key) encodable as UTF-8."""
+
+    model_config = ConfigDict(
+        extra="forbid", json_schema_serialization_defaults_required=True, allow_inf_nan=False
+    )
+
+    @field_validator("*", mode="after")
+    @classmethod
+    def _utf8_only(cls, value: Any) -> Any:
+        _check_encodable(value)
+        return value
 
 
 class FuzzyDate(AtlasModel):
@@ -141,7 +177,7 @@ class StatusEvent(AtlasModel):
     as_of: FuzzyDate
     phase_id: str | None = None
     planned: bool = False
-    source_ids: list[str] = Field(min_length=1)
+    source_ids: list[SourceId] = Field(min_length=1)
     note: str | None = Field(None, max_length=200)
 
 
@@ -149,8 +185,8 @@ class OrgRef(AtlasModel):
     """An organization as written in a source, optionally resolved to data/orgs.json."""
 
     name: str
-    org_id: str | None = None
-    source_ids: list[str] = Field(default_factory=list)
+    org_id: str | None = Field(None, pattern=ORG_ID_PATTERN)
+    source_ids: list[SourceId] = Field(default_factory=list)
 
 
 class Parties(AtlasModel):
@@ -176,7 +212,7 @@ class Alias(AtlasModel):
         "former_name",
         "phase_name",
     ]
-    source_ids: list[str] = Field(default_factory=list)
+    source_ids: list[SourceId] = Field(default_factory=list)
 
 
 class Location(AtlasModel):
@@ -191,7 +227,7 @@ class Location(AtlasModel):
     postcode: str | None = None
     municipality: str | None = None
     county_name: str | None = None
-    county_fips: str | None = Field(None, pattern=r"^\d{5}$")
+    county_fips: str | None = Field(None, pattern=r"^[0-9]{5}$")
     state_abbr: str = Field(pattern=r"^[A-Z]{2}$")
     parcel_apns: list[str] = Field(default_factory=list)
     geocode_method: GeocodeMethod | None = None
@@ -215,7 +251,7 @@ class Phase(AtlasModel):
     capacity: Capacity = Field(default_factory=Capacity)
     building_sqft: float | None = None
     expected_in_service: FuzzyDate | None = None
-    source_ids: list[str] = Field(default_factory=list)
+    source_ids: list[SourceId] = Field(default_factory=list)
 
 
 class Building(AtlasModel):
@@ -302,13 +338,13 @@ class Incentive(AtlasModel):
     value_usd: float | None = None
     term_years: int | None = None
     status: Literal["proposed", "approved", "denied", "unknown"]
-    source_ids: list[str] = Field(min_length=1)
+    source_ids: list[SourceId] = Field(min_length=1)
 
 
 class Source(AtlasModel):
     """A cited source. supports lists the JSON Pointers it backs (07 §3.3)."""
 
-    id: str = Field(pattern=r"^s\d+$")
+    id: str = Field(pattern=SOURCE_ID_PATTERN)
     url: HttpUrl
     archive_url: HttpUrl | None = None
     publisher: str
@@ -330,7 +366,7 @@ class FieldMeta(AtlasModel):
 
     confidence: float = Field(ge=0, le=1)
     method: Literal["stated", "inferred", "derived", "imported", "human_entered"]
-    source_ids: list[str] = Field(default_factory=list)
+    source_ids: list[SourceId] = Field(default_factory=list)
     conflicts: list[dict[str, JsonValue]] = Field(default_factory=list)
 
 
@@ -360,7 +396,7 @@ class FacilityRecord(AtlasModel):
     id: str = Field(pattern=RECORD_ID_PATTERN)
     record_type: Literal["campus", "project"]
     parent_id: None = None
-    merged_into: str | None = None
+    merged_into: str | None = Field(None, pattern=RECORD_ID_PATTERN)
     scope: Literal["in_scope", "out_of_scope"] = "in_scope"
     canonical_name: str
     aliases: list[Alias] = Field(default_factory=list)

@@ -23,6 +23,7 @@
         },
         "source_ids": {
           "items": {
+            "pattern": "^s[0-9]+$",
             "type": "string"
           },
           "title": "Source Ids",
@@ -316,6 +317,7 @@
         },
         "source_ids": {
           "items": {
+            "pattern": "^s[0-9]+$",
             "type": "string"
           },
           "title": "Source Ids",
@@ -346,7 +348,7 @@
           "type": "string"
         },
         "value": {
-          "pattern": "^\\d{4}(-Q[1-4]|-(0[1-9]|1[0-2])(-(0[1-9]|[12]\\d|3[01]))?)?$",
+          "pattern": "^[0-9]{4}(-Q[1-4]|-(0[1-9]|1[0-2])(-(0[1-9]|[12][0-9]|3[01]))?)?$",
           "title": "Value",
           "type": "string"
         }
@@ -459,6 +461,7 @@
         },
         "source_ids": {
           "items": {
+            "pattern": "^s[0-9]+$",
             "type": "string"
           },
           "minItems": 1,
@@ -532,7 +535,7 @@
         "county_fips": {
           "anyOf": [
             {
-              "pattern": "^\\d{5}$",
+              "pattern": "^[0-9]{5}$",
               "type": "string"
             },
             {
@@ -763,6 +766,7 @@
         "org_id": {
           "anyOf": [
             {
+              "pattern": "^gwo-[0-9a-hjkmnp-tv-z]{26}$",
               "type": "string"
             },
             {
@@ -774,6 +778,7 @@
         },
         "source_ids": {
           "items": {
+            "pattern": "^s[0-9]+$",
             "type": "string"
           },
           "title": "Source Ids",
@@ -878,6 +883,7 @@
         },
         "source_ids": {
           "items": {
+            "pattern": "^s[0-9]+$",
             "type": "string"
           },
           "title": "Source Ids",
@@ -1014,7 +1020,7 @@
           "title": "Archive Url"
         },
         "id": {
-          "pattern": "^s\\d+$",
+          "pattern": "^s[0-9]+$",
           "title": "Id",
           "type": "string"
         },
@@ -1247,6 +1253,7 @@
         },
         "source_ids": {
           "items": {
+            "pattern": "^s[0-9]+$",
             "type": "string"
           },
           "minItems": 1,
@@ -1382,6 +1389,7 @@
     "merged_into": {
       "anyOf": [
         {
+          "pattern": "^gwa-[0-9a-hjkmnp-tv-z]{26}$",
           "type": "string"
         },
         {

@@ -36,6 +36,9 @@ DERIVED_DATE_KEYS = (
     "operating_since",
     "cancelled",
 )
+# Date keys a source states rather than the events deriving them; they need support (07 §3.3).
+SOURCED_DATE_KEYS = ("expected_in_service",)
+DATE_KEYS = DERIVED_DATE_KEYS + SOURCED_DATE_KEYS
 
 StatusGroup = Literal["op", "uc", "pl", "cx", "pa"]
 MwBasis = Literal["it", "facility", "utility_request"]

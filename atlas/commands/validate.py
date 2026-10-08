@@ -8,6 +8,7 @@ import sys
 from datetime import UTC, date, datetime
 from pathlib import Path
 
+from atlas.geo.counties import COUNTIES_ZIP
 from atlas.schema.export import SCHEMA_PATH
 
 
@@ -61,9 +62,7 @@ def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser.add_argument("--records", type=Path, default=Path("data/records"))
     parser.add_argument("--orgs", type=Path, default=Path("data/orgs.json"))
     parser.add_argument("--schema", type=Path, default=Path(SCHEMA_PATH))
-    parser.add_argument(
-        "--counties", type=Path, default=Path("reference/census/cb_2025_us_county_5m.zip")
-    )
+    parser.add_argument("--counties", type=Path, default=COUNTIES_ZIP)
     parser.add_argument("--today", type=_date, default=None, help="YYYY-MM-DD (default: UTC today)")
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--max-issues", type=int, default=200)

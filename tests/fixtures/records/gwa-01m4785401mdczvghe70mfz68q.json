@@ -177,7 +177,8 @@
         "/capacity",
         "/site/building_sqft",
         "/money",
-        "/status_history/0"
+        "/status_history/0",
+        "/dates/expected_in_service"
       ],
       "text_sha256": "9de496f0a429ed4d9b9d01b9f8dee25e35fd27496f44a9642fdcf276298a956d",
       "title": null,
