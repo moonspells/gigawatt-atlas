@@ -19,6 +19,7 @@ import pytest
 from atlas.net import (
     ACCEPT_ENCODING,
     DEFAULT_USER_AGENT,
+    MAX_RETRY_AFTER_SECONDS,
     BadContentType,
     BlockedAddressError,
     FetchError,
@@ -395,6 +396,54 @@ def test_redirects_are_followed_up_to_five() -> None:
         fetch(client, "https://r.example/0", robots=False, sleep=lambda s: None)
 
 
+@pytest.mark.parametrize("status", [303, 301, 302])
+def test_a_post_redirected_with_303_301_or_302_continues_as_a_get(status: int) -> None:
+    # 303 asks for a GET (RFC 9110 §15.4.4); for 301 and 302 fetch does what browsers do with a
+    # POST, so a form body is never re-submitted to the redirect target.
+    seen: list[tuple[str, str, bytes]] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append((request.method, request.url.path, request.read()))
+        if request.url.path == "/form":
+            return httpx.Response(status, headers={"Location": "/result"})
+        return httpx.Response(200, content=b"done")
+
+    with client_for(handle) as client:
+        result = fetch(
+            client,
+            "https://p.example/form",
+            method="POST",
+            data={"a": "b"},
+            robots=False,
+            sleep=lambda s: None,
+        )
+    assert result.content == b"done"
+    assert seen == [("POST", "/form", b"a=b"), ("GET", "/result", b"")]
+
+
+@pytest.mark.parametrize("status", [307, 308])
+def test_a_post_redirected_with_307_or_308_is_repeated_with_its_body(status: int) -> None:
+    seen: list[tuple[str, str, bytes]] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append((request.method, request.url.path, request.read()))
+        if request.url.path == "/form":
+            return httpx.Response(status, headers={"Location": "/result"})
+        return httpx.Response(200, content=b"done")
+
+    with client_for(handle) as client:
+        result = fetch(
+            client,
+            "https://p.example/form",
+            method="POST",
+            data={"a": "b"},
+            robots=False,
+            sleep=lambda s: None,
+        )
+    assert result.content == b"done"
+    assert seen == [("POST", "/form", b"a=b"), ("POST", "/result", b"a=b")]
+
+
 def test_byte_cap_streaming_and_declared() -> None:
     routes = {
         "/big": httpx.Response(200, content=b"x" * 2048),
@@ -583,6 +632,55 @@ def test_retry_after_and_backoff() -> None:
         )
     assert result.content == b"ok"
     assert clock.sleeps == [7.0, 30.0]  # Retry-After first, then the second backoff step
+
+
+@pytest.mark.parametrize("status", [503, 429])
+def test_a_retry_after_above_the_cap_is_an_error_not_a_wait(status: int) -> None:
+    # A server may ask for an hour; the run fails at once instead of sleeping through it.
+    clock = Clock()
+    calls: list[str] = []
+    too_long = str(int(MAX_RETRY_AFTER_SECONDS) + 1)
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        return httpx.Response(status, headers={"Retry-After": too_long})
+
+    with (
+        client_for(handle) as client,
+        pytest.raises(FetchError, match=f"Retry-After {too_long} s is too long") as info,
+    ):
+        fetch(
+            client,
+            "https://g.example/x",
+            robots=False,
+            sleep=clock.sleep,
+            now=clock.now,
+            min_interval=0,
+        )
+    assert info.value.status == status
+    assert clock.sleeps == [] and calls == ["/x"]
+
+
+@pytest.mark.parametrize("wait", [5, int(MAX_RETRY_AFTER_SECONDS)])
+def test_a_retry_after_up_to_the_cap_is_waited_out(wait: int) -> None:
+    clock = Clock()
+    answers = iter(
+        [
+            httpx.Response(503, headers={"Retry-After": str(wait)}),
+            httpx.Response(200, content=b"ok"),
+        ]
+    )
+    with client_for(lambda request: next(answers)) as client:
+        result = fetch(
+            client,
+            "https://g.example/x",
+            robots=False,
+            sleep=clock.sleep,
+            now=clock.now,
+            min_interval=0,
+        )
+    assert result.content == b"ok"
+    assert clock.sleeps == [float(wait)]
 
 
 def test_retries_exhausted_and_connection_errors() -> None:
