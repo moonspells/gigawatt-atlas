@@ -461,6 +461,28 @@ def test_override_for_a_site_without_an_address(
             },
             "not inside TX",
         ),
+        (  # Abilene's Gazetteer point is in Taylor County, not Shackelford (48417)
+            {
+                **CITED,
+                "state_abbr": "TX",
+                "precision": "locality",
+                "city": "Abilene",
+                "county_fips": "48417",
+            },
+            "Gazetteer place 'Abilene' is not inside county 48417",
+        ),
+        (  # coordinates in Texas, but not in the county the entry names (Milam)
+            {
+                **CITED,
+                "state_abbr": "TX",
+                "precision": "locality",
+                "city": "Abilene",
+                "county_fips": "48331",
+                "lat": 32.45,
+                "lon": -99.73,
+            },
+            r"\(32\.45, -99\.73\) is not inside county 48331",
+        ),
     ],
 )
 def test_bad_overrides_fail_the_run(

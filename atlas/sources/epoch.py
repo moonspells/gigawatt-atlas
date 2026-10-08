@@ -392,7 +392,8 @@ def _location_from_result(r: GeocodeResult) -> dict[str, Any]:
 def place_override(
     name: str, ov: LocationOverride, *, counties: CountyIndex, gazetteer: Gazetteer
 ) -> Placed:
-    """The location an override describes, checked like `atlas validate` rule 5 would."""
+    """The location an override describes, checked like `atlas validate` rule 5 would; a point
+    never lies outside the county the entry names, at any precision (as in atlas.geocode)."""
     from atlas.geocode import COUNTY_CHECKED_PRECISIONS, POINT_IN_POLYGON_PRECISIONS
 
     def bad(why: str) -> FetchError:
@@ -431,6 +432,12 @@ def place_override(
                 raise bad(f"({lat}, {lon}) is not inside the county")
         elif not counties.in_state(ov.state_abbr, lat, lon):
             raise bad(f"({lat}, {lon}) is not inside {ov.state_abbr}")
+        elif county is not None and not counties.contains(county.fips, lat, lon):
+            # A record never names a county its point lies outside of (the geocode chain's rule).
+            point = (
+                f"the Gazetteer place {ov.city!r}" if method == "gazetteer" else f"({lat}, {lon})"
+            )
+            raise bad(f"{point} is not inside county {county.fips}")
     location = {
         "lat": lat,
         "lon": lon,
