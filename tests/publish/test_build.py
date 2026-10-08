@@ -500,9 +500,23 @@ def test_missing_tippecanoe_fails_before_touching_out(
     out = tmp_path / "out"
     build_release(options(out), counties=counties, log=quiet)
     before = snapshot(out)
+
+    def started(*_: object, **__: object) -> None:
+        pytest.fail("the build went past the tool check without tippecanoe")
+
+    # The staging directory alone would also leave out untouched, after a full build that fails
+    # only in write_pmtiles; the early check must stop it before validation (R2-2).
+    monkeypatch.setattr(publish, "_validate", started)
+    monkeypatch.setattr(publish, "write_parquet", started)
     monkeypatch.setattr(publish, "tippecanoe_path", lambda: None)
     with pytest.raises(ReleaseError, match="tippecanoe is not on PATH"):
         build_release(options(out, release="20261012-1300", skip_pmtiles=False), counties=counties)
+    missing = tmp_path / "gone.pmtiles"
+    with pytest.raises(ReleaseError, match=r"gone\.pmtiles: no such PMTiles archive"):
+        build_release(
+            options(out, release="20261012-1300", skip_pmtiles=False, reuse_pmtiles=missing),
+            counties=counties,
+        )
     assert snapshot(out) == before
     assert sorted(p.name for p in tmp_path.iterdir()) == ["out"]  # no staging left behind
 
