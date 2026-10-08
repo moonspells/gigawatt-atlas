@@ -1,11 +1,148 @@
 {
+  "AWS New Albany": {
+    "city": "New Albany",
+    "note": "Epoch's address, 13360 Miller Rd NW, names no city or state. Its first Selected Source, the City of New Albany's construction updates, lists the AWS buildings at Miller and Beech roads in the city. A crossing is not an address.",
+    "precision": "locality",
+    "publisher": "City of New Albany",
+    "quote": "AWS 4, Building B Location: Generally located at Miller and Beech",
+    "retrieved_at": "2026-10-08T05:14:59Z",
+    "source_type": "government_record",
+    "source_url": "https://newalbanyohio.org/community-development/project-updates/",
+    "state_abbr": "OH"
+  },
+  "Anthropic Barber Lake": {
+    "city": "Colorado City",
+    "note": "Epoch gives no address. Its first Selected Source, the site owner's release, places the Barber Lake site in Colorado City, Texas.",
+    "precision": "locality",
+    "publisher": "Cipher Mining",
+    "quote": "Under the agreement, Cipher will deliver 168 MW of critical IT load, supported by a maximum of 244 MW of gross capacity, at its Barber Lake site in Colorado City, Texas.",
+    "retrieved_at": "2026-10-08T05:18:09Z",
+    "source_type": "company_release",
+    "source_url": "https://www.globenewswire.com/news-release/2025/09/25/3156107/0/en/Cipher-Mining-Signs-168-MW-10-Year-AI-Hosting-Agreement-with-Fluidstack.html",
+    "state_abbr": "TX"
+  },
+  "Google Kansas City East": {
+    "city": "Kansas City",
+    "note": "Epoch gives no address. Its first Selected Source, the business park developer's release, places the site in Kansas City, Missouri; it names no county, so the point is the city's Census internal point.",
+    "precision": "locality",
+    "publisher": "Hunt Midwest",
+    "quote": "Kansas City, MO — March 20, 2024 — Hunt Midwest is proud to announce Google will build a new $1 billion data center at Hunt Midwest Business Center as the technology company expands its presence across the Midwest.",
+    "retrieved_at": "2026-10-08T05:12:26Z",
+    "source_type": "company_release",
+    "source_url": "https://huntmidwest.com/2024/03/google-announces-1-billion-data-center-at-hunt-midwest-business-center/",
+    "state_abbr": "MO"
+  },
+  "Google Mesa": {
+    "archive_url": "https://web.archive.org/web/20260704100329/https://www.datacenterdynamics.com/en/news/google-breaks-ground-on-mesa-data-center-campus-in-arizona/",
+    "city": "Mesa",
+    "note": "Epoch gives no address, and both of its Selected Sources are DCD articles. The first, read through its Wayback Machine snapshot because DCD refuses automated clients, places the site in Mesa, Arizona.",
+    "precision": "locality",
+    "publisher": "DCD",
+    "quote": "In a statement, Google said data centers, including the one built in Mesa, will power the company's tools like Search, Gmail, Maps, and 'ongoing artificial intelligence innovation'.",
+    "retrieved_at": "2026-10-08T05:14:09Z",
+    "source_type": "trade_press",
+    "source_url": "https://www.datacenterdynamics.com/en/news/google-breaks-ground-on-mesa-data-center-campus-in-arizona/",
+    "state_abbr": "AZ"
+  },
+  "Google Pryor (North)": {
+    "city": "Pryor Creek",
+    "note": "Epoch's address, 4581 Webb St, Pryor, OK, does not geocode. Google's post, Epoch's first Selected Source, places the facility in Pryor, whose Census place name is Pryor Creek.",
+    "precision": "locality",
+    "publisher": "Google",
+    "quote": "This investment supports the development of a new data center campus in Stillwater and the expansion of our existing facility in Pryor, as well as expanded education and workforce development programs.",
+    "retrieved_at": "2026-10-08T05:15:01Z",
+    "source_type": "company_release",
+    "source_url": "https://blog.google/inside-google/company-announcements/google-american-innovation-oklahoma/",
+    "state_abbr": "OK"
+  },
+  "Google Storey County": {
+    "county_fips": "32029",
+    "note": "Epoch gives no address. Google's own location page, one of Epoch's Selected Sources, names Storey County, Nevada, and no town.",
+    "precision": "county",
+    "publisher": "Google",
+    "quote": "Since the Henderson, Nevada data center was built in 2019, and the Storey County, Nevada data center was built in 2021, Google has invested more than $6 billion in the state.",
+    "retrieved_at": "2026-10-08T05:12:26Z",
+    "source_type": "company_release",
+    "source_url": "https://datacenters.google/locations/storey-county-nevada/",
+    "state_abbr": "NV"
+  },
+  "Meta Huntsville": {
+    "city": "Huntsville",
+    "note": "Epoch's address (Toney, AL) does not geocode: Toney is not a Census place. Its first Selected Source, the site contractor's project page, places the data center in Huntsville, Alabama.",
+    "precision": "locality",
+    "publisher": "Plateau Excavation",
+    "quote": "Meta (formerly known as Facebook) is expanding its data center in Huntsville, AL.",
+    "retrieved_at": "2026-10-08T05:15:04Z",
+    "source_type": "company_release",
+    "source_url": "https://plateauexcavation.com/projects/huntsville-meta-data-center-meta-project-ferris/",
+    "state_abbr": "AL"
+  },
   "Meta Hyperion": {
     "county_fips": "22083",
-    "note": "Meta's Richland Parish Data Center page (the first of Epoch's Selected Sources for this site) says Meta is building the data center that houses Hyperion in Richland Parish, Louisiana. Read 2026-10-07. Epoch's address, Holly Ridge, LA 71269, matches no Census place.",
+    "note": "Epoch's first Selected Source. The page names Richland Parish, Louisiana, and no town; Epoch's address, Holly Ridge, LA 71269, matches no Census place.",
     "precision": "county",
     "publisher": "Meta",
+    "quote": "In December 2024, Meta announced that we are building our largest data center to date in Richland Parish, Louisiana.",
+    "retrieved_at": "2026-10-08T05:15:06Z",
     "source_type": "company_release",
     "source_url": "https://datacenters.atmeta.com/richland-parish-data-center/",
     "state_abbr": "LA"
+  },
+  "OpenAI Stargate Michigan": {
+    "county_fips": "26161",
+    "municipality": "Saline Township",
+    "note": "Epoch gives no address. The regulator's release, one of Epoch's Selected Sources, names a Washtenaw County data center, and its next sentence puts it in Saline Township. Townships are not Census places, so the point is the county's.",
+    "precision": "county",
+    "publisher": "Michigan Public Service Commission",
+    "quote": "The Michigan Public Service Commission today conditionally approved an application from DTE Electric Co. for approval of special contracts to supply power for a Washtenaw County data center",
+    "retrieved_at": "2026-10-08T05:14:11Z",
+    "source_type": "court_or_regulator",
+    "source_url": "https://www.michigan.gov/mpsc/commission/news-releases/2025/12/18/mpsc-approves-dte-electric-energy-contracts-for-data-center",
+    "state_abbr": "MI"
+  },
+  "OpenAI Stargate Milam": {
+    "county_fips": "48331",
+    "note": "Epoch gives no address. Its Selected Source from SB Energy, which builds and operates the site, names Milam County (Texas) and no town.",
+    "precision": "county",
+    "publisher": "SB Energy",
+    "quote": "OpenAI has also selected SB Energy to build and operate its previously-announced 1.2 GW data center site in Milam County.",
+    "retrieved_at": "2026-10-08T05:14:11Z",
+    "source_type": "company_release",
+    "source_url": "https://sbenergy.com/openai-and-softbank-group-partner-with-sb-energy/",
+    "state_abbr": "TX"
+  },
+  "OpenAI Stargate New Mexico": {
+    "county_fips": "35013",
+    "note": "Epoch gives no address. Its Selected Source from Oracle places Project Jupiter, Epoch's name for this site's project, in Doña Ana County, New Mexico.",
+    "precision": "county",
+    "publisher": "Oracle",
+    "quote": "Oracle and BorderPlex Digital Assets today announced Project Jupiter will utilize Bloom Energy fuel cells to fully power the AI data center campus in Doña Ana County, New Mexico.",
+    "retrieved_at": "2026-10-08T05:14:58Z",
+    "source_type": "company_release",
+    "source_url": "https://www.oracle.com/news/announcement/oracle-borderplex-and-bloom-energy-to-power-project-jupiter-with-fuel-cell-technology-2026-04-27/",
+    "state_abbr": "NM"
+  },
+  "OpenAI Stargate Wisconsin": {
+    "city": "Port Washington",
+    "note": "Epoch gives no address. Its first Selected Source, the developer's campus page, places the site in Port Washington, Wisconsin.",
+    "precision": "locality",
+    "publisher": "Vantage Data Centers",
+    "quote": "Located in Port Washington just 30 minutes from Milwaukee, Wisconsin, this landmark AI campus is Vantage’s first in the Badger State.",
+    "retrieved_at": "2026-10-08T05:14:59Z",
+    "source_type": "company_release",
+    "source_url": "https://vantage-dc.com/data-center-locations/north-america/port-washington-wisconsin",
+    "state_abbr": "WI"
+  },
+  "Stream Phoenix": {
+    "archive_url": "https://web.archive.org/web/20261001103317/https://www.streamdatacenters.com/wp-content/uploads/2026/01/SDC-Goodyear-CaseStudy-251218.pdf",
+    "city": "Goodyear",
+    "note": "Epoch's address, 2950 S. Litchfield Road, names no city or state. Its Selected Source from Stream, read through its Wayback Machine snapshot because the site refuses automated clients, places the campus in Goodyear, Arizona.",
+    "precision": "locality",
+    "publisher": "Stream Data Centers",
+    "quote": "That’s evident in Goodyear, Arizona, where Stream is developing a 157-acre data center campus that at full build will support up to 280 MW of critical load across more than two million square feet of data center space.",
+    "retrieved_at": "2026-10-08T05:16:45Z",
+    "source_type": "company_release",
+    "source_url": "https://www.streamdatacenters.com/wp-content/uploads/2026/01/SDC-Goodyear-CaseStudy-251218.pdf",
+    "state_abbr": "AZ"
   }
 }
