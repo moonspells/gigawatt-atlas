@@ -91,10 +91,13 @@ FIXTURE_ORGS = Path("tests/fixtures/orgs.json")
 FIXTURE_INPUTS = Path("fixtures/release-inputs")
 LICENSE_ID = "ODbL-1.0"
 FACILITY_URL = "https://moonspells.dev/atlas/facility/{id}/"
+# The copy-ready line of ATTRIBUTION.md (tests/publish/test_build.py keeps the two equal). CC BY 4.0
+# §3(a)(1) asks for the license URI and an indication that the data was changed.
 ATTRIBUTION = (
-    "Gigawatt Atlas, moonspells.dev/atlas, release {release}, ODbL 1.0; contains information "
-    "from OpenStreetMap contributors (ODbL), PNNL IM3 (ODbL), Epoch AI (CC BY 4.0), "
-    "AI GridWatch (CC BY 4.0)"
+    "Gigawatt Atlas, moonspells.dev/atlas, release {release}, ODbL 1.0 "
+    "(https://opendatacommons.org/licenses/odbl/1-0/); contains information from OpenStreetMap "
+    "contributors (ODbL), PNNL IM3 (ODbL), and data adapted from Epoch AI and AI GridWatch "
+    "(CC BY 4.0, https://creativecommons.org/licenses/by/4.0/)"
 )
 FEED_WINDOW_DAYS = 90
 
@@ -588,8 +591,10 @@ def render_readme(release: str, files: Sequence[str], *, fixture: bool) -> str:
         "3. keep it open: do not add technical restrictions without also offering an",
         "   unrestricted copy.",
         "",
-        "Maps, charts and screenshots made from the data are Produced Works: they need the",
-        "attribution, not the share-alike.",
+        "Maps, charts and screenshots made from the data are Produced Works: made from this",
+        "release, they need the attribution only; made from a changed version of the database,",
+        "ODbL 4.6 asks you to offer that changed database (or a file of the changes) too.",
+        "`facilities.pmtiles` holds the records' values, so it is part of the database.",
         "",
         "## Attribution",
         "",

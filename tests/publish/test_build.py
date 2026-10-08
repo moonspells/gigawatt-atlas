@@ -154,9 +154,10 @@ def test_manifest_fields(built: BuildResult) -> None:
     assert m["license"] == "ODbL-1.0"
     assert m["fixture"] is False
     assert m["attribution"] == (
-        f"Gigawatt Atlas, moonspells.dev/atlas, release {RELEASE}, ODbL 1.0; contains information "
-        "from OpenStreetMap contributors (ODbL), PNNL IM3 (ODbL), Epoch AI (CC BY 4.0), "
-        "AI GridWatch (CC BY 4.0)"
+        f"Gigawatt Atlas, moonspells.dev/atlas, release {RELEASE}, ODbL 1.0 "
+        "(https://opendatacommons.org/licenses/odbl/1-0/); contains information from OpenStreetMap "
+        "contributors (ODbL), PNNL IM3 (ODbL), and data adapted from Epoch AI and AI GridWatch "
+        "(CC BY 4.0, https://creativecommons.org/licenses/by/4.0/)"
     )
     assert m["base_url"] == f"https://tiles.moonspells.dev/v/{RELEASE}/"
     assert m["rec_base_url"] == "https://tiles.moonspells.dev/rec/"
@@ -667,6 +668,18 @@ def test_static_files_are_copies(built: BuildResult) -> None:
     assert manifest(built)["attribution"] in readme
     for name in V_FILES:
         assert f"`{name}`" in readme
+
+
+def test_attribution_line_is_the_copy_ready_line_of_attribution_md(built: BuildResult) -> None:
+    # The manifest and README line is the one ATTRIBUTION.md tells people to copy, with the
+    # license URIs and the "adapted" notice CC BY 4.0 §3(a)(1) asks for (RD4, B9).
+    text = (publish.REPO_ROOT / "ATTRIBUTION.md").read_text(encoding="utf-8")
+    quoted = " ".join(line[2:] for line in text.splitlines() if line.startswith("> "))
+    assert quoted == publish.ATTRIBUTION
+    assert "https://creativecommons.org/licenses/by/4.0/" in manifest(built)["attribution"]
+    readme = " ".join((vdir(built) / "README.md").read_text(encoding="utf-8").split())
+    assert "not the share-alike" not in readme
+    assert "ODbL 4.6" in readme
 
 
 @pytest.fixture
