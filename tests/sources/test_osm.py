@@ -172,6 +172,18 @@ def test_classify() -> None:
     assert classify("way", {"building": "no", "construction": "data_center"}) == "campus"
     assert classify("way", {"telecom": "data_center", "building": "yes"}) == "building"
     assert classify("way", {"building": "data_center"}) == "building"
+    # A building that is not built yet carries its building tag under a lifecycle prefix: one
+    # building of a site, not a campus (the 2026-10-07 duplicates: Percheron DC, QTS Hillsboro 3).
+    assert (
+        classify("way", {"telecom": "data_center", "proposed:building": "industrial"}) == "building"
+    )
+    assert classify("way", {"telecom": "data_center", "construction:building": "yes"}) == "building"
+    assert (
+        classify("relation", {"telecom": "data_center", "proposed:building": "yes"}) == "building"
+    )
+    assert classify("way", {"telecom": "data_center", "construction:building": "no"}) == "campus"
+    assert classify("way", {"building": "no", "proposed:building": "yes"}) == "campus"
+    assert classify("node", {"telecom": "data_center", "proposed:building": "yes"}) == "point"
 
 
 def test_check_overpass() -> None:

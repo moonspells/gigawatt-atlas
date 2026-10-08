@@ -78,8 +78,8 @@ invisible characters removed and whitespace collapsed. `kind` is:
 
 | kind | Rule | US count (2026-10-07) |
 |---|---|---|
-| `campus` | a way or relation with `telecom=data_center` and no `building` tag, or with `building=no` | 88 |
-| `building` | any other way or relation | 1,663 |
+| `campus` | a way or relation with `telecom=data_center` and no `building` tag, or with `building=no`. A lifecycle building tag (`proposed:building=*`, `construction:building=*`, any value but `no`) counts as a `building` tag: a planned hall drawn as its own polygon is one building of a site | 81 |
+| `building` | any other way or relation | 1,670 |
 | `point` | a node | 135 |
 
 ## 4. Dissolving objects into campuses
@@ -122,7 +122,10 @@ On the 2026-10-07 snapshot (1,886 objects) the rules give 1,117 clusters. The ea
 (center distances, an exact operator guard, no rule 3) gave 1,367; box gaps alone give 1,280, the
 word-prefix guard 1,278, and rule 3 the rest (its address clause adds 4 joins). Single objects
 without an operator fell from 601 clusters to 393, and canonical names used by more than one
-record from 79 (414 records) to 51 (188 records).
+record from 79 (414 records) to 51 (188 records). Counting lifecycle-tagged polygons as buildings
+(section 3) then gives 1,114 clusters and 49 shared names (180 records): Rowan Green's four
+`proposed:building=industrial` halls join by name under rule 3 instead of standing as four
+campuses.
 
 The **representative** is the campus object (the largest, if a cluster has two), else the way or
 relation with the largest bounding box, else the node with the lowest id. Members and clusters are
@@ -197,7 +200,7 @@ operating). Members are grouped by the resulting status.
   YYYY-MM or YYYY-MM-DD between 1990-01-01 and the snapshot date, the event is `energized` at that
   date instead. Earlier dates (old buildings converted to data centers, such as "1938") are
   ignored, because validation accepts nothing before 1990.
-- **Several statuses (13 clusters on 2026-10-07).** Each status group becomes a phase,
+- **Several statuses (17 clusters on 2026-10-07).** Each status group becomes a phase,
   `osm-operating`, `osm-under_construction` or `osm-proposed`, named after its members ("Under
   construction in OpenStreetMap: NTT VA8"), with one event per phase and `buildings[].phase_id`
   set. The rollup (07 §2.3) then gives the most advanced active status, so an operating campus with
@@ -333,15 +336,20 @@ The receipt `data/imports/osm.json` has the metrics `objects`, `clusters`, `out_
   and 71 US objects). Whether `input:electricity` is the facility's total draw or a utility
   connection is not defined by the tag; the importer stores it as `facility_mw` with confidence
   0.70 and keeps the raw text.
-- **Statuses are assumed.** `telecom=data_center` is taken as operating (confidence 0.60). OSM says
+- **Statuses are assumed.** `telecom=data_center` with no lifecycle tag is taken as operating
+  (confidence 0.60); `proposed:*`, `construction:*`, `building=construction` and
+  `landuse=construction` give proposed or under construction (docs/status-crosswalk.md). OSM says
   what a feature is, not when it changed, so `first_reported` dates are the snapshot date, and
-  `operating_since` equals it unless a `start_date` exists. Lifecycle prefixes such as
-  `proposed:building=*` on a `telecom=data_center` object are not read by the crosswalk: QTS
-  Data Center - Hillsboro 3's two polygons (ways 1465196735 and 1465196736, tagged
-  `proposed:building=industrial`) become two operating records, one of them with the proposed node
-  11721960464 as a phase.
+  `operating_since` equals it unless a `start_date` exists.
+- **Planned buildings.** A polygon tagged `proposed:building=*` or `construction:building=*` is a
+  building, not a campus, so Rowan Green's four Percheron DC halls (ways 1501824326 to 1501824329)
+  and QTS Data Center - Hillsboro 3's two polygons (ways 1465196735 and 1465196736) each dissolve
+  by name under rule 3 into one proposed record. Hillsboro 3's proposed node 11721960464 has no
+  operator while the polygons name QTS, so no rule joins it and it stays a record of its own; it
+  used to join a polygon through the campus rule. PNNL campus rows that land on such a polygon
+  become `conflict` items (two on 2026-10-07, Hillsboro 3).
 - **Names.** 187 records have no name and no operator and are called "Data center ({county},
-  {ST})", for example "Data center (Taylor County, TX)"; 51 names are shared by 186 records that
+  {ST})", for example "Data center (Taylor County, TX)"; 49 names are shared by 180 records that
   differ only by id. Operator tags are copied as written; a few name a person or a
   non-data-center business, which the seed review should catch.
 - **Doubly mapped buildings.** Rule 3 joins only objects that both lack an operator, so an
@@ -360,23 +368,27 @@ The receipt `data/imports/osm.json` has the metrics `objects`, `clusters`, `out_
   `timestamp_osm_base` 2026-10-07T22:39:49Z. The same query took 26–27 s in the live test and the
   earlier probe. An attempt a few minutes before failed on all four endpoints (reset, 504, 500,
   500) and stopped cleanly with exit 1.
-- **Dissolve:** 88 campus objects, 1,663 buildings, 135 points → 1,117 clusters (834 single
-  objects, 283 with several members, at most 32). The rules before the 2026-10-08 review fixes
+- **Dissolve:** 81 campus objects, 1,670 buildings, 135 points → 1,114 clusters (830 single
+  objects, 284 with several members, at most 32). The rules before the 2026-10-08 review fixes
   gave 1,367 (section 4).
-- **Records:** 1,117 candidates, 0 invalid; `atlas validate` passes for all 1,117 (1,105 in scope;
-  12 out of scope: 2 in Puerto Rico and 10 telecom sites). Status: 1,073 operating, 43 under
-  construction, 1 proposed; 13 with phases. Precision: 1,002 footprint, 115 site. `it_mw` on 13
-  records and `facility_mw` on 19; 27 dated by `start_date`; 2 planned `opening_date` events.
+- **Records:** 1,114 candidates, 0 invalid; `atlas validate` passes for all 1,114 (1,102 in scope;
+  12 out of scope: 2 in Puerto Rico and 10 telecom sites). Status: 1,054 operating, 53 under
+  construction, 7 proposed (lifecycle tags, docs/status-crosswalk.md); 17 with phases. Precision:
+  998 footprint, 116 site. `it_mw` on 13 records and `facility_mw` on 19; 27 dated by
+  `start_date`; 2 planned `opening_date` events.
 - **PNNL:** MSD-LIVE latest version v2026.02.09, and the web-map file read is the established
   v2026.02.09 export (`upstream_version` v2026.02.09); 1,355 of 1,382 rows matched (**98.05%**,
-  above the 95% threshold), all spatially; 863 records gained s2 and `pnnl_im3`, 30 an acreage.
-- **Review:** in `pnnl.jsonl`, 27 `unmatched` (15 campus, 7 building, 5 point rows), 9 `conflict`
-  (4 campus rows on buildings, 5 building rows larger than their building's box), 7
-  `county_mismatch` (clusters near a county line, for example Manassas city against Prince
-  William County) and 4 `possible_duplicate`; in `osm.jsonl`, 12 `out_of_scope`.
+  above the 95% threshold), all spatially; 862 records gained s2 and `pnnl_im3`, 28 an acreage.
+- **Review:** in `pnnl.jsonl`, 27 `unmatched` (15 campus, 7 building, 5 point rows), 11 `conflict`
+  (6 campus rows on buildings, 5 building rows larger than their building's box), 4
+  `county_mismatch` (a PNNL county that the 1:500,000 Census polygons contradict, for example a
+  "Manassas city" row whose point lies in Prince William County, or a Licking County row in
+  Franklin County, OH) and 4 `possible_duplicate`; in `osm.jsonl`, 12 `out_of_scope`.
 
 These counts were measured on the saved 22:39:49Z response with the code after the 2026-10-08
-review fixes; the first run (22:42 UTC) gave the figures before them, quoted in section 4.
+review fixes and their integration (the 1:500,000 county file for county FIPS, lifecycle-tagged
+polygons as buildings); the first run (22:42 UTC) gave the figures before them, quoted in
+section 4.
 
 The seed records are not committed by this change; the bulk seed pull request runs the import after
 integration (07 §6.7).

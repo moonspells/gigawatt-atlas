@@ -187,14 +187,28 @@ def check_overpass(doc: object, *, min_elements: int = MIN_ELEMENTS) -> str:
     return base
 
 
+# A building that is not built yet carries its building tag under a lifecycle prefix
+# (proposed:building=industrial, construction:building=yes), as a value other than "no".
+LIFECYCLE_BUILDING_KEYS = ("proposed:building", "construction:building")
+
+
 def classify(osm_type: str, tags: Mapping[str, str]) -> ObjectKind:
-    """campus: a way or relation with telecom=data_center and no building tag, or building=no;
-    building: any other way or relation; point: a node."""
+    """campus: a way or relation with telecom=data_center and no building tag (a lifecycle one,
+    proposed:building=* or construction:building=*, counts as a building tag), or building=no;
+    building: any other way or relation; point: a node.
+
+    A planned building drawn as its own polygon is one building of a site, not a campus: as a
+    campus, each of Rowan Green's four proposed:building=industrial halls was a record of its own,
+    and QTS Hillsboro 3's two polygons split the site (2026-10-07).
+    """
     if osm_type == "node":
         return "point"
-    if (tags.get("telecom") == "data_center" and "building" not in tags) or tags.get(
-        "building"
-    ) == "no":
+    if tags.get("building") == "no":
+        return "campus"
+    is_building = "building" in tags or any(
+        tags.get(key, "no") != "no" for key in LIFECYCLE_BUILDING_KEYS
+    )
+    if tags.get("telecom") == "data_center" and not is_building:
         return "campus"
     return "building"
 
