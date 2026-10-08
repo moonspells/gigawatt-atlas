@@ -105,7 +105,10 @@ def test_layout(repo_root: Path) -> None:
 CC_BY = "https://creativecommons.org/licenses/by/4.0/"
 ODBL = "https://opendatacommons.org/licenses/odbl/1-0/"
 LINK_RE = re.compile(r"\]\(([^)\s]+)\)")
-SETUP_UV_RE = re.compile(r"setup-uv@[0-9a-f]{40} # v[\d.]+\n\s+with: \{ version: '([\d.]+)'")
+# A step's `if:` may sit between `uses:` and `with:` (the publish.yml build job).
+SETUP_UV_RE = re.compile(
+    r"setup-uv@[0-9a-f]{40} # v[\d.]+\n(?:\s+if: [^\n]*\n)?\s+with: \{ version: '([\d.]+)'"
+)
 WORKFLOWS = ("ci.yml", "publish.yml", "basemap.yml")
 
 
@@ -133,7 +136,10 @@ def test_uv_version_is_a_floor_not_a_cap(repo_root: Path) -> None:
     pinned: set[str] = set()
     for name in WORKFLOWS:
         text = (repo_root / ".github" / "workflows" / name).read_text(encoding="utf-8")
-        pinned.update(SETUP_UV_RE.findall(text))
+        found = SETUP_UV_RE.findall(text)
+        # Every setup-uv step is read, so none can keep an old uv unseen (RD2-2).
+        assert len(found) == text.count("astral-sh/setup-uv@") > 0, (name, found)
+        pinned.update(found)
     assert pinned == {floor}, pinned  # one uv in every workflow, bumped together with the floor
     assert f"{floor} or newer" in (repo_root / "README.md").read_text(encoding="utf-8")
 

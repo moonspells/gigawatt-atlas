@@ -1446,12 +1446,15 @@ def upload_release(
     uploader: Uploader | None,
     *,
     latest: bool = True,
+    renew: bool = False,
     dry_run: bool = False,
     log: Callable[[str], None] = print,
 ) -> UploadReport:
     """Verify, then upload in order: v/{release}/**, its manifest, rec/**, atlas/latest.json.
 
-    uploader may be None only for a dry run.
+    With renew, objects already stored with the same SHA-256 are put again, which restarts their
+    lifecycle age (the fixture release, docs/r2-setup.md §7). uploader may be None only for a
+    dry run.
     """
     _, problems = verify_release(release_dir, release)
     if problems:
@@ -1468,7 +1471,7 @@ def upload_release(
     if uploader is None:
         raise ValueError("an uploader is needed unless dry_run is set")
     for item in items:
-        upload_item(uploader, item, report=report, log=log)
+        upload_item(uploader, item, renew=renew, report=report, log=log)
     log(f"upload {release}: {report.summary()}")
     return report
 

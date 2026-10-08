@@ -16,7 +16,7 @@ on:
         type: boolean
         default: false
       fixture:
-        description: Upload the committed fixture release (fixtures/release, 20000101-0000) instead; never touches atlas/latest.json
+        description: Upload the committed fixture release (fixtures/release, 20000101-0000) instead, putting stored objects again so their 120-day lifecycle age restarts; never touches atlas/latest.json
         type: boolean
         default: false
       takedown:
@@ -133,12 +133,16 @@ jobs:
         env:
           RELEASE: ${{ needs.build.outputs.release }}
           LATEST: ${{ needs.build.outputs.latest }}
+          FIXTURE: ${{ inputs.fixture == true }}
           CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
           R2_TILES_ACCESS_KEY_ID: ${{ secrets.R2_TILES_ACCESS_KEY_ID }}
           R2_TILES_SECRET_ACCESS_KEY: ${{ secrets.R2_TILES_SECRET_ACCESS_KEY }}
         run: |
           args=("$RUNNER_TEMP/release" --release "$RELEASE")
           if [ "$LATEST" != "true" ]; then args+=(--no-latest); fi
+          # The lifecycle rule deletes v/ objects 120 days after their last upload, and a plain
+          # upload skips objects it already holds, so the fixture is put again (r2-setup.md §7).
+          if [ "$FIXTURE" = "true" ]; then args+=(--renew); fi
           uv run --locked atlas publish upload "${args[@]}"
 
   takedown:

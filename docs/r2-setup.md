@@ -79,9 +79,11 @@ set at upload by `atlas publish`.
 The file is [`r2/cors.json`](../r2/cors.json) in this repo (Wrangler format): origins
 `https://moonspells.dev` and `http://localhost:4321`, methods `GET` and `HEAD`, request headers
 `range` and `if-match`, exposed `etag`, `content-length` and `content-range`, max age 3000 s.
+The command runs from the site clone like the others, so `--file` names the file in the
+`gigawatt-atlas` clone.
 
 ```sh
-pnpm exec wrangler r2 bucket cors set atlas-tiles --file r2/cors.json
+pnpm exec wrangler r2 bucket cors set atlas-tiles --file <gigawatt-atlas clone>/r2/cors.json
 pnpm exec wrangler r2 bucket cors list atlas-tiles      # check: one rule as above
 ```
 
@@ -104,10 +106,14 @@ once, without waiting for this rule (publishing.md §7), with the `atlas-tiles` 
 does not name delete; if the first delete of a takedown answers AccessDenied, the job stops
 before deleting anything)*.
 
-Age counts from the upload, so the fixture release `v/20000101-0000/` also expires 120 days
-after its upload. If site CI still pins it then, dispatch `publish.yml` with `fixture` again.
-The release the site pins must likewise stay younger than 120 days, which every merged site
-data PR renews.
+Age counts from each object's last upload, so the fixture release `v/20000101-0000/` also
+expires 120 days after it was last uploaded. While site CI pins it, renew it before then (a
+calendar reminder every 100 days): dispatch `publish.yml` from `main` with `fixture` ticked. Its
+upload runs `atlas publish upload --renew`, which puts every object already stored with the same
+SHA-256 again, byte for byte, so its age starts over; the job log's last line counts them as
+`renewed`. A plain upload skips those objects and leaves their age as it was, and a changed
+fixture still fails (publishing.md §6). The release the site pins must likewise stay younger
+than 120 days, which every merged site data PR renews.
 
 ## 8. Response headers: Transform Rule `tiles-hardening`
 
@@ -132,22 +138,28 @@ One token per bucket, each **Object Read & Write** on that bucket only, with a 9
    *(check: a User API token works the same; an Account token survives a change of user)*.
 2. Name `gigawatt-atlas-tiles`; permissions **Object Read & Write**; **Apply to specific buckets
    only** → `atlas-tiles`; TTL 90 days *(check the TTL field name)*. Create.
-3. Copy the **Access Key ID** and **Secret Access Key** straight into GitHub; Cloudflare shows the
-   secret once. Do not store them anywhere else.
+3. Cloudflare then shows three values: **Token value**, **Access Key ID** and **Secret Access
+   Key**. Only the Access Key ID and the Secret Access Key go into the `production` Environment
+   (table below): copy them straight into GitHub, since Cloudflare shows the secret once, and do
+   not store them anywhere else. The **Token value** is not stored anywhere, in GitHub or
+   elsewhere: it is the same credential in Cloudflare API form (the Secret Access Key is its
+   SHA-256), and nothing here uses it, because `atlas publish` talks to R2 over the S3 API with
+   the key pair alone. Close the page once the two secrets are saved; if one is lost, create a
+   new token as in the rotation below.
 4. Repeat with name `gigawatt-atlas-raw` for `atlas-raw`.
 
 GitHub: **moonspells/gigawatt-atlas → Settings → Environments → production**:
 
 | Kind | Name | Value | Used by |
 |---|---|---|---|
-| Environment secret | `R2_TILES_ACCESS_KEY_ID` | Access Key ID of the `atlas-tiles` token | `publish.yml` and `basemap.yml` upload jobs |
+| Environment secret | `R2_TILES_ACCESS_KEY_ID` | Access Key ID of the `atlas-tiles` token | the `publish.yml` upload and takedown jobs and the `basemap.yml` upload job |
 | Environment secret | `R2_TILES_SECRET_ACCESS_KEY` | its Secret Access Key | same |
 | Environment secret | `R2_RAW_ACCESS_KEY_ID` | Access Key ID of the `atlas-raw` token | M2 fetch jobs |
 | Environment secret | `R2_RAW_SECRET_ACCESS_KEY` | its Secret Access Key | M2 fetch jobs |
 | Environment variable | `CF_ACCOUNT_ID` | the 32-character account id (R2 overview, **Account ID**) | the R2 endpoint `https://{CF_ACCOUNT_ID}.r2.cloudflarestorage.com` |
 
 `R2_TILES_BUCKET` is optional and defaults to `atlas-tiles`. The secrets reach only the upload
-step of each workflow, through `env:`.
+steps of `publish.yml` and `basemap.yml` and the takedown step of `publish.yml`, through `env:`.
 
 Checks:
 

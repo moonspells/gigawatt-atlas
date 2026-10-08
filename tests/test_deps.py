@@ -7,6 +7,7 @@ the fix is an ignore line in pyproject.toml with a comment.
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 import tomllib
@@ -86,3 +87,14 @@ def test_lock_pins_the_planned_versions(repo_root: Path) -> None:
     pyproject = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))
     assert pyproject["tool"]["uv"]["exclude-newer"] == "24 hours"
     assert all("~=" in d for d in pyproject["project"]["dependencies"])
+    # atlas/net.py imports httpcore, so it is a direct dependency, not only httpx's (RD2-3).
+    declared = {
+        re.split(r"[~=<>!; \[]", d, maxsplit=1)[0] for d in pyproject["project"]["dependencies"]
+    }
+    assert "httpcore" in declared
+    (root,) = [p for p in lock["package"] if p["name"] == "gigawatt-atlas"]
+    assert "httpcore" in {d["name"] for d in root["dependencies"]}
+    specifiers = [
+        d["specifier"] for d in root["metadata"]["requires-dist"] if d["name"] == "httpcore"
+    ]
+    assert len(specifiers) == 1 and specifiers[0].startswith("~=1.0."), specifiers

@@ -83,6 +83,44 @@ def test_records_gate(tmp_path: Path, records: list[str], fixture: str, skip: st
     assert ("::notice::" in result.stdout) is (skip == "true")
 
 
+@pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
+@pytest.mark.parametrize(
+    ("fixture", "latest", "flags"),
+    [("true", "false", ["--no-latest", "--renew"]), ("false", "true", [])],
+)
+def test_fixture_upload_renews_its_objects(
+    tmp_path: Path, fixture: str, latest: str, flags: list[str]
+) -> None:
+    # The fixture is re-dispatched to outlive the 120-day lifecycle rule on v/; without --renew
+    # the upload skips every object it already holds and their age does not restart (RD2-1).
+    # A real release never renews: its rec/ objects are shared with earlier releases.
+    (step,) = [s for s in steps(publish_jobs()["upload"]) if "atlas publish upload" in s]
+    assert "FIXTURE: ${{ inputs.fixture == true }}" in step
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake_uv = bin_dir / "uv"
+    fake_uv.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$ARGS_OUT"\n', encoding="utf-8")
+    fake_uv.chmod(0o755)
+    args_out = tmp_path / "args"
+    env = {
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+        "RUNNER_TEMP": str(tmp_path),
+        "RELEASE": "20000101-0000" if fixture == "true" else "20261012-1200",
+        "LATEST": latest,
+        "FIXTURE": fixture,
+        "ARGS_OUT": str(args_out),
+    }
+    subprocess.run(  # noqa: S603  (fixed argv: bash reading the workflow's own script)
+        ["bash", "-e", "-c", run_script(step)],  # noqa: S607
+        cwd=tmp_path,
+        env=env,
+        check=True,
+    )
+    argv = args_out.read_text(encoding="utf-8").splitlines()
+    head = ["run", "--locked", "atlas", "publish", "upload", f"{tmp_path}/release"]
+    assert argv == [*head, "--release", env["RELEASE"], *flags]
+
+
 def test_every_later_build_step_honours_the_gate() -> None:
     build = steps(publish_jobs()["build"])
     gate = next(i for i, s in enumerate(build) if "id: records" in s)
