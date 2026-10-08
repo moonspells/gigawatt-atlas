@@ -25,9 +25,12 @@ releases published on `tiles.moonspells.dev`, and, once it is live, the Atlas MC
 Good-faith research is welcome. Out of scope: denial of service, spam, social engineering, physical
 attacks, and anything that touches other people's data.
 
-A wrong value in the data, or a request to take something down, is not a security report: open an
-issue in this repository, or use the [moonspells.dev/contact](https://moonspells.dev/contact) form
-for a private request.
+A wrong value in the data, or a request to take something down, is not a security report:
+
+- a wrong value: open an issue in this repository (no personal data in it);
+- a takedown (personal data, legal notices): never a public issue. Email **hello@moonspells.dev**
+  with "Atlas takedown" in the subject ([DATA-LICENSE.md](DATA-LICENSE.md#corrections-and-takedowns)
+  says what to include). A private moonspells.dev/contact form takes over once it ships.
 
 The full policy is at [moonspells.dev/colophon/#security](https://moonspells.dev/colophon/#security),
 and the machine-readable contact is at

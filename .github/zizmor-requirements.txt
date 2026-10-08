@@ -1,6 +1,8 @@
 # zizmor for the ci `zizmor` job (10 §8.7), installed with `pip install --require-hashes`.
 # Every file of the 1.30.1 release on PyPI (https://pypi.org/pypi/zizmor/1.30.1/json, read
-# 2026-10-07). zizmor has no Python dependencies. Bump: docs/ops/dependencies.md §3.
+# 2026-10-07). zizmor has no Python dependencies. Bump it together with the site repo
+# (moonspells/moonspells.dev): its docs/ops/dependencies.md §3 has the steps, and the pins and
+# hashes here stay equal to its .github/zizmor-requirements.txt (tests/test_repo_files.py).
 zizmor==1.30.1 \
     --hash=sha256:17fda74e15fe41a6aa354ea4cf71fc7ff3cd025cda6584bb6d7466b3f1d00fe6 \
     --hash=sha256:f9eb092f089e35fa9fb3b70aeec0a19eca7dacf2ab161f1d50b18351895f085c \
