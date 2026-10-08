@@ -715,7 +715,7 @@ def test_cli_run_is_idempotent(
         "--cache-dir",
         str(tmp_repo / ".cache"),
         "--counties",
-        str(repo_root / "reference" / "census" / "cb_2025_us_county_5m.zip"),
+        str(repo_root / "reference" / "census" / "cb_2025_us_county_500k.zip"),
         "--now",
         "2026-10-12T12:00:00Z",
         "--offline",

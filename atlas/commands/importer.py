@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import atlas.sources
+from atlas.geo.counties import COUNTIES_ZIP
 
 if TYPE_CHECKING:
     from atlas.sources.base import Importer
@@ -62,7 +63,10 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--receipts-dir", type=Path, default=Path("data/imports"))
     parser.add_argument("--cache-dir", type=Path, default=Path(".cache/atlas"))
     parser.add_argument(
-        "--counties", type=Path, default=Path("reference/census/cb_2025_us_county_5m.zip")
+        "--counties",
+        type=Path,
+        default=COUNTIES_ZIP,
+        help="county polygons for county FIPS and the geo rule (default: the 1:500,000 file)",
     )
     parser.add_argument("--now", type=_aware, default=None, help="ISO 8601 with a time zone")
     parser.add_argument("--dry-run", action="store_true", help="write nothing")

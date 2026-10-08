@@ -598,7 +598,7 @@ def test_cli_runs_offline_and_a_second_run_changes_no_file(
         "--cache-dir",
         str(cache),
         "--counties",
-        str(repo_root / "reference" / "census" / "cb_2025_us_county_5m.zip"),
+        str(repo_root / "reference" / "census" / "cb_2025_us_county_500k.zip"),
         "--now",
         "2026-10-12T12:00:00Z",
         "--offline",
