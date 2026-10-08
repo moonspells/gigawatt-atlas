@@ -81,7 +81,24 @@ jobs:
         with: { version: '0.11.32', enable-cache: false }
       - run: uv sync --locked
       - run: uv run --locked python -m atlas.geo.duck --install # DuckDB spatial extension (signed), once
-      - run: uv run --locked pytest
+      # The same tippecanoe as publish.yml (keep the commits equal), so the tippecanoe-marked tests
+      # and the fixture's PMTiles comparison run on every PR instead of first failing on main.
+      # Built from source each run (about a minute); no actions/cache, so nothing a PR writes is
+      # reused.
+      - name: Build tippecanoe 2.79.0
+        env:
+          TIPPECANOE_COMMIT: 68ab8dcc229f95b8b25877697d5e8d66783af503 # tag 2.79.0
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends libsqlite3-dev zlib1g-dev
+          git init -q "$RUNNER_TEMP/tippecanoe" && cd "$RUNNER_TEMP/tippecanoe"
+          git fetch -q --depth 1 https://github.com/felt/tippecanoe "$TIPPECANOE_COMMIT"
+          git checkout -q FETCH_HEAD
+          make -j"$(nproc)" tippecanoe
+          echo "$RUNNER_TEMP/tippecanoe" >> "$GITHUB_PATH"
+      - run: |
+          tippecanoe --version # fail rather than skip the tippecanoe tests if the build is not on PATH
+          uv run --locked pytest
 
   validate:
     name: validate
