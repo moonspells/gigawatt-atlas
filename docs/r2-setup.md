@@ -1,7 +1,11 @@
 # R2 and `tiles.moonspells.dev`: owner settings (setup step 15)
 
 Every step here is an **owner** step in the Cloudflare dashboard, with `wrangler` on the owner's
-own machine (`npx wrangler login`), or in the GitHub repo settings. No Cloudflare API token goes
+own machine, or in the GitHub repo settings. Run the `wrangler` commands from the root of the
+site clone (`~/moonspells.dev`, after `pnpm exec wrangler login`): `pnpm exec` uses the wrangler
+version the site's lockfile pins, where `npx` would download the newest release with install
+scripts on. Replace every `<placeholder>` before running a line: the shell reads a bare `<` as
+"read from this file" and the command never starts. No Cloudflare API token goes
 into GitHub or into a Claude session; the pipeline only ever holds bucket-scoped R2 tokens.
 Source of truth: the site plan, 07 §11.2, 10 §3.6 and §11.8, 13 §2.4 step 15 and §5.3. Release
 layout and workflows: [publishing.md](publishing.md).
@@ -14,9 +18,9 @@ note the real label here.
 ## 1. Buckets
 
 ```sh
-npx wrangler r2 bucket create atlas-tiles   # public through the custom domain only
-npx wrangler r2 bucket create atlas-raw     # private: raw upstream copies (M2)
-npx wrangler r2 bucket list                 # check: both listed
+pnpm exec wrangler r2 bucket create atlas-tiles   # public through the custom domain only
+pnpm exec wrangler r2 bucket create atlas-raw     # private: raw upstream copies (M2)
+pnpm exec wrangler r2 bucket list                 # check: both listed
 ```
 
 ## 2. Custom domain for `atlas-tiles`
@@ -26,15 +30,15 @@ Use Wrangler: the dashboard's **Connect Domain** flow has no minimum-TLS field, 
 require TLS 1.2 or later.
 
 ```sh
-npx wrangler r2 bucket domain add atlas-tiles --domain tiles.moonspells.dev \
+pnpm exec wrangler r2 bucket domain add atlas-tiles --domain tiles.moonspells.dev \
   --zone-id <moonspells.dev zone id> --min-tls 1.2
-npx wrangler r2 bucket domain list atlas-tiles   # check: tiles.moonspells.dev, active, minimum TLS 1.2
+pnpm exec wrangler r2 bucket domain list atlas-tiles   # check: tiles.moonspells.dev, active, minimum TLS 1.2
 ```
 
 If the domain was already connected (in the dashboard, or without `--min-tls`), raise it:
 
 ```sh
-npx wrangler r2 bucket domain update atlas-tiles --domain tiles.moonspells.dev --min-tls 1.2
+pnpm exec wrangler r2 bucket domain update atlas-tiles --domain tiles.moonspells.dev --min-tls 1.2
 ```
 
 `atlas-raw` gets no domain.
@@ -42,8 +46,8 @@ npx wrangler r2 bucket domain update atlas-tiles --domain tiles.moonspells.dev -
 ## 3. `r2.dev` off on both buckets
 
 ```sh
-npx wrangler r2 bucket dev-url disable atlas-tiles
-npx wrangler r2 bucket dev-url disable atlas-raw
+pnpm exec wrangler r2 bucket dev-url disable atlas-tiles
+pnpm exec wrangler r2 bucket dev-url disable atlas-raw
 ```
 
 Check: **R2 → each bucket → Settings → Public Development URL** reads disabled. `r2.dev` URLs
@@ -77,8 +81,8 @@ The file is [`r2/cors.json`](../r2/cors.json) in this repo (Wrangler format): or
 `range` and `if-match`, exposed `etag`, `content-length` and `content-range`, max age 3000 s.
 
 ```sh
-npx wrangler r2 bucket cors set atlas-tiles --file r2/cors.json
-npx wrangler r2 bucket cors list atlas-tiles      # check: one rule as above
+pnpm exec wrangler r2 bucket cors set atlas-tiles --file r2/cors.json
+pnpm exec wrangler r2 bucket cors list atlas-tiles      # check: one rule as above
 ```
 
 Then purge, because cached objects keep their old CORS headers: **Caching → Configuration →
@@ -88,8 +92,8 @@ Purge the same way after every later CORS change.
 ## 7. Lifecycle: delete old releases
 
 ```sh
-npx wrangler r2 bucket lifecycle add atlas-tiles delete-old-releases v/ --expire-days 120
-npx wrangler r2 bucket lifecycle list atlas-tiles   # check: delete-old-releases, prefix v/, 120 days
+pnpm exec wrangler r2 bucket lifecycle add atlas-tiles delete-old-releases v/ --expire-days 120
+pnpm exec wrangler r2 bucket lifecycle list atlas-tiles   # check: delete-old-releases, prefix v/, 120 days
 ```
 
 Or **R2 → atlas-tiles → Settings → Object lifecycle rules → Add rule**: prefix `v/`, delete
