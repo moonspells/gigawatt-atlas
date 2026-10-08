@@ -3,10 +3,10 @@ from __future__ import annotations
 import argparse
 import json
 import urllib.parse
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -15,7 +15,7 @@ from pydantic import HttpUrl
 from atlas.cli import main
 from atlas.commands.importer import discover_importers
 from atlas.dissolve import Bounds, Cluster, OsmObject, dissolve, meters_to_degrees
-from atlas.geo.counties import CountyIndex
+from atlas.geo.counties import County, CountyIndex
 from atlas.jsonio import record_json
 from atlas.net import FetchError, make_client
 from atlas.schema.record import PLACEHOLDER_ID, FacilityRecord, FuzzyDate
@@ -607,6 +607,62 @@ def test_unit_parse_and_partial_power(counties: CountyIndex) -> None:
     assert result.metrics["unit_parse"] == 1
 
 
+def test_campus_level_power_covers_the_site(counties: CountyIndex) -> None:
+    lat, lon = near(0, 0)
+    bounds = Bounds(lat - 0.003, lon - 0.003, lat + 0.003, lon + 0.003)
+    tags = {"telecom": "data_center", "name": "Example Campus", "operator": "Example"}
+    campus = OsmObject("way/9", lat, lon, bounds, tags | {"it_power": "100 MW"}, "campus")
+    a = building("way/1", 0, 0, operator="Example", it_power="30 MW")
+    b = building("way/2", 0, 100, operator="Example", it_power="40 MW")
+    (cand,) = build(counties, [campus, a, b], with_pnnl=False).candidates
+    # The campus object's value covers the site; the buildings' values are not added to it.
+    assert cand.record.capacity.it_mw == 100.0
+    (cand,) = build(
+        counties, [OsmObject("way/9", lat, lon, bounds, tags, "campus"), a, b], with_pnnl=False
+    ).candidates
+    assert cand.record.capacity.it_mw == 70.0  # no campus value: every building has one
+
+
+def test_county_fallback_moves_the_point(counties: CountyIndex) -> None:
+    class MeanPointOffshore:
+        """No county contains the cluster's mean point; the representative's lookup is real."""
+
+        def __init__(self) -> None:
+            self.asked: list[tuple[float, float]] = []
+
+        def lookup_many(self, points: Sequence[tuple[float, float]]) -> list[County | None]:
+            return [None] * len(points)
+
+        def lookup(self, lat: float, lon: float) -> County | None:
+            self.asked.append((lat, lon))
+            return counties.lookup(lat, lon)
+
+    lat, lon = near(0, 0)
+    big = OsmObject(
+        "way/1",
+        lat,
+        lon,
+        Bounds(lat - 0.001, lon - 0.001, lat + 0.001, lon + 0.001),  # larger: the representative
+        {"building": "data_center", "telecom": "data_center", "operator": "Example"},
+        "building",
+    )
+    small = building("way/2", 0, 150, operator="Example")
+    stub = MeanPointOffshore()
+    result = build_candidates(
+        dissolve([big, small]),
+        counties=cast(CountyIndex, stub),
+        now=NOW,
+        snapshot=snapshot(),
+    )
+    (cand,) = result.candidates
+    loc = cand.record.location
+    assert stub.asked == [(big.lat, big.lon)]
+    # The record sits at the representative, the point the county was found for, not at the
+    # mean point that no county contains.
+    assert (loc.lat, loc.lon) == (round(big.lat, 7), round(big.lon, 7))
+    assert loc.county_fips == "51107"
+
+
 def test_power_units(counties: CountyIndex) -> None:
     a = building("way/1", 0, 0, operator="Example", it_power="500 kW")
     b = building("way/2", 0, 100, operator="Example", it_power="1.5")
@@ -839,6 +895,51 @@ def test_cli_import_is_idempotent(tmp_repo: Path, capsys: pytest.CaptureFixture[
     assert set(second) == set(before)
     assert main(argv) == 0
     assert tree(tmp_repo) == second
+
+
+def test_cli_weekly_rerun_is_unchanged(
+    tmp_repo: Path, tmp_path_factory: pytest.TempPathFactory, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A later run on a newer snapshot of the same data changes no record: the snapshot date and
+    every sources[].retrieved_at move, but first_reported keeps its date and retrieved_at is not
+    a change (base._comparable)."""
+
+    def run(overpass: Path, now: str) -> str:
+        argv = [
+            "import",
+            "osm",
+            "--input",
+            str(overpass),
+            "--pnnl",
+            str(PNNL_GEOJSON),
+            "--now",
+            now,
+            "--records",
+            str(tmp_repo / "data" / "records"),
+            "--review-dir",
+            str(tmp_repo / "review" / "queue"),
+            "--receipts-dir",
+            str(tmp_repo / "data" / "imports"),
+            "--cache-dir",
+            str(tmp_repo / ".cache" / "atlas"),
+            "--offline",
+        ]
+        assert main(argv) == 0
+        return capsys.readouterr().out
+
+    assert "candidates=12 new=12" in run(OVERPASS_FIXTURE, "2026-10-12T00:00:00Z")
+    before = tree(tmp_repo)
+    later = fixture_doc()
+    later["osm3s"]["timestamp_osm_base"] = "2026-10-14T21:00:00Z"
+    week2 = tmp_path_factory.mktemp("input") / "overpass-week2.json"
+    week2.write_text(json.dumps(later), encoding="utf-8")
+    assert "new=0 updated=0 unchanged=12" in run(week2, "2026-10-19T00:00:00Z")
+    after = tree(tmp_repo)
+    changed = sorted(k for k in after if after[k] != before.get(k))
+    assert [k for k in changed if not k.startswith(".cache/")] == ["data/imports/osm.json"]
+    receipt = json.loads(after["data/imports/osm.json"])
+    assert receipt["inputs"][0]["upstream_version"] == "2026-10-14T21:00:00Z"
+    assert receipt["inputs"][0]["retrieved_at"] == "2026-10-19T00:00:00Z"
 
 
 def test_cli_offline_without_input_fails(
