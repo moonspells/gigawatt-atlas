@@ -39,42 +39,67 @@ class UnknownStatus(ValueError):  # noqa: N818  (name fixed by the interface)
     """An upstream status value the crosswalk does not know."""
 
 
-def from_osm_tags(tags: Mapping[str, str]) -> Crosswalked | None:
-    """OSM tags, most specific first: proposed, then construction, then operating (assumed).
+# Keys whose value "data_center" makes an OSM object a data center (the Overpass query fetches the
+# first five).
+_OSM_DATA_CENTER_KEYS = (
+    "telecom",
+    "building",
+    "construction:telecom",
+    "proposed:telecom",
+    "construction",
+    "construction:building",
+    "proposed:building",
+)
+# Lifecycle tags, most specific first. A tag listed with a value matches only that value; one
+# listed with None matches any value except "no".
+_OSM_PROPOSED_TAGS: tuple[tuple[str, str | None], ...] = (
+    ("proposed:telecom", "data_center"),
+    ("proposed:building", None),
+    ("proposed", None),
+)
+_OSM_CONSTRUCTION_TAGS: tuple[tuple[str, str | None], ...] = (
+    ("construction:telecom", "data_center"),
+    ("construction", "data_center"),
+    ("construction:building", None),
+    ("building", "construction"),
+    ("landuse", "construction"),
+)
 
-    building=construction + construction=data_center (about 30 US objects) counts as under
-    construction even when telecom=data_center is also set.
+
+def _osm_match(tags: Mapping[str, str], rules: tuple[tuple[str, str | None], ...]) -> str | None:
+    for key, wanted in rules:
+        value = tags.get(key)
+        if value is None or value == "no":
+            continue
+        if wanted is None or value == wanted:
+            return f"{key}={value}"
+    return None
+
+
+def from_osm_tags(tags: Mapping[str, str]) -> Crosswalked | None:
+    """OSM tags of a data center, lifecycle first: proposed, then under construction, then
+    operating (assumed). None for an object no data_center tag marks as a data center.
+
+    Proposed: proposed:telecom=data_center, proposed:building=* or proposed=*. Under
+    construction: construction:telecom=data_center, construction=data_center,
+    construction:building=*, building=construction or landuse=construction. A lifecycle tag wins
+    over telecom=data_center, so a site OSM tags as planned or being built is never operating.
     """
-    if tags.get("proposed:telecom") == "data_center":
+    if not any(tags.get(key) == "data_center" for key in _OSM_DATA_CENTER_KEYS):
+        return None
+    label = _osm_match(tags, _OSM_PROPOSED_TAGS)
+    if label is not None:
+        return Crosswalked("proposed", "first_reported", None, None, OSM_CONFIDENCE, label)
+    label = _osm_match(tags, _OSM_CONSTRUCTION_TAGS)
+    if label is not None:
         return Crosswalked(
-            "proposed", "first_reported", None, None, OSM_CONFIDENCE, "proposed:telecom=data_center"
+            "under_construction", "first_reported", None, None, OSM_CONFIDENCE, label
         )
-    if tags.get("construction:telecom") == "data_center":
-        return Crosswalked(
-            "under_construction",
-            "first_reported",
-            None,
-            None,
-            OSM_CONFIDENCE,
-            "construction:telecom=data_center",
-        )
-    if tags.get("construction") == "data_center":
-        return Crosswalked(
-            "under_construction",
-            "first_reported",
-            None,
-            None,
-            OSM_CONFIDENCE,
-            "construction=data_center",
-        )
-    if tags.get("telecom") == "data_center":
-        return Crosswalked(
-            "operating", "first_reported", None, None, OSM_CONFIDENCE, "telecom=data_center"
-        )
-    if tags.get("building") == "data_center":
-        return Crosswalked(
-            "operating", "first_reported", None, None, OSM_CONFIDENCE, "building=data_center"
-        )
+    for key in ("telecom", "building"):
+        if tags.get(key) == "data_center":
+            return Crosswalked(
+                "operating", "first_reported", None, None, OSM_CONFIDENCE, f"{key}=data_center"
+            )
     return None
 
 
@@ -111,10 +136,18 @@ def from_aigridwatch_stage(stage: str, *, has_filing: bool) -> Crosswalked:
     return Crosswalked(status, event, evidence, reason, DATASET_CONFIDENCE, stage)
 
 
-def from_epoch_row(construction_status: str, buildings_operational: float | None) -> Crosswalked:
-    """An Epoch timeline row: operating when any building is operational; announced when the text
-    is only about plans; under construction otherwise."""
-    if buildings_operational is not None and buildings_operational > 0:
+def from_epoch_row(
+    construction_status: str, buildings_operational: float | None, *, it_mw: float | None = None
+) -> Crosswalked:
+    """An Epoch timeline row: operating when any building is operational (or, when the building
+    count is empty, when the row's IT power is above 0); announced when the text is only about
+    plans; under construction otherwise.
+
+    In Epoch's timelines IT power is the power online at that date: every row with buildings
+    operational > 0 has IT power > 0, and every row with 0 has 0 (547 rows, 2026-10-07).
+    """
+    operational = buildings_operational if buildings_operational is not None else it_mw
+    if operational is not None and operational > 0:
         return Crosswalked(
             "operating", "energized", None, None, DATASET_CONFIDENCE, construction_status
         )

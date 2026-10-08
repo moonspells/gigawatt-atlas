@@ -13,10 +13,10 @@ upstream said.
 | Atlas status | AI GridWatch stage | Epoch timeline row | OSM tag | Agenda or permit outcome (M2+) |
 |---|---|---|---|---|
 | `announced` | Proposed with no known filing; Rumored (with `evidence_level: "rumor"`) | pre-construction text only | n/a | press or company announcement |
-| `proposed` | Proposed with a filing, In review, Hearing scheduled, Awaiting decision | n/a | `proposed:telecom=data_center` | application filed, TABS registration, DRI submitted |
+| `proposed` | Proposed with a filing, In review, Hearing scheduled, Awaiting decision | n/a | `proposed:telecom=data_center`, `proposed:building=*`, `proposed=*` | application filed, TABS registration, DRI submitted |
 | `permitted` | Approved | n/a | n/a | rezoning approved, permit issued |
-| `under_construction` | Under construction | construction text, or anything not clearly pre-construction, with 0 buildings operational | `construction:telecom=data_center`, `construction=data_center` | building permits plus construction reports |
-| `operating` | Operating | buildings operational > 0 | `telecom=data_center` or `building=data_center` (assumed) | n/a |
+| `under_construction` | Under construction | construction text, or anything not clearly pre-construction, with 0 buildings operational | `construction:telecom=data_center`, `construction=data_center`, `construction:building=*`, `building=construction`, `landuse=construction` | building permits plus construction reports |
+| `operating` | Operating | buildings operational > 0 (IT power > 0 when the count is empty) | `telecom=data_center` or `building=data_center` with no lifecycle tag (assumed) | n/a |
 | `paused` | Blocked by ban | n/a | n/a | moratorium, regulatory pause |
 | `denied` | Denied | n/a | n/a | application denied |
 | `cancelled` | Withdrawn | n/a | n/a | withdrawal |
@@ -25,25 +25,39 @@ PA DEP and EPA ECHO status values are mapped at M4, when those importers land.
 
 ## OpenStreetMap (`from_osm_tags`)
 
-Confidence 0.60. Every OSM-derived event is `first_reported`, dated by the extract: OSM says what a
-feature is, not when it changed. The first matching rule wins:
+Confidence 0.60. OSM events are `first_reported` at the snapshot date, except `energized` at a
+valid `start_date` (1990 or later) for operating objects; `opening_date` on a non-operating group
+adds a planned `energized` event (`atlas/sources/osm.py`).
+
+An object is a data center when `telecom`, `building`, `construction:telecom`, `proposed:telecom`,
+`construction`, `construction:building` or `proposed:building` is `data_center`; anything else has
+no mapping (`None`). Lifecycle tags are read before `telecom=data_center`, so a site OSM tags as
+planned or being built is never shown as operating. The first matching rule wins; `*` is any value
+except `no`:
 
 | Order | Tags | Status | Label |
 |---|---|---|---|
-| 1 | `proposed:telecom=data_center` | `proposed` | `proposed:telecom=data_center` |
-| 2 | `construction:telecom=data_center` | `under_construction` | `construction:telecom=data_center` |
-| 3 | `construction=data_center` (usually with `building=construction`; about 30 US objects) | `under_construction` | `construction=data_center` |
-| 4 | `telecom=data_center` | `operating` (assumed) | `telecom=data_center` |
-| 5 | `building=data_center` | `operating` (assumed) | `building=data_center` |
-| — | anything else | no mapping (`None`) | |
+| 1 | `proposed:telecom=data_center` | `proposed` | the tag, for example `proposed:telecom=data_center` |
+| 2 | `proposed:building=*` | `proposed` | `proposed:building=industrial` |
+| 3 | `proposed=*` | `proposed` | `proposed=yes` |
+| 4 | `construction:telecom=data_center` | `under_construction` | `construction:telecom=data_center` |
+| 5 | `construction=data_center` (usually with `building=construction`) | `under_construction` | `construction=data_center` |
+| 6 | `construction:building=*` | `under_construction` | `construction:building=yes` |
+| 7 | `building=construction` | `under_construction` | `building=construction` |
+| 8 | `landuse=construction` | `under_construction` | `landuse=construction` |
+| 9 | `telecom=data_center` | `operating` (assumed) | `telecom=data_center` |
+| 10 | `building=data_center` | `operating` (assumed) | `building=data_center` |
 
-Rule 3 comes before rule 4, so a way tagged `telecom=data_center` + `building=construction` +
-`construction=data_center` is under construction, not operating.
+When an object carries both a proposed and a construction tag, it is proposed: the less advanced
+status, so the map never overstates progress. Before review round 1 only rules 1, 4, 5, 9 and 10
+existed, and 24 records of a full OSM import on 2026-10-07 were operating although OSM tagged every
+member `building=construction` (14), `landuse=construction` (1), `proposed:building=*` (7) or
+`proposed=yes` (2); `tests/test_crosswalk.py` checks one of each.
 
 ## AI GridWatch (`from_aigridwatch_stage`)
 
 Confidence 0.70. Stages are matched ignoring case and extra spaces. `has_filing` is true when the
-project lists a filing (for example a `filing_llc` or a docket).
+project has a `rezoning_filed` date or an event of kind `filing` or `rezoning`.
 
 | Stage | Status | Event | Evidence | Reason |
 |---|---|---|---|---|
@@ -64,10 +78,14 @@ Any other stage raises `UnknownStatus`; the importer turns it into an `unknown_s
 
 ## Epoch AI (`from_epoch_row`)
 
-Confidence 0.70. Input: a timeline row's construction-status text and its "buildings operational"
-count.
+Confidence 0.70. Input: a timeline row's construction-status text, its "buildings operational"
+count and its "IT power (MW)".
 
-1. Buildings operational > 0: `operating`, event `energized`.
+1. Buildings operational > 0, or, when that cell is empty, IT power > 0: `operating`, event
+   `energized`. IT power in the timelines is the power online at that date: in the 547 rows of
+   2026-10-07 every row with buildings operational > 0 has IT power > 0 and every row with 0 has 0.
+   The one operational row with an empty count (OpenAI Stargate Milam, 2028-12-31, "site is fully
+   operational", 857 MW) used to fall through to under construction.
 2. Otherwise, text that matches `EPOCH_PRE_CONSTRUCTION` and does not match `EPOCH_CONSTRUCTION`:
    `announced`, event `announced`.
 3. Otherwise: `under_construction`, event `construction_start`.
