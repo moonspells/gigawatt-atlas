@@ -102,6 +102,7 @@ uv run atlas publish build --previous none --skip-pmtiles --out build/release   
 uv run atlas publish verify build/release
 uv run atlas publish upload build/release --release 20261020-0613 --dry-run      # the plan only
 uv run atlas publish upload build/release --release 20261020-0613 --local-target /tmp/bucket
+uv run atlas publish upload fixtures/release --release 20000101-0000 --no-latest --renew   # the fixture dispatch
 uv run atlas publish put conus-z10-20261006.pmtiles --key basemap/conus-z10-20261006.pmtiles --immutable --no-overwrite
 uv run atlas publish fixture [--check]
 uv run atlas publish takedown --id gwa-... --dry-run   # section 7; CI runs it in publish.yml
@@ -119,9 +120,12 @@ the repo's `ATTRIBUTION.md` and `CHANGELOG.md`), `--out`, `--release` (default: 
 the `rec/` objects, then `atlas/latest.json` (skipped with `--no-latest`). An immutable key is
 checked with HEAD first: the same `x-amz-meta-sha256` is skipped, a different one fails the job.
 A reader that follows `latest.json` therefore never meets a manifest whose files are missing, and
-a failed upload leaves `latest.json` on the previous release. Credentials come only from
-`CF_ACCOUNT_ID`, `R2_TILES_ACCESS_KEY_ID`, `R2_TILES_SECRET_ACCESS_KEY` and `R2_TILES_BUCKET`
-(default `atlas-tiles`); errors name a missing variable and never print a value.
+a failed upload leaves `latest.json` on the previous release. With `--renew` (the fixture
+dispatch, section 6), an object stored with the same `x-amz-meta-sha256` is put again, byte for
+byte, instead of skipped, which restarts its 120-day lifecycle age; a different one still fails
+the job. Credentials come only from `CF_ACCOUNT_ID`, `R2_TILES_ACCESS_KEY_ID`,
+`R2_TILES_SECRET_ACCESS_KEY` and `R2_TILES_BUCKET` (default `atlas-tiles`); errors name a missing
+variable and never print a value.
 
 tippecanoe for local builds (CI builds the same commit):
 
@@ -143,7 +147,7 @@ dispatch does not depend on records.
 | Job | Environment | Secrets | Steps |
 |---|---|---|---|
 | `build` | none | none (`GH_TOKEN` is the read-only job token, used to look up the merged PR) | `uv sync --locked`; build tippecanoe 2.79.0 from its pinned commit; `atlas validate`; find the merged PR's number and whether it has the `bulk` label; `atlas publish build` (or `atlas publish fixture --check` and stage `fixtures/release`); upload the directory as the artifact `release` (7 days) |
-| `upload` | `production` (deployment branch `main` only) | `R2_TILES_ACCESS_KEY_ID`, `R2_TILES_SECRET_ACCESS_KEY` in the step env only; variable `CF_ACCOUNT_ID` | download the artifact; `atlas publish upload` (verifies again first) |
+| `upload` | `production` (deployment branch `main` only) | `R2_TILES_ACCESS_KEY_ID`, `R2_TILES_SECRET_ACCESS_KEY` in the step env only; variable `CF_ACCOUNT_ID` | download the artifact; `atlas publish upload` (verifies again first; `--no-latest --renew` for the fixture) |
 | `takedown` | `production` | same as `upload` | only on a dispatch with `takedown` set (then `build` and `upload` do not run): `atlas publish takedown` (section 7) |
 
 Dispatch inputs:
@@ -231,8 +235,12 @@ files left out, since a DuckDB or tippecanoe upgrade may re-encode the same cont
 
 To publish it, run `publish.yml` from the Actions tab with `fixture` ticked. The build job checks
 the committed fixture and stages it; the upload job sends `v/20000101-0000/**` and `rec/**` with
-`--no-latest`. It then answers at `https://tiles.moonspells.dev/v/20000101-0000/manifest.json`.
-Uploading it again is a no-op (same SHA-256). A changed fixture under the same id fails the
+`--no-latest --renew`. It then answers at
+`https://tiles.moonspells.dev/v/20000101-0000/manifest.json`. The lifecycle rule deletes `v/`
+objects 120 days after their last upload (r2-setup.md §7), so dispatch it again before then
+while site CI pins it: `--renew` puts every object already stored with the same SHA-256 again,
+which restarts its age, and the log counts them as `renewed`. Without `--renew` the same upload
+skips them and their age stays as it was. A changed fixture under the same id fails the
 upload, by design, because immutable keys are never overwritten: to replace it, the owner
 deletes `v/20000101-0000/` (and the stale `rec/` objects, if any) in the R2 dashboard, purges
 the tiles hostname, and dispatches again. Site CI pins this id, so prefer additive fixture

@@ -120,7 +120,12 @@ def _upload(args: argparse.Namespace) -> int:
         elif not args.dry_run:
             uploader = s3_uploader_from_env()
         upload_release(
-            args.dir, args.release, uploader, latest=not args.no_latest, dry_run=args.dry_run
+            args.dir,
+            args.release,
+            uploader,
+            latest=not args.no_latest,
+            renew=args.renew,
+            dry_run=args.dry_run,
         )
     except ReleaseError as e:
         return _report(e.problems, "publish upload")
@@ -295,6 +300,12 @@ def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     upload.add_argument("dir", type=Path)
     upload.add_argument("--release", required=True)
     upload.add_argument("--no-latest", action="store_true", help="do not write atlas/latest.json")
+    upload.add_argument(
+        "--renew",
+        action="store_true",
+        help="put again objects stored with the same SHA-256, restarting their 120-day lifecycle "
+        "age (the fixture release; docs/r2-setup.md §7)",
+    )
     upload.add_argument("--dry-run", action="store_true", help="print the plan; send nothing")
     upload.add_argument(
         "--local-target", type=Path, default=None, help="write to this directory instead of R2"

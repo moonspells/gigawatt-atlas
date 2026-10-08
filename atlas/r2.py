@@ -7,7 +7,8 @@ Every key passes three rules before anything is sent:
 - a Cache-Control per key prefix: immutable for v/, rec/, basemap/, overlays/ and archive/,
   max-age=60 for atlas/latest.json, atlas/pending.json and runs/latest.json; any other key fails;
 - immutable keys are never overwritten: a HEAD comes first, the same x-amz-meta-sha256 is skipped
-  and a different one fails.
+  (or, with renew, put again byte for byte, which restarts the object's lifecycle age) and a
+  different one fails.
 
 Deleting is for takedowns only (`atlas publish takedown`, docs/publishing.md §7): the Bucket
 protocol adds list, get and delete to Uploader.
@@ -420,10 +421,14 @@ def plan_item(key: str, path: Path, *, sha256: str | None = None) -> UploadItem:
 @dataclass
 class UploadReport:
     uploaded: list[str] = field(default_factory=list)
+    renewed: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
 
     def summary(self) -> str:
-        return f"{len(self.uploaded)} uploaded, {len(self.skipped)} unchanged"
+        return (
+            f"{len(self.uploaded)} uploaded, {len(self.renewed)} renewed, "
+            f"{len(self.skipped)} unchanged"
+        )
 
 
 def upload_item(
@@ -431,6 +436,7 @@ def upload_item(
     item: UploadItem,
     *,
     no_overwrite: bool = False,
+    renew: bool = False,
     report: UploadReport | None = None,
     log: Callable[[str], None] = print,
 ) -> bool:
@@ -439,19 +445,27 @@ def upload_item(
     Immutable keys (and any key with no_overwrite) are checked with HEAD first: an object with
     the same x-amz-meta-sha256 is skipped; a different or missing checksum raises
     ImmutableConflict. Short-cache keys are overwritten unless no_overwrite is set.
+
+    With renew, an object stored with the same x-amz-meta-sha256 is put again instead of
+    skipped. Readers see the same bytes under the same key, but R2's lifecycle rule counts an
+    object's age from its last upload, so this is how the fixture release outlives the 120-day
+    rule on v/ (docs/r2-setup.md §7). A different checksum still raises ImmutableConflict.
     """
     report = report if report is not None else UploadReport()
+    renewing = False
     if item.immutable or no_overwrite:
         existing = uploader.head(item.key)
         if existing is not None:
-            if existing.sha256 == item.sha256:
+            if existing.sha256 != item.sha256:
+                stored = existing.sha256 if existing.sha256 else "no sha256 metadata"
+                raise ImmutableConflict(
+                    f"{item.key} already exists with a different object ({stored}); immutable "
+                    "keys are never overwritten, so publish under a new release id or key"
+                )
+            if not renew:
                 report.skipped.append(item.key)
                 return False
-            stored = existing.sha256 if existing.sha256 else "no sha256 metadata"
-            raise ImmutableConflict(
-                f"{item.key} already exists with a different object ({stored}); immutable keys "
-                "are never overwritten, so publish under a new release id or key"
-            )
+            renewing = True
     uploader.put(
         item.key,
         item.path,
@@ -459,8 +473,9 @@ def upload_item(
         cache_control=item.cache_control,
         sha256=item.sha256,
     )
-    report.uploaded.append(item.key)
-    log(f"put {item.key} ({item.content_type}; {item.cache_control})")
+    (report.renewed if renewing else report.uploaded).append(item.key)
+    verb = "renew" if renewing else "put"
+    log(f"{verb} {item.key} ({item.content_type}; {item.cache_control})")
     return True
 
 

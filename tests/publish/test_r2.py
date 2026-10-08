@@ -222,6 +222,47 @@ def test_s3_put_sends_type_cache_and_sha_but_no_content_encoding(
         stub.assert_no_pending_responses()
 
 
+def test_s3_renew_puts_an_unchanged_immutable_object_again(tmp_path: Path) -> None:
+    # R2's lifecycle rule deletes v/ objects 120 days after their last upload. A plain upload
+    # skips an object stored with the same sha256, so a re-dispatch of the fixture left every
+    # object at its first upload date (RD2-1). renew sends the same bytes with the same headers.
+    client, uploader = stubbed()
+    up = item(tmp_path, "v/20000101-0000/manifest.json", b'{"fixture": true}')
+    head = {"Bucket": "atlas-tiles", "Key": up.key}
+    stored = {"ContentLength": 17, "Metadata": {"sha256": up.sha256}}
+    put = {
+        "Bucket": "atlas-tiles",
+        "Key": up.key,
+        "Body": ANY,
+        "ContentType": "application/json",
+        "CacheControl": IMMUTABLE,
+        "Metadata": {"sha256": up.sha256},
+    }
+    with Stubber(client) as stub:
+        stub.add_response("head_object", stored, head)
+        report = r2.UploadReport()
+        assert upload_item(uploader, up, report=report, log=quiet) is False  # plain: no PUT
+        stub.assert_no_pending_responses()
+        assert report.skipped == [up.key] and report.renewed == []
+
+        stub.add_response("head_object", stored, head)
+        stub.add_response("put_object", {}, put)
+        report = r2.UploadReport()
+        lines: list[str] = []
+        assert upload_item(uploader, up, renew=True, report=report, log=lines.append) is True
+        stub.assert_no_pending_responses()
+        assert report.renewed == [up.key] and report.uploaded == report.skipped == []
+        assert lines == [f"renew {up.key} (application/json; {IMMUTABLE})"]
+
+        # renew never overwrites a different object: HEAD only, then ImmutableConflict.
+        stub.add_response(
+            "head_object", {"ContentLength": 17, "Metadata": {"sha256": "0" * 64}}, head
+        )
+        with pytest.raises(ImmutableConflict, match="never overwritten"):
+            upload_item(uploader, up, renew=True, log=quiet)
+        stub.assert_no_pending_responses()
+
+
 def test_s3_list_get_and_delete_for_takedowns() -> None:
     client, uploader = stubbed()
     with Stubber(client) as stub:
@@ -427,6 +468,43 @@ def test_upload_release_of_the_fixture(tmp_path: Path) -> None:
     again = RecordingUploader(uploader.stored)
     report = upload_release(FIXTURE, RELEASE, again, latest=False, log=quiet)
     assert again.puts() == [] and len(report.skipped) == len(puts)
+
+
+def test_renewing_the_fixture_puts_every_object_again() -> None:
+    first = RecordingUploader()
+    upload_release(FIXTURE, RELEASE, first, latest=False, log=quiet)
+    again = RecordingUploader(first.stored)
+    lines: list[str] = []
+    report = upload_release(FIXTURE, RELEASE, again, latest=False, renew=True, log=lines.append)
+    assert again.puts() == first.puts()  # the same keys, in the same order
+    assert report.renewed == first.puts() and report.uploaded == report.skipped == []
+    assert lines[-1] == f"upload {RELEASE}: 0 uploaded, {len(first.puts())} renewed, 0 unchanged"
+    # A key missing from the bucket is uploaded as usual; a changed one still fails.
+    missing = f"v/{RELEASE}/summary.json"
+    partial = RecordingUploader({k: v for k, v in first.stored.items() if k != missing})
+    report = upload_release(FIXTURE, RELEASE, partial, latest=False, renew=True, log=quiet)
+    assert report.uploaded == [missing] and len(report.renewed) == len(first.puts()) - 1
+    changed = RecordingUploader({**first.stored, missing: "0" * 64})
+    with pytest.raises(ImmutableConflict):
+        upload_release(FIXTURE, RELEASE, changed, latest=False, renew=True, log=quiet)
+    assert missing not in changed.puts()
+
+
+def test_cli_upload_renew(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    from atlas.cli import main
+
+    args = ["publish", "upload", str(FIXTURE), "--release", RELEASE, "--no-latest"]
+    target = ["--local-target", str(tmp_path / "bucket")]
+    assert main([*args, *target]) == 0
+    count = len(LocalUploader(tmp_path / "bucket").list_keys(""))
+    assert main([*args, *target]) == 0
+    assert main([*args, "--renew", *target]) == 0
+    summaries = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith("upload ")]
+    assert summaries == [
+        f"upload {RELEASE}: {count} uploaded, 0 renewed, 0 unchanged",
+        f"upload {RELEASE}: 0 uploaded, 0 renewed, {count} unchanged",
+        f"upload {RELEASE}: 0 uploaded, {count} renewed, 0 unchanged",
+    ]
 
 
 def test_the_fixture_never_writes_latest() -> None:

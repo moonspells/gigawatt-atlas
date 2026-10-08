@@ -7,11 +7,19 @@ from pathlib import Path
 
 from atlas import publish
 
-DOCS = Path(__file__).resolve().parents[2] / "docs"
+ROOT = Path(__file__).resolve().parents[2]
+DOCS = ROOT / "docs"
 
 
 def text(name: str) -> str:
     return (DOCS / name).read_text(encoding="utf-8")
+
+
+def section(doc: str, number: int) -> str:
+    """The body of the `## {number}.` section, whitespace collapsed to single spaces."""
+    start = doc.index(f"\n## {number}. ")
+    stop = doc.find("\n## ", start + 1)
+    return re.sub(r"\s+", " ", doc[start : stop if stop != -1 else len(doc)])
 
 
 def commands(doc: str, verb: str) -> list[str]:
@@ -51,3 +59,22 @@ def test_fixture_command_in_the_docs_matches_fixture_options() -> None:
         ("--changelog", opts.changelog_path),
     ):
         assert f"{flag} {path.relative_to(root).as_posix()}" in doc
+
+
+def test_fixture_renewal_puts_the_objects_again() -> None:
+    # The lifecycle rule deletes v/ objects 120 days after their last upload, and a plain upload
+    # skips an object stored with the same SHA-256, so "dispatch the fixture again" alone left
+    # the fixture's age unchanged (RD2-1). The renewal the docs give must use --renew.
+    from atlas.cli import build_parser
+
+    lifecycle = section(text("r2-setup.md"), 7)
+    assert "dispatch `publish.yml` with `fixture` again" not in lifecycle
+    assert "`atlas publish upload --renew`" in lifecycle
+    assert "A plain upload skips those objects and leaves their age as it was" in lifecycle
+    fixture = section(text("publishing.md"), 6)
+    assert "Uploading it again is a no-op" not in fixture
+    assert "`--no-latest --renew`" in fixture
+    args = build_parser().parse_args(
+        ["publish", "upload", "fixtures/release", "--release", "20000101-0000", "--renew"]
+    )
+    assert args.renew is True

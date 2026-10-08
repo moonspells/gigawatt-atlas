@@ -104,10 +104,14 @@ once, without waiting for this rule (publishing.md §7), with the `atlas-tiles` 
 does not name delete; if the first delete of a takedown answers AccessDenied, the job stops
 before deleting anything)*.
 
-Age counts from the upload, so the fixture release `v/20000101-0000/` also expires 120 days
-after its upload. If site CI still pins it then, dispatch `publish.yml` with `fixture` again.
-The release the site pins must likewise stay younger than 120 days, which every merged site
-data PR renews.
+Age counts from each object's last upload, so the fixture release `v/20000101-0000/` also
+expires 120 days after it was last uploaded. While site CI pins it, renew it before then (a
+calendar reminder every 100 days): dispatch `publish.yml` from `main` with `fixture` ticked. Its
+upload runs `atlas publish upload --renew`, which puts every object already stored with the same
+SHA-256 again, byte for byte, so its age starts over; the job log's last line counts them as
+`renewed`. A plain upload skips those objects and leaves their age as it was, and a changed
+fixture still fails (publishing.md §6). The release the site pins must likewise stay younger
+than 120 days, which every merged site data PR renews.
 
 ## 8. Response headers: Transform Rule `tiles-hardening`
 
