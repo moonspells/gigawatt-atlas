@@ -174,6 +174,28 @@ def test_cancelled_date_only_for_cancelled_records(make_record: MakeRecord) -> N
     assert r.dates["cancelled"].value == "2026-05-12"
 
 
+def test_an_other_event_sets_the_status_but_dates_nothing(make_record: MakeRecord) -> None:
+    # An "other" event records a status seen on a date (AI GridWatch's stage as of the day it read
+    # its source), not the day the status began: no first_reported, operating_since or cancelled.
+    seen = make_record(status_history=[ev(1, "operating", "other", "2026-10-08", "day")])
+    assert rollup_status(seen) == "operating"
+    assert derive_dates(seen) == {} and seen.dates == {}
+    gone = make_record(status_history=[ev(1, "cancelled", "other", "2026-10-08", "day")])
+    assert rollup_status(gone) == "cancelled" and derive_dates(gone) == {}
+    # A dated event before it still dates the record, and the "other" event still sets the status.
+    both = make_record(
+        status_history=[
+            ev(1, "announced", "announced", "2026-03", "month"),
+            ev(2, "operating", "other", "2026-10-08", "day"),
+        ]
+    )
+    assert rollup_status(both) == "operating"
+    assert {k: v.value for k, v in derive_dates(both).items()} == {
+        "first_reported": "2026-03",
+        "announced": "2026-03",
+    }
+
+
 def test_apply_rollup_fixes_status_and_dates(make_record: MakeRecord) -> None:
     r = make_record(
         rollup=False,

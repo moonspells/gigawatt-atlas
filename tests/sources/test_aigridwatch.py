@@ -328,12 +328,6 @@ def test_an_announcement_after_a_filing_is_left_out_and_flagged(
     assert item.data == {"announced": "2026-02-11", "rezoning_filed": "2026-01-15"}
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="needs atlas/schema/rollup.py derive_dates to skip 'other' events for first_reported, "
-    "operating_since and cancelled (cross-file request to schema-validate); remove this mark "
-    "when that lands",
-)
 def test_a_stage_observation_sets_no_derived_date(
     make_test_context: MakeContext, tmp_path: Path
 ) -> None:

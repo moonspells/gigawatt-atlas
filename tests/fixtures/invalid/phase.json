@@ -145,7 +145,7 @@
         "precision": "month",
         "value": "2026-01"
       },
-      "event": "other",
+      "event": "first_reported",
       "note": null,
       "phase_id": "p9",
       "planned": false,

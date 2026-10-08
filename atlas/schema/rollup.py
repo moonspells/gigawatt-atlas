@@ -122,20 +122,24 @@ def rollup_status(record: FacilityRecord) -> Status:
 def derive_dates(record: FacilityRecord) -> dict[str, FuzzyDate]:
     """The dates derived from non-planned events. Keys without a matching event are absent."""
     events = sorted(_actual(record), key=event_key)
+    # An "other" event records a status seen on a date (AI GridWatch's stage as of the day it read
+    # its source), not the day the status began, so it dates neither the first report, nor the
+    # start of operation, nor a cancellation.
+    dated = [e for e in events if e.event != "other"]
     out: dict[str, FuzzyDate] = {}
 
     def first(key: str, match: list[StatusEvent]) -> None:
         if match:
             out[key] = match[0].as_of.model_copy()
 
-    first("first_reported", events)
+    first("first_reported", dated)
     first("announced", [e for e in events if e.event == "announced"])
     first("application_filed", [e for e in events if e.event == "application_filed"])
     first("approved", [e for e in events if e.event in ("approved", "permit_issued")])
     first("construction_start", [e for e in events if e.event == "construction_start"])
-    first("operating_since", [e for e in events if e.status == "operating"])
+    first("operating_since", [e for e in dated if e.status == "operating"])
     if events and rollup_status(record) == "cancelled":
-        cancelled = [e for e in events if e.status == "cancelled"]
+        cancelled = [e for e in dated if e.status == "cancelled"]
         if cancelled:
             out["cancelled"] = cancelled[-1].as_of.model_copy()
     return out

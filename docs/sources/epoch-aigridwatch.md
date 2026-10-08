@@ -289,12 +289,8 @@ were held this way (69 by name, 1 by an Epoch source).
   and verification steps of M2–M3. Only event kinds are read, for `has_filing`.
 - **AI GridWatch stage dates.** The schema cannot say "status observed on date X, event date
   unknown", so the stage's `other` event is dated by `as_of`, the day AI GridWatch read its source.
-  `atlas/schema/rollup.py` derives `first_reported`, `operating_since` and `cancelled` from any
-  event, so for a row whose milestones do not reach the stage those dates are that read date, not
-  when the project was reported, opened or ended (on 2026-10-08: 107 `first_reported`, 5
-  `operating_since` and 5 `cancelled` dates). A change to `derive_dates` that skips `other`
-  events for those three keys is requested; `test_a_stage_observation_sets_no_derived_date` in
-  `tests/sources/test_aigridwatch.py` is marked as an expected failure until it lands.
+  `derive_dates` skips `other` events for `first_reported`, `operating_since` and `cancelled`, so a
+  row whose milestones do not reach the stage has none of those dates.
 - **Epoch projections that do not change the mapped status are dropped.** A projected row whose
   mapped status equals the previous row's adds no event. The crosswalk reads "Buildings
   operational" and, when that cell is empty, "IT power (MW)": OpenAI Stargate Milam's 2028-12-31
