@@ -216,6 +216,17 @@ class CountyIndex:
         counties = [e for e in matches if not e.lsad_name.endswith(" city")]
         return (counties or matches)[0].county
 
+    def name_matches(self, fips: str, name: str) -> bool:
+        """True when name is county fips's name, bare or legal ("Loudoun", "Loudoun County",
+        "Manassas city", "City of Manassas"), ignoring case, periods and apostrophes."""
+        entry = self._entries.get(fips)
+        if entry is None:
+            return False
+        wanted = _norm(name)
+        if wanted.startswith("city of "):
+            wanted = wanted.removeprefix("city of ") + " city"
+        return wanted in (entry.lsad_name, entry.base_name)
+
     def centroid(self, fips: str) -> tuple[float, float]:
         """(lat, lon) of ST_PointOnSurface for the county, rounded to 6 decimals."""
         row = self._con.execute(

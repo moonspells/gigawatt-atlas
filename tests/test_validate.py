@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from pydantic import JsonValue
 
 from atlas.cli import main
 from atlas.geo.counties import CountyIndex
@@ -235,14 +236,9 @@ def test_geo_passes_for_locality_and_state(make_record: MakeRecord, counties: Co
 def test_range_rules(make_record: MakeRecord, changes: dict[str, Any], pointer: str) -> None:
     sources = record_json(make_record())["sources"]
     assert isinstance(sources, list) and isinstance(sources[0], dict)
-    sources[0]["supports"] = [
-        "/canonical_name",
-        "/location",
-        "/capacity",
-        "/money",
-        "/site",
-        "/cooling",
-    ]
+    supports: list[JsonValue] = ["/canonical_name", "/location", "/capacity", "/money", "/site"]
+    supports += ["/cooling", *(f"/dates/{key}" for key in changes.get("dates", {}))]
+    sources[0]["supports"] = supports
     r = make_record(sources=sources, **changes)
     issues = validate_record(r, counties=None, today=TODAY)
     assert [(i.rule, i.pointer) for i in issues] == [("range", pointer)]

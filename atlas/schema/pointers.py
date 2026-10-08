@@ -12,8 +12,10 @@ from pydantic import BaseModel
 from pydantic_core import PydanticUndefined
 
 from atlas.schema.record import FacilityRecord
+from atlas.schema.rollup import DERIVED_DATE_KEYS
 
-# Bookkeeping, derived and provenance fields: they need no supporting source.
+# Bookkeeping, derived and provenance fields: they need no supporting source. Of the dates, only
+# the keys derived from status_history are exempt; expected_in_service is a sourced claim.
 EXEMPT_PREFIXES = (
     "/schema_version",
     "/id",
@@ -24,7 +26,7 @@ EXEMPT_PREFIXES = (
     "/status",
     "/status_reason",
     "/evidence_level",
-    "/dates",
+    *(f"/dates/{key}" for key in DERIVED_DATE_KEYS),
     "/review",
     "/corrections",
     "/created_at",

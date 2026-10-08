@@ -53,7 +53,7 @@
       "bytes": 2580,
       "content_type": "application/json",
       "path": "facilities-map.json",
-      "sha256": "07390e4a45c2e2b24f5d3874f7ce321f29a7693399d219a4355043ee79591ce8"
+      "sha256": "fb5de00f555d8e190f990d5de9906eccbcf6f89ec709f6c32370e9e626323cbb"
     },
     {
       "bytes": 3295,
@@ -68,10 +68,10 @@
       "sha256": "cc102ac380dc96b8acac5d3d8b49314e450a17854eff28d4005f659c57aa2331"
     },
     {
-      "bytes": 19030,
+      "bytes": 19051,
       "content_type": "application/octet-stream",
       "path": "facilities.parquet",
-      "sha256": "86a0e760dff190b7696fc2a675cc5c34b5facf94a77f8cff890b8d70df0d5e62"
+      "sha256": "2698bf102b204655fa2352fc38930dd826e552ba5199268c948bfb0d16818271"
     },
     {
       "bytes": 51526,
@@ -86,10 +86,10 @@
       "sha256": "11e1d265610f16ebfb4106dcd77383e372c7faade8c40ff84f743f09447102a2"
     },
     {
-      "bytes": 5055,
+      "bytes": 5064,
       "content_type": "application/gzip",
       "path": "records.jsonl.gz",
-      "sha256": "180589e8593f94de5a1d8d07543b79a4b19e611ae6848f5c002a07c76c827058"
+      "sha256": "a5a1f5e1bd61038f29bdc884a9f984d5042888aaaf092c1ac509829811ccf975"
     },
     {
       "bytes": 34141,

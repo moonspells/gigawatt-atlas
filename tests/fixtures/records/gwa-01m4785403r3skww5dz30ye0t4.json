@@ -210,7 +210,8 @@
       "retrieved_at": "2026-10-06T00:00:00Z",
       "source_type": "trade_press",
       "supports": [
-        "/phases"
+        "/phases",
+        "/dates/expected_in_service"
       ],
       "text_sha256": "342f7f56826ece1d626023ac7bc338059824529f0148bf8cb9f9ff3259e3b7a7",
       "title": "Phase 2 work starts in Goodyear",

@@ -25,14 +25,17 @@ from atlas.jsonio import dumps_pretty, loads, record_json
 from atlas.schema.export import render
 from atlas.schema.org import Org
 from atlas.schema.pointers import escape, resolve, unsupported_pointers
-from atlas.schema.record import FacilityRecord, FuzzyDate
+from atlas.schema.record import PLACEHOLDER_ID, FacilityRecord, FuzzyDate
 from atlas.schema.rollup import (
+    DATE_KEYS,
     DERIVED_DATE_KEYS,
+    STOPPED,
     RollupError,
     derive_dates,
     period_start,
     rollup_status,
 )
+from atlas.store import list_records_dir
 from atlas.text import find_personal_data, hidden_characters, published_form
 
 if TYPE_CHECKING:
@@ -157,7 +160,36 @@ def loc_to_pointer(loc: tuple[int | str, ...]) -> str:
 Add = Callable[..., None]
 
 
-def _check_rollup_and_dates(record: FacilityRecord, add: Add) -> None:
+def _check_events(record: FacilityRecord, today: date, add: Add) -> None:
+    """seq orders the events, so it is unique; an event that has not happened yet is planned."""
+    seqs = [e.seq for e in record.status_history]
+    for dup in sorted({n for n in seqs if seqs.count(n) > 1}):
+        add("rollup", f"duplicate seq {dup} in status_history", "/status_history")
+    for i, e in enumerate(record.status_history):
+        if not e.planned and period_start(e.as_of) > today:
+            add(
+                "rollup",
+                f"{e.event} on {e.as_of.value} is after {today} but not planned",
+                f"/status_history/{i}/planned",
+            )
+    if record.status_reason is not None and record.status not in STOPPED:
+        add(
+            "rollup",
+            f"status_reason {record.status_reason} is for paused, denied or cancelled records, "
+            f"not {record.status}",
+            "/status_reason",
+        )
+
+
+def _check_rollup_and_dates(record: FacilityRecord, today: date, add: Add) -> None:
+    _check_events(record, today, add)
+    for key in sorted(record.dates):
+        if key not in DATE_KEYS:
+            add(
+                "dates",
+                f"dates.{key} is not a date key ({', '.join(DATE_KEYS)})",
+                f"/dates/{escape(key)}",
+            )
     try:
         expected = rollup_status(record)
     except RollupError:
@@ -238,6 +270,8 @@ def _check_quotes(record: FacilityRecord, add: Add) -> None:
         base = f"/sources/{i}"
         if s.text_sha256 is not None and not _SHA256_RE.match(s.text_sha256):
             add("quote", "text_sha256 is not 64 lowercase hex characters", f"{base}/text_sha256")
+        if s.quote is None and s.quote_match is not None:
+            add("quote", f"quote_match {s.quote_match} needs a quote", f"{base}/quote_match")
         if s.quote_start is None and s.quote_end is None:
             continue
         if s.quote_start is None or s.quote_end is None:
@@ -252,6 +286,18 @@ def _check_quotes(record: FacilityRecord, add: Add) -> None:
             add("quote", "quote offsets need text_sha256", f"{base}/text_sha256")
         if not s.quote:
             add("quote", "quote offsets need the quote", f"{base}/quote")
+        elif (
+            s.quote_match == "exact"
+            and s.quote_start is not None
+            and s.quote_end is not None
+            and s.quote_end - s.quote_start != len(s.quote)
+        ):
+            add(
+                "quote",
+                f"quote offsets {s.quote_start}..{s.quote_end} span "
+                f"{s.quote_end - s.quote_start} characters, but the exact quote has {len(s.quote)}",
+                f"{base}/quote_end",
+            )
 
 
 def _check_geo(record: FacilityRecord, counties: CountyIndex | None, add: Add) -> None:
@@ -277,13 +323,25 @@ def _check_geo(record: FacilityRecord, counties: CountyIndex | None, add: Add) -
         add("geo", f"precision {loc.precision} needs county_fips", "/location/county_fips")
     if counties is None:
         return
-    if loc.county_fips is not None and counties.get(loc.county_fips) is None:
+    county = counties.get(loc.county_fips) if loc.county_fips is not None else None
+    if loc.county_fips is not None and county is None:
         add(
             "geo",
             f"county_fips {loc.county_fips} is not a 2025 Census county",
             "/location/county_fips",
         )
         return
+    if (
+        county is not None
+        and loc.county_name is not None
+        and not counties.name_matches(county.fips, loc.county_name)
+    ):
+        add(
+            "geo",
+            f"county_name {loc.county_name!r} is not county_fips {county.fips} "
+            f"({county.name}, {county.state_abbr})",
+            "/location/county_name",
+        )
     if loc.lat is None or loc.lon is None:
         return
     if checked and loc.county_fips is not None:
@@ -421,7 +479,7 @@ def validate_record(
     def add(rule: str, message: str, pointer: str | None = None) -> None:
         issues.append(Issue(rule, message, record.id, None, pointer))
 
-    _check_rollup_and_dates(record, add)
+    _check_rollup_and_dates(record, today, add)
     _check_sources(record, add)
     _check_support(record, add)
     _check_quotes(record, add)
@@ -543,6 +601,12 @@ def _validate_file(
                 )
             )
         return None
+    if record.id == PLACEHOLDER_ID:
+        issues.append(
+            Issue(
+                "file", "id is the importer placeholder; apply_import assigns ids", record.id, where
+            )
+        )
     if path.name != f"{record.id}.json":
         issues.append(Issue("file", f"file name must be {record.id}.json", record.id, where))
     if text != dumps_pretty(record_json(record)):
@@ -578,12 +642,10 @@ def validate_dataset(
         return report
     records: dict[str, FacilityRecord] = {}
     files: dict[str, str] = {}
-    for path in sorted(records_dir.iterdir()):
-        if path.name.startswith("."):
-            continue
-        if path.is_dir() or path.suffix != ".json":
-            issues.append(Issue("file", "only {id}.json files belong here", file=str(path)))
-            continue
+    candidates, stray = list_records_dir(records_dir)
+    for path in stray:
+        issues.append(Issue("file", "only {id}.json files belong here", file=str(path)))
+    for path in candidates:
         record = _validate_file(path, validator, counties, today, issues)
         if record is None:
             continue
