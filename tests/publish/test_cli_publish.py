@@ -80,7 +80,7 @@ def test_build_verify_upload_end_to_end(
         assert set(meta) == {"bytes", "cache_control", "content_type", "sha256"}
     assert read(target / "atlas/latest.json.meta.json")["cache_control"] == "public, max-age=60"
     pmeta = read(target / f"v/{RELEASE}/facilities.parquet.meta.json")
-    assert pmeta["content_type"] == "application/octet-stream"
+    assert pmeta["content_type"] == "application/vnd.apache.parquet"  # GeoParquet 1.1
     assert pmeta["cache_control"] == "public, max-age=31536000, immutable"
     # Re-running is a no-op for immutable keys; latest.json is rewritten.
     assert (
@@ -203,3 +203,66 @@ def test_put_basemap_rules(
         == 1
     )
     assert main(["publish", "put", str(archive), "--key", key]) == 2  # a cache mode is required
+
+
+def test_put_cache_mode_and_extension_rules(
+    tmp_path: Path, no_r2_env: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    pointer = tmp_path / "latest.json"
+    pointer.write_text("{}", encoding="utf-8")
+    target = ["--local-target", str(tmp_path / "bucket")]
+    put = ["publish", "put", str(pointer), *target]
+    assert main([*put, "--key", "atlas/latest.json", "--immutable"]) == 1
+    assert "is a short-cache key (public, max-age=60); use --short-cache" in capsys.readouterr().err
+    assert main([*put, "--key", "atlas/latest.json", "--short-cache"]) == 0
+    assert main([*put, "--key", "atlas/latest.csv", "--short-cache"]) == 1
+    assert "latest.json and key atlas/latest.csv have different extensions" in (
+        capsys.readouterr().err
+    )
+    assert (
+        main(
+            [
+                "publish",
+                "put",
+                str(tmp_path / "nope.json"),
+                "--key",
+                "atlas/latest.json",
+                "--short-cache",
+                *target,
+            ]
+        )
+        == 1
+    )
+    assert "is not a file" in capsys.readouterr().err
+    assert not (tmp_path / "bucket" / "atlas" / "latest.csv").exists()
+
+
+def test_build_takes_its_docs_from_options(tmp_path: Path, no_r2_env: None) -> None:
+    attribution = tmp_path / "ATTRIBUTION.md"
+    attribution.write_text("# Attribution (test)\n", encoding="utf-8")
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text("# Changelog (test)\n", encoding="utf-8")
+    out = tmp_path / "release"
+    args = build_args(out, "--attribution", str(attribution), "--changelog", str(changelog))
+    assert main(args) == 0
+    vdir = out / "v" / RELEASE
+    assert (vdir / "ATTRIBUTION.md").read_bytes() == attribution.read_bytes()
+    assert (vdir / "CHANGELOG.md").read_bytes() == changelog.read_bytes()
+
+
+def test_takedown_end_to_end(
+    built: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    target = tmp_path / "bucket"
+    upload = ["publish", "upload", str(built), "--release", RELEASE, "--local-target", str(target)]
+    assert main(upload) == 0
+    rid = "gwa-01m47854008j5vt37xkj5ag72d"
+    takedown = ["publish", "takedown", "--id", rid, "--local-target", str(target)]
+    # The only release is the live one, so nothing but its own rec/ object would go: the
+    # record must first be removed by a hotfix release.
+    assert main([*takedown, "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "note: kept release 20261012-1200 still holds a taken-down id" in out
+    assert "would delete 0 objects" in out
+    assert main(["publish", "takedown", "--id", "not-an-id", "--local-target", str(target)]) == 1
+    assert "'not-an-id' is not a record id" in capsys.readouterr().err

@@ -374,6 +374,55 @@ def test_previous_url_other_errors_fail(tmp_path: Path, counties: CountyIndex) -
     assert len(calls) == 4  # the first try and three retries
 
 
+def expired_manifest(request: httpx.Request) -> httpx.Response:
+    """latest.json still points to a release whose manifest is gone (lifecycle or takedown)."""
+    if request.url.path == "/atlas/latest.json":
+        body = {
+            "release": "20260601-0000",
+            "manifest": "https://tiles.moonspells.dev/v/20260601-0000/manifest.json",
+        }
+        return httpx.Response(200, json=body, request=request)
+    return httpx.Response(404, request=request)
+
+
+def test_previous_manifest_gone_fails_without_the_override(
+    tmp_path: Path, counties: CountyIndex
+) -> None:
+    with (
+        mock_client(expired_manifest) as client,
+        pytest.raises(ReleaseError, match=r"previous manifest: .* HTTP 404"),
+    ):
+        build_release(
+            options(tmp_path / "out", previous="https://tiles.moonspells.dev/atlas/latest.json"),
+            counties=counties,
+            http=client,
+            log=quiet,
+        )
+
+
+def test_previous_manifest_gone_is_recovered_with_allow_count_change(
+    tmp_path: Path, counties: CountyIndex
+) -> None:
+    lines: list[str] = []
+    with mock_client(expired_manifest) as client:
+        result = build_release(
+            options(
+                tmp_path / "out",
+                previous="https://tiles.moonspells.dev/atlas/latest.json",
+                allow_count_change=True,
+            ),
+            counties=counties,
+            http=client,
+            log=lines.append,
+        )
+    assert result.previous is None
+    assert verify_release(tmp_path / "out", RELEASE) == (RELEASE, [])
+    (note,) = [n for n in result.notes if "previous release" in n]
+    assert note.startswith("previous release not read (previous manifest: ")
+    assert note.endswith("count check skipped (--allow-count-change)")
+    assert f"note: {note}" in lines
+
+
 def test_previous_pointer_without_manifest_fails(tmp_path: Path) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/atlas/latest.json":
@@ -438,6 +487,42 @@ def test_out_dir_with_other_files_is_refused(tmp_path: Path, counties: CountyInd
     with pytest.raises(ReleaseError, match="not a release"):
         build_release(options(out), counties=counties, log=quiet)
     assert (out / "notes.txt").read_text(encoding="utf-8") == "keep me"
+
+
+def snapshot(root: Path) -> dict[str, bytes]:
+    return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+
+
+def test_missing_tippecanoe_fails_before_touching_out(
+    tmp_path: Path, counties: CountyIndex, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    out = tmp_path / "out"
+    build_release(options(out), counties=counties, log=quiet)
+    before = snapshot(out)
+    monkeypatch.setattr(publish, "tippecanoe_path", lambda: None)
+    with pytest.raises(ReleaseError, match="tippecanoe is not on PATH"):
+        build_release(options(out, release="20261012-1300", skip_pmtiles=False), counties=counties)
+    assert snapshot(out) == before
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["out"]  # no staging left behind
+
+
+@pytest.mark.parametrize("stage", ["parquet", "post-check"])
+def test_a_failed_build_leaves_the_previous_build_in_place(
+    tmp_path: Path, counties: CountyIndex, monkeypatch: pytest.MonkeyPatch, stage: str
+) -> None:
+    out = tmp_path / "out"
+    build_release(options(out), counties=counties, log=quiet)
+    before = snapshot(out)
+    if stage == "parquet":
+        monkeypatch.setattr(publish, "write_parquet", lambda path, facilities: (0, 0))
+        match = "facilities.parquet: 0 rows for 7 facilities"
+    else:
+        monkeypatch.setattr(publish, "FILE_MAX_BYTES", 10)
+        match = r"bytes > 10"
+    with pytest.raises(ReleaseError, match=match):
+        build_release(options(out, release="20261012-1300"), counties=counties, log=quiet)
+    assert snapshot(out) == before
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["out"]
 
 
 def test_rebuild_replaces_the_previous_build(tmp_path: Path, counties: CountyIndex) -> None:
@@ -596,7 +681,7 @@ def test_pmtiles_from_mappable_features(tippecanoe_build: BuildResult) -> None:
     assert (summary["min_zoom"], summary["max_zoom"]) == (0, 12)
     meta = summary["metadata"]
     assert meta["name"] == "Gigawatt Atlas facilities"
-    assert meta["attribution"] == "Gigawatt Atlas (ODbL) · © OpenStreetMap contributors"
+    assert meta["attribution"] == publish.TILES_ATTRIBUTION
     (layer,) = meta["tilestats"]["layers"]
     assert layer["layer"] == "facilities"
     assert layer["count"] == 6  # the state-precision record is not mappable

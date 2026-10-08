@@ -19,8 +19,10 @@ atlas-tiles:
 
 Public records are the in-scope ones with invisible characters stripped from every string.
 Release checks: atlas validate, the record count against the previous release (±10%), the point
-bounds, ST_IsValid, the size budgets and the upload allow-list. Nothing here talks to R2; the
-upload job of publish.yml does that with atlas.r2.
+bounds, ST_IsValid, the size budgets and the upload allow-list. A release is built in a temporary
+sibling of the output directory and moved in only when every check has passed. Nothing here opens
+an R2 connection: upload_release and the takedown (plan_takedown, run_takedown; 07 §5.4) act
+through the atlas.r2 Uploader or Bucket they are given.
 """
 
 from __future__ import annotations
@@ -46,6 +48,7 @@ from pydantic import JsonValue
 from atlas.jsonio import dumps_compact, dumps_pretty, read_json, record_json
 from atlas.r2 import (
     LATEST_KEY,
+    Bucket,
     DisallowedKey,
     Uploader,
     UploadReport,
@@ -78,10 +81,14 @@ FIXTURE_RELEASE = "20000101-0000"
 DEFAULT_TILES_BASE = "https://tiles.moonspells.dev"
 DEFAULT_PREVIOUS = f"{DEFAULT_TILES_BASE}/atlas/latest.json"
 DEFAULT_LAYERS = Path("overlays/out/layers.json")
+DEFAULT_ATTRIBUTION = Path("ATTRIBUTION.md")
+DEFAULT_CHANGELOG = Path("CHANGELOG.md")
 DEFAULT_OUT = Path("build/release")
 FIXTURE_OUT = Path("fixtures/release")
 FIXTURE_RECORDS = Path("tests/fixtures/records")
 FIXTURE_ORGS = Path("tests/fixtures/orgs.json")
+# Frozen inputs of the fixture release: changed only on purpose, together with fixtures/release.
+FIXTURE_INPUTS = Path("fixtures/release-inputs")
 LICENSE_ID = "ODbL-1.0"
 FACILITY_URL = "https://moonspells.dev/atlas/facility/{id}/"
 ATTRIBUTION = (
@@ -167,6 +174,8 @@ JSON_COLUMNS = (
     "sources",
     "incentives",
 )
+# First characters that make a spreadsheet read a CSV cell as a formula (see csv_text_cell).
+CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r", "\uff1d", "\uff0b", "\uff0d", "\uff20")
 DATE_COLUMNS = (
     "announced",
     "application_filed",
@@ -184,6 +193,13 @@ COUNT_TOLERANCE = 0.10
 LAT_BOUNDS = (18.0, 72.0)
 LON_BOUNDS = (-180.0, -64.0)
 
+# The archive's own attribution: facilities.pmtiles is for downloads and third-party maps, and its
+# features carry every flat column (names, MW, dates from all four sources), so a map that shows
+# only the archive's attribution must still credit each source, the CC BY 4.0 ones included.
+TILES_ATTRIBUTION = (
+    "Gigawatt Atlas (ODbL) · © OpenStreetMap contributors · PNNL IM3 (ODbL) · "
+    "Epoch AI (CC BY 4.0) · AI GridWatch (CC BY 4.0)"
+)
 TIPPECANOE_ARGS = (
     "-l",
     "facilities",
@@ -195,12 +211,13 @@ TIPPECANOE_ARGS = (
     "-n",
     "Gigawatt Atlas facilities",
     "-A",
-    "Gigawatt Atlas (ODbL) · © OpenStreetMap contributors",
+    TILES_ATTRIBUTION,
     "--force",
 )
 
 # Files compared by content rather than bytes in `atlas publish fixture --check`.
 BINARY_COMPARED = (".parquet", ".pmtiles")
+RELEASE_ROOTS = ("v", "rec", "atlas")
 _REC_KEY_RE = re.compile(r"^rec/(gwa-[0-9a-hjkmnp-tv-z]{26})/([0-9a-f]{12})\.json$")
 
 
@@ -401,12 +418,25 @@ def _by_id(facilities: Sequence[Facility]) -> list[Facility]:
     return sorted(facilities, key=lambda f: f.record.id)
 
 
+def csv_text_cell(value: str) -> str:
+    """A text cell that spreadsheets will not run as a formula (OWASP CSV injection).
+
+    Names and parties come from untrusted sources (OSM tags anyone can edit, trackers, later LLM
+    extraction). Excel, Sheets and LibreOffice treat a cell that starts with = + - @, a tab or a
+    carriage return (or their full-width forms) as a formula, so such a cell gets a leading
+    apostrophe. Only text goes through here; numbers such as lon -77.48 stay as they are.
+    """
+    return "'" + value if value.startswith(CSV_FORMULA_PREFIXES) else value
+
+
 def render_csv(facilities: Sequence[Facility]) -> bytes:
     def cell(value: JsonValue) -> str:
         if value is None:
             return ""
         if isinstance(value, bool):
             return "true" if value else "false"
+        if isinstance(value, str):
+            return csv_text_cell(value)
         return str(value)
 
     buffer = io.StringIO(newline="")
@@ -453,7 +483,7 @@ def build_summary(
     by_iso: dict[str, list[float]] = {}
     total = utility_basis = 0.0
     without_mw = unmappable = 0
-    last_updated: str | None = None
+    last_updated: datetime | None = None
     for f in facilities:
         r = f.record
         mw, basis = mw_display(r.capacity)
@@ -480,8 +510,9 @@ def build_summary(
         iso = by_iso.setdefault(r.grid.iso_rto, [0, 0.0])
         iso[0] += 1
         iso[1] += value
-        updated = cast("str", f.row["updated_at"])
-        last_updated = max(last_updated, updated) if last_updated else updated
+        # Compared as datetimes: updated_at may carry any UTC offset, so strings sort wrongly.
+        if last_updated is None or r.updated_at > last_updated:
+            last_updated = r.updated_at
     return {
         "release": release,
         "generated_at": generated_at,
@@ -499,7 +530,7 @@ def build_summary(
         },
         "by_iso": {iso: {"count": int(c), "gw": _gw(m)} for iso, (c, m) in sorted(by_iso.items())},
         "by_evidence": cast("dict[str, JsonValue]", by_evidence),
-        "last_updated": last_updated,
+        "last_updated": iso_z(last_updated) if last_updated else None,
     }
 
 
@@ -708,6 +739,11 @@ def tippecanoe_path() -> str | None:
     return shutil.which("tippecanoe")
 
 
+def tippecanoe_argv() -> list[str]:
+    """The command line write_pmtiles runs (tippecanoe stores it as generator_options)."""
+    return ["tippecanoe", "-o", "facilities.pmtiles", *TIPPECANOE_ARGS, "facilities.geojsonl"]
+
+
 def write_pmtiles(path: Path, facilities: Sequence[Facility]) -> None:
     """facilities.pmtiles from the mappable features (tippecanoe, 2.79.0 in CI).
 
@@ -729,7 +765,7 @@ def write_pmtiles(path: Path, facilities: Sequence[Facility]) -> None:
             for f in mappable
         ]
         (work / "facilities.geojsonl").write_bytes(b"".join(line + b"\n" for line in lines))
-        argv = ["tippecanoe", "-o", "facilities.pmtiles", *TIPPECANOE_ARGS, "facilities.geojsonl"]
+        argv = tippecanoe_argv()
         result = subprocess.run(  # noqa: S603  (fixed argument list, no shell; exe from PATH)
             argv, executable=exe, cwd=work, capture_output=True, text=True, check=False
         )
@@ -739,23 +775,31 @@ def write_pmtiles(path: Path, facilities: Sequence[Facility]) -> None:
         shutil.move(work / "facilities.pmtiles", path)
 
 
-def pmtiles_summary(path: Path) -> dict[str, Any]:
-    """Tile counts, zooms and metadata of a PMTiles v3 archive (generator fields left out)."""
+def _pmtiles_header(path: Path) -> tuple[bytes, tuple[int, ...]]:
     data = path.read_bytes()
     if len(data) < 127 or data[:7] != b"PMTiles" or data[7] != 3:
         raise ValueError(f"{path}: not a PMTiles v3 archive")
-    (_, _, meta_offset, meta_length, _, _, _, _, addressed, entries, contents) = struct.unpack(
-        "<11Q", data[8:96]
-    )
-    _, internal, tile_compression, tile_type, min_zoom, max_zoom = struct.unpack(
-        "<6B", data[96:102]
-    )
+    return data, struct.unpack("<11Q", data[8:96]) + struct.unpack("<6B", data[96:102])
+
+
+def pmtiles_metadata(path: Path) -> dict[str, Any]:
+    """The JSON metadata of a PMTiles v3 archive as stored, generator fields included."""
+    data, header = _pmtiles_header(path)
+    meta_offset, meta_length, internal = header[2], header[3], header[12]
     raw = data[meta_offset : meta_offset + meta_length]
     if internal == 2:
         raw = gzip.decompress(raw)
     elif internal not in (0, 1):
         raise ValueError(f"{path}: unsupported internal compression {internal}")
-    metadata = json.loads(raw) if raw else {}
+    return cast("dict[str, Any]", json.loads(raw)) if raw else {}
+
+
+def pmtiles_summary(path: Path) -> dict[str, Any]:
+    """Tile counts, zooms and metadata of a PMTiles v3 archive (generator fields left out)."""
+    _, header = _pmtiles_header(path)
+    addressed, entries, contents = header[8], header[9], header[10]
+    tile_compression, tile_type, min_zoom, max_zoom = header[13:17]
+    metadata = pmtiles_metadata(path)
     for key in ("generator", "generator_options"):
         metadata.pop(key, None)
     return {
@@ -884,6 +928,10 @@ class BuildOptions:
     release: str
     generated_at: datetime
     layers_path: Path = DEFAULT_LAYERS
+    # The release's copies of the data docs. The fixture points these (and layers_path) at frozen
+    # copies under fixtures/release-inputs, so a CHANGELOG or ATTRIBUTION edit never changes it.
+    attribution_path: Path = DEFAULT_ATTRIBUTION
+    changelog_path: Path = DEFAULT_CHANGELOG
     previous: str = "none"
     allow_count_change: bool = False
     skip_pmtiles: bool = False
@@ -911,21 +959,42 @@ class BuildResult:
         return self.out_dir / "v" / self.release
 
 
-def _prepare_out(out: Path) -> None:
-    """Empty a previous release build in out; refuse a directory that holds anything else."""
-    if out.exists():
-        if not out.is_dir():
-            raise ReleaseError([f"{out} is not a directory"])
-        other = sorted(p.name for p in out.iterdir() if p.name not in ("v", "rec", "atlas"))
-        if other:
-            raise ReleaseError(
-                [
-                    f"{out} holds files that are not a release ({', '.join(other)}); use another --out"
-                ]
-            )
-        for name in ("v", "rec", "atlas"):
-            shutil.rmtree(out / name, ignore_errors=True)
+def _check_out(out: Path) -> None:
+    """Refuse an --out that is a file or holds anything but a previous release build."""
+    if not out.exists():
+        return
+    if not out.is_dir():
+        raise ReleaseError([f"{out} is not a directory"])
+    other = sorted(p.name for p in out.iterdir() if p.name not in RELEASE_ROOTS)
+    if other:
+        raise ReleaseError(
+            [f"{out} holds files that are not a release ({', '.join(other)}); use another --out"]
+        )
+
+
+def _check_tools(opts: BuildOptions) -> None:
+    """Fail before anything is written when the PMTiles step cannot run."""
+    if opts.skip_pmtiles:
+        return
+    if opts.reuse_pmtiles is not None:
+        if not opts.reuse_pmtiles.is_file():
+            raise ReleaseError([f"{opts.reuse_pmtiles}: no such PMTiles archive"])
+    elif tippecanoe_path() is None:
+        raise ReleaseError(
+            ["tippecanoe is not on PATH: build 2.79.0 (docs/publishing.md) or pass --skip-pmtiles"]
+        )
+
+
+def _install(staging: Path, out: Path) -> None:
+    """Move a finished, checked build from staging into out, replacing the previous build.
+
+    staging is a sibling of out, so each move is a rename on the same filesystem.
+    """
     out.mkdir(parents=True, exist_ok=True)
+    for name in RELEASE_ROOTS:
+        shutil.rmtree(out / name, ignore_errors=True)
+        if (staging / name).exists():
+            (staging / name).rename(out / name)
 
 
 def _validate(opts: BuildOptions, counties: CountyIndex) -> None:
@@ -961,12 +1030,20 @@ def build_release(
     http: httpx.Client | None = None,
     log: Callable[[str], None] = print,
 ) -> BuildResult:
-    """Validate, run the release checks and write the release directory (07 §6.8 steps 1-2)."""
+    """Validate, run the release checks and write the release directory (07 §6.8 steps 1-2).
+
+    The release is built in a temporary sibling of out and moved into out only after every check
+    has passed, so a failed build (tippecanoe missing or failing, a Parquet mismatch, a post-build
+    check) leaves out exactly as it was. That matters for `atlas publish fixture`, whose out is
+    the committed fixtures/release.
+    """
     try:
         release_time(opts.release)
     except ValueError as e:
         raise ReleaseError([str(e)]) from e
     tiles_base = _check_tiles_base(opts.tiles_base)
+    _check_out(opts.out_dir)
+    _check_tools(opts)
     _validate(opts, counties)
 
     records = RecordStore(opts.records_dir).load()
@@ -981,10 +1058,24 @@ def build_release(
     facilities = [make_facility(r) for r in public if r.merged_into is None]
     merged = len(public) - len(facilities)
 
+    notes: list[str] = []
+    previous_note: str | None = None
     problems: list[str] = []
     if not facilities and not opts.fixture:
         problems.append("no in-scope facility to publish")
-    previous = load_previous(opts.previous, http=http)
+    try:
+        previous = load_previous(opts.previous, http=http)
+    except ReleaseError as e:
+        # The count check is skipped anyway, so a previous release that cannot be read (its
+        # manifest expired by the lifecycle rule or deleted after a takedown, while
+        # atlas/latest.json still points to it) must not block the recovery run.
+        if not opts.allow_count_change:
+            raise
+        previous = None
+        previous_note = (
+            f"previous release not read ({'; '.join(e.problems)}); count check skipped "
+            "(--allow-count-change)"
+        )
     count_problem = check_count(previous, len(facilities), allow=opts.allow_count_change)
     if count_problem:
         problems.append(count_problem)
@@ -1018,8 +1109,8 @@ def build_release(
         ).encode("utf-8"),
         "schema/facility.v1.json": render().encode("utf-8"),
         "LICENSE-ODbL-1.0.txt": (root / "LICENSE-ODbL-1.0.txt").read_bytes(),
-        "ATTRIBUTION.md": (root / "ATTRIBUTION.md").read_bytes(),
-        "CHANGELOG.md": (root / "CHANGELOG.md").read_bytes(),
+        "ATTRIBUTION.md": _resolve(opts.attribution_path, root).read_bytes(),
+        "CHANGELOG.md": _resolve(opts.changelog_path, root).read_bytes(),
     }
     binaries = ["facilities.parquet"]
     if not opts.skip_pmtiles:
@@ -1027,8 +1118,62 @@ def build_release(
     names = sorted([*texts, *binaries, "README.md", "manifest.json"])
     texts["README.md"] = render_readme(release, names, fixture=opts.fixture).encode("utf-8")
 
-    _prepare_out(opts.out_dir)
-    version_dir = opts.out_dir / "v" / release
+    out = opts.out_dir.resolve()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix=f".{out.name}-", suffix=".partial", dir=out.parent))
+    try:
+        manifest = _write_release(
+            staging,
+            opts,
+            texts=texts,
+            names=names,
+            facilities=facilities,
+            public=public,
+            merged=merged,
+            layers=layers,
+            tiles_base=tiles_base,
+            generated_at=generated_at,
+            notes=notes,
+        )
+        post = check_release_files(staging)
+        if post:
+            raise ReleaseError(post)
+        _install(staging, opts.out_dir)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+    if previous_note is not None:
+        notes.append(previous_note)
+    elif previous is None:
+        notes.append(f"no previous release to compare (--previous {opts.previous})")
+    else:
+        notes.append(
+            f"previous release {previous.release}: {previous.facilities} facilities, now "
+            f"{len(facilities)}"
+            + (" (count check skipped: --allow-count-change)" if opts.allow_count_change else "")
+        )
+    for note in notes:
+        log(f"note: {note}")
+    return BuildResult(release, opts.out_dir, manifest, previous, notes)
+
+
+def _write_release(
+    out: Path,
+    opts: BuildOptions,
+    *,
+    texts: Mapping[str, bytes],
+    names: Sequence[str],
+    facilities: Sequence[Facility],
+    public: Sequence[FacilityRecord],
+    merged: int,
+    layers: dict[str, JsonValue],
+    tiles_base: str,
+    generated_at: str,
+    notes: list[str],
+) -> dict[str, JsonValue]:
+    """Write every file of the release into the empty directory out; return the manifest."""
+    release = opts.release
+    version_dir = out / "v" / release
     for name, data in texts.items():
         target = version_dir / name
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -1039,7 +1184,6 @@ def build_release(
         raise ReleaseError(
             [f"facilities.parquet: {rows} rows for {len(facilities)} facilities, {invalid} invalid"]
         )
-    notes: list[str] = []
     if opts.skip_pmtiles:
         notes.append("facilities.pmtiles skipped (--skip-pmtiles)")
     elif opts.reuse_pmtiles is not None:
@@ -1049,7 +1193,7 @@ def build_release(
         write_pmtiles(version_dir / "facilities.pmtiles", facilities)
 
     for f in facilities:
-        target = opts.out_dir / f.rec_key
+        target = out / f.rec_key
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(f.rec_bytes)
 
@@ -1096,40 +1240,34 @@ def build_release(
     (version_dir / "manifest.json").write_text(dumps_pretty(manifest), "utf-8", newline="\n")
     if not opts.fixture:
         pointer = {"release": release, "manifest": f"{tiles_base}/v/{release}/manifest.json"}
-        target = opts.out_dir / LATEST_KEY
+        target = out / LATEST_KEY
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(dumps_pretty(pointer), "utf-8", newline="\n")
-
-    post = check_release_files(opts.out_dir)
-    if post:
-        raise ReleaseError(post)
-    if previous is None:
-        notes.append(f"no previous release to compare (--previous {opts.previous})")
-    else:
-        notes.append(
-            f"previous release {previous.release}: {previous.facilities} facilities, now "
-            f"{len(facilities)}"
-            + (" (count check skipped: --allow-count-change)" if opts.allow_count_change else "")
-        )
-    for note in notes:
-        log(f"note: {note}")
-    return BuildResult(release, opts.out_dir, manifest, previous, notes)
+    return manifest
 
 
 LAYER_KEYS = frozenset({"url", "asOf", "label", "attribution", "frozen"})
+# A metric overlay's JSON lives on the site, not on R2, so its entry gives the site path (07 §10.3).
+SITE_DATA_PATH_RE = re.compile(r"^/atlas/data/[a-z0-9-]+\.json$")
 
 
 def check_layers(layers: object) -> list[str]:
-    """overlays/out/layers.json: {name: {url, asOf, label, attribution, frozen}} (07 §11.1)."""
+    """overlays/out/layers.json: {name: {url, asOf, label, attribution, frozen, ...}} (07 §11.1).
+
+    The five keys are required; other keys are allowed, since contract 1 grows only by additions
+    (07 §11.3). url is an https URL (R2 overlays, the basemap) or a site path
+    /atlas/data/{layer}.json (metric JSON, 07 §10.3).
+    """
     if not isinstance(layers, dict) or not layers:
         return ["must be a non-empty JSON object of layers"]
     problems: list[str] = []
     for name, layer in sorted(layers.items()):
-        if not isinstance(layer, dict) or set(layer) != LAYER_KEYS:
-            problems.append(f"layer {name!r} must have exactly {', '.join(sorted(LAYER_KEYS))}")
+        if not isinstance(layer, dict) or not LAYER_KEYS.issubset(layer):
+            problems.append(f"layer {name!r} must have {', '.join(sorted(LAYER_KEYS))}")
             continue
-        if not str(layer["url"]).startswith("https://"):
-            problems.append(f"layer {name!r}: url must be https")
+        url = str(layer["url"])
+        if not url.startswith("https://") and not SITE_DATA_PATH_RE.match(url):
+            problems.append(f"layer {name!r}: url must be https or /atlas/data/{{layer}}.json")
         if not isinstance(layer["frozen"], bool):
             problems.append(f"layer {name!r}: frozen must be true or false")
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", str(layer["asOf"])):
@@ -1330,17 +1468,186 @@ def upload_release(
     return report
 
 
+# ------------------------------------------------------------------------------- takedown
+
+_RECORD_ID_RE = re.compile(r"^gwa-[0-9a-hjkmnp-tv-z]{26}$")
+
+
+@dataclass
+class TakedownPlan:
+    """What `atlas publish takedown` deletes from atlas-tiles (07 §5.4, docs/publishing.md §7)."""
+
+    ids: list[str]
+    keep: list[str]
+    releases: list[str] = field(default_factory=list)
+    delete: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+
+def _release_ids(bucket: Bucket) -> dict[str, list[str]]:
+    """{release: its keys} for every v/{release}/ in the bucket."""
+    found: dict[str, list[str]] = {}
+    for key in bucket.list_keys("v/"):
+        release = key.split("/")[1]
+        if RELEASE_RE.match(release):
+            found.setdefault(release, []).append(key)
+    return found
+
+
+def _map_hashes(bucket: Bucket, release: str, ids: set[str]) -> dict[str, str]:
+    """{id: h} of the ids that are facilities in a release's facilities-map.json."""
+    data = bucket.get(f"v/{release}/facilities-map.json")
+    if data is None:
+        return {}
+    try:
+        features = json.loads(data)["features"]
+        pairs = ((str(f["properties"]["id"]), str(f["properties"]["h"])) for f in features)
+        return {rid: h for rid, h in pairs if rid in ids}
+    except (ValueError, KeyError, TypeError):
+        return {}
+
+
+def _holds_ids(bucket: Bucket, release: str, ids: set[str]) -> bool | None:
+    """Whether a release's records.jsonl.gz holds one of ids; None when it cannot be read."""
+    data = bucket.get(f"v/{release}/records.jsonl.gz")
+    if data is None:
+        return None
+    try:
+        lines = gzip.decompress(data).decode("utf-8").splitlines()
+        return any(json.loads(line).get("id") in ids for line in lines if line.strip())
+    except (OSError, EOFError, ValueError, AttributeError):
+        return None
+
+
+def plan_takedown(bucket: Bucket, ids: Sequence[str], *, keep: Sequence[str] = ()) -> TakedownPlan:
+    """The objects to delete so that ids are served from no release and no rec/ object.
+
+    Kept: the release atlas/latest.json points to (the hotfix release, published first), every
+    release in keep, and the fixture release (invented test data). Every other release whose
+    records.jsonl.gz holds one of ids, or cannot be read (a partial upload), is deleted in full,
+    its manifest first. rec/{id}/* is deleted except the objects a kept release still maps.
+    Raises ReleaseError when an id or release id is malformed, nothing says which release to
+    keep, or a kept release still maps the same rec/ object as a release being deleted (the
+    hotfix has not been published yet).
+    """
+    problems = [
+        f"{rid!r} is not a record id (gwa-...)" for rid in ids if not _RECORD_ID_RE.match(rid)
+    ]
+    problems += [
+        f"--keep {r!r} is not a release id (YYYYMMDD-HHMM)" for r in keep if not RELEASE_RE.match(r)
+    ]
+    if not ids:
+        problems.append("no record id given")
+    if problems:
+        raise ReleaseError(problems)
+    wanted = set(ids)
+    releases = _release_ids(bucket)
+    kept = set(keep)
+    latest = bucket.get(LATEST_KEY)
+    if latest is not None:
+        try:
+            kept.add(str(json.loads(latest)["release"]))
+        except (ValueError, KeyError, TypeError) as e:
+            raise ReleaseError([f"{LATEST_KEY} is unreadable ({e}); pass --keep RELEASE"]) from e
+    elif not kept:
+        raise ReleaseError([f"{LATEST_KEY} not found; pass --keep with the hotfix release"])
+    missing = sorted(r for r in kept if f"v/{r}/manifest.json" not in releases.get(r, []))
+    if missing:
+        raise ReleaseError([f"kept release {r} has no v/{r}/manifest.json" for r in missing])
+    kept.add(FIXTURE_RELEASE)
+
+    plan = TakedownPlan(ids=sorted(wanted), keep=sorted(kept & set(releases)))
+    kept_rec: dict[str, str] = {}
+    for release in sorted(kept & set(releases)):
+        for rid, h in _map_hashes(bucket, release, wanted).items():
+            kept_rec[f"rec/{rid}/{h}.json"] = release
+        if release != FIXTURE_RELEASE and _holds_ids(bucket, release, wanted):
+            plan.notes.append(
+                f"kept release {release} still holds a taken-down id: check that the hotfix "
+                "redacted the record rather than leaving it as it was"
+            )
+    stale: list[str] = []
+    for release, keys in sorted(releases.items()):
+        if release in kept:
+            continue
+        holds = _holds_ids(bucket, release, wanted)
+        if holds is False:
+            continue
+        if holds is None:
+            plan.notes.append(f"v/{release}/records.jsonl.gz unreadable or missing: deleted too")
+        hashes = _map_hashes(bucket, release, wanted)
+        for rid, h in sorted(hashes.items()):
+            by = kept_rec.get(f"rec/{rid}/{h}.json")
+            if by is not None and by != FIXTURE_RELEASE:  # fixture records are invented
+                stale.append(
+                    f"rec/{rid}/{h}.json is mapped by kept release {by} and by {release}: the "
+                    "record is unchanged; land the hotfix PR and publish before the takedown"
+                )
+        manifest = f"v/{release}/manifest.json"
+        plan.releases.append(release)
+        plan.delete += [k for k in keys if k == manifest] + [k for k in keys if k != manifest]
+    if stale:
+        raise ReleaseError(stale)
+    for rid in plan.ids:
+        plan.delete += [k for k in bucket.list_keys(f"rec/{rid}/") if k not in kept_rec]
+    return plan
+
+
+def run_takedown(
+    bucket: Bucket,
+    plan: TakedownPlan,
+    *,
+    tiles_base: str = DEFAULT_TILES_BASE,
+    dry_run: bool = False,
+    log: Callable[[str], None] = print,
+) -> list[str]:
+    """Delete the plan's keys (or list them with dry_run); return their public URLs to purge."""
+    base = _check_tiles_base(tiles_base)
+    for note in plan.notes:
+        log(f"note: {note}")
+    log(f"keep: {', '.join(plan.keep) or 'none'}")
+    for key in plan.delete:
+        if dry_run:
+            log(f"would delete {key}")
+        else:
+            bucket.delete(key)
+            log(f"deleted {key}")
+    urls = [f"{base}/{key}" for key in plan.delete]
+    verb = "would delete" if dry_run else "deleted"
+    log(
+        f"takedown {', '.join(plan.ids)}: {verb} {len(plan.delete)} objects in "
+        f"{len(plan.releases)} releases and rec/"
+    )
+    if urls and not dry_run:
+        log(
+            "next: purge the edge cache (Caching > Configuration > Purge Cache > Custom Purge > "
+            f"Hostname {base.removeprefix('https://')}, or these URLs)"
+        )
+    return urls
+
+
 # -------------------------------------------------------------------------------- fixture
 
 
 def fixture_options(out_dir: Path, *, today: date | None = None) -> BuildOptions:
     """`atlas publish build --records tests/fixtures/records --orgs tests/fixtures/orgs.json
-    --release 20000101-0000 --fixture --deterministic --previous none --out fixtures/release`."""
+    --layers fixtures/release-inputs/layers.json --attribution fixtures/release-inputs/ATTRIBUTION.md
+    --changelog fixtures/release-inputs/CHANGELOG.md --release 20000101-0000 --fixture
+    --deterministic --previous none --out fixtures/release`.
+
+    The fixture reads frozen copies of layers.json, ATTRIBUTION.md and CHANGELOG.md, never the
+    living repo files, so a changelog entry, a new source or the weekly overlays PR cannot make
+    `fixture --check` (a required CI check) fail. Only the records, the code, the schema and the
+    ODbL text (pinned by tests/test_repo_files.py) feed it from the repo.
+    """
     root = REPO_ROOT
+    inputs = root / FIXTURE_INPUTS
     return BuildOptions(
         records_dir=root / FIXTURE_RECORDS,
         orgs_path=root / FIXTURE_ORGS,
-        layers_path=root / DEFAULT_LAYERS,
+        layers_path=inputs / "layers.json",
+        attribution_path=inputs / "ATTRIBUTION.md",
+        changelog_path=inputs / "CHANGELOG.md",
         out_dir=out_dir,
         release=FIXTURE_RELEASE,
         generated_at=release_time(FIXTURE_RELEASE),

@@ -6,12 +6,14 @@ boto3 is exercised with botocore.stub.Stubber and LocalUploader; nothing reaches
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 from pathlib import Path
 from typing import Any
 
 import pytest
 from boto3.s3.transfer import TransferConfig
+from botocore.response import StreamingBody
 from botocore.stub import ANY, Stubber
 
 from atlas import r2
@@ -85,7 +87,7 @@ def item(tmp_path: Path, key: str, data: bytes = b"{}") -> UploadItem:
         ("v/20261012-1200/records.jsonl.gz", "application/gzip"),
         ("v/20261012-1200/facilities.geojson", "application/geo+json"),
         ("v/20261012-1200/facilities.csv", "text/csv; charset=utf-8"),
-        ("v/20261012-1200/facilities.parquet", "application/octet-stream"),
+        ("v/20261012-1200/facilities.parquet", "application/vnd.apache.parquet"),
         ("v/20261012-1200/facilities.pmtiles", "application/octet-stream"),
         ("basemap/conus-z10-20261006.pmtiles", "application/octet-stream"),
         ("v/20261012-1200/README.md", "text/markdown; charset=utf-8"),
@@ -173,27 +175,129 @@ def test_client_config_for_r2() -> None:
     assert config.s3["addressing_style"] == "path"
 
 
-def test_s3_put_sends_type_cache_and_sha_but_no_content_encoding(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("key", "data", "content_type", "cache_control"),
+    [
+        ("v/20261012-1200/facilities.pmtiles", b"PMTiles", "application/octet-stream", IMMUTABLE),
+        (
+            "v/20261012-1200/facilities.parquet",
+            b"PAR1",
+            "application/vnd.apache.parquet",
+            IMMUTABLE,
+        ),
+        ("v/20261012-1200/records.jsonl.gz", b"\x1f\x8b\x08\x00", "application/gzip", IMMUTABLE),
+        ("v/20261012-1200/manifest.json", b"{}", "application/json", IMMUTABLE),
+        (
+            "rec/gwa-01m47854008j5vt37xkj5ag72d/4a98d26ab89b.json",
+            b"{}",
+            "application/json",
+            IMMUTABLE,
+        ),
+        ("atlas/latest.json", b"{}", "application/json", SHORT_CACHE),
+    ],
+)
+def test_s3_put_sends_type_cache_and_sha_but_no_content_encoding(
+    tmp_path: Path, key: str, data: bytes, content_type: str, cache_control: str
+) -> None:
     client, uploader = stubbed()
-    up = item(tmp_path, "v/20261012-1200/facilities.pmtiles", b"PMTiles")
+    up = item(tmp_path, key, data)
     expected = {
         "Bucket": "atlas-tiles",
         "Key": up.key,
         "Body": ANY,
-        "ContentType": "application/octet-stream",
-        "CacheControl": IMMUTABLE,
+        "ContentType": content_type,
+        "CacheControl": cache_control,
         "Metadata": {"sha256": up.sha256},
     }
     with Stubber(client) as stub:
-        stub.add_client_error(
-            "head_object",
-            service_error_code="404",
-            http_status_code=404,
-            expected_params={"Bucket": "atlas-tiles", "Key": up.key},
-        )
+        if up.immutable:
+            stub.add_client_error(
+                "head_object",
+                service_error_code="404",
+                http_status_code=404,
+                expected_params={"Bucket": "atlas-tiles", "Key": up.key},
+            )
         stub.add_response("put_object", {}, expected)  # exact params: any extra key fails
         assert upload_item(uploader, up, log=quiet) is True
         stub.assert_no_pending_responses()
+
+
+def test_s3_list_get_and_delete_for_takedowns() -> None:
+    client, uploader = stubbed()
+    with Stubber(client) as stub:
+        stub.add_response(
+            "list_objects_v2",
+            {
+                "IsTruncated": True,
+                "NextContinuationToken": "t1",
+                "Contents": [{"Key": "rec/gwa-01m47854008j5vt37xkj5ag72d/bbbbbbbbbbbb.json"}],
+            },
+            {"Bucket": "atlas-tiles", "Prefix": "rec/gwa-01m47854008j5vt37xkj5ag72d/"},
+        )
+        stub.add_response(
+            "list_objects_v2",
+            {
+                "IsTruncated": False,
+                "Contents": [{"Key": "rec/gwa-01m47854008j5vt37xkj5ag72d/aaaaaaaaaaaa.json"}],
+            },
+            {
+                "Bucket": "atlas-tiles",
+                "Prefix": "rec/gwa-01m47854008j5vt37xkj5ag72d/",
+                "ContinuationToken": "t1",
+            },
+        )
+        assert uploader.list_keys("rec/gwa-01m47854008j5vt37xkj5ag72d/") == [
+            "rec/gwa-01m47854008j5vt37xkj5ag72d/aaaaaaaaaaaa.json",
+            "rec/gwa-01m47854008j5vt37xkj5ag72d/bbbbbbbbbbbb.json",
+        ]
+        body = StreamingBody(io.BytesIO(b"{}"), 2)
+        stub.add_response(
+            "get_object", {"Body": body}, {"Bucket": "atlas-tiles", "Key": "atlas/latest.json"}
+        )
+        assert uploader.get("atlas/latest.json") == b"{}"
+        stub.add_client_error(
+            "get_object",
+            service_error_code="NoSuchKey",
+            http_status_code=404,
+            expected_params={"Bucket": "atlas-tiles", "Key": "v/x/manifest.json"},
+        )
+        assert uploader.get("v/x/manifest.json") is None
+        stub.add_response(
+            "delete_object", {}, {"Bucket": "atlas-tiles", "Key": "v/x/manifest.json"}
+        )
+        uploader.delete("v/x/manifest.json")
+        stub.assert_no_pending_responses()
+    with pytest.raises(DisallowedKey):
+        uploader.delete("../x.json")
+
+
+@pytest.mark.parametrize("prefix", ["v", "/v/", "v//", "../", "v/../", "v x/"])
+def test_listing_prefixes_are_checked(prefix: str) -> None:
+    with pytest.raises(DisallowedKey):
+        r2.check_prefix(prefix)
+    r2.check_prefix("")
+    r2.check_prefix("rec/gwa-01m47854008j5vt37xkj5ag72d/")
+
+
+def test_local_bucket_list_get_and_delete(tmp_path: Path) -> None:
+    target = LocalUploader(tmp_path / "bucket")
+    assert target.list_keys("") == []
+    for key in (
+        "v/20261012-1200/manifest.json",
+        "v/20261012-1200/summary.json",
+        "atlas/latest.json",
+    ):
+        upload_item(target, item(tmp_path, key), log=quiet)
+    assert target.list_keys("v/") == [
+        "v/20261012-1200/manifest.json",
+        "v/20261012-1200/summary.json",
+    ]
+    assert target.get("atlas/latest.json") == b"{}"
+    assert target.get("atlas/pending.json") is None
+    target.delete("v/20261012-1200/summary.json")
+    target.delete("v/20261012-1200/summary.json")  # a free key is not an error
+    assert target.list_keys("") == ["atlas/latest.json", "v/20261012-1200/manifest.json"]
+    assert not (tmp_path / "bucket" / "v" / "20261012-1200" / "summary.json.meta.json").exists()
 
 
 def test_s3_head_reads_the_sha256_metadata(tmp_path: Path) -> None:

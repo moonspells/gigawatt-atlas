@@ -9,6 +9,9 @@ Every key passes three rules before anything is sent:
 - immutable keys are never overwritten: a HEAD comes first, the same x-amz-meta-sha256 is skipped
   and a different one fails.
 
+Deleting is for takedowns only (`atlas publish takedown`, docs/publishing.md §7): the Bucket
+protocol adds list, get and delete to Uploader.
+
 Credentials come only from the environment (the `production` GitHub Environment in CI):
 CF_ACCOUNT_ID, R2_TILES_ACCESS_KEY_ID, R2_TILES_SECRET_ACCESS_KEY and R2_TILES_BUCKET. Error
 messages name missing variables and never print their values. boto3 is imported on use.
@@ -37,7 +40,7 @@ LATEST_KEY = "atlas/latest.json"
 CONTENT_TYPES: tuple[tuple[str, str], ...] = (
     (".jsonl.gz", "application/gzip"),
     (".geojson", "application/geo+json"),
-    (".parquet", "application/octet-stream"),
+    (".parquet", "application/vnd.apache.parquet"),  # required by GeoParquet 1.1; not compressed
     (".pmtiles", "application/octet-stream"),
     (".json", "application/json"),
     (".csv", "text/csv; charset=utf-8"),
@@ -148,6 +151,37 @@ class Uploader(Protocol):
         ...
 
 
+class Bucket(Uploader, Protocol):
+    """An Uploader that can also list, read and delete objects (takedowns)."""
+
+    def list_keys(self, prefix: str) -> list[str]:
+        """Every key that starts with prefix ("" or ending in "/"), sorted."""
+        ...
+
+    def get(self, key: str) -> bytes | None:
+        """The object's bytes, or None when the key is free."""
+        ...
+
+    def delete(self, key: str) -> None:
+        """Remove the object; a free key is not an error."""
+        ...
+
+
+def check_prefix(prefix: str) -> None:
+    """A listing prefix is "" or a valid key followed by "/"."""
+    if prefix and (not prefix.endswith("/") or not _KEY_RE.match(prefix[:-1])):
+        raise DisallowedKey(f"{prefix!r} is not a valid key prefix")
+    if ".." in prefix.split("/"):
+        raise DisallowedKey(f"{prefix!r} is not a valid key prefix")
+
+
+def _not_found(error: Any) -> bool:
+    response = getattr(error, "response", {}) or {}
+    code = str(response.get("Error", {}).get("Code"))
+    status = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    return code in _NOT_FOUND_CODES or status == 404
+
+
 class S3Uploader:
     """R2 over the S3 API with boto3 (upload_file, so large files go multipart)."""
 
@@ -162,9 +196,7 @@ class S3Uploader:
         try:
             response = self.client.head_object(Bucket=self.bucket, Key=key)
         except ClientError as e:
-            error = e.response.get("Error", {})
-            status = e.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
-            if str(error.get("Code")) in _NOT_FOUND_CODES or status == 404:
+            if _not_found(e):
                 return None
             raise
         metadata = {str(k).lower(): str(v) for k, v in (response.get("Metadata") or {}).items()}
@@ -188,6 +220,30 @@ class S3Uploader:
         if self.transfer_config is not None:
             kwargs["Config"] = self.transfer_config
         self.client.upload_file(str(path), self.bucket, key, **kwargs)
+
+    def list_keys(self, prefix: str) -> list[str]:
+        check_prefix(prefix)
+        paginator = self.client.get_paginator("list_objects_v2")
+        keys: list[str] = []
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix):
+            keys += [str(obj["Key"]) for obj in page.get("Contents", [])]
+        return sorted(keys)
+
+    def get(self, key: str) -> bytes | None:
+        from botocore.exceptions import ClientError
+
+        check_key(key)
+        try:
+            response = self.client.get_object(Bucket=self.bucket, Key=key)
+        except ClientError as e:
+            if _not_found(e):
+                return None
+            raise
+        return bytes(response["Body"].read())
+
+    def delete(self, key: str) -> None:
+        check_key(key)
+        self.client.delete_object(Bucket=self.bucket, Key=key)
 
 
 class LocalUploader:
@@ -233,6 +289,25 @@ class LocalUploader:
             "sha256": sha256,
         }
         self._meta(key).write_text(json.dumps(meta, sort_keys=True, indent=2) + "\n", "utf-8")
+
+    def list_keys(self, prefix: str) -> list[str]:
+        check_prefix(prefix)
+        if not self.root.is_dir():
+            return []
+        keys = (
+            p.relative_to(self.root).as_posix()
+            for p in self.root.rglob("*")
+            if p.is_file() and not p.name.endswith(self.META_SUFFIX)
+        )
+        return sorted(k for k in keys if k.startswith(prefix))
+
+    def get(self, key: str) -> bytes | None:
+        path = self._path(key)
+        return path.read_bytes() if path.is_file() else None
+
+    def delete(self, key: str) -> None:
+        self._path(key).unlink(missing_ok=True)
+        self._meta(key).unlink(missing_ok=True)
 
 
 # ----------------------------------------------------------------------------- credentials
