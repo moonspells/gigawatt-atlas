@@ -274,6 +274,10 @@ class _Fetcher:
                 self.sleep(BACKOFF_SECONDS[min(attempt, len(BACKOFF_SECONDS) - 1)])
                 attempt += 1
                 continue
+            except httpx.HTTPError as e:
+                # Not a network failure (a body that cannot be decoded, say): retrying gets the
+                # same answer, and callers handle only FetchError.
+                raise FetchError(f"{method} {url}: {type(e).__name__}: {e}") from e
             if status == 429 or status >= 500:
                 if attempt >= self.retries:
                     raise FetchError(f"{method} {url}: HTTP {status}", status=status)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -47,6 +47,23 @@ def resolver_for(table: dict[str, list[str]]) -> Callable[[str], list[str]]:
 
 def client_for(handler: Handler, table: dict[str, list[str]] | None = None) -> httpx.Client:
     return make_client(transport=httpx.MockTransport(handler), resolver=resolver_for(table or {}))
+
+
+class Chunks(httpx.SyncByteStream):
+    """A body as it comes off the network: raw (still encoded) bytes, in chunks."""
+
+    def __init__(self, data: bytes, size: int = 65_536) -> None:
+        self.data = data
+        self.size = size
+
+    def __iter__(self) -> Iterator[bytes]:
+        for i in range(0, len(self.data), self.size):
+            yield self.data[i : i + self.size]
+
+
+def wire(status: int, headers: dict[str, str], body: bytes) -> httpx.Response:
+    """A response whose body is decoded only when read (content= would decode it here)."""
+    return httpx.Response(status, headers=headers, stream=Chunks(body))
 
 
 def site(routes: dict[str, httpx.Response], log: list[str] | None = None) -> Handler:
@@ -333,6 +350,28 @@ def test_retries_exhausted_and_connection_errors() -> None:
             min_interval=0,
         )
     assert clock.sleeps == [10.0]
+
+
+def test_undecodable_body_is_a_fetch_error() -> None:
+    # httpx raises DecodingError, which is not a TransportError; callers catch only FetchError.
+    def handle(request: httpx.Request) -> httpx.Response:
+        return wire(200, {"Content-Encoding": "gzip"}, b"not gzip at all")
+
+    clock = Clock()
+    with client_for(handle) as client, pytest.raises(FetchError, match=r"(?i)decod") as info:
+        fetch(client, "https://msd.example/v", robots=False, sleep=clock.sleep, now=clock.now)
+    assert info.value.status is None
+    assert clock.sleeps == []  # not retried: the same body would come back
+
+
+def test_other_httpx_errors_are_fetch_errors() -> None:
+    def fail(request: httpx.Request) -> httpx.Response:
+        raise httpx.DecodingError("bad encoding", request=request)
+
+    clock = Clock()
+    with client_for(fail) as client, pytest.raises(FetchError, match="DecodingError"):
+        fetch(client, "https://msd.example/v", robots=False, sleep=clock.sleep, now=clock.now)
+    assert clock.sleeps == []
 
 
 def test_client_errors_raise_with_status() -> None:
