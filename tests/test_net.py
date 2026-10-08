@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import http.server
+import ipaddress
+import socket
+import ssl
+import threading
 import tracemalloc
 import zlib
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import httpx
 import pytest
@@ -153,6 +160,168 @@ def test_unresolvable_host_is_refused() -> None:
         pytest.raises(BlockedAddressError, match="cannot resolve"),
     ):
         fetch(client, "https://nowhere.example/", robots=False)
+
+
+# The real transport, saved before conftest's _no_network replaces it for each test.
+REAL_HANDLE_REQUEST = httpx.HTTPTransport.handle_request
+
+
+class LocalNetwork:
+    """DNS and TCP for the connection-pinning tests, so nothing leaves the machine.
+
+    Names resolve from dns only (each lookup takes the next answer, and the last one repeats).
+    Connections are recorded in tried; an address in routes goes to that local port, 127.0.0.1
+    connects, and everything else is refused.
+    """
+
+    def __init__(self) -> None:
+        self.dns: dict[str, list[str]] = {}
+        self.routes: dict[str, int] = {}
+        self.tried: list[tuple[str, int]] = []
+        self._getaddrinfo = socket.getaddrinfo
+        self._connect = socket.create_connection
+
+    def getaddrinfo(self, host: Any, port: Any, *args: Any, **kwargs: Any) -> Any:
+        try:
+            ipaddress.ip_address(host)
+        except ValueError:
+            answers = self.dns.get(host)
+            if not answers:
+                raise socket.gaierror(socket.EAI_NONAME, f"{host} is not in the test DNS") from None
+            host = answers.pop(0) if len(answers) > 1 else answers[0]
+        return self._getaddrinfo(host, port, *args, **kwargs)
+
+    def create_connection(
+        self, address: tuple[str, int], *args: Any, **kwargs: Any
+    ) -> socket.socket:
+        self.tried.append(address)
+        host, port = address
+        if host in self.routes:
+            return self._connect(("127.0.0.1", self.routes[host]), *args, **kwargs)
+        # A name is resolved here, as socket.create_connection does.
+        ip = self.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)[0][4][0]
+        if ip == "127.0.0.1":
+            return self._connect((ip, port), *args, **kwargs)
+        raise ConnectionRefusedError(f"{host}:{port} refused (tests stay offline)")
+
+
+@pytest.fixture
+def network(monkeypatch: pytest.MonkeyPatch) -> LocalNetwork:
+    """make_client's real transport, with no environment proxy, over LocalNetwork."""
+    for name in ("http_proxy", "https_proxy", "all_proxy", "no_proxy"):
+        monkeypatch.delenv(name, raising=False)
+        monkeypatch.delenv(name.upper(), raising=False)
+    monkeypatch.setattr(httpx.HTTPTransport, "handle_request", REAL_HANDLE_REQUEST)
+    net = LocalNetwork()
+    monkeypatch.setattr(socket, "getaddrinfo", net.getaddrinfo)
+    monkeypatch.setattr(socket, "create_connection", net.create_connection)
+    return net
+
+
+@contextlib.contextmanager
+def local_server(body: bytes) -> Iterator[tuple[int, list[tuple[str, str]]]]:
+    """An HTTP server on 127.0.0.1: its port, and the (request target, Host) of each request."""
+    seen: list[tuple[str, str]] = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            seen.append((self.path, self.headers.get("Host", "")))
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: Any) -> None:
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, args=(0.05,), daemon=True)
+    thread.start()
+    try:
+        yield server.server_address[1], seen
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+def test_dns_rebinding_cannot_reach_a_private_address(network: LocalNetwork) -> None:
+    # The hook's lookup answers a public address and the next one 127.0.0.1 (TTL 0). The
+    # connection used to resolve the name again and reach the private server (10 §11.8).
+    network.dns["rebind.example"] = [PUBLIC, "127.0.0.1"]
+    with (
+        local_server(b'{"secret": "internal-only"}') as (port, seen),
+        make_client() as client,
+        pytest.raises(BlockedAddressError, match=r"127\.0\.0\.1"),
+    ):
+        fetch(
+            client,
+            f"http://rebind.example:{port}/latest/meta-data",
+            robots=False,
+            sleep=lambda s: None,
+        )
+    assert seen == []
+    assert network.tried == []
+
+
+def test_connections_go_to_the_checked_addresses_with_the_original_host(
+    network: LocalNetwork,
+) -> None:
+    second = "93.184.216.35"
+    with local_server(b"ok") as (port, seen):
+        network.routes[second] = port  # the first address refuses, the second answers
+        resolver = resolver_for({"pinned.example": [PUBLIC, second]})
+        with make_client(resolver=resolver) as client:
+            result = fetch(
+                client, f"http://pinned.example:{port}/x", robots=False, sleep=lambda s: None
+            )
+    assert result.content == b"ok"
+    assert network.tried == [(PUBLIC, port), (second, port)]  # never the name
+    assert seen == [("/x", f"pinned.example:{port}")]
+
+
+def test_tls_on_a_pinned_connection_uses_the_host_name(
+    network: LocalNetwork, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    names: list[str | None] = []
+
+    def wrap_socket(
+        self: ssl.SSLContext, sock: socket.socket, *args: Any, **kwargs: Any
+    ) -> ssl.SSLSocket:
+        names.append(kwargs.get("server_hostname"))
+        raise ssl.SSLError("stop before the handshake")
+
+    monkeypatch.setattr(ssl.SSLContext, "wrap_socket", wrap_socket)
+    with socket.create_server(("127.0.0.1", 0)) as listener:
+        network.routes[PUBLIC] = listener.getsockname()[1]
+        with (
+            make_client(resolver=resolver_for({})) as client,
+            pytest.raises(FetchError, match="ConnectError"),
+        ):
+            fetch(client, "https://sni.example/x", robots=False, retries=0, sleep=lambda s: None)
+    assert network.tried == [(PUBLIC, 443)]
+    assert names == ["sni.example"]  # SNI and the certificate check use the name, not the IP
+
+
+def test_environment_proxies_still_carry_requests(
+    network: LocalNetwork, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The proxy resolves the name, so only the hook checks it; NO_PROXY hosts are pinned.
+    resolver = resolver_for({"intranet.example": ["10.0.0.5"]})
+    with local_server(b"via proxy") as (port, seen):
+        monkeypatch.setenv("HTTP_PROXY", f"http://127.0.0.1:{port}")
+        monkeypatch.setenv("NO_PROXY", "direct.example")
+        with make_client(resolver=resolver) as client:
+            result = fetch(client, "http://public.example/data", robots=False, sleep=lambda s: None)
+            assert result.content == b"via proxy"
+            with pytest.raises(BlockedAddressError):
+                fetch(client, "http://intranet.example/", robots=False, sleep=lambda s: None)
+            with pytest.raises(FetchError, match="ConnectError"):
+                fetch(
+                    client, "http://direct.example/", robots=False, retries=0, sleep=lambda s: None
+                )
+    assert seen == [("http://public.example/data", "public.example")]
+    assert network.tried == [("127.0.0.1", port), (PUBLIC, 80)]
 
 
 def test_fetch_returns_body_hash_and_headers() -> None:

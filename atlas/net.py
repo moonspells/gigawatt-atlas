@@ -1,8 +1,11 @@
 """Guarded HTTP for every importer (10 §11.8, 07 §5.3).
 
 make_client builds an httpx.Client whose request hook refuses non-HTTP schemes and hosts that
-resolve to private, loopback, link-local, reserved, multicast or unspecified addresses. The guard
-is a hook, not a transport, because environment proxies mount their own transport.
+resolve to private, loopback, link-local, reserved, multicast or unspecified addresses. The hook
+sees every request, including those an environment proxy carries (the proxy then resolves the name
+itself). Direct connections are also pinned: the transport resolves the host once, applies the same
+check and connects to an address it checked, so a name that answers differently to a second lookup
+(DNS rebinding) cannot reach a private address.
 
 fetch adds the crawler policy on top: robots.txt, a per-host delay, at most 5 redirects (each one
 re-checked by the hook), a byte cap on the decoded body, a content-type allow-list, and retries
@@ -19,12 +22,13 @@ import time
 import urllib.robotparser
 import weakref
 import zlib
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
 
+import httpcore
 import httpx
 
 DEFAULT_USER_AGENT = "moonspells-atlas/1.0 (+https://moonspells.dev/atlas/about)"
@@ -84,9 +88,10 @@ def user_agent_from_env() -> str:
 
 
 def system_resolver(host: str) -> list[str]:
-    """Every address getaddrinfo returns for host."""
+    """Every address getaddrinfo returns for host, in its order of preference (connections try
+    them in this order)."""
     infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
-    return sorted({str(info[4][0]) for info in infos})
+    return list(dict.fromkeys(str(info[4][0]) for info in infos))
 
 
 def is_public_address(address: str) -> bool:
@@ -105,13 +110,9 @@ def is_public_address(address: str) -> bool:
     )
 
 
-def check_url(url: httpx.URL, resolver: Resolver) -> None:
-    """Raise BlockedAddressError unless url is http(s) and its host resolves to public addresses."""
-    if url.scheme not in ("http", "https"):
-        raise BlockedAddressError(f"scheme {url.scheme!r} is not allowed: {url}")
-    host = url.host
-    if not host:
-        raise BlockedAddressError(f"no host in {url}")
+def _public_addresses(host: str, resolver: Resolver) -> list[str]:
+    """host's addresses (host itself if it is an IP address); BlockedAddressError unless every one
+    is public."""
     try:
         addresses = [str(ipaddress.ip_address(host))]
     except ValueError:
@@ -124,6 +125,66 @@ def check_url(url: httpx.URL, resolver: Resolver) -> None:
     blocked = [a for a in addresses if not is_public_address(a)]
     if blocked:
         raise BlockedAddressError(f"{host} resolves to a non-public address ({', '.join(blocked)})")
+    return addresses
+
+
+def check_url(url: httpx.URL, resolver: Resolver) -> None:
+    """Raise BlockedAddressError unless url is http(s) and its host resolves to public addresses."""
+    if url.scheme not in ("http", "https"):
+        raise BlockedAddressError(f"scheme {url.scheme!r} is not allowed: {url}")
+    if not url.host:
+        raise BlockedAddressError(f"no host in {url}")
+    _public_addresses(url.host, resolver)
+
+
+class _PinnedBackend(httpcore.NetworkBackend):
+    """Opens each connection to an address it has just resolved and checked.
+
+    httpcore's own backend hands the host name to socket.create_connection, which resolves it
+    again after the hook's check: a name that answers a public address first and 127.0.0.1 or
+    169.254.169.254 next (DNS rebinding, TTL 0) reached the private address. TLS still uses the
+    host name for SNI and the certificate check (httpcore passes it to start_tls), and the Host
+    header is unchanged.
+    """
+
+    def __init__(self, resolver: Resolver) -> None:
+        self._resolver = resolver
+        self._backend = httpcore.SyncBackend()
+
+    def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: float | None = None,
+        local_address: str | None = None,
+        socket_options: Iterable[httpcore.SOCKET_OPTION] | None = None,
+    ) -> httpcore.NetworkStream:
+        addresses = _public_addresses(host, self._resolver)
+        options = None if socket_options is None else list(socket_options)
+        for address in addresses[:-1]:
+            try:
+                return self._backend.connect_tcp(address, port, timeout, local_address, options)
+            except (httpcore.ConnectError, httpcore.ConnectTimeout):
+                continue
+        return self._backend.connect_tcp(addresses[-1], port, timeout, local_address, options)
+
+    def sleep(self, seconds: float) -> None:
+        self._backend.sleep(seconds)
+
+
+class _PinnedTransport(httpx.HTTPTransport):
+    """httpx's default transport (same TLS settings and connection limits) on a _PinnedBackend."""
+
+    def __init__(self, resolver: Resolver) -> None:
+        super().__init__(trust_env=True)
+        self._pool.close()
+        self._pool = httpcore.ConnectionPool(
+            ssl_context=httpx.create_ssl_context(trust_env=True),
+            max_connections=100,
+            max_keepalive_connections=20,
+            keepalive_expiry=5.0,
+            network_backend=_PinnedBackend(resolver),
+        )
 
 
 class OfflineTransport(httpx.BaseTransport):
@@ -143,14 +204,16 @@ def make_client(
     """An httpx.Client with the address guard on every request.
 
     follow_redirects is off (fetch follows them itself, re-checking each hop), and trust_env is on,
-    so proxies from the environment work.
+    so proxies from the environment work. Without a transport argument, direct connections go
+    through _PinnedTransport; a request an environment proxy carries is checked by the hook only,
+    since the proxy resolves the name.
     """
     resolve = resolver or system_resolver
 
     def guard(request: httpx.Request) -> None:
         check_url(request.url, resolve)
 
-    return httpx.Client(
+    client = httpx.Client(
         headers={
             "User-Agent": user_agent or user_agent_from_env(),
             "Accept-Encoding": ACCEPT_ENCODING,
@@ -161,6 +224,12 @@ def make_client(
         trust_env=True,
         event_hooks={"request": [guard]},
     )
+    if transport is None:
+        # Swap the default transport rather than passing one: a transport argument would turn off
+        # httpx's HTTP(S)_PROXY and NO_PROXY handling, whose mounts fall back to this one.
+        client._transport.close()
+        client._transport = _PinnedTransport(resolve)
+    return client
 
 
 @dataclass
