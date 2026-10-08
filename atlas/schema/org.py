@@ -20,6 +20,6 @@ class Org(AtlasModel):
     name: str
     aliases: list[str] = Field(default_factory=list)
     parent_id: str | None = Field(None, pattern=ORG_ID_PATTERN)
-    wikidata_qid: str | None = Field(None, pattern=r"^Q\d+$")
-    sec_cik: str | None = Field(None, pattern=r"^\d{10}$")
+    wikidata_qid: str | None = Field(None, pattern=r"^Q[0-9]+$")
+    sec_cik: str | None = Field(None, pattern=r"^[0-9]{10}$")
     kind: OrgKind

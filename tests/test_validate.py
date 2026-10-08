@@ -361,3 +361,48 @@ def test_store_round_trip_is_byte_identical(fixture_records_dir: Path, tmp_path:
         out.write(r)
     for path in fixture_records_dir.glob("*.json"):
         assert (tmp_path / path.name).read_bytes() == path.read_bytes()
+
+
+def test_unparsable_file_is_an_issue_and_the_rest_is_still_checked(
+    tmp_path: Path,
+    fixture_records_dir: Path,
+    fixture_orgs_path: Path,
+    repo_root: Path,
+    counties: CountyIndex,
+) -> None:
+    """SV-13: one deeply nested file ended the run with a RecursionError traceback."""
+    records = tmp_path / "records"
+    records.mkdir()
+    for path in fixture_records_dir.glob("*.json"):
+        shutil.copy(path, records / path.name)
+    (records / "gwa-01m478540h0000000000000009.json").write_text(
+        "[" * 200_000 + "]" * 200_000, encoding="utf-8"
+    )
+    report = validate_dataset(
+        records,
+        fixture_orgs_path,
+        schema_path=repo_root / "schema" / "facility.v1.json",
+        counties=counties,
+        today=TODAY,
+    )
+    assert [(i.rule, i.message) for i in report.issues] == [
+        ("file", "not a UTF-8 JSON file: JSON is nested too deeply to parse")
+    ]
+    assert report.records == 9
+
+
+def test_deep_orgs_file_is_an_issue(
+    tmp_path: Path, fixture_records_dir: Path, repo_root: Path, counties: CountyIndex
+) -> None:
+    orgs = tmp_path / "orgs.json"
+    orgs.write_text("[" * 200_000 + "]" * 200_000, encoding="utf-8")
+    report = validate_dataset(
+        fixture_records_dir,
+        orgs,
+        schema_path=repo_root / "schema" / "facility.v1.json",
+        counties=counties,
+        today=TODAY,
+    )
+    assert ("org", "cannot read orgs: JSON is nested too deeply to parse") in [
+        (i.rule, i.message) for i in report.issues
+    ]

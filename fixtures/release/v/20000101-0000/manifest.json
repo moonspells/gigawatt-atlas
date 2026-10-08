@@ -92,10 +92,10 @@
       "sha256": "180589e8593f94de5a1d8d07543b79a4b19e611ae6848f5c002a07c76c827058"
     },
     {
-      "bytes": 33807,
+      "bytes": 34141,
       "content_type": "application/json",
       "path": "schema/facility.v1.json",
-      "sha256": "ffcf39d04e2eda7cf1106b715c82582786e7bd025b1fb40d3518a3a633bab1c9"
+      "sha256": "5b124951a7141fb8f5a445ef15870aedf1a6a350aa64168b6300b1d84b49a631"
     },
     {
       "bytes": 3177,

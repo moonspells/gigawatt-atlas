@@ -10,7 +10,6 @@ range, privacy, text, org, phase, scope.
 
 from __future__ import annotations
 
-import json
 import re
 import unicodedata
 from collections.abc import Callable, Iterator
@@ -22,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from atlas.geo.fips import IN_SCOPE, state_by_abbr
-from atlas.jsonio import dumps_pretty, record_json
+from atlas.jsonio import dumps_pretty, loads, record_json
 from atlas.schema.export import render
 from atlas.schema.org import Org
 from atlas.schema.pointers import escape, resolve, unsupported_pointers
@@ -458,7 +457,7 @@ def _load_schema_validator(schema_path: Path, issues: list[Issue]) -> Any:
             )
         )
     try:
-        schema = json.loads(text)
+        schema: Any = loads(text)
         Draft202012Validator.check_schema(schema)
     except (ValueError, SchemaError) as e:
         issues.append(Issue("jsonschema", f"not a valid JSON Schema: {e}", file=str(schema_path)))
@@ -469,8 +468,8 @@ def _load_schema_validator(schema_path: Path, issues: list[Issue]) -> Any:
 def _load_orgs(orgs_path: Path, issues: list[Issue]) -> list[Org]:
     where = str(orgs_path)
     try:
-        text = orgs_path.read_text(encoding="utf-8")
-        raw = json.loads(text)
+        text = orgs_path.read_bytes().decode("utf-8")
+        raw = loads(text)
     except (OSError, ValueError) as e:
         issues.append(Issue("org", f"cannot read orgs: {e}", file=where))
         return []
@@ -511,7 +510,7 @@ def _validate_file(
     where = str(path)
     try:
         text = path.read_bytes().decode("utf-8")
-        doc = json.loads(text)
+        doc = loads(text)
     except (OSError, ValueError) as e:
         issues.append(Issue("file", f"not a UTF-8 JSON file: {e}", file=where))
         return None
