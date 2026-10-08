@@ -684,12 +684,16 @@ def _build_one(
     events, phases, phase_of = _events(groups, rep, ctx)
     events = _keep_first_reported(events, existing)
 
-    pnnl_rows = ctx.pnnl_join.matched.get(rep.ref, []) if ctx.pnnl_join is not None else []
-    sqft = pnnl.building_sqft(pnnl_rows, ctx.pnnl_join.members) if ctx.pnnl_join else {}
-    building_total, acreage = pnnl.site_values(pnnl_rows)
+    join = ctx.pnnl_join
+    pnnl_rows = join.matched.get(rep.ref, []) if join is not None else []
+    site = pnnl.site_values(cluster, pnnl_rows, join.members if join is not None else {})
+    review.extend(site.review)
     buildings = [
         Building(
-            ref=f"osm:{m.ref}", name=m.name, sqft=sqft.get(m.ref), phase_id=phase_of.get(m.ref)
+            ref=f"osm:{m.ref}",
+            name=m.name,
+            sqft=site.building_sqft.get(m.ref),
+            phase_id=phase_of.get(m.ref),
         )
         for m in cluster.members
         if m.kind != "campus"
@@ -711,20 +715,19 @@ def _build_one(
     if pnnl_rows and ctx.pnnl_retrieved_at is not None:
         sources.append(pnnl.pnnl_source(ctx.pnnl_retrieved_at, PNNL_SOURCE_ID))
         external_ids["pnnl_im3"] = sorted({r.key for r in pnnl_rows})
-        for row in pnnl_rows:
-            reason = pnnl.county_mismatch(
-                row, county_fips=county.fips, state_abbr=st, counties=ctx.counties
-            )
-            if reason is not None:
-                review.append(
-                    _review(
-                        "county_mismatch",
-                        reason,
-                        external_id=row.key,
-                        data={"osm": rep.ref, "county_fips": county.fips, "pnnl": row.to_json()},
-                        source=pnnl.REVIEW_SOURCE,
-                    )
+        mismatches = pnnl.county_mismatches(
+            pnnl_rows, county_fips=county.fips, state_abbr=st, counties=ctx.counties
+        )
+        for row, reason in mismatches:
+            review.append(
+                _review(
+                    "county_mismatch",
+                    reason,
+                    external_id=row.key,
+                    data={"osm": rep.ref, "county_fips": county.fips, "pnnl": row.to_json()},
+                    source=pnnl.REVIEW_SOURCE,
                 )
+            )
 
     field_meta = {
         "/location/county_fips": FieldMeta(confidence=COUNTY_CONFIDENCE, method="derived"),
@@ -756,7 +759,7 @@ def _build_one(
             capacity=capacity,
             phases=phases,
             buildings=buildings,
-            site=Site(building_sqft=building_total, acreage=acreage),
+            site=Site(building_sqft=site.site_sqft, acreage=site.acreage),
             external_ids=external_ids,
             sources=sources,
             field_meta=field_meta,

@@ -24,7 +24,7 @@ import math
 import re
 import sys
 import time
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -70,6 +70,10 @@ ROW_TYPES = ("point", "building", "campus")
 CONTAIN_MARGIN_M = 30.0  # a row point inside a member's bounding box expanded by this much
 NEAR_RADIUS_M = 50.0  # or within this distance of a member's center
 SQFT_PER_ACRE = 43_560.0
+SQFT_PER_M2 = 10.763_910_4
+# PNNL's sqft is the footprint polygon's area, so it cannot exceed the footprint's bounding box. 5%
+# covers the difference between PNNL's area projection and the box estimate (at most 1.3% seen).
+FOOTPRINT_SLACK = 1.05
 MATCH_RATE_TARGET = 0.95  # 07 §15 M1 acceptance
 _GRID_DEG = 0.01
 _ID_RE = re.compile(r"^(\d+)(?:\.0+)?$")
@@ -378,24 +382,102 @@ def _unique(rows: Iterable[PnnlRow]) -> list[PnnlRow]:
     return list(seen.values())
 
 
-def building_sqft(rows: Sequence[PnnlRow], members: dict[str, str]) -> dict[str, float]:
-    """Floor area per member ref, from building rows (summed when several rows hit one member)."""
-    out: dict[str, float] = {}
+@dataclass(frozen=True)
+class SiteValues:
+    """What a cluster's matched PNNL rows give its record, and the rows held back for review."""
+
+    building_sqft: dict[str, float] = field(default_factory=dict)  # buildings[].sqft by ref
+    site_sqft: float | None = None  # site.building_sqft
+    acreage: float | None = None  # site.acreage
+    review: list[ReviewItem] = field(default_factory=list)
+
+
+def _held(kind: str, reason: str, row: PnnlRow, member: OsmObject, rep: str) -> ReviewItem:
+    return ReviewItem(
+        source=REVIEW_SOURCE,
+        kind=kind,
+        external_id=row.key,
+        record_id=None,
+        reason=reason,
+        data={"osm": member.ref, "representative": rep, "pnnl": row.to_json()},
+    )
+
+
+def site_values(
+    cluster: Cluster, rows: Sequence[PnnlRow], members: Mapping[str, str]
+) -> SiteValues:
+    """Floor areas and acreage from the PNNL rows matched to a cluster (members: row key ->
+    member ref, from JoinResult).
+
+    - A building row's sqft goes to the building or point it matched. When several rows hit one
+      member (PNNL kept an old footprint next to the current one), the row with the member's
+      name, else the nearest, is kept and the others are possible_duplicate items. A kept sqft
+      more than FOOTPRINT_SLACK above the member's bounding box describes another footprint and
+      is a conflict item instead.
+    - Building rows that hit a campus object count towards site.building_sqft only.
+    - A campus row gives site.acreage only when it hit a campus object. One whose campus polygon
+      has left OpenStreetMap lands on a building, and is a conflict item.
+
+    Rows with the same key are counted once (PNNL repeats a site that straddles a county line).
+    """
+    rep = cluster.representative.ref
+    by_ref = {m.ref: m for m in cluster.members}
+    on_member: dict[str, list[tuple[PnnlRow, float]]] = {}
+    on_campus: list[float] = []
+    campus_sqft: list[float] = []
+    review: list[ReviewItem] = []
     for row in _unique(rows):
         ref = members.get(row.key)
-        if row.type == "building" and row.sqft is not None and ref is not None:
-            out[ref] = out.get(ref, 0.0) + row.sqft
-    return out
-
-
-def site_values(rows: Sequence[PnnlRow]) -> tuple[float | None, float | None]:
-    """(building_sqft, acreage): building rows' sqft summed, and campus rows' area in acres."""
-    unique = _unique(rows)
-    sqft = [r.sqft for r in unique if r.type == "building" and r.sqft is not None]
-    campus = [r.sqft for r in unique if r.type == "campus" and r.sqft is not None]
-    building_total = round(sum(sqft), 1) if sqft else None
-    acreage = round(sum(campus) / SQFT_PER_ACRE, 1) if campus else None
-    return building_total, (acreage if acreage else None)
+        member = by_ref.get(ref) if ref is not None else None
+        if member is None or row.sqft is None:
+            continue
+        if row.type == "campus" and member.kind == "campus":
+            campus_sqft.append(row.sqft)
+        elif row.type == "campus":
+            reason = (
+                f"PNNL campus row ({row.sqft / SQFT_PER_ACRE:.1f} acres) lies on {member.ref}, "
+                f"a {member.kind}, not on a campus polygon in OpenStreetMap; acreage not applied"
+            )
+            review.append(_held("conflict", reason, row, member, rep))
+        elif row.type == "building" and member.kind == "campus":
+            on_campus.append(row.sqft)
+        elif row.type == "building":
+            on_member.setdefault(member.ref, []).append((row, row.sqft))
+    sqft: dict[str, float] = {}
+    for ref in sorted(on_member, key=ref_key):
+        member = by_ref[ref]
+        (kept, kept_sqft), *extra = sorted(
+            on_member[ref],
+            key=lambda item: (
+                not _same_name(item[0], member),
+                haversine_m(item[0].lat, item[0].lon, member.lat, member.lon),
+                item[0].key,
+            ),
+        )
+        for row, _ in extra:
+            reason = (
+                f"PNNL has {len(extra) + 1} building rows on {ref}; {kept.key} is kept (the "
+                "same name, else the nearest) and this row is not applied"
+            )
+            review.append(_held("possible_duplicate", reason, row, member, rep))
+        box_sqft = member.area_m2() * SQFT_PER_M2
+        if member.bounds is not None and kept_sqft > box_sqft * FOOTPRINT_SLACK:
+            reason = (
+                f"PNNL sqft {kept_sqft:,.0f} exceeds the bounding box of {ref} "
+                f"({box_sqft:,.0f} sq ft) by more than {FOOTPRINT_SLACK - 1:.0%}: the row "
+                "describes another footprint; not applied"
+            )
+            review.append(_held("conflict", reason, kept, member, rep))
+            continue
+        sqft[ref] = kept_sqft
+    total = [*sqft.values(), *on_campus]
+    acreage = round(sum(campus_sqft) / SQFT_PER_ACRE, 1) if campus_sqft else None
+    return SiteValues(
+        building_sqft=sqft,
+        site_sqft=round(sum(total), 1) if total else None,
+        acreage=acreage or None,
+        review=review,
+    )
 
 
 def county_mismatch(
@@ -423,6 +505,38 @@ def county_mismatch(
         f"PNNL county {row.county!r}, {abbr} ({found}) differs from the point-in-polygon "
         f"county {county_fips}"
     )
+
+
+def county_mismatches(
+    rows: Sequence[PnnlRow],
+    *,
+    county_fips: str | None,
+    state_abbr: str,
+    counties: CountyIndex,
+) -> list[tuple[PnnlRow, str]]:
+    """(row, reason) for each row key whose every row disagrees with the record's county.
+
+    PNNL lists a site that straddles a county line once per county, under one key, so a key
+    agrees when any of its rows does.
+    """
+    by_key: dict[str, list[PnnlRow]] = {}
+    for row in rows:
+        by_key.setdefault(row.key, []).append(row)
+    out: list[tuple[PnnlRow, str]] = []
+    for same_key in by_key.values():
+        found = [
+            (row, why)
+            for row in same_key
+            if (
+                why := county_mismatch(
+                    row, county_fips=county_fips, state_abbr=state_abbr, counties=counties
+                )
+            )
+            is not None
+        ]
+        if len(found) == len(same_key):
+            out.append(found[0])
+    return out
 
 
 def unmatched_item(row: PnnlRow) -> ReviewItem:

@@ -237,12 +237,24 @@ Effects on a matched cluster:
 - `sources` gets s2: `https://doi.org/10.57931/3017294`, "Pacific Northwest National Laboratory
   (IM3)", title "IM3 Open Source Data Center Atlas v2026.02.09", `open_dataset`, `ODbL-1.0`,
   supports `/site` and `/buildings`.
-- A `building` row's `sqft` goes to the matched building's `buildings[].sqft`;
-  `site.building_sqft` is the sum over the cluster's building rows. A `campus` row gives
-  `site.acreage` = sqft / 43,560, one decimal. Rows with the same key are counted once (PNNL repeats
-  a site that straddles a county line).
-- A row whose county differs from the record's point-in-polygon county is a `county_mismatch`
-  review item (by `county_id` when the row has one, else by name through `CountyIndex.by_name`).
+- A `building` row's `sqft` goes to the matched building's (or point's) `buildings[].sqft`. When
+  several building rows hit one member, PNNL has kept an older footprint next to the current one
+  (Apple Data Center, Mesa, AZ: 1,338,261 and 1,263,277 sq ft on way 300974499, whose bounding box
+  is 1,531,607 sq ft). The row with the member's name, else the nearest, is kept and the others
+  are `possible_duplicate` items. A kept `sqft` more than 5% above the member's bounding-box area
+  describes another footprint (PNNL's `sqft` is the polygon's area, which the box bounds; the
+  projection difference was at most 1.3%), so it is a `conflict` item and is not applied.
+- Building rows that hit a campus object count towards `site.building_sqft` only.
+  `site.building_sqft` is the sum of the applied building values.
+- A `campus` row gives `site.acreage` = sqft / 43,560, one decimal, only when it hit a campus
+  object. A campus row whose polygon has left OpenStreetMap lands on a building (Microsoft Boydton,
+  258.8 acres, on a 4.9-acre building), so it is a `conflict` item instead.
+- Rows with the same key are counted once: PNNL repeats a site that straddles a county line, once
+  per county.
+- A row key whose every row's county differs from the record's point-in-polygon county is a
+  `county_mismatch` review item (by `county_id` when the row has one, else by name through
+  `CountyIndex.by_name`). A county-line site therefore raises no item when one of its two rows
+  agrees.
 
 Every unmatched row is an `unmatched` review item with the row in `data`. `pnnl_match_rate` =
 matched rows / all rows; below 0.95 (the 07 §15 M1 acceptance threshold) the import prints a
@@ -258,7 +270,9 @@ warning.
 | `osm.jsonl` | `unknown_status` | no member tag the crosswalk knows (not seen; every query clause maps) |
 | `osm.jsonl` | `invalid` | a cluster that does not fit the record schema (for example a point in Guam, whose longitude the schema does not accept) |
 | `pnnl.jsonl` | `unmatched` | a PNNL row with no OSM-derived record |
-| `pnnl.jsonl` | `county_mismatch` | PNNL's county is not the record's county |
+| `pnnl.jsonl` | `county_mismatch` | PNNL's county is not the record's county (no row with that key agrees) |
+| `pnnl.jsonl` | `possible_duplicate` | a second building row on one OSM building (not applied) |
+| `pnnl.jsonl` | `conflict` | a campus row on a building, or a building row larger than its building's box (not applied) |
 
 `atlas import` adds its own kinds (`conflict`, `held_human_reviewed`, `held_merged`, `invalid`,
 `removed_upstream`) to `osm.jsonl`. Review files are rewritten on every run, sorted.

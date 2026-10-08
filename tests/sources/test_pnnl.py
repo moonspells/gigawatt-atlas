@@ -10,7 +10,7 @@ import httpx
 import pytest
 from pydantic import HttpUrl
 
-from atlas.dissolve import Bounds, Cluster, OsmObject, dissolve
+from atlas.dissolve import Bounds, Cluster, ObjectKind, OsmObject, dissolve
 from atlas.geo.counties import CountyIndex
 from atlas.net import FetchError
 from atlas.sources import pnnl
@@ -21,14 +21,16 @@ from atlas.sources.pnnl import PnnlRow
 MakeContext = Callable[..., ImportContext]
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 OVERPASS_FIXTURE = FIXTURES / "osm" / "overpass-sample.json"
+OVERPASS_CASES = FIXTURES / "osm" / "overpass-cases.json"
 GEOJSON = FIXTURES / "pnnl" / "centroids-sample.geojson"
+GEOJSON_CASES = FIXTURES / "pnnl" / "centroids-cases.geojson"
 CSV = FIXTURES / "pnnl" / "msdlive-sample.csv"
 NOW = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
 UNMATCHED_KEY = "building@-77.459006,39.016471"  # Equinix Ashburn DC2, outside the OSM sample
 
 
-def clusters() -> list[Cluster]:
-    objects, _ = parse_overpass(json.loads(OVERPASS_FIXTURE.read_text(encoding="utf-8")))
+def clusters(path: Path = OVERPASS_FIXTURE) -> list[Cluster]:
+    objects, _ = parse_overpass(json.loads(path.read_text(encoding="utf-8")))
     return dissolve(objects)
 
 
@@ -226,17 +228,82 @@ def test_effects_on_records(counties: CountyIndex) -> None:
 
 
 def test_site_values() -> None:
+    def way(ref: str, kind: ObjectKind, lat: float, size: float, **tags: str) -> OsmObject:
+        bounds = Bounds(lat, -77.5, lat + size, -77.5 + size)
+        return OsmObject(ref, *bounds.center, bounds, tags, kind)
+
+    hall = way("way/1", "building", 39.0, 0.001, name="Hall One")  # about 103,000 sq ft
+    small = way("way/2", "building", 39.01, 0.0002)  # about 4,100 sq ft
+    campus = way("way/3", "campus", 39.02, 0.005)
+    node = OsmObject("node/4", 39.03, -77.5, None, {}, "point")
+    cluster = Cluster(members=(node, hall, small, campus), representative=campus)
+
+    def at(m: OsmObject, typ: str, sqft: float, name: str | None = None, d: float = 0) -> PnnlRow:
+        return PnnlRow(type=typ, lat=m.lat + d, lon=m.lon, name=name, sqft=sqft)
+
+    named = at(hall, "building", 90_000.0, name="hall one", d=0.0002)
+    nearer = at(hall, "building", 80_000.0)  # nearer, but the other row has the hall's name
     rows = [
-        PnnlRow(type="building", lat=1, lon=1, sqft=1000.0),
-        PnnlRow(type="building", lat=1, lon=1, sqft=1000.0),  # same key: counted once
-        PnnlRow(type="building", lat=2, lon=2, sqft=500.0),
-        PnnlRow(type="campus", lat=3, lon=3, sqft=435_600.0),
-        PnnlRow(type="point", lat=4, lon=4),
+        named,
+        named,  # the same key twice (a county-line site): counted once
+        nearer,
+        at(small, "building", 9_000.0),  # more than the small box: another footprint
+        at(campus, "building", 1_000.0),  # on the campus object: site total only
+        at(campus, "campus", 435_600.0),  # 10 acres
+        at(small, "campus", 87_120.0, d=0.00001),  # a campus row on a building: held
+        at(node, "building", 500.0),
+        PnnlRow(type="point", lat=node.lat, lon=node.lon),
     ]
-    assert pnnl.site_values(rows) == (1500.0, 10.0)
-    assert pnnl.site_values([PnnlRow(type="campus", lat=0, lon=0, sqft=100.0)]) == (None, None)
-    members = {rows[0].key: "way/1", rows[2].key: "way/1", rows[3].key: "way/9"}
-    assert pnnl.building_sqft(rows, members) == {"way/1": 1500.0}
+    members = {
+        r.key: m.ref
+        for r, m in zip(
+            rows, [hall, hall, hall, small, campus, campus, small, node, node], strict=True
+        )
+    }
+    values = pnnl.site_values(cluster, rows, members)
+    assert values.building_sqft == {"way/1": 90_000.0, "node/4": 500.0}
+    assert values.site_sqft == 91_500.0
+    assert values.acreage == 10.0
+    held = sorted((i.kind, i.external_id, i.data["osm"]) for i in values.review)
+    assert held == sorted(
+        [
+            ("possible_duplicate", nearer.key, "way/1"),
+            ("conflict", rows[3].key, "way/2"),
+            ("conflict", rows[6].key, "way/2"),
+        ]
+    )
+    assert all(i.source == "pnnl" and i.record_id is None for i in values.review)
+    assert pnnl.site_values(cluster, [], {}) == pnnl.SiteValues()
+
+
+def test_case_fixture_effects(counties: CountyIndex) -> None:
+    cl = clusters(OVERPASS_CASES)
+    join = pnnl.join(cl, pnnl.load_pnnl(GEOJSON_CASES))
+    assert join.match_rate == 1.0
+    built = build_candidates(
+        cl,
+        counties=counties,
+        now=NOW,
+        snapshot=snapshot("overpass"),
+        pnnl_join=join,
+        pnnl_snapshot=snapshot("pnnl"),
+    )
+    by_ref = {c.match_values[0]: c.record for c in built.candidates}
+    # Apple Data Center: PNNL has the current footprint and an older one; only the named row counts.
+    apple = by_ref["way/300974499"]
+    assert [b.sqft for b in apple.buildings] == [1_338_261.0]
+    assert apple.site.building_sqft == 1_338_261.0
+    # Campus rows whose polygons left OpenStreetMap give no acreage to the buildings they hit.
+    assert by_ref["way/844352473"].site.acreage is None  # Google, Douglas County, GA
+    assert by_ref["way/1422191468"].site.acreage is None  # Dickey County, ND
+    # Digital Realty ATL11 is listed in Douglas and Cobb County; one of them agrees.
+    assert by_ref["way/975064000"].location.county_fips == "13097"
+    items = sorted((i.kind, i.external_id, i.data.get("osm")) for i in built.review)
+    assert items == [
+        ("conflict", "campus@-84.585223,33.750590", "way/844352473"),
+        ("conflict", "campus@-98.572441,46.013549", "way/1422191472"),
+        ("possible_duplicate", "building@-111.604139,33.347021", "way/300974499"),
+    ]
 
 
 def test_county_mismatch(counties: CountyIndex) -> None:
@@ -288,6 +355,23 @@ def test_county_mismatch_review_item(counties: CountyIndex) -> None:
     assert (item.source, item.external_id) == ("pnnl", row.key)
     assert item.data["osm"] == "way/460053030" and item.data["county_fips"] == "51107"
     assert built.metrics["pnnl_match_rate"] == 1.0
+
+
+def test_county_mismatch_by_key(counties: CountyIndex) -> None:
+    def row(county: str, lat: float = 39.02) -> PnnlRow:
+        return PnnlRow(type="building", lat=lat, lon=-77.45, state_abb="VA", county=county)
+
+    def check(rows: list[PnnlRow]) -> list[str]:
+        found = pnnl.county_mismatches(
+            rows, county_fips="51107", state_abbr="VA", counties=counties
+        )
+        return [r.key for r, _ in found]
+
+    # PNNL lists a site that straddles a county line once per county: one row agrees.
+    assert check([row("Fairfax County"), row("Loudoun County")]) == []
+    assert check([row("Fairfax County"), row("Prince William County")]) == [row("").key]
+    other = row("Fairfax County", lat=39.03)
+    assert check([row("Loudoun County"), other]) == [other.key]
 
 
 # ---------------------------------------------------------------------------- input and run
