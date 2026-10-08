@@ -173,6 +173,55 @@ def test_status_events_keep_only_changes_and_plan_future_rows() -> None:
     assert all(e["source_ids"] == ["s1"] for e in events + future)
 
 
+def test_a_blank_building_count_falls_back_to_it_power(make_test_context: MakeContext) -> None:
+    # Epoch leaves "Buildings operational" empty on some projected rows (OpenAI Stargate Milam,
+    # 2028-12-31, "site is fully operational", 857 MW): IT power above 0 then means operating, in
+    # the events and in the record type (from_epoch_row's reading).
+    rows = [
+        row("2025-09-27", "Land clearing begins for the site", 0),
+        TimelineRow(
+            date(2028, 12, 31),
+            "All buildings finished, site is fully operational.",
+            None,
+            857.0,
+            1200.0,
+            None,
+        ),
+    ]
+    events = status_events(rows, date(2026, 10, 12))
+    assert [(e["status"], e["event"], e["planned"]) for e in events] == [
+        ("under_construction", "construction_start", False),
+        ("operating", "energized", True),
+    ]
+    site = Site("Test site", "5420 Tulane Rd, Memphis, TN 38109", "", "", "", "", None)
+    placed = Placed(
+        {
+            "lat": 35.1,
+            "lon": -90.0,
+            "precision": "locality",
+            "city": "Memphis",
+            "state_abbr": "TN",
+            "geocode_method": "gazetteer",
+        },
+        "Memphis",
+        0.60,
+        "locality",
+        None,
+    )
+    ctx = make_test_context()
+
+    def record(buildings: float | None, it_mw: float | None) -> FacilityRecord:
+        rows = [TimelineRow(date(2025, 1, 1), "Building 1 online", buildings, it_mw, 12.0, None)]
+        return site_record(site, rows, placed, ctx=ctx, retrieved_at="2026-10-12T12:00:00+00:00")
+
+    assert (record(None, 10.0).record_type, record(None, 10.0).status) == ("campus", "operating")
+    assert (record(0, 10.0).record_type, record(0, 10.0).status) == (
+        "project",
+        "under_construction",
+    )
+    assert (record(None, 0.0).record_type, record(None, None).record_type) == ("project", "project")
+
+
 def test_water_use_is_kept_only_when_positive(make_test_context: MakeContext) -> None:
     # Epoch writes 0.0 for "not estimated"; every water cell of the fixture ZIP is empty.
     site = Site("Test site", "5420 Tulane Rd, Memphis, TN 38109", "", "", "", "", None)
@@ -370,6 +419,10 @@ def test_override_for_a_site_without_an_address(
     assert validate_record(rec, counties=counties, today=today) == []
     assert "missing_location" not in {i.kind for i in result.review}
     assert (result.metrics["overrides_used"], result.metrics["overrides_unused"]) == (1, 0)
+    # The 2028-12-31 row has no building count but 857 MW of IT power: a planned operating event.
+    planned = [(e.status, e.as_of.value) for e in rec.status_history if e.planned]
+    assert planned == [("operating", "2028-12-31")]
+    assert rec.status == "under_construction" and rec.record_type == "project"
 
 
 @pytest.mark.parametrize(

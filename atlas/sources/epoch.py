@@ -357,7 +357,7 @@ def status_events(rows: Sequence[TimelineRow], today: date) -> list[dict[str, An
     events: list[dict[str, Any]] = []
     previous: str | None = None
     for row in rows:
-        cw = from_epoch_row(row.status_text, row.buildings_operational)
+        cw = from_epoch_row(row.status_text, row.buildings_operational, it_mw=row.it_mw)
         if cw.status == previous:
             continue
         previous = cw.status
@@ -470,7 +470,11 @@ def site_record(
     actual = [r for r in rows if r.day <= ctx.today]
     latest = actual[-1] if actual else None
     events = status_events(rows, ctx.today)
-    operational = any((r.buildings_operational or 0) > 0 for r in actual)
+    # The same reading as from_epoch_row: a blank building count falls back to the row's IT power.
+    operational = any(
+        ((r.buildings_operational if r.buildings_operational is not None else r.it_mw) or 0) > 0
+        for r in actual
+    )
 
     sources: list[dict[str, Any]] = [
         {

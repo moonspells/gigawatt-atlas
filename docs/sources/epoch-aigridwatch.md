@@ -37,7 +37,7 @@ and unused (an unused entry names a site Epoch no longer lists).
 
 | Record field | From |
 |---|---|
-| `record_type` | `campus` once a timeline row dated today or earlier has Buildings operational > 0, else `project` |
+| `record_type` | `campus` once a timeline row dated today or earlier has Buildings operational > 0 (or IT power > 0 when that cell is blank, as in the crosswalk), else `project` |
 | `canonical_name` | `{Name} ({city or county}, {ST})`; the county is written in full ("Madison County", "Richland Parish") |
 | `parties.owner` / `parties.tenant` | `Owner` / `Users`, split on commas. Names tagged `#confident` or `#likely` (and untagged names) are kept, `#speculative` and `#unlikely` are dropped, tags are stripped. Epoch's `Owner` is the company that owns the hardware (Oracle at Stargate Abilene, where Crusoe builds and runs the campus), so it is not mapped to `operator`; the M1 spec said `operator`. |
 | `aliases` | `Project`, same tag rule, `kind: "codename"` |
@@ -295,10 +295,10 @@ were held this way (69 by name, 1 by an Epoch source).
   `operating_since` and 5 `cancelled` dates). A change to `derive_dates` that skips `other`
   events for those three keys is requested; `test_a_stage_observation_sets_no_derived_date` in
   `tests/sources/test_aigridwatch.py` is marked as an expected failure until it lands.
-- **Epoch projections that do not change the mapped status are dropped.** The crosswalk reads
-  "Buildings operational"; a projected row with that cell empty (OpenAI Stargate Milam's
-  2028-12-31 "site is fully operational") maps to under construction, so no planned `operating`
-  event appears for it.
+- **Epoch projections that do not change the mapped status are dropped.** A projected row whose
+  mapped status equals the previous row's adds no event. The crosswalk reads "Buildings
+  operational" and, when that cell is empty, "IT power (MW)": OpenAI Stargate Milam's 2028-12-31
+  "site is fully operational" row (no count, 857 MW) is a planned `operating` event.
 - **Census coverage.** Fewer than half of Epoch's street addresses give an agreeing match (new
   industrial roads often are not in the address ranges yet, and a match on another street is
   refused); the rest fall back to `locality`.
