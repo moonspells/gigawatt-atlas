@@ -9,7 +9,13 @@ verified project becomes a `project` record at `locality` precision:
 - status_history is built from the milestone dates (announced, rezoning filed, hearing, decision),
   and the derived `stage` goes through the status crosswalk (07 §4.7). When the milestones do not
   roll up to the stage's status, an `other` event records the stage as of the row's as_of date;
-- rows marked verified=false are leads, not facts, and become `unverified_upstream` review items.
+- rows marked verified=false are leads, not facts, and become `unverified_upstream` review items;
+- AI GridWatch republishes most of Epoch AI's US sites. A row that is the same site as a stored
+  Epoch record (the same name in the same state, or a `source` that only that record cites), or
+  whose own `source` is an Epoch AI page, becomes a `possible_duplicate` item instead of a second
+  record;
+- parties hold organizations only (07 §5.3): a person, a capacity figure ("67 MW") or a
+  parenthetical note ("(parcels)", "(AWS)") is never stored as a name.
 
 The per-project event log (events[]) is not imported in M1.
 
@@ -22,8 +28,8 @@ import argparse
 import json
 import re
 from collections import Counter
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from datetime import date
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
@@ -84,9 +90,20 @@ _HINT_NOISE_RE = re.compile(
 _PERSON_ROLE_RE = re.compile(r"\((?:developer|owner|landowner|investor|individual)\)$", re.I)
 _ORG_MARKER_RE = re.compile(
     r"\b(?:LLC|L\.L\.C\.|Inc|Corp|Corporation|Co|Company|Ltd|LP|LLP|Holdings|Group|Partners|"
-    r"Development|Developers|Capital|Energy|Data|Fund|Trust|Properties|Ventures|Realty)\b\.?",
+    r"Development|Developers|Capital|Energy|Data|Fund|Trust|Properties|Ventures|Realty|"
+    r"Center|Centre|Park|Campus|Project|Microgrids?|Solutions|Systems|Technologies|Infrastructure|"
+    r"Power|Digital|Cloud|Mining|Industries|Investments?)\b\.?",
     re.I,
 )
+# A trailing parenthetical on a party: a role ("(parcels)"), an alias ("(AWS)") or a person's name.
+_TRAILING_NOTE_RE = re.compile(r"^(?P<name>.*?\S)\s*\((?P<note>[^()]*)\)$")
+# Two or three capitalized words ("Jane Example", "Jane Q. Example", "Jane O'Example").
+_PERSON_NAME_RE = re.compile(
+    r"^[A-Z][a-z]*(?:['\u2019-][A-Z]?[a-z]+)*\.?(?:\s+[A-Z][a-z]*(?:['\u2019-][A-Z]?[a-z]+)*\.?){1,2}$"
+)
+# A capacity typed into a party field ("67 MW").
+_CAPACITY_RE = re.compile(r"^[\d.,]+\s*(?:MW|GW)$", re.I)
+_EPOCH_HOST = "epoch.ai"
 
 _MILESTONE_ORDER = {"announced": 0, "rezoning_filed": 1, "hearing_date": 2, "decided_date": 3}
 _OUTCOMES: dict[str, tuple[str, str]] = {
@@ -146,6 +163,41 @@ def looks_like_person(name: str) -> bool:
     )
 
 
+def looks_like_person_name(text: str) -> bool:
+    """Two or three capitalized words with no organization marker: a person's name."""
+    text = clean_text(text)
+    return bool(_PERSON_NAME_RE.match(text)) and not _ORG_MARKER_RE.search(text)
+
+
+@dataclass(frozen=True)
+class PartyName:
+    """A party string reduced to an organization name (None when there is none)."""
+
+    name: str | None
+    person_dropped: bool = False  # a person's name was left out
+    capacity: bool = False  # the string is a capacity figure, not a party
+
+
+def party_name(text: str) -> PartyName:
+    """The organization a party string names, without a trailing parenthetical note.
+
+    "Example Holdings LLC (developer)" -> "Example Holdings LLC"; "Amazon (AWS)" -> "Amazon";
+    "Example Ventures (Jane Example)" -> "Example Ventures", person dropped; "Jane Example
+    (developer)" -> none, person dropped; "67 MW" -> none, a capacity.
+    """
+    text = clean_text(text).strip(" ;,")
+    if _CAPACITY_RE.match(text):
+        return PartyName(None, capacity=True)
+    if looks_like_person(text) or find_personal_data(text):
+        return PartyName(None, person_dropped=True)
+    m = _TRAILING_NOTE_RE.match(text)
+    if m is None:
+        return PartyName(text or None)
+    name = m.group("name").strip(" ;,")
+    person = looks_like_person_name(m.group("note"))
+    return PartyName(name or None, person_dropped=person)
+
+
 def split_names(text: str, separators: str) -> list[str]:
     """Names split on the given regex, cleaned, de-duplicated, in order."""
     out: list[str] = []
@@ -185,6 +237,9 @@ class Locality:
     place: str | None  # the text outside the parentheses when it is not a county
     county_texts: tuple[str, ...]  # "Lycoming County", "Hays County", ...
     hint: str | None  # non-county text in parentheses ("Indianapolis", "Granbury")
+    # The hint is a nearby place ("near Reno", "Granbury area"), not the one the site is in: it may
+    # give a fallback point, never the city.
+    hint_is_nearby: bool = False
 
 
 def _county_names(text: str, state: str) -> list[str] | None:
@@ -214,6 +269,7 @@ def parse_locality(text: str, state: str) -> Locality:
         elif part:
             places.append(part)
     hint: str | None = None
+    nearby = False
     if inside:
         names = _county_names(inside, state)
         if names:
@@ -221,10 +277,11 @@ def parse_locality(text: str, state: str) -> Locality:
         else:
             first = inside.split(",", 1)[0]
             hint = _HINT_NOISE_RE.sub("", _HINT_NOISE_RE.sub("", first)).strip() or None
+            nearby = bool(_HINT_NOISE_RE.search(first))
     place = " / ".join(places) or None
     if place and place.casefold().startswith("city of "):
         place = place[len("city of ") :].strip() or None
-    return Locality(place, tuple(counties), hint)
+    return Locality(place, tuple(counties), hint, nearby)
 
 
 def resolve_county(
@@ -233,29 +290,43 @@ def resolve_county(
     counties: CountyIndex,
     point: tuple[float, float] | None,
 ) -> County | None:
-    """The named county; with several, the one containing the point; else None."""
+    """The named county that contains the point (with the validate tolerance); without a point,
+    the named county when there is one. Else None: a record never names a county its point is
+    outside of."""
     found: dict[str, County] = {}
     for name in loc.county_texts:
         c = counties.by_name(state, name)
         if c is not None:
             found[c.fips] = c
-    if len(found) == 1:
-        return next(iter(found.values()))
-    if len(found) > 1 and point is not None:
-        inside = [c for c in found.values() if counties.contains(c.fips, point[0], point[1])]
-        if len(inside) == 1:
-            return inside[0]
-    return None
+    if point is None:
+        return next(iter(found.values())) if len(found) == 1 else None
+    inside = [c for c in found.values() if counties.contains(c.fips, point[0], point[1])]
+    return inside[0] if len(inside) == 1 else None
 
 
 # ---------------------------------------------------------------------------- status
 
 
+def late_announcement(project: dict[str, Any]) -> tuple[date, str] | None:
+    """(announced, the earlier milestone) when AI GridWatch dates the announcement after a filing,
+    hearing or decision: announcing then would be a backward move (07 §2.3)."""
+    announced = parse_day(project.get("announced"))
+    if announced is None:
+        return None
+    earlier = [
+        (day, key)
+        for key in ("rezoning_filed", "hearing_date", "decided_date")
+        if (day := parse_day(project.get(key))) is not None and day < announced
+    ]
+    return (announced, min(earlier)[1]) if earlier else None
+
+
 def milestone_events(project: dict[str, Any], today: date) -> list[dict[str, Any]]:
-    """Events from the milestone dates, in date order; dates after today are planned."""
+    """Events from the milestone dates, in date order; dates after today are planned. An
+    announcement dated after a later-stage milestone is left out (late_announcement)."""
     found: list[tuple[date, int, str, str]] = []
     announced = parse_day(project.get("announced"))
-    if announced:
+    if announced and late_announcement(project) is None:
         found.append((announced, 0, "announced", "announced"))
     filed = parse_day(project.get("rezoning_filed"))
     if filed:
@@ -298,6 +369,64 @@ def has_filing(project: dict[str, Any]) -> bool:
 def _latest_actual(events: list[StatusEvent]) -> StatusEvent | None:
     actual = [e for e in events if not e.planned]
     return max(actual, key=event_key) if actual else None
+
+
+# ---------------------------------------------------------------------------- Epoch AI's sites
+
+
+def _url_key(url: str) -> str | None:
+    try:
+        return str(HttpUrl(clean_text(url)))
+    except ValidationError:
+        return None
+
+
+@dataclass
+class EpochSites:
+    """The stored Epoch AI records, by state and name and by the links they cite.
+
+    AI GridWatch carries most of Epoch's US sites under Epoch's names, with `source` set to the
+    first of Epoch's Selected Sources for the site (68 of the 69 same-name rows on 2026-10-08).
+    """
+
+    by_name: dict[tuple[str, str], str] = field(default_factory=dict)
+    # Each cited link (normalized) -> the (state, record id) of every Epoch record citing it.
+    by_url: dict[str, list[tuple[str, str]]] = field(default_factory=dict)
+
+    @classmethod
+    def from_records(cls, records: Mapping[str, FacilityRecord]) -> EpochSites:
+        sites = cls()
+        for rid, r in sorted(records.items()):
+            names = r.external_ids.get("epoch_name") or []
+            if not names or r.merged_into:
+                continue
+            state = r.location.state_abbr
+            for n in names:
+                sites.by_name.setdefault((state, clean_text(n).casefold()), rid)
+            for src in r.sources:
+                key = _url_key(str(src.url)) if src.source_type != "open_dataset" else None
+                cited = sites.by_url.setdefault(key, []) if key else None
+                if cited is not None and (state, rid) not in cited:
+                    cited.append((state, rid))
+        return sites
+
+    def match(self, project: dict[str, Any], state: str) -> tuple[str, str | None] | None:
+        """(how, Epoch record id) when the row is the same site as an Epoch record: "name" (the
+        same name in the same state), "source" (its source is a link that exactly one Epoch
+        record cites, in the same state; a report cited for several sites links none) or
+        "epoch_source" (its source is an Epoch AI page; record id None)."""
+        rid = self.by_name.get((state, clean_text(project.get("name")).casefold()))
+        if rid is not None:
+            return ("name", rid)
+        source = clean_text(project.get("source"))
+        key = _url_key(source) if source else None
+        cited = self.by_url.get(key, []) if key else []
+        if len(cited) == 1 and cited[0][0] == state:
+            return ("source", cited[0][1])
+        host = host_of(source) if key else ""
+        if host == _EPOCH_HOST or host.endswith("." + _EPOCH_HOST):
+            return ("epoch_source", None)
+        return None
 
 
 # ---------------------------------------------------------------------------- the importer
@@ -344,18 +473,26 @@ class AIGridWatchImporter:
 
         gazetteer = Gazetteer.load()
         counties = ctx.counties()
+        epoch_sites = EpochSites.from_records(ctx.records)
         retrieved_at = snapshot.retrieved_at.isoformat()
         candidates: list[Candidate] = []
         review: list[ReviewItem] = []
         stats: Counter[str] = Counter()
 
-        def flag(kind: str, external_id: str | None, reason: str, **data: Any) -> None:
+        def flag(
+            kind: str,
+            external_id: str | None,
+            reason: str,
+            *,
+            record_id: str | None = None,
+            **data: Any,
+        ) -> None:
             review.append(
                 ReviewItem(
                     source=self.name,
                     kind=kind,
                     external_id=external_id,
-                    record_id=None,
+                    record_id=record_id,
                     reason=reason,
                     data=data,
                 )
@@ -384,6 +521,26 @@ class AIGridWatchImporter:
                 continue
             if state not in IN_SCOPE:
                 flag("out_of_scope", pid, f"{state} is outside the 50 states and DC")
+                continue
+            twin = epoch_sites.match(project, state)
+            if twin is not None:
+                how, epoch_id = twin
+                stats["epoch_duplicates"] += 1
+                flag(
+                    "possible_duplicate",
+                    pid,
+                    {
+                        "name": "the same site as an Epoch AI record (same name and state)",
+                        "source": "the same site as an Epoch AI record (it cites a link that "
+                        "record cites, in the same state)",
+                        "epoch_source": "AI GridWatch's source for this row is an Epoch AI page",
+                    }[how]
+                    + "; AI GridWatch republishes Epoch's sites, so the row is not imported "
+                    "a second time",
+                    record_id=epoch_id,
+                    matched_by=how,
+                    source=clean_text(project.get("source")) or None,
+                )
                 continue
             stage = clean_text(project["stage"])
             try:
@@ -422,6 +579,8 @@ class AIGridWatchImporter:
             "located_gazetteer": stats["gazetteer"],
             "located_county_centroid": stats["county_centroid"],
             "persons_dropped": stats["persons_dropped"],
+            "epoch_duplicates": stats["epoch_duplicates"],
+            "epoch_records_seen": len(epoch_sites.by_name),
             "upstream_events_unused": sum(
                 len(p["events"])
                 for p in projects
@@ -472,6 +631,14 @@ class AIGridWatchImporter:
                 )
                 return None
             county = resolve_county(loc, state, counties, (lat, lon))
+            if county is None and loc.county_texts:
+                flag(
+                    "county_mismatch",
+                    pid,
+                    f"({lat}, {lon}) is not inside {' / '.join(loc.county_texts)}; the record "
+                    "keeps the point and names no county",
+                    locality=clean_text(project["locality"]),
+                )
             location = {
                 "lat": round(lat, 6),
                 "lon": round(lon, 6),
@@ -489,6 +656,8 @@ class AIGridWatchImporter:
             locality = next(
                 (t for t in (loc.place, loc.hint) if t and gazetteer.place(state, t)), None
             )
+            # A nearby place ("Storey County (near Reno)") may give the point, never the city.
+            nearby = locality is not None and locality == loc.hint and loc.hint_is_nearby
             result = geocode(
                 GeocodeRequest(
                     state_abbr=state,
@@ -513,7 +682,7 @@ class AIGridWatchImporter:
                 "lon": result.lon,
                 "precision": result.precision,
                 "geocode_method": result.method,
-                "city": place_city or result.city,
+                "city": place_city or (None if nearby else result.city),
                 "municipality": place_municipality,
                 "county_name": result.county_name,
                 "county_fips": result.county_fips,
@@ -524,20 +693,32 @@ class AIGridWatchImporter:
         # Parties and aliases ----------------------------------------------------------
         ref = {"source_ids": ["s1"]}
 
-        def orgs(text: str, separators: str) -> list[dict[str, Any]]:
-            out = []
-            for name in split_names(text, separators):
-                if looks_like_person(name) or find_personal_data(name):
+        def orgs(role: str, names: list[str]) -> list[str]:
+            out: list[str] = []
+            for text in names:
+                party = party_name(text)
+                if party.person_dropped:
                     stats["persons_dropped"] += 1
-                    continue
-                out.append({"name": name, **ref})
+                if party.capacity:
+                    flag(
+                        "unit_parse",
+                        pid,
+                        f"{role} holds a capacity, not an organization; it is not imported",
+                        **{role: text},
+                    )
+                if party.name and party.name.casefold() not in {n.casefold() for n in out}:
+                    out.append(party.name)
             return out
 
-        filings = filing_names(clean_text(project.get("filing_llc")))
+        def field_names(role: str, separators: str) -> list[dict[str, Any]]:
+            names = split_names(clean_text(project.get(role)), separators)
+            return [{"name": n, **ref} for n in orgs(role, names)]
+
+        filings = orgs("filing_llc", filing_names(clean_text(project.get("filing_llc"))))
         parties = {
-            "operator": orgs(clean_text(project.get("operator")), r"\s+/\s+"),
-            "owner": orgs(clean_text(project.get("owner")), r"\s+/\s+"),
-            "tenant": orgs(clean_text(project.get("tenant")), r"\s+/\s+|\s*,\s+"),
+            "operator": field_names("operator", r"\s+/\s+"),
+            "owner": field_names("owner", r"\s+/\s+"),
+            "tenant": field_names("tenant", r"\s+/\s+|\s*,\s+"),
             "filing_entities": [{"name": n, **ref} for n in filings],
         }
         aliases = [{"name": n, "kind": "filing_llc", **ref} for n in filings]
@@ -579,6 +760,17 @@ class AIGridWatchImporter:
             )
 
         # Status history ---------------------------------------------------------------
+        late = late_announcement(project)
+        if late is not None:
+            flag(
+                "conflict",
+                pid,
+                f"AI GridWatch dates the announcement ({late[0].isoformat()}) after {late[1]} "
+                f"({clean_text(project.get(late[1]))}); the announced milestone is left out, so "
+                "the status history does not move backward",
+                announced=late[0].isoformat(),
+                **{late[1]: clean_text(project.get(late[1]))},
+            )
         events = milestone_events(project, ctx.today)
         latest = _latest_actual([StatusEvent.model_validate(e) for e in events])
         if latest is None or latest.status != status:
