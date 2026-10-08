@@ -36,7 +36,7 @@ from atlas.schema.rollup import (
     rollup_status,
 )
 from atlas.store import list_records_dir
-from atlas.text import find_personal_data, hidden_characters, published_form
+from atlas.text import find_personal_data, hidden_characters
 
 if TYPE_CHECKING:
     from atlas.geo.counties import CountyIndex
@@ -412,10 +412,12 @@ def _strings(value: Any, pointer: str) -> Iterator[tuple[str, str]]:
 
 
 def _check_privacy(record: FacilityRecord, add: Add) -> None:
-    """Rule 7 on the text publish emits (invisible characters removed), in NFKC form."""
+    """Rule 7 on the text publish emits, as a reader sees it: find_personal_data matches its
+    text.privacy_form (no invisible characters or combining marks, NFKD, other dashes and dots
+    folded), so a lookalike letter or a non-breaking hyphen does not hide an address or number."""
     for pointer, text in _strings(record, ""):
         phones = not _IDENTIFIER_RE.match(pointer)
-        found = find_personal_data(published_form(text), phones=phones)
+        found = find_personal_data(text, phones=phones)
         if found:
             add(
                 "privacy",

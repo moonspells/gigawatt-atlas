@@ -12,7 +12,7 @@ from atlas.text import (
     is_hidden,
     normalize_name,
     normalize_org,
-    published_form,
+    privacy_form,
     strip_invisible,
 )
 
@@ -29,6 +29,20 @@ from atlas.text import (
         "08-35-302-012-0000",  # Cook County parcel PIN (SS-SS-BBB-PPP-UUUU)
         "PIN 08-35-302-012-0000-1",
         "1-512-555-0142-7",
+        "08\u201135\u2011302\u2011012\u20110000",  # the PIN with non-breaking hyphens
+        "PIN 08\u201335\u2013302\u2013012\u20130000",
+        "Phases 1\u20133, 300\u2013600 MW, 2026\u20132027",
+        "Buildings 101 \u2013 103, 2026",
+        "AT&T Data Center",
+        "c/o Example LLC",
+        "@example on X",
+        "email@",
+        "@domain.com",
+        "Centro de Datos Quer\u00e9taro @ 5 km",
+        "Stra\u00dfe@Campus",
+        "Col\u00b7legi 512",
+        "PIN 08 - 35 - 302 - 012 - 0000",
+        "PIN 08 \u2013 35 \u2013 302 \u2013 012 \u2013 0000",
     ],
 )
 def test_no_false_positives(text: str) -> None:
@@ -51,6 +65,72 @@ def test_no_false_positives(text: str) -> None:
 def test_phone_numbers(text: str) -> None:
     assert PHONE_RE.search(text)
     assert len(find_personal_data(text)) == 1
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Call 571\u2011555\u20110100",  # non-breaking hyphen, which pages use to stop a wrap
+        "Call 571\u2010555\u20100100",  # hyphen
+        "Call 571\u2012555\u20120100",  # figure dash
+        "Call 571\u2013555\u20130100",  # en dash
+        "Call 571\u2014555\u20140100",  # em dash
+        "Call 571\u2015555\u20150100",  # horizontal bar
+        "Call 571\u2212555\u22120100",  # minus sign
+        "Call 571\ufe63555\ufe630100",  # small hyphen-minus
+        "Call 571\uff0d555\uff0d0100",  # fullwidth hyphen-minus
+        "(571) 555\u20110100",
+        "+1\u2011571\u2011555\u20110100",
+        "Call 571\u00a0555\u00a00100",  # no-break space
+        "Call 571\u202f555\u202f0100",  # narrow no-break space
+        "Call 571\u2009555\u20090100",  # thin space
+        "Call 571\u00b7555\u00b70100",  # middle dot
+        "Call 571\u2022555\u20220100",  # bullet
+        "Call 571 \u2013 555 \u2013 0100",  # spaced en dash
+        "Call (571) 555 - 0100",
+        "Call 57\u03011-555-0100",  # a combining mark on a digit
+    ],
+)
+def test_phone_numbers_with_unicode_separators(text: str) -> None:
+    """SV2-1: NFKC leaves dashes other than U+FF0D and U+FE63 as they are."""
+    assert len(find_personal_data(text)) == 1
+
+
+@pytest.mark.parametrize(
+    ("text", "number"),
+    [
+        ("call the office\u2014571-555-0100\u2014for tours", "571-555-0100"),
+        ("call the office\u2013571\u2013555\u20130100\u2013for tours", "571-555-0100"),
+        ("Contact - 571-555-0100", "571-555-0100"),
+        ("Call 571-555-0100 - 24 hours", "571-555-0100"),
+        ("Call 571 \u2013 555 \u2013 0100 \u2013 24 hours", "571 - 555 - 0100"),
+        ("Tel.-571-555-0100", "571-555-0100"),
+    ],
+)
+def test_phone_numbers_next_to_dash_punctuation(text: str, number: str) -> None:
+    """A dash between a word and the number is punctuation: folding em and en dashes to "-" must
+    not hide a number that the dash only sets off."""
+    assert find_personal_data(text) == [number]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "jane.doe@exam\u0301ple.com",  # combining acute accent (NFKC makes it U+1E3F)
+        "jane.doe@ex\u0301ample.com",  # a combining mark with no precomposed letter
+        "jane.doe@ex\u0430mple.com",  # Cyrillic a in the domain
+        "jan\u0435.doe@example.com",  # Cyrillic e in the local part
+        "jane.doe@example.\u0441om",  # Cyrillic es in the top-level domain
+        "jane.doe@\u03bfexample.com",  # Greek omicron
+        "jane.doe@example\u3002com",  # ideographic full stop
+        "jane.doe@example\uff61com",  # halfwidth ideographic full stop
+        "jane\u00b7doe@example.com",
+        "jane\u2011doe@example.com",
+    ],
+)
+def test_email_addresses_with_lookalike_characters(text: str) -> None:
+    """SV2-2: a reader sees an address, so rule 7 must find the whole of it."""
+    assert find_personal_data(f"Contact {text} today") == [privacy_form(text)]
 
 
 def test_email_addresses() -> None:
@@ -130,9 +210,14 @@ def test_strip_invisible_keeps_visible_text() -> None:
     assert strip_invisible("plain ascii\ttext") == "plain ascii\ttext"
 
 
-def test_published_form() -> None:
-    assert published_form("jane\u200b\uff20example.com") == "jane@example.com"
-    assert find_personal_data(published_form("571-555\u200b-0100")) == ["571-555-0100"]
+def test_privacy_form() -> None:
+    assert privacy_form("jane\u200b\uff20exam\u0301ple\u3002com") == "jane@example.com"
+    assert privacy_form("571\u2011555\u2212\u200b0100") == "571-555-0100"
+    assert privacy_form("Quer\u00e9taro \u2014 Stra\u00dfe \u6771\u4eac \ufb01") == (
+        "Queretaro - Stra\u00dfe \u6771\u4eac fi"
+    )
+    assert privacy_form("plain ascii\ttext") == "plain ascii\ttext"
+    assert find_personal_data("571-555\u200b-0100") == ["571-555-0100"]
 
 
 def test_normalize_name() -> None:
