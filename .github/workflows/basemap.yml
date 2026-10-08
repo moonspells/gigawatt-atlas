@@ -29,6 +29,7 @@ jobs:
       - name: Install go-pmtiles
         env:
           PMTILES_VERSION: '1.31.2'
+          # Equal to GitHub's digest for the go-pmtiles_1.31.2_Linux_x86_64.tar.gz release asset (owner, 2026-10-08)
           PMTILES_SHA256: '3ed7dbf4ec2e6dfe5e25b6f70d1ffc932729f93c86db353bf514dd71010a312f'
         run: |
           mkdir -p "$RUNNER_TEMP/pmtiles" && cd "$RUNNER_TEMP/pmtiles"
