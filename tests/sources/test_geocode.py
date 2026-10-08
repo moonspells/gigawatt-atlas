@@ -30,7 +30,9 @@ from atlas.geocode import (
     parse_address,
     parse_census_response,
     place_base_name,
+    street_name_tokens,
     street_title,
+    street_tokens,
 )
 from atlas.net import FetchError, make_client
 from atlas.schema.record import FacilityRecord
@@ -54,6 +56,7 @@ class CensusServer:
     def __init__(self, status: int = 200) -> None:
         self.calls: list[httpx.Request] = []
         self.status = status
+        self.answer: bytes | None = None  # one body for every address, instead of the recordings
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.calls.append(request)
@@ -63,7 +66,7 @@ class CensusServer:
             return httpx.Response(self.status, json={"errors": ["x"]}, request=request)
         address = request.url.params["address"]
         try:
-            body = recorded(address)
+            body = self.answer or recorded(address)
         except FileNotFoundError:
             body = json.dumps({"result": {"input": {}, "addressMatches": []}}).encode()
         return httpx.Response(
@@ -293,6 +296,19 @@ def test_census_errors(census_factory: Callable[..., Any]) -> None:
         parse_census_response({"errors": ["no"]})
 
 
+@pytest.mark.parametrize("status", [429, 408, 404, 403])
+def test_census_rate_limits_and_other_4xx_are_errors_not_misses(
+    census_factory: Callable[..., Any], gazetteer: Gazetteer, counties: CountyIndex, status: int
+) -> None:
+    # Only 400 means "no such address". A 429 after the retries must fail the run: as a miss it
+    # would put the record at the Gazetteer place for one run and back at the address on the next.
+    census, server = census_factory(status=status)
+    with pytest.raises(FetchError):
+        geocode(parsed_request(TULANE), census=census, gazetteer=gazetteer, counties=counties)
+    assert not census.cache_path(TULANE).exists()
+    assert len(server.calls) == (4 if status == 429 else 1)  # atlas.net retries only 429 and 5xx
+
+
 # ---------------------------------------------------------------------------- the chain
 
 
@@ -423,13 +439,27 @@ def test_step2_census_address_precision(
     assert_rule5(result, counties)
 
 
+def parsed_request(text: str, *, county_name: str | None = None) -> GeocodeRequest:
+    """The request the Epoch importer builds for an address."""
+    parsed = parse_address(text)
+    return GeocodeRequest(
+        parsed.state_abbr,
+        oneline=parsed.text,
+        street=parsed.street,
+        city=parsed.city,
+        postcode=parsed.postcode,
+        locality=parsed.city,
+        county_name=county_name or parsed.county_name,
+    )
+
+
 def test_step2_census_street_precision_when_the_house_number_differs(
     census_factory: Callable[..., Any], gazetteer: Gazetteer, counties: CountyIndex
 ) -> None:
-    census, _ = census_factory()
-    parsed = parse_address(ROSEMOUNT)
+    census, server = census_factory()
+    server.answer = recorded(TULANE)  # 5420 TULANE RD, for an input of 5400 Tulane Rd
     result = geocode(
-        GeocodeRequest(parsed.state_abbr, oneline=parsed.text, street=parsed.street),
+        parsed_request("5400 Tulane Rd, Memphis, TN 38109"),
         census=census,
         gazetteer=gazetteer,
         counties=counties,
@@ -437,11 +467,98 @@ def test_step2_census_street_precision_when_the_house_number_differs(
     assert result is not None
     assert (result.precision, result.county_fips, result.street) == (
         "street",
-        "27037",
-        "1772-2396 145th St",
+        "47157",
+        "5400 Tulane Rd",
     )
-    assert result.matched_address == "2396 145TH ST E, ROSEMOUNT, MN, 55068"
+    assert result.confidence == 0.60  # 07 §3.4: derived from less than an address
     assert_rule5(result, counties)
+
+
+@pytest.mark.parametrize(
+    ("address", "city"),
+    [
+        # "42 COUNTY CT": the house number equals the road number, the street does not.
+        ("Co Rd 42, Montgomery, AL 36105, USA", "Montgomery"),
+        # "LARRISON DR" for Larrison Blvd: a street type the input states must be the match's.
+        ("55001 Larrison Blvd, New Carlisle, IN 46552", "New Carlisle"),
+        # "145TH ST E" and "145TH ST W", 4.6 km apart, both agree: ambiguous.
+        (ROSEMOUNT, "Rosemount"),
+    ],
+)
+def test_step2_a_match_on_another_street_falls_back_to_the_place(
+    census_factory: Callable[..., Any],
+    gazetteer: Gazetteer,
+    counties: CountyIndex,
+    address: str,
+    city: str,
+) -> None:
+    census, server = census_factory()
+    result = geocode(parsed_request(address), census=census, gazetteer=gazetteer, counties=counties)
+    assert len(server.calls) == 1  # the Census answered with a match
+    assert result is not None
+    assert (result.precision, result.method, result.city) == ("locality", "gazetteer", city)
+    assert_rule5(result, counties)
+
+
+def test_step2_a_stated_directional_or_qualifier_must_match(
+    census_factory: Callable[..., Any], gazetteer: Gazetteer, counties: CountyIndex
+) -> None:
+    # The Census matched "2950 S. Litchfield Road" to 2950 LITCHFIELD RD BYP, 6.6 km from
+    # 2950 S Litchfield Rd. Even with the state and the city given, that match is refused.
+    census, server = census_factory()
+    req = GeocodeRequest(
+        "AZ",
+        oneline="2950 S. Litchfield Road",
+        street="2950 S. Litchfield Road",
+        city="Goodyear",
+        locality="Goodyear",
+    )
+    result = geocode(req, census=census, gazetteer=gazetteer, counties=counties)
+    assert len(server.calls) == 1
+    assert result is not None and (result.precision, result.method) == ("locality", "gazetteer")
+
+
+@pytest.mark.parametrize(
+    ("address", "street", "postcode"),
+    [
+        ("984 County Road 112, Afton, TX 79220", "984 Co Rd 112", "79220"),  # CO RD 112
+        ("500 8th St, Jeffersonville, IN 47130", "500 E 8th St", "47130"),  # E left out
+        ("1435 Hwy 54 W, Fayetteville, GA 30214", "1435 State Rte 54", "30214"),  # STATE RTE 54
+        (  # the parser leaves the city in the street part
+            "1626 County Line Road Ridgeland, Mississippi",
+            "1626 E County Line Rd",
+            "39157",
+        ),
+    ],
+)
+def test_step2_street_synonyms_and_parts_the_input_leaves_out(
+    census_factory: Callable[..., Any],
+    gazetteer: Gazetteer,
+    counties: CountyIndex,
+    address: str,
+    street: str,
+    postcode: str,
+) -> None:
+    census, _ = census_factory()
+    result = geocode(parsed_request(address), census=census, gazetteer=gazetteer, counties=counties)
+    assert result is not None
+    assert (result.precision, result.method, result.street, result.postcode) == (
+        "address",
+        "census_geocoder",
+        street,
+        postcode,
+    )
+    assert_rule5(result, counties)
+
+
+def test_street_tokens() -> None:
+    assert street_tokens("Hwy 54 W") == ("HWY", "54", "W")
+    assert street_tokens("STATE RTE 54") == street_tokens("State Route 54") == ("HWY", "54")
+    assert street_tokens("US Hwy 54") == ("US", "HWY", "54")
+    assert street_tokens("County Road 112") == street_tokens("CR 112") == ("CO", "RD", "112")
+    assert street_tokens("S. Litchfield Road") == ("S", "LITCHFIELD", "RD")
+    assert street_name_tokens("1772-2396 145th St") == ("145TH", "ST")
+    assert street_name_tokens("Co Rd 42") == ("CO", "RD", "42")
 
 
 def test_step2_rejects_a_match_in_another_state(
@@ -450,6 +567,18 @@ def test_step2_rejects_a_match_in_another_state(
     census, _ = census_factory()
     req = GeocodeRequest("AR", oneline=TULANE)
     assert geocode(req, census=census, gazetteer=gazetteer, counties=counties) is None
+
+
+def test_step2_needs_a_state(
+    census_factory: Callable[..., Any], gazetteer: Gazetteer, counties: CountyIndex
+) -> None:
+    # "2950 S. Litchfield Road" names no state; any Census match could come from any state, so the
+    # address is not sent at all.
+    census, server = census_factory()
+    req = parsed_request("2950 S. Litchfield Road")
+    assert req.state_abbr is None
+    assert geocode(req, census=census, gazetteer=gazetteer, counties=counties) is None
+    assert server.calls == []
 
 
 def test_step3_gazetteer_after_a_census_miss(
@@ -476,6 +605,31 @@ def test_step3_takes_the_county_from_the_name(gazetteer: Gazetteer, counties: Co
     laramie = counties.by_name("WY", "Laramie")
     assert laramie is not None
     assert result is not None and result.county_fips == laramie.fips
+    assert_rule5(result, counties)
+
+
+@pytest.mark.parametrize(
+    ("state", "locality", "county_name"),
+    [
+        ("TX", "Abilene", "Shackelford County"),  # Abilene's point is in Taylor County
+        ("NV", "Reno", "Storey County"),  # Reno's point is in Washoe County
+    ],
+)
+def test_step3_a_place_outside_the_stated_county_gives_the_county(
+    gazetteer: Gazetteer, counties: CountyIndex, state: str, locality: str, county_name: str
+) -> None:
+    named = counties.by_name(state, county_name)
+    assert named is not None
+    req = GeocodeRequest(state, locality=locality, county_name=county_name)
+    result = geocode(req, census=None, gazetteer=gazetteer, counties=counties)
+    assert result is not None
+    assert (result.precision, result.method, result.county_fips, result.city) == (
+        "county",
+        "county_centroid",
+        named.fips,
+        None,
+    )
+    assert counties.contains(named.fips, result.lat or 0.0, result.lon or 0.0)
     assert_rule5(result, counties)
 
 
