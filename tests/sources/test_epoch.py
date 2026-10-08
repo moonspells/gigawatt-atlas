@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import zipfile
 from collections.abc import Callable
@@ -331,9 +332,17 @@ def test_record_mapping(make_test_context: MakeContext, no_overrides: Path) -> N
     assert madison.aliases == []  # Project Rainier #speculative
 
 
+# The name a quote uses for a city whose Census place name differs (Pryor is Pryor Creek).
+QUOTED_AS = {"Pryor Creek": "Pryor"}
+# "Kansas City, MO — March 20, 2024 — ...": a dateline says where a release was issued.
+DATELINE_RE = re.compile(r"^[A-Z][\w .]*, [A-Z]{2}\.? (?:\u2014|\u2013|-) ")
+
+
 def test_every_committed_override_is_cited(counties: CountyIndex) -> None:
     """Each entry names its source, the verbatim quote that states the place, when it was read,
-    and places the site no more precisely than a municipality or county (07 §6.5)."""
+    and places the site no more precisely than a municipality or county (07 §6.5). The quote
+    itself names every place the entry gives: a reader of the record's source sees only the
+    quote, not the note."""
     raw = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
     overrides = load_overrides(REPO_OVERRIDES)
     assert REPO_OVERRIDES.parts[-3:] == OVERRIDES_PATH.parts
@@ -345,12 +354,12 @@ def test_every_committed_override_is_cited(counties: CountyIndex) -> None:
         assert 0 < len(ov.quote) <= 300 and ov.retrieved_at <= now, name
         assert find_personal_data(ov.quote) == [] and find_personal_data(ov.note) == [], name
         assert (ov.lat, ov.lon) == (None, None) and ov.precision in ("locality", "county"), name
-        cited = f"{ov.quote} {ov.note}"
+        assert not DATELINE_RE.match(ov.quote), name
         for place in (ov.city, ov.municipality):
-            assert place is None or place in cited, (name, place)
+            assert place is None or QUOTED_AS.get(place, place) in ov.quote, (name, place)
         if ov.county_fips is not None:
             county = counties.get(ov.county_fips)
-            assert county is not None and county.name in cited, (name, ov.county_fips)
+            assert county is not None and county.name in ov.quote, (name, ov.county_fips)
         assert ov.city or ov.county_fips, name
 
 
