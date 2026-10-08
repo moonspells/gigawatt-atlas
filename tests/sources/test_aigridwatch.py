@@ -1004,6 +1004,10 @@ def test_a_stored_record_for_a_row_now_held_is_named(
         ("removed_upstream", old.id),
         ("possible_duplicate", site.id),
     }
+    # Once a reviewer has merged it, there is nothing left to point out.
+    merged = old.model_copy(update={"merged_into": site.id})
+    again = run(make_test_context, without_epoch=False, records=stored(site, merged))
+    assert "stored_record" not in duplicates(again)["google-bristow"].data
 
 
 # ---------------------------------------------------------------------------- guards and the CLI

@@ -679,8 +679,12 @@ class AIGridWatchImporter:
         epoch_sites = EpochSites.from_records(ctx.records, counties)
         projects: list[Any] = doc["projects"]
         epoch_sites.add_rows(projects)
+        # AI GridWatch records already stored, not yet merged: one for a row now held is a twin.
         stored_agw = {
-            v: rid for rid, r in ctx.records.items() for v in r.external_ids.get(self.match_key, [])
+            v: rid
+            for rid, r in ctx.records.items()
+            if not r.merged_into
+            for v in r.external_ids.get(self.match_key, [])
         }
         retrieved_at = snapshot.retrieved_at.isoformat()
         candidates: list[Candidate] = []
