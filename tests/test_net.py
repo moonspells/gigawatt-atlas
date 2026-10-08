@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import tracemalloc
+import zlib
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 
@@ -7,6 +10,7 @@ import httpx
 import pytest
 
 from atlas.net import (
+    ACCEPT_ENCODING,
     DEFAULT_USER_AGENT,
     BadContentType,
     BlockedAddressError,
@@ -64,6 +68,12 @@ class Chunks(httpx.SyncByteStream):
 def wire(status: int, headers: dict[str, str], body: bytes) -> httpx.Response:
     """A response whose body is decoded only when read (content= would decode it here)."""
     return httpx.Response(status, headers=headers, stream=Chunks(body))
+
+
+def compress(data: bytes, wbits: int, repeat: int = 1) -> bytes:
+    """data * repeat, compressed: wbits 31 is gzip, 15 zlib-wrapped deflate, -15 raw deflate."""
+    c = zlib.compressobj(9, zlib.DEFLATED, wbits)
+    return b"".join([*(c.compress(data) for _ in range(repeat)), c.flush()])
 
 
 def site(routes: dict[str, httpx.Response], log: list[str] | None = None) -> Handler:
@@ -246,6 +256,91 @@ def test_byte_cap_streaming_and_declared() -> None:
             )
             == 2048
         )
+
+
+CODINGS = [("gzip", 31), ("deflate", 15), ("deflate", -15)]
+
+
+@pytest.mark.parametrize(("coding", "wbits"), CODINGS)
+def test_compression_bomb_stops_at_the_cap_before_it_expands(coding: str, wbits: int) -> None:
+    # 64 MiB of zeros in about 64 KB. httpx's decoder expanded each network chunk in full before
+    # the byte cap was checked, so memory grew by the whole payload (10 §11.8, T19).
+    body = compress(b"\0" * (1 << 20), wbits, repeat=64)
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        return wire(200, {"Content-Encoding": coding}, body)
+
+    with client_for(handle) as client:
+        tracemalloc.start()
+        try:
+            with pytest.raises(TooLarge):
+                fetch(
+                    client,
+                    "https://bomb.example/x.json",
+                    max_bytes=1_000_000,
+                    robots=False,
+                    sleep=lambda s: None,
+                )
+            peak = tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+    assert peak < 8 << 20, f"peak {peak} bytes for a 1 MB cap"
+
+
+@pytest.mark.parametrize("encoding", ["gzip, gzip", "deflate, gzip", "br", "compress"])
+def test_stacked_and_unknown_content_encodings_are_refused(encoding: str) -> None:
+    # Two gzip layers turned a 1.8 KB body into 2 GB of memory; an unknown coding came back as
+    # the still-encoded bytes.
+    body = compress(compress(b"\0" * (1 << 20), 31, repeat=64), 31)
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        return wire(200, {"Content-Encoding": encoding}, body)
+
+    with client_for(handle) as client, pytest.raises(FetchError, match="Content-Encoding"):
+        fetch(client, "https://bomb.example/x.json", robots=False, sleep=lambda s: None)
+
+
+@pytest.mark.parametrize(("coding", "wbits"), [*CODINGS, ("identity", 0), ("", 0)])
+def test_encoded_bodies_are_decoded_in_full(coding: str, wbits: int) -> None:
+    # Incompressible bytes, then a long run that decodes in many full pieces.
+    data = b"".join(hashlib.sha256(b"%d" % i).digest() for i in range(20_000)) + b"\0" * 3_000_000
+    body = compress(data, wbits) if wbits else data
+    headers = {"Content-Encoding": coding} if coding else {}
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers=headers, stream=Chunks(body, size=997))
+
+    with client_for(handle) as client:
+        result = fetch(
+            client, "https://z.example/x", max_bytes=len(data), robots=False, sleep=lambda s: None
+        )
+    assert result.content == data
+    assert result.sha256 == hashlib.sha256(data).hexdigest()
+
+
+def test_raw_bytes_count_against_the_cap() -> None:
+    # Bytes after the end of the gzip stream decode to nothing but are still read and kept.
+    body = compress(b"ok", 31) + b"\0" * 2_000_000
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        return wire(200, {"Content-Encoding": "gzip"}, body)
+
+    with client_for(handle) as client, pytest.raises(TooLarge):
+        fetch(
+            client, "https://z.example/x", max_bytes=1_000_000, robots=False, sleep=lambda s: None
+        )
+
+
+def test_requests_ask_only_for_the_codings_fetch_decodes() -> None:
+    seen: list[str] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers["accept-encoding"])
+        return httpx.Response(200)
+
+    with client_for(handle) as client:
+        fetch(client, "https://z.example/x", robots=False, sleep=lambda s: None)
+    assert seen == [ACCEPT_ENCODING] == ["gzip, deflate"]
 
 
 def test_content_type_allow_list() -> None:

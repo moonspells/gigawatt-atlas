@@ -5,8 +5,8 @@ resolve to private, loopback, link-local, reserved, multicast or unspecified add
 is a hook, not a transport, because environment proxies mount their own transport.
 
 fetch adds the crawler policy on top: robots.txt, a per-host delay, at most 5 redirects (each one
-re-checked by the hook), a byte cap, a content-type allow-list, and retries with backoff that honor
-Retry-After.
+re-checked by the hook), a byte cap on the decoded body, a content-type allow-list, and retries
+with backoff that honor Retry-After.
 """
 
 from __future__ import annotations
@@ -18,7 +18,8 @@ import socket
 import time
 import urllib.robotparser
 import weakref
-from collections.abc import Callable, Mapping
+import zlib
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -32,6 +33,8 @@ MAX_REDIRECTS = 5
 BACKOFF_SECONDS = (10.0, 30.0, 60.0)
 MAX_RETRY_AFTER_SECONDS = 600.0
 _REDIRECT_CODES = frozenset({301, 302, 303, 307, 308})
+ACCEPT_ENCODING = "gzip, deflate"  # what _decoded_body can decode
+_DECODED_CHUNK = 1 << 16
 
 Resolver = Callable[[str], list[str]]
 
@@ -148,7 +151,10 @@ def make_client(
         check_url(request.url, resolve)
 
     return httpx.Client(
-        headers={"User-Agent": user_agent or user_agent_from_env()},
+        headers={
+            "User-Agent": user_agent or user_agent_from_env(),
+            "Accept-Encoding": ACCEPT_ENCODING,
+        },
         transport=transport,
         timeout=timeout,
         follow_redirects=False,
@@ -176,6 +182,57 @@ def _state(client: httpx.Client) -> _ClientState:
 
 def _host_key(url: httpx.URL) -> str:
     return f"{url.scheme}://{url.netloc.decode('ascii')}"
+
+
+def _decoded_body(response: httpx.Response, url: httpx.URL, max_bytes: int) -> Iterator[bytes]:
+    """The body, decoded from at most one Content-Encoding (gzip or deflate), in pieces of at most
+    _DECODED_CHUNK bytes, so the caller's byte cap stops a compression bomb early.
+
+    httpx's own decoders expand a whole network chunk at once and apply stacked codings in turn: a
+    1.8 KB body sent as "gzip, gzip" took 2 GB of memory before the first size check (10 §11.8,
+    T19). Stacked and unknown codings are refused, and the raw bytes are capped too.
+    """
+    header = response.headers.get("content-encoding", "")
+    codings = [c.strip().lower() for c in header.split(",")]
+    codings = [c for c in codings if c not in ("", "identity")]
+    if len(codings) > 1 or (codings and codings[0] not in ("gzip", "deflate")):
+        raise FetchError(f"{url}: Content-Encoding {header!r} is not supported")
+    if response.is_stream_consumed:
+        # Built from content= (a test transport) and already decoded; a network body never is.
+        yield response.content
+        return
+    if not codings:
+        yield from response.iter_raw()
+        return
+    coding = codings[0]
+    decoder = zlib.decompressobj(zlib.MAX_WBITS | 16 if coding == "gzip" else zlib.MAX_WBITS)
+    first = coding == "deflate"  # like httpx, fall back to raw deflate if the zlib header is bad
+    raw = 0
+    for data in response.iter_raw():
+        raw += len(data)
+        if raw > max_bytes:
+            raise TooLarge(f"{url}: body larger than {max_bytes} bytes")
+        while not decoder.eof:  # bytes after the end of the stream are ignored, as httpx does
+            try:
+                piece = decoder.decompress(data, _DECODED_CHUNK)
+            except zlib.error as e:
+                if first:
+                    decoder, first = zlib.decompressobj(-zlib.MAX_WBITS), False
+                    continue
+                raise FetchError(f"{url}: cannot decode the {coding} body: {e}") from e
+            first = False
+            data = decoder.unconsumed_tail
+            if piece:
+                yield piece
+            # A full piece may leave output pending even when no input is left.
+            if not data and len(piece) < _DECODED_CHUNK:
+                break
+    try:
+        tail = decoder.flush()
+    except zlib.error as e:
+        raise FetchError(f"{url}: cannot decode the {coding} body: {e}") from e
+    if tail:
+        yield tail
 
 
 def _retry_after(value: str | None, now: datetime) -> float | None:
@@ -245,7 +302,7 @@ class _Fetcher:
             chunks: list[bytes] = []
             total = 0
             if response.status_code not in _REDIRECT_CODES:
-                for chunk in response.iter_bytes():
+                for chunk in _decoded_body(response, url, max_bytes):
                     total += len(chunk)
                     if total > max_bytes:
                         raise TooLarge(f"{url}: body larger than {max_bytes} bytes")
