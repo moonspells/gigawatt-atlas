@@ -1,12 +1,23 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+import contextlib
+import hashlib
+import http.server
+import ipaddress
+import socket
+import ssl
+import threading
+import tracemalloc
+import zlib
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import httpx
 import pytest
 
 from atlas.net import (
+    ACCEPT_ENCODING,
     DEFAULT_USER_AGENT,
     BadContentType,
     BlockedAddressError,
@@ -47,6 +58,29 @@ def resolver_for(table: dict[str, list[str]]) -> Callable[[str], list[str]]:
 
 def client_for(handler: Handler, table: dict[str, list[str]] | None = None) -> httpx.Client:
     return make_client(transport=httpx.MockTransport(handler), resolver=resolver_for(table or {}))
+
+
+class Chunks(httpx.SyncByteStream):
+    """A body as it comes off the network: raw (still encoded) bytes, in chunks."""
+
+    def __init__(self, data: bytes, size: int = 65_536) -> None:
+        self.data = data
+        self.size = size
+
+    def __iter__(self) -> Iterator[bytes]:
+        for i in range(0, len(self.data), self.size):
+            yield self.data[i : i + self.size]
+
+
+def wire(status: int, headers: dict[str, str], body: bytes) -> httpx.Response:
+    """A response whose body is decoded only when read (content= would decode it here)."""
+    return httpx.Response(status, headers=headers, stream=Chunks(body))
+
+
+def compress(data: bytes, wbits: int, repeat: int = 1) -> bytes:
+    """data * repeat, compressed: wbits 31 is gzip, 15 zlib-wrapped deflate, -15 raw deflate."""
+    c = zlib.compressobj(9, zlib.DEFLATED, wbits)
+    return b"".join([*(c.compress(data) for _ in range(repeat)), c.flush()])
 
 
 def site(routes: dict[str, httpx.Response], log: list[str] | None = None) -> Handler:
@@ -126,6 +160,168 @@ def test_unresolvable_host_is_refused() -> None:
         pytest.raises(BlockedAddressError, match="cannot resolve"),
     ):
         fetch(client, "https://nowhere.example/", robots=False)
+
+
+# The real transport, saved before conftest's _no_network replaces it for each test.
+REAL_HANDLE_REQUEST = httpx.HTTPTransport.handle_request
+
+
+class LocalNetwork:
+    """DNS and TCP for the connection-pinning tests, so nothing leaves the machine.
+
+    Names resolve from dns only (each lookup takes the next answer, and the last one repeats).
+    Connections are recorded in tried; an address in routes goes to that local port, 127.0.0.1
+    connects, and everything else is refused.
+    """
+
+    def __init__(self) -> None:
+        self.dns: dict[str, list[str]] = {}
+        self.routes: dict[str, int] = {}
+        self.tried: list[tuple[str, int]] = []
+        self._getaddrinfo = socket.getaddrinfo
+        self._connect = socket.create_connection
+
+    def getaddrinfo(self, host: Any, port: Any, *args: Any, **kwargs: Any) -> Any:
+        try:
+            ipaddress.ip_address(host)
+        except ValueError:
+            answers = self.dns.get(host)
+            if not answers:
+                raise socket.gaierror(socket.EAI_NONAME, f"{host} is not in the test DNS") from None
+            host = answers.pop(0) if len(answers) > 1 else answers[0]
+        return self._getaddrinfo(host, port, *args, **kwargs)
+
+    def create_connection(
+        self, address: tuple[str, int], *args: Any, **kwargs: Any
+    ) -> socket.socket:
+        self.tried.append(address)
+        host, port = address
+        if host in self.routes:
+            return self._connect(("127.0.0.1", self.routes[host]), *args, **kwargs)
+        # A name is resolved here, as socket.create_connection does.
+        ip = self.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)[0][4][0]
+        if ip == "127.0.0.1":
+            return self._connect((ip, port), *args, **kwargs)
+        raise ConnectionRefusedError(f"{host}:{port} refused (tests stay offline)")
+
+
+@pytest.fixture
+def network(monkeypatch: pytest.MonkeyPatch) -> LocalNetwork:
+    """make_client's real transport, with no environment proxy, over LocalNetwork."""
+    for name in ("http_proxy", "https_proxy", "all_proxy", "no_proxy"):
+        monkeypatch.delenv(name, raising=False)
+        monkeypatch.delenv(name.upper(), raising=False)
+    monkeypatch.setattr(httpx.HTTPTransport, "handle_request", REAL_HANDLE_REQUEST)
+    net = LocalNetwork()
+    monkeypatch.setattr(socket, "getaddrinfo", net.getaddrinfo)
+    monkeypatch.setattr(socket, "create_connection", net.create_connection)
+    return net
+
+
+@contextlib.contextmanager
+def local_server(body: bytes) -> Iterator[tuple[int, list[tuple[str, str]]]]:
+    """An HTTP server on 127.0.0.1: its port, and the (request target, Host) of each request."""
+    seen: list[tuple[str, str]] = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            seen.append((self.path, self.headers.get("Host", "")))
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: Any) -> None:
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, args=(0.05,), daemon=True)
+    thread.start()
+    try:
+        yield server.server_address[1], seen
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+def test_dns_rebinding_cannot_reach_a_private_address(network: LocalNetwork) -> None:
+    # The hook's lookup answers a public address and the next one 127.0.0.1 (TTL 0). The
+    # connection used to resolve the name again and reach the private server (10 §11.8).
+    network.dns["rebind.example"] = [PUBLIC, "127.0.0.1"]
+    with (
+        local_server(b'{"secret": "internal-only"}') as (port, seen),
+        make_client() as client,
+        pytest.raises(BlockedAddressError, match=r"127\.0\.0\.1"),
+    ):
+        fetch(
+            client,
+            f"http://rebind.example:{port}/latest/meta-data",
+            robots=False,
+            sleep=lambda s: None,
+        )
+    assert seen == []
+    assert network.tried == []
+
+
+def test_connections_go_to_the_checked_addresses_with_the_original_host(
+    network: LocalNetwork,
+) -> None:
+    second = "93.184.216.35"
+    with local_server(b"ok") as (port, seen):
+        network.routes[second] = port  # the first address refuses, the second answers
+        resolver = resolver_for({"pinned.example": [PUBLIC, second]})
+        with make_client(resolver=resolver) as client:
+            result = fetch(
+                client, f"http://pinned.example:{port}/x", robots=False, sleep=lambda s: None
+            )
+    assert result.content == b"ok"
+    assert network.tried == [(PUBLIC, port), (second, port)]  # never the name
+    assert seen == [("/x", f"pinned.example:{port}")]
+
+
+def test_tls_on_a_pinned_connection_uses_the_host_name(
+    network: LocalNetwork, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    names: list[str | None] = []
+
+    def wrap_socket(
+        self: ssl.SSLContext, sock: socket.socket, *args: Any, **kwargs: Any
+    ) -> ssl.SSLSocket:
+        names.append(kwargs.get("server_hostname"))
+        raise ssl.SSLError("stop before the handshake")
+
+    monkeypatch.setattr(ssl.SSLContext, "wrap_socket", wrap_socket)
+    with socket.create_server(("127.0.0.1", 0)) as listener:
+        network.routes[PUBLIC] = listener.getsockname()[1]
+        with (
+            make_client(resolver=resolver_for({})) as client,
+            pytest.raises(FetchError, match="ConnectError"),
+        ):
+            fetch(client, "https://sni.example/x", robots=False, retries=0, sleep=lambda s: None)
+    assert network.tried == [(PUBLIC, 443)]
+    assert names == ["sni.example"]  # SNI and the certificate check use the name, not the IP
+
+
+def test_environment_proxies_still_carry_requests(
+    network: LocalNetwork, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The proxy resolves the name, so only the hook checks it; NO_PROXY hosts are pinned.
+    resolver = resolver_for({"intranet.example": ["10.0.0.5"]})
+    with local_server(b"via proxy") as (port, seen):
+        monkeypatch.setenv("HTTP_PROXY", f"http://127.0.0.1:{port}")
+        monkeypatch.setenv("NO_PROXY", "direct.example")
+        with make_client(resolver=resolver) as client:
+            result = fetch(client, "http://public.example/data", robots=False, sleep=lambda s: None)
+            assert result.content == b"via proxy"
+            with pytest.raises(BlockedAddressError):
+                fetch(client, "http://intranet.example/", robots=False, sleep=lambda s: None)
+            with pytest.raises(FetchError, match="ConnectError"):
+                fetch(
+                    client, "http://direct.example/", robots=False, retries=0, sleep=lambda s: None
+                )
+    assert seen == [("http://public.example/data", "public.example")]
+    assert network.tried == [("127.0.0.1", port), (PUBLIC, 80)]
 
 
 def test_fetch_returns_body_hash_and_headers() -> None:
@@ -231,6 +427,91 @@ def test_byte_cap_streaming_and_declared() -> None:
         )
 
 
+CODINGS = [("gzip", 31), ("deflate", 15), ("deflate", -15)]
+
+
+@pytest.mark.parametrize(("coding", "wbits"), CODINGS)
+def test_compression_bomb_stops_at_the_cap_before_it_expands(coding: str, wbits: int) -> None:
+    # 64 MiB of zeros in about 64 KB. httpx's decoder expanded each network chunk in full before
+    # the byte cap was checked, so memory grew by the whole payload (10 §11.8, T19).
+    body = compress(b"\0" * (1 << 20), wbits, repeat=64)
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        return wire(200, {"Content-Encoding": coding}, body)
+
+    with client_for(handle) as client:
+        tracemalloc.start()
+        try:
+            with pytest.raises(TooLarge):
+                fetch(
+                    client,
+                    "https://bomb.example/x.json",
+                    max_bytes=1_000_000,
+                    robots=False,
+                    sleep=lambda s: None,
+                )
+            peak = tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+    assert peak < 8 << 20, f"peak {peak} bytes for a 1 MB cap"
+
+
+@pytest.mark.parametrize("encoding", ["gzip, gzip", "deflate, gzip", "br", "compress"])
+def test_stacked_and_unknown_content_encodings_are_refused(encoding: str) -> None:
+    # Two gzip layers turned a 1.8 KB body into 2 GB of memory; an unknown coding came back as
+    # the still-encoded bytes.
+    body = compress(compress(b"\0" * (1 << 20), 31, repeat=64), 31)
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        return wire(200, {"Content-Encoding": encoding}, body)
+
+    with client_for(handle) as client, pytest.raises(FetchError, match="Content-Encoding"):
+        fetch(client, "https://bomb.example/x.json", robots=False, sleep=lambda s: None)
+
+
+@pytest.mark.parametrize(("coding", "wbits"), [*CODINGS, ("identity", 0), ("", 0)])
+def test_encoded_bodies_are_decoded_in_full(coding: str, wbits: int) -> None:
+    # Incompressible bytes, then a long run that decodes in many full pieces.
+    data = b"".join(hashlib.sha256(b"%d" % i).digest() for i in range(20_000)) + b"\0" * 3_000_000
+    body = compress(data, wbits) if wbits else data
+    headers = {"Content-Encoding": coding} if coding else {}
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers=headers, stream=Chunks(body, size=997))
+
+    with client_for(handle) as client:
+        result = fetch(
+            client, "https://z.example/x", max_bytes=len(data), robots=False, sleep=lambda s: None
+        )
+    assert result.content == data
+    assert result.sha256 == hashlib.sha256(data).hexdigest()
+
+
+def test_raw_bytes_count_against_the_cap() -> None:
+    # Bytes after the end of the gzip stream decode to nothing but are still read and kept.
+    body = compress(b"ok", 31) + b"\0" * 2_000_000
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        return wire(200, {"Content-Encoding": "gzip"}, body)
+
+    with client_for(handle) as client, pytest.raises(TooLarge):
+        fetch(
+            client, "https://z.example/x", max_bytes=1_000_000, robots=False, sleep=lambda s: None
+        )
+
+
+def test_requests_ask_only_for_the_codings_fetch_decodes() -> None:
+    seen: list[str] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers["accept-encoding"])
+        return httpx.Response(200)
+
+    with client_for(handle) as client:
+        fetch(client, "https://z.example/x", robots=False, sleep=lambda s: None)
+    assert seen == [ACCEPT_ENCODING] == ["gzip, deflate"]
+
+
 def test_content_type_allow_list() -> None:
     routes = {
         "/page": httpx.Response(200, headers={"Content-Type": "text/html"}, content=b"<html>")
@@ -333,6 +614,28 @@ def test_retries_exhausted_and_connection_errors() -> None:
             min_interval=0,
         )
     assert clock.sleeps == [10.0]
+
+
+def test_undecodable_body_is_a_fetch_error() -> None:
+    # httpx raises DecodingError, which is not a TransportError; callers catch only FetchError.
+    def handle(request: httpx.Request) -> httpx.Response:
+        return wire(200, {"Content-Encoding": "gzip"}, b"not gzip at all")
+
+    clock = Clock()
+    with client_for(handle) as client, pytest.raises(FetchError, match=r"(?i)decod") as info:
+        fetch(client, "https://msd.example/v", robots=False, sleep=clock.sleep, now=clock.now)
+    assert info.value.status is None
+    assert clock.sleeps == []  # not retried: the same body would come back
+
+
+def test_other_httpx_errors_are_fetch_errors() -> None:
+    def fail(request: httpx.Request) -> httpx.Response:
+        raise httpx.DecodingError("bad encoding", request=request)
+
+    clock = Clock()
+    with client_for(fail) as client, pytest.raises(FetchError, match="DecodingError"):
+        fetch(client, "https://msd.example/v", robots=False, sleep=clock.sleep, now=clock.now)
+    assert clock.sleeps == []
 
 
 def test_client_errors_raise_with_status() -> None:

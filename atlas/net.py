@@ -1,12 +1,15 @@
 """Guarded HTTP for every importer (10 §11.8, 07 §5.3).
 
 make_client builds an httpx.Client whose request hook refuses non-HTTP schemes and hosts that
-resolve to private, loopback, link-local, reserved, multicast or unspecified addresses. The guard
-is a hook, not a transport, because environment proxies mount their own transport.
+resolve to private, loopback, link-local, reserved, multicast or unspecified addresses. The hook
+sees every request, including those an environment proxy carries (the proxy then resolves the name
+itself). Direct connections are also pinned: the transport resolves the host once, applies the same
+check and connects to an address it checked, so a name that answers differently to a second lookup
+(DNS rebinding) cannot reach a private address.
 
 fetch adds the crawler policy on top: robots.txt, a per-host delay, at most 5 redirects (each one
-re-checked by the hook), a byte cap, a content-type allow-list, and retries with backoff that honor
-Retry-After.
+re-checked by the hook), a byte cap on the decoded body, a content-type allow-list, and retries
+with backoff that honor Retry-After.
 """
 
 from __future__ import annotations
@@ -18,12 +21,14 @@ import socket
 import time
 import urllib.robotparser
 import weakref
-from collections.abc import Callable, Mapping
+import zlib
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
 
+import httpcore
 import httpx
 
 DEFAULT_USER_AGENT = "moonspells-atlas/1.0 (+https://moonspells.dev/atlas/about)"
@@ -32,6 +37,8 @@ MAX_REDIRECTS = 5
 BACKOFF_SECONDS = (10.0, 30.0, 60.0)
 MAX_RETRY_AFTER_SECONDS = 600.0
 _REDIRECT_CODES = frozenset({301, 302, 303, 307, 308})
+ACCEPT_ENCODING = "gzip, deflate"  # what _decoded_body can decode
+_DECODED_CHUNK = 1 << 16
 
 Resolver = Callable[[str], list[str]]
 
@@ -81,9 +88,10 @@ def user_agent_from_env() -> str:
 
 
 def system_resolver(host: str) -> list[str]:
-    """Every address getaddrinfo returns for host."""
+    """Every address getaddrinfo returns for host, in its order of preference (connections try
+    them in this order)."""
     infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
-    return sorted({str(info[4][0]) for info in infos})
+    return list(dict.fromkeys(str(info[4][0]) for info in infos))
 
 
 def is_public_address(address: str) -> bool:
@@ -102,13 +110,9 @@ def is_public_address(address: str) -> bool:
     )
 
 
-def check_url(url: httpx.URL, resolver: Resolver) -> None:
-    """Raise BlockedAddressError unless url is http(s) and its host resolves to public addresses."""
-    if url.scheme not in ("http", "https"):
-        raise BlockedAddressError(f"scheme {url.scheme!r} is not allowed: {url}")
-    host = url.host
-    if not host:
-        raise BlockedAddressError(f"no host in {url}")
+def _public_addresses(host: str, resolver: Resolver) -> list[str]:
+    """host's addresses (host itself if it is an IP address); BlockedAddressError unless every one
+    is public."""
     try:
         addresses = [str(ipaddress.ip_address(host))]
     except ValueError:
@@ -121,6 +125,66 @@ def check_url(url: httpx.URL, resolver: Resolver) -> None:
     blocked = [a for a in addresses if not is_public_address(a)]
     if blocked:
         raise BlockedAddressError(f"{host} resolves to a non-public address ({', '.join(blocked)})")
+    return addresses
+
+
+def check_url(url: httpx.URL, resolver: Resolver) -> None:
+    """Raise BlockedAddressError unless url is http(s) and its host resolves to public addresses."""
+    if url.scheme not in ("http", "https"):
+        raise BlockedAddressError(f"scheme {url.scheme!r} is not allowed: {url}")
+    if not url.host:
+        raise BlockedAddressError(f"no host in {url}")
+    _public_addresses(url.host, resolver)
+
+
+class _PinnedBackend(httpcore.NetworkBackend):
+    """Opens each connection to an address it has just resolved and checked.
+
+    httpcore's own backend hands the host name to socket.create_connection, which resolves it
+    again after the hook's check: a name that answers a public address first and 127.0.0.1 or
+    169.254.169.254 next (DNS rebinding, TTL 0) reached the private address. TLS still uses the
+    host name for SNI and the certificate check (httpcore passes it to start_tls), and the Host
+    header is unchanged.
+    """
+
+    def __init__(self, resolver: Resolver) -> None:
+        self._resolver = resolver
+        self._backend = httpcore.SyncBackend()
+
+    def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: float | None = None,
+        local_address: str | None = None,
+        socket_options: Iterable[httpcore.SOCKET_OPTION] | None = None,
+    ) -> httpcore.NetworkStream:
+        addresses = _public_addresses(host, self._resolver)
+        options = None if socket_options is None else list(socket_options)
+        for address in addresses[:-1]:
+            try:
+                return self._backend.connect_tcp(address, port, timeout, local_address, options)
+            except (httpcore.ConnectError, httpcore.ConnectTimeout):
+                continue
+        return self._backend.connect_tcp(addresses[-1], port, timeout, local_address, options)
+
+    def sleep(self, seconds: float) -> None:
+        self._backend.sleep(seconds)
+
+
+class _PinnedTransport(httpx.HTTPTransport):
+    """httpx's default transport (same TLS settings and connection limits) on a _PinnedBackend."""
+
+    def __init__(self, resolver: Resolver) -> None:
+        super().__init__(trust_env=True)
+        self._pool.close()
+        self._pool = httpcore.ConnectionPool(
+            ssl_context=httpx.create_ssl_context(trust_env=True),
+            max_connections=100,
+            max_keepalive_connections=20,
+            keepalive_expiry=5.0,
+            network_backend=_PinnedBackend(resolver),
+        )
 
 
 class OfflineTransport(httpx.BaseTransport):
@@ -140,21 +204,32 @@ def make_client(
     """An httpx.Client with the address guard on every request.
 
     follow_redirects is off (fetch follows them itself, re-checking each hop), and trust_env is on,
-    so proxies from the environment work.
+    so proxies from the environment work. Without a transport argument, direct connections go
+    through _PinnedTransport; a request an environment proxy carries is checked by the hook only,
+    since the proxy resolves the name.
     """
     resolve = resolver or system_resolver
 
     def guard(request: httpx.Request) -> None:
         check_url(request.url, resolve)
 
-    return httpx.Client(
-        headers={"User-Agent": user_agent or user_agent_from_env()},
+    client = httpx.Client(
+        headers={
+            "User-Agent": user_agent or user_agent_from_env(),
+            "Accept-Encoding": ACCEPT_ENCODING,
+        },
         transport=transport,
         timeout=timeout,
         follow_redirects=False,
         trust_env=True,
         event_hooks={"request": [guard]},
     )
+    if transport is None:
+        # Swap the default transport rather than passing one: a transport argument would turn off
+        # httpx's HTTP(S)_PROXY and NO_PROXY handling, whose mounts fall back to this one.
+        client._transport.close()
+        client._transport = _PinnedTransport(resolve)
+    return client
 
 
 @dataclass
@@ -176,6 +251,57 @@ def _state(client: httpx.Client) -> _ClientState:
 
 def _host_key(url: httpx.URL) -> str:
     return f"{url.scheme}://{url.netloc.decode('ascii')}"
+
+
+def _decoded_body(response: httpx.Response, url: httpx.URL, max_bytes: int) -> Iterator[bytes]:
+    """The body, decoded from at most one Content-Encoding (gzip or deflate), in pieces of at most
+    _DECODED_CHUNK bytes, so the caller's byte cap stops a compression bomb early.
+
+    httpx's own decoders expand a whole network chunk at once and apply stacked codings in turn: a
+    1.8 KB body sent as "gzip, gzip" took 2 GB of memory before the first size check (10 §11.8,
+    T19). Stacked and unknown codings are refused, and the raw bytes are capped too.
+    """
+    header = response.headers.get("content-encoding", "")
+    codings = [c.strip().lower() for c in header.split(",")]
+    codings = [c for c in codings if c not in ("", "identity")]
+    if len(codings) > 1 or (codings and codings[0] not in ("gzip", "deflate")):
+        raise FetchError(f"{url}: Content-Encoding {header!r} is not supported")
+    if response.is_stream_consumed:
+        # Built from content= (a test transport) and already decoded; a network body never is.
+        yield response.content
+        return
+    if not codings:
+        yield from response.iter_raw()
+        return
+    coding = codings[0]
+    decoder = zlib.decompressobj(zlib.MAX_WBITS | 16 if coding == "gzip" else zlib.MAX_WBITS)
+    first = coding == "deflate"  # like httpx, fall back to raw deflate if the zlib header is bad
+    raw = 0
+    for data in response.iter_raw():
+        raw += len(data)
+        if raw > max_bytes:
+            raise TooLarge(f"{url}: body larger than {max_bytes} bytes")
+        while not decoder.eof:  # bytes after the end of the stream are ignored, as httpx does
+            try:
+                piece = decoder.decompress(data, _DECODED_CHUNK)
+            except zlib.error as e:
+                if first:
+                    decoder, first = zlib.decompressobj(-zlib.MAX_WBITS), False
+                    continue
+                raise FetchError(f"{url}: cannot decode the {coding} body: {e}") from e
+            first = False
+            data = decoder.unconsumed_tail
+            if piece:
+                yield piece
+            # A full piece may leave output pending even when no input is left.
+            if not data and len(piece) < _DECODED_CHUNK:
+                break
+    try:
+        tail = decoder.flush()
+    except zlib.error as e:
+        raise FetchError(f"{url}: cannot decode the {coding} body: {e}") from e
+    if tail:
+        yield tail
 
 
 def _retry_after(value: str | None, now: datetime) -> float | None:
@@ -245,7 +371,7 @@ class _Fetcher:
             chunks: list[bytes] = []
             total = 0
             if response.status_code not in _REDIRECT_CODES:
-                for chunk in response.iter_bytes():
+                for chunk in _decoded_body(response, url, max_bytes):
                     total += len(chunk)
                     if total > max_bytes:
                         raise TooLarge(f"{url}: body larger than {max_bytes} bytes")
@@ -274,6 +400,10 @@ class _Fetcher:
                 self.sleep(BACKOFF_SECONDS[min(attempt, len(BACKOFF_SECONDS) - 1)])
                 attempt += 1
                 continue
+            except httpx.HTTPError as e:
+                # Not a network failure (a body that cannot be decoded, say): retrying gets the
+                # same answer, and callers handle only FetchError.
+                raise FetchError(f"{method} {url}: {type(e).__name__}: {e}") from e
             if status == 429 or status >= 500:
                 if attempt >= self.retries:
                     raise FetchError(f"{method} {url}: HTTP {status}", status=status)
