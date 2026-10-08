@@ -165,6 +165,15 @@ def test_parse_variants() -> None:
     assert skipped == ["way/3"]
 
 
+def test_parse_drops_control_characters() -> None:
+    """SV2-3: a stray DEL, ESC or BEL in a tag is removed when the tag is read; a tag that is only
+    control characters is dropped."""
+    tags = {"name": "Micro\x7fsoft\x1b[0m", "operator": "Example\x07 Ops\r\nLLC", "ref": "\x00\x7f"}
+    doc = {"elements": [{"type": "node", "id": 1, "lat": 39.0, "lon": -77.0, "tags": tags}]}
+    (obj,), _ = parse_overpass(doc)
+    assert obj.tags == {"name": "Microsoft[0m", "operator": "Example Ops LLC"}
+
+
 def test_classify() -> None:
     assert classify("node", {"telecom": "data_center"}) == "point"
     assert classify("way", {"telecom": "data_center"}) == "campus"
@@ -907,6 +916,59 @@ def test_cli_import_is_idempotent(tmp_repo: Path, capsys: pytest.CaptureFixture[
     assert set(second) == set(before)
     assert main(argv) == 0
     assert tree(tmp_repo) == second
+
+
+def test_cli_import_drops_control_characters(
+    tmp_path_factory: pytest.TempPathFactory, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """SV2-3: one DEL in an OSM name used to make the record invalid (the text rule) and the
+    import exit 1. The importer now drops control characters from every tag value, so the
+    sample with a DEL, an ESC, a BEL and a C1 control in its names and operators imports to the
+    same records as the clean sample."""
+    doc = fixture_doc()
+    by_id = {e["id"]: e["tags"] for e in doc["elements"]}
+    by_id[10014176940]["name"] = "Microsoft\x7f"  # out of scope (Puerto Rico), still written
+    by_id[10014176940]["operator"] = "Micro\x1bsoft"
+    by_id[1188715510]["name"] = "Cologix\x07 ASH1"
+    by_id[1188715510]["operator"] = "Colo\x9bgix"
+    dirty = tmp_path_factory.mktemp("input") / "overpass-controls.json"
+    dirty.write_text(json.dumps(doc), encoding="utf-8")
+
+    def run(overpass: Path) -> tuple[Path, str]:
+        repo = tmp_path_factory.mktemp("repo")
+        argv = ["import", "osm", "--input", str(overpass), "--no-pnnl"]
+        argv += ["--now", "2026-10-12T00:00:00Z", "--offline"]
+        argv += ["--records", str(repo / "records"), "--review-dir", str(repo / "review")]
+        argv += ["--receipts-dir", str(repo / "imports"), "--cache-dir", str(repo / "cache")]
+        assert main(argv) == 0
+        return repo, capsys.readouterr().out
+
+    repo, out = run(dirty)
+    assert "candidates=12 new=12" in out and "invalid=0" in out
+    assert "invalid" not in {i.kind for i in read_review_queue(repo / "review", "osm")}
+    records = [
+        FacilityRecord.model_validate_json(f.read_text(encoding="utf-8"))
+        for f in sorted((repo / "records").glob("*.json"))
+    ]
+    for ref, name, operator in (
+        ("node/10014176940", "Microsoft", "Microsoft"),
+        ("way/1188715510", "Cologix ASH1", "Cologix"),
+    ):
+        (record,) = [r for r in records if ref in r.external_ids["osm"]]
+        assert record.canonical_name.startswith(f"{name} (")
+        assert name in [b.name for b in record.buildings]
+        assert [p.name for p in record.parties.operator] == [operator]
+
+    def comparable(root: Path) -> list[dict[str, Any]]:
+        out = []
+        for f in sorted((root / "records").glob("*.json")):
+            data = json.loads(f.read_text(encoding="utf-8"))
+            data.pop("id")
+            out.append(data)
+        return sorted(out, key=lambda d: d["external_ids"]["osm"])
+
+    clean, _ = run(OVERPASS_FIXTURE)
+    assert comparable(repo) == comparable(clean)
 
 
 def test_cli_weekly_rerun_is_unchanged(

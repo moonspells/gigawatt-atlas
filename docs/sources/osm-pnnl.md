@@ -73,8 +73,10 @@ records the endpoint that answered, `upstream_version` = `timestamp_osm_base`, a
 ## 3. Objects
 
 Every element becomes an `OsmObject(ref, lat, lon, bounds, tags, kind)`. `ref` is `node/1`, `way/1`
-or `relation/1`; `lat`/`lon` is the node position or the bounding-box midpoint. Tag values have
-invisible characters removed and whitespace collapsed. `kind` is:
+or `relation/1`; `lat`/`lon` is the node position or the bounding-box midpoint. Tag values go
+through `text.clean_text`: invisible characters and control characters (DEL, ESC, BEL and the rest
+that are not whitespace) are removed and whitespace is collapsed, so a stray control character in
+a tag does not make the record fail the text rule. `kind` is:
 
 | kind | Rule | US count (2026-10-07) |
 |---|---|---|
@@ -110,22 +112,23 @@ Douglas County, GA, ways 844352473 and 844352474).
    operator, and without this rule each one became its own record: 32 records "Data center
    (Venango, PA)" within 213 m, and 11 "Blockfusion Niagra Falls" at 5380 Frontier Avenue. The gap
    is 50 m because at 100 m unnamed buildings chain across 1.5 km (8 buildings in Kendall County,
-   IL). An object without an operator does not join a neighbour that has one this way (no such
-   pair with the same name was found on 2026-10-07).
+   IL). An object without an operator does not join a neighbour that has one this way (one such
+   pair with the same name exists on 2026-10-07: QTS Data Center - Hillsboro 3, see section 9).
 
 Two campus objects never join each other directly (they can meet through a shared member). Joins
 are transitive, so a row of same-operator buildings 250 m apart forms one cluster; the widest
 cluster on 2026-10-07 spans about 1.6 km (16 AWS objects in Ashburn). Each group of candidates is
 swept in latitude order, so only pairs that overlap in latitude are measured.
 
-On the 2026-10-07 snapshot (1,886 objects) the rules give 1,117 clusters. The earlier rules
-(center distances, an exact operator guard, no rule 3) gave 1,367; box gaps alone give 1,280, the
-word-prefix guard 1,278, and rule 3 the rest (its address clause adds 4 joins). Single objects
-without an operator fell from 601 clusters to 393, and canonical names used by more than one
-record from 79 (414 records) to 51 (188 records). Counting lifecycle-tagged polygons as buildings
-(section 3) then gives 1,114 clusters and 49 shared names (180 records): Rowan Green's four
-`proposed:building=industrial` halls join by name under rule 3 instead of standing as four
-campuses.
+On the 2026-10-07 snapshot (1,886 objects) the rules give 1,114 clusters. The earlier rules
+(center distances, an exact operator guard, no rule 3, lifecycle-tagged polygons as campuses)
+gave 1,367. Box gaps alone give 1,280, the word-prefix guard 1,278 and rule 3 1,117 (its address
+clause adds 4 joins). Counting lifecycle-tagged polygons as buildings (section 3) takes that to
+1,114: Rowan Green's four `proposed:building=industrial` halls and Hillsboro 3's two polygons
+join under rule 2 instead of standing as campuses, and Hillsboro 3's node, which used to join a
+polygon through the campus rule, stands alone (section 9). Single non-campus objects without an
+operator fell from 601 clusters to 394, and canonical names used by more than one record from 79
+(414 records) to 49 (180 records).
 
 The **representative** is the campus object (the largest, if a cluster has two), else the way or
 relation with the largest bounding box, else the node with the lowest id. Members and clusters are
@@ -339,15 +342,16 @@ The receipt `data/imports/osm.json` has the metrics `objects`, `clusters`, `out_
 - **Statuses are assumed.** `telecom=data_center` with no lifecycle tag is taken as operating
   (confidence 0.60); `proposed:*`, `construction:*`, `building=construction` and
   `landuse=construction` give proposed or under construction (docs/status-crosswalk.md). OSM says
-  what a feature is, not when it changed, so `first_reported` dates are the snapshot date, and
-  `operating_since` equals it unless a `start_date` exists.
+  what a feature is, not when it changed, so `first_reported` (and `operating_since` on an
+  operating record) is the snapshot date unless a `start_date` exists, which then dates both (27
+  records on 2026-10-07).
 - **Planned buildings.** A polygon tagged `proposed:building=*` or `construction:building=*` is a
   building, not a campus, so Rowan Green's four Percheron DC halls (ways 1501824326 to 1501824329)
   and QTS Data Center - Hillsboro 3's two polygons (ways 1465196735 and 1465196736) each dissolve
-  by name under rule 3 into one proposed record. Hillsboro 3's proposed node 11721960464 has no
-  operator while the polygons name QTS, so no rule joins it and it stays a record of its own; it
-  used to join a polygon through the campus rule. PNNL campus rows that land on such a polygon
-  become `conflict` items (two on 2026-10-07, Hillsboro 3).
+  under rule 2 (same operator, within 300 m) into one proposed record. Hillsboro 3's proposed node
+  11721960464 has no operator while the polygons name QTS, so no rule joins it and it stays a
+  record of its own; it used to join a polygon through the campus rule. PNNL campus rows that land
+  on such a polygon become `conflict` items (two on 2026-10-07, Hillsboro 3).
 - **Names.** 187 records have no name and no operator and are called "Data center ({county},
   {ST})", for example "Data center (Taylor County, TX)"; 49 names are shared by 180 records that
   differ only by id. Operator tags are copied as written; a few name a person or a

@@ -57,6 +57,39 @@ def test_privacy_matches_the_nfkc_form(make_record: MakeRecord, note: str) -> No
     assert issues_of(with_note(make_record, note)) == [("privacy", "/status_history/0/note")]
 
 
+@pytest.mark.parametrize(
+    "note",
+    [
+        "Call 571\u2011555\u20110100",  # non-breaking hyphen
+        "Call 571\u2013555\u20130100",  # en dash
+        "Call 571\u2012555\u20120100",  # figure dash
+        "Call 571\u2212555\u22120100",  # minus sign
+        "Call (571) 555\u20110100",
+        "Call 571 \u2013 555 \u2013 0100",
+        "Contact jane.doe@exam\u0301ple.com",  # combining acute accent
+        "Contact jane.doe@ex\u0430mple.com",  # Cyrillic a
+        "Contact jan\u0435.doe@example.com",  # Cyrillic e
+        "Contact jane.doe@example\u3002com",  # ideographic full stop
+    ],
+)
+def test_privacy_sees_through_lookalike_characters(make_record: MakeRecord, note: str) -> None:
+    """SV2-1, SV2-2: publish keeps these characters, and a reader still sees a phone number or an
+    email address."""
+    r = with_note(make_record, note)
+    assert issues_of(r) == [("privacy", "/status_history/0/note")]
+    published = public_record(r).status_history[0].note
+    assert published == note and find_personal_data(published)
+
+
+def test_privacy_keeps_unicode_ranges(make_record: MakeRecord) -> None:
+    """Dashes in ranges and identifiers are not phone numbers."""
+    r = with_note(
+        make_record,
+        "Phases 1\u20133, 300\u2013600 MW, 2026\u20132027, PIN 08\u201135\u2011302\u2011012\u20110000",
+    )
+    assert issues_of(r) == []
+
+
 def test_phone_check_skips_identifier_fields(make_record: MakeRecord) -> None:
     """SV-11: a Cook County PIN or a dashed APN is not a phone number; emails are still found."""
     base = record_json(make_record())
