@@ -21,12 +21,20 @@ npx wrangler r2 bucket list                 # check: both listed
 
 ## 2. Custom domain for `atlas-tiles`
 
-Dashboard: **R2 object storage → atlas-tiles → Settings → Custom Domains → Add**, domain
-`tiles.moonspells.dev` (zone `moonspells.dev`), minimum TLS 1.2. Or:
+Use Wrangler: the dashboard's **Connect Domain** flow has no minimum-TLS field, and
+`domain add` without `--min-tls` leaves the host at TLS 1.0 (Wrangler's default). 10 §1 and §3.2
+require TLS 1.2 or later.
 
 ```sh
-npx wrangler r2 bucket domain add atlas-tiles --domain tiles.moonspells.dev --zone-id <moonspells.dev zone id>
-npx wrangler r2 bucket domain list atlas-tiles   # check: tiles.moonspells.dev, status active
+npx wrangler r2 bucket domain add atlas-tiles --domain tiles.moonspells.dev \
+  --zone-id <moonspells.dev zone id> --min-tls 1.2
+npx wrangler r2 bucket domain list atlas-tiles   # check: tiles.moonspells.dev, active, minimum TLS 1.2
+```
+
+If the domain was already connected (in the dashboard, or without `--min-tls`), raise it:
+
+```sh
+npx wrangler r2 bucket domain update atlas-tiles --domain tiles.moonspells.dev --min-tls 1.2
 ```
 
 `atlas-raw` gets no domain.
@@ -86,7 +94,11 @@ npx wrangler r2 bucket lifecycle list atlas-tiles   # check: delete-old-releases
 
 Or **R2 → atlas-tiles → Settings → Object lifecycle rules → Add rule**: prefix `v/`, delete
 objects 120 days after upload. `basemap/`, `rec/` and `archive/` are not affected (`archive/`
-gets a bucket lock when the monthly archives start).
+gets a bucket lock when the monthly archives start). A takedown deletes from `v/` and `rec/` at
+once, without waiting for this rule (publishing.md §7), with the `atlas-tiles` token from step 9
+*(check: Cloudflare's token page says **Object Read & Write** reads, writes and lists objects but
+does not name delete; if the first delete of a takedown answers AccessDenied, the job stops
+before deleting anything)*.
 
 Age counts from the upload, so the fixture release `v/20000101-0000/` also expires 120 days
 after its upload. If site CI still pins it then, dispatch `publish.yml` with `fixture` again.
@@ -172,9 +184,25 @@ curl -s -o /dev/null -D - -H 'Origin: https://moonspells.dev' -H 'Range: bytes=0
 curl -sI https://tiles.moonspells.dev/atlas/latest.json
 #   404 until the first real release; then 200, content-type: application/json,
 #   cache-control: public, max-age=60
+
+curl -sI https://tiles.moonspells.dev/v/20000101-0000/facilities.parquet | grep -i '^content-type'
+#   content-type: application/vnd.apache.parquet (GeoParquet 1.1), no content-encoding
 ```
 
-4. Confirm in the dashboard that `atlas-raw` has no custom domain and no `r2.dev` URL, and that
+4. TLS: the tiles host must refuse TLS 1.1 and accept TLS 1.2. `openssl` needs `@SECLEVEL=0` to
+   offer TLS 1.1 at all (OpenSSL 3 disables it by default, so a plain `curl --tls-max 1.1` fails
+   whatever the server allows and proves nothing):
+
+```sh
+openssl s_client -connect tiles.moonspells.dev:443 -servername tiles.moonspells.dev \
+  -tls1_1 -cipher 'DEFAULT:@SECLEVEL=0' < /dev/null
+#   must fail: a handshake failure or "unsupported protocol" alert, no certificate chain
+openssl s_client -connect tiles.moonspells.dev:443 -servername tiles.moonspells.dev \
+  -tls1_2 < /dev/null 2>/dev/null | grep -E '^ *(Protocol|Cipher) *:'
+#   must succeed: Protocol : TLSv1.2
+```
+
+5. Confirm in the dashboard that `atlas-raw` has no custom domain and no `r2.dev` URL, and that
    no Cloudflare API token exists in any GitHub repo or Environment (13 §5.5).
 
 Record the date and results in the site repo's `docs/ops/phase-1-status.md` (13 §5.5 tiles

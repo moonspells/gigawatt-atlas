@@ -6,7 +6,8 @@ basemap and the fixture release get there. Source of truth: the site plan, chapt
 [r2-setup.md](r2-setup.md).
 
 Nothing reaches `v/` except through the `upload` job of `publish.yml`, which runs only after a
-merge to `main` (or a dispatch from `main`) and is the only job that sees the R2 token.
+merge to `main` (or a dispatch from `main`) and, with the `takedown` job (section 7), is the only
+job that sees the R2 token.
 
 ## 1. Release layout (contract_version 1)
 
@@ -16,17 +17,17 @@ whose paths are the R2 keys of the `atlas-tiles` bucket:
 | Key | Content-Type | What it holds |
 |---|---|---|
 | `v/{release}/manifest.json` | `application/json` | release, generated_at, contract_version 1, schema_version, license, attribution line, `fixture`, `base_url`, `rec_base_url`, git commit and PR number, counts, every other file with bytes, SHA-256 and content type, and the `layers` map copied from `overlays/out/layers.json` |
-| `v/{release}/facilities.parquet` | `application/octet-stream` | GeoParquet 1.1 (WKB points, `bbox` covering column, zstd), one row per facility; the flat columns below plus JSON-string columns `aliases`, `parties`, `status_history`, `phases`, `buildings`, `sources`, `incentives` |
+| `v/{release}/facilities.parquet` | `application/vnd.apache.parquet` | GeoParquet 1.1 (WKB points, `bbox` covering column, zstd), one row per facility; the flat columns below plus JSON-string columns `aliases`, `parties`, `status_history`, `phases`, `buildings`, `sources`, `incentives`. GeoParquet 1.1 requires this media type; Cloudflare does not compress it, so `Range` works |
 | `v/{release}/facilities.geojson` | `application/geo+json` | FeatureCollection, the flat columns as properties |
 | `v/{release}/facilities.csv` | `text/csv; charset=utf-8` | the flat columns, header row, LF line ends |
-| `v/{release}/facilities.pmtiles` | `application/octet-stream` | tippecanoe 2.79.0, layer `facilities`, zoom 0 to 12, mappable facilities only |
+| `v/{release}/facilities.pmtiles` | `application/octet-stream` | tippecanoe 2.79.0, layer `facilities`, zoom 0 to 12, mappable facilities only, the flat columns as feature properties. Its `attribution` metadata credits every source, because third-party maps show it: `Gigawatt Atlas (ODbL) · © OpenStreetMap contributors · PNNL IM3 (ODbL) · Epoch AI (CC BY 4.0) · AI GridWatch (CC BY 4.0)` |
 | `v/{release}/facilities-map.json` | `application/json` | compact GeoJSON for the map and table: properties `id n a s g m b p o ot st c e t h x` (07 §11.1), at most 400,000 bytes gzipped |
 | `v/{release}/records.jsonl.gz` | `application/gzip` | every public record, merged ones included (the site builds redirects from them), sorted by id; gzip with mtime 0 and no file name. Never `Content-Encoding` |
-| `v/{release}/summary.json` | `application/json` | counts and GW by status, group, state, ISO/RTO and evidence level |
+| `v/{release}/summary.json` | `application/json` | counts and GW by status, group, state, ISO/RTO and evidence level; `last_updated` is the latest `updated_at` compared as an instant, in UTC |
 | `v/{release}/feed.json` | `application/json` | merged changes of the last 90 days; `items` stays empty until M2 |
 | `v/{release}/schema/facility.v1.json` | `application/json` | the JSON Schema |
 | `v/{release}/LICENSE-ODbL-1.0.txt` | `text/plain; charset=utf-8` | the license |
-| `v/{release}/ATTRIBUTION.md`, `CHANGELOG.md` | `text/markdown; charset=utf-8` | copies of the repo files |
+| `v/{release}/ATTRIBUTION.md`, `CHANGELOG.md` | `text/markdown; charset=utf-8` | copies of the repo files (`--attribution`, `--changelog`; the fixture ships frozen copies, section 6) |
 | `v/{release}/README.md` | `text/markdown; charset=utf-8` | generated: release id, file list, the share-alike terms in plain words, the attribution line |
 | `rec/{id}/{h}.json` | `application/json` | one public record, compact JSON; `h` is the first 12 hex digits of the SHA-256 of these bytes (the `h` map property). At most 65,536 bytes |
 | `atlas/latest.json` | `application/json` | `{"release": ..., "manifest": "https://tiles.moonspells.dev/v/{release}/manifest.json"}`, uploaded last; never for the fixture |
@@ -47,6 +48,18 @@ operating_since, latest_event, latest_event_date, expanding, n_sources, confiden
 review_state, updated_at, url`. Several parties of one role are joined with ` | `; dates are the
 fuzzy-date values (`2026`, `2026-Q3`, `2026-07`, `2026-07-14`); `confidence_status` is
 `field_meta["/status"].confidence` when present.
+
+Names, parties and places come from untrusted sources (OpenStreetMap tags anyone can edit, the
+trackers, later LLM extraction). In `facilities.csv` only, a text cell that starts with `=`, `+`,
+`-`, `@`, a tab or a carriage return (or the full-width `＝`, `＋`, `－`, `＠`) gets a leading `'`,
+so Excel, Sheets and LibreOffice show it as text instead of running it as a formula. Numbers such
+as `lon` `-77.4874` are never changed, and the GeoJSON, Parquet, map and record files keep the
+stored text.
+
+`layers` (from `overlays/out/layers.json`): every layer has `url`, `asOf` (`YYYY-MM-DD`),
+`label`, `attribution` and `frozen` (true or false); further keys are allowed, since contract 1
+grows only by additions (07 §11.3). `url` is an https URL (R2 overlays, the basemap) or, for a
+metric overlay whose JSON lives on the site, its site path `/atlas/data/{layer}.json` (07 §10.3).
 
 Public records are the records with `scope: "in_scope"`, with zero-width and bidirectional
 control characters removed from every string. Merged records appear only in
@@ -69,6 +82,14 @@ are contract-1 files that arrive with Phase 5 (additive).
 5. Every file passes the upload allow-list and has a Cache-Control rule.
 6. At least one facility (except for the fixture).
 
+The release is written to a temporary sibling of `--out` and moved into place only after every
+check has passed, so a failed build (tippecanoe missing or failing, a Parquet mismatch, a check
+after writing) leaves `--out` as it was. A missing tippecanoe fails before anything is written.
+
+With `--allow-count-change`, a previous release that cannot be read (for example
+`atlas/latest.json` points to a manifest that is gone) is reported as a note instead of failing
+the build, because the count check is skipped anyway (section 4).
+
 `atlas publish verify DIR` re-checks a built directory: every file is in the manifest with the
 right bytes, SHA-256 and content type, the allow-list and key prefixes, the `rec/` names against
 their bytes, the map's `h` values against `rec/`, and `atlas/latest.json`.
@@ -83,9 +104,11 @@ uv run atlas publish upload build/release --release 20261020-0613 --dry-run     
 uv run atlas publish upload build/release --release 20261020-0613 --local-target /tmp/bucket
 uv run atlas publish put conus-z10-20261006.pmtiles --key basemap/conus-z10-20261006.pmtiles --immutable --no-overwrite
 uv run atlas publish fixture [--check]
+uv run atlas publish takedown --id gwa-... --dry-run   # section 7; CI runs it in publish.yml
 ```
 
-`build` options: `--records`, `--orgs`, `--layers`, `--out`, `--release` (default: now, UTC),
+`build` options: `--records`, `--orgs`, `--layers`, `--attribution` and `--changelog` (default:
+the repo's `ATTRIBUTION.md` and `CHANGELOG.md`), `--out`, `--release` (default: now, UTC),
 `--previous URL|PATH|none`, `--allow-count-change`, `--skip-pmtiles`, `--deterministic`
 (`generated_at` from the release id; no clock, git commit or PR number), `--fixture`,
 `--tiles-base` (or `ATLAS_TILES_BASE`), `--github-output PATH` (appends `release=` and
@@ -112,16 +135,23 @@ export PATH="/tmp/tippecanoe:$PATH"
 ## 4. `publish.yml`
 
 Runs on every push to `main` that touches `data/**` or `overlays/out/**`, and on dispatch.
+Its first step counts the files in `data/records/`: while there are none (from the first merge
+until the seed PR lands), the `build` job ends green with the notice "data/records holds no record
+yet", skips every later step and uploads nothing, and the `upload` job is skipped. A fixture
+dispatch does not depend on records.
 
 | Job | Environment | Secrets | Steps |
 |---|---|---|---|
 | `build` | none | none (`GH_TOKEN` is the read-only job token, used to look up the merged PR) | `uv sync --locked`; build tippecanoe 2.79.0 from its pinned commit; `atlas validate`; find the merged PR's number and whether it has the `bulk` label; `atlas publish build` (or `atlas publish fixture --check` and stage `fixtures/release`); upload the directory as the artifact `release` (7 days) |
 | `upload` | `production` (deployment branch `main` only) | `R2_TILES_ACCESS_KEY_ID`, `R2_TILES_SECRET_ACCESS_KEY` in the step env only; variable `CF_ACCOUNT_ID` | download the artifact; `atlas publish upload` (verifies again first) |
+| `takedown` | `production` | same as `upload` | only on a dispatch with `takedown` set (then `build` and `upload` do not run): `atlas publish takedown` (section 7) |
 
 Dispatch inputs:
 
 - `allow_count_change`: skip the ±10% check for this run.
 - `fixture`: upload the committed fixture release instead of building one (section 6).
+- `takedown` and `takedown_apply`: record ids to take down, and whether to delete for real
+  (section 7).
 
 **A bulk import** (the seed PR, a new source) changes the count by more than 10%. Label the PR
 `bulk` before merging it and the push run skips the check. If it was merged without the label,
@@ -129,10 +159,18 @@ the `build` job fails with "more than ±10%"; then run the workflow from the Act
 with `allow_count_change` ticked. The release id is the time of that run, so nothing collides
 with the failed attempt (which uploaded nothing).
 
-The first release needs the tiles domain (r2-setup.md). Before it exists,
-`tiles.moonspells.dev` does not resolve and the build fails at the previous-release check, which
-is the intended order: nothing can be uploaded before step 15 either. Once the domain answers,
-`atlas/latest.json` returns 404 and the build treats the release as the first one.
+The first release needs records and the tiles domain (r2-setup.md). Before the seed PR, the
+records gate above keeps the runs green. After it, while `tiles.moonspells.dev` does not resolve,
+the build fails at the previous-release check, which is the intended order: nothing can be
+uploaded before step 15 either. Once the domain answers, `atlas/latest.json` returns 404 and the
+build treats the release as the first one.
+
+**The previous manifest is gone.** If `atlas/latest.json` points to a release whose manifest no
+longer exists (the lifecycle rule deleted it 120 days after upload with no publish since, or the
+owner deleted the release), every build fails with "previous manifest: GET …: HTTP 404". Run the
+workflow from the Actions tab on `main` with `allow_count_change` ticked: the build notes that the
+previous release could not be read, skips the count check and publishes, and `latest.json` then
+points to the new release.
 
 The site data PR (07 §6.8 step 4, the `site-pr` job) comes in Phase 2: it will read the
 `release` and `latest` outputs of the `build` job.
@@ -169,14 +207,23 @@ and `tests/fixtures/orgs.json`, and committed under `fixtures/release/v/20000101
 `fixtures/release/rec/`. Its manifest has `"fixture": true`, `generated_at`
 `2000-01-01T00:00:00Z` and `git.commit` `"fixture"`, and it never has an `atlas/latest.json`.
 
+Its `layers` map, `ATTRIBUTION.md` and `CHANGELOG.md` come from frozen copies in
+`fixtures/release-inputs/`, never from the living repo files. A changelog entry, a new source in
+`ATTRIBUTION.md` or the weekly overlays PR therefore never changes the fixture or fails the
+required `test` check. Only deliberate fixture changes do: a fixture record, a file in
+`fixtures/release-inputs/`, the code that renders a format, the schema, or the ODbL text.
+
 ```sh
 uv run atlas publish fixture           # rebuild after a fixture record or a format changes (needs tippecanoe)
 uv run atlas publish fixture --check   # CI (tests/publish/test_fixture.py and publish.yml)
 ```
 
 `atlas publish fixture` is the same as `atlas publish build --records tests/fixtures/records
---orgs tests/fixtures/orgs.json --release 20000101-0000 --fixture --deterministic --previous
-none --out fixtures/release`. `--check` rebuilds it in a temp directory and compares: text files
+--orgs tests/fixtures/orgs.json --layers fixtures/release-inputs/layers.json --attribution
+fixtures/release-inputs/ATTRIBUTION.md --changelog fixtures/release-inputs/CHANGELOG.md
+--release 20000101-0000 --fixture --deterministic --previous none --out fixtures/release`. It
+needs tippecanoe 2.79.0 on PATH; without it the command fails before touching
+`fixtures/release`. `--check` rebuilds it in a temp directory and compares: text files
 and `records.jsonl.gz` byte for byte, `facilities.parquet` by its rows and `geo` metadata,
 `facilities.pmtiles` by tile counts and metadata (only when tippecanoe is on PATH; without it the
 committed archive is reused), and `manifest.json` with the bytes and SHA-256 of those two binary
@@ -190,3 +237,34 @@ upload, by design, because immutable keys are never overwritten: to replace it, 
 deletes `v/20000101-0000/` (and the stale `rec/` objects, if any) in the R2 dashboard, purges
 the tiles hostname, and dispatches again. Site CI pins this id, so prefer additive fixture
 changes.
+
+## 7. Takedowns (07 §5.4)
+
+Takedown requests (personal data, legal notices) are handled within 72 hours. Releases are
+immutable and cached for a year, so a takedown has three parts, in this order:
+
+1. **Hotfix PR.** Remove the record from `data/records/` (or redact the field) and merge. The
+   push run of `publish.yml` publishes a new release without it; `atlas/latest.json` points to
+   that release. If the removal changes the count by more than 10%, label the PR `bulk`.
+2. **Site.** Merge the site data PR for that release, so the site no longer pins a release that is
+   about to be deleted.
+3. **Delete the stored copies.** Run `publish.yml` from the Actions tab on `main` with `takedown`
+   set to the record ids (space-separated) and `takedown_apply` unticked: the `takedown` job lists
+   what it would delete. Check the list, then run it again with `takedown_apply` ticked. Then purge
+   the edge cache: **Caching → Configuration → Purge Cache → Custom Purge → Hostname →
+   `tiles.moonspells.dev`** (or the URLs the job printed), which the Free plan allows.
+
+`atlas publish takedown --id ID [--id ID …] [--keep RELEASE …] [--dry-run]` keeps the release
+`atlas/latest.json` points to, every `--keep` release and the fixture release (its records are
+invented). From every other `v/{release}/` whose `records.jsonl.gz` holds one of the ids, or
+cannot be read (a partial upload), it deletes every object, the manifest first. From
+`rec/{id}/` it deletes every object except the one a kept release still maps (a redacted
+record). It refuses to run when a kept release still maps the same `rec/` object as a release it
+would delete (the hotfix release has not been published), and notes a kept release that still
+holds the id, so the redaction can be checked. Releases without the ids, and other records'
+`rec/` objects, are never touched. `--local-target DIR` runs it against a local copy.
+
+What it cannot reach: copies that browsers and other clients already cached (`max-age` one year),
+downloads people made, and the record's earlier versions in this repo's git history. Rewriting git
+history, or asking GitHub Support to purge cached views, is a separate owner decision. When the
+monthly `archive/` snapshots start (bucket lock), decide first how a takedown reaches them.
