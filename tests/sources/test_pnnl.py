@@ -73,6 +73,12 @@ def test_parse_geojson() -> None:
     assert unnamed.operator is None and unnamed.sqft == 158127.0
 
 
+def test_control_characters_are_dropped_before_names_are_compared() -> None:
+    # PNNL names are matched against OSM tags, which go through the same clean_text.
+    assert pnnl._clean("Micro\x7fsoft\x1b ") == "Microsoft"
+    assert pnnl._clean("\x07") is None
+
+
 def test_parse_csv() -> None:
     rows = pnnl.load_pnnl(CSV)
     assert len(rows) == 17

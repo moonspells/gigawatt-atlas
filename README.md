@@ -33,7 +33,7 @@ Lint and types: `uv run ruff check .`, `uv run ruff format --check .` and `uv ru
 |---|---|
 | `atlas validate` | Checks every record in `data/records/` (schema, rollup, dates, sources and support, quotes, geography against the Census county polygons, ranges, personal data, orgs, phases, scope). Exit 1 on any issue. `--records`, `--orgs`, `--today`, `--format json`. |
 | `atlas schema export [--check]` | Writes `schema/facility.v1.json` (JSON Schema 2020-12) from `atlas/schema/record.py`; `--check` fails when it is out of date. |
-| `atlas import <source>` | Runs a seed importer (`osm`, `epoch`, `aigridwatch`; run `epoch` before `aigridwatch`), merges its candidates into `data/records/`, and writes `review/queue/{source}.jsonl` and the receipt `data/imports/{source}.json`. `--input FILE`, `--dry-run`, `--offline`, plus per-source options (`atlas import osm --help`). |
+| `atlas import <source>` | Runs a seed importer (`osm`, `epoch`, `aigridwatch`; run `epoch` before `aigridwatch`, which refuses a store without Epoch records unless given `--without-epoch`), merges its candidates into `data/records/`, and writes `review/queue/{source}.jsonl` and the receipt `data/imports/{source}.json`. `--input FILE`, `--dry-run`, `--offline`, plus per-source options (`atlas import osm --help`). |
 | `atlas publish build\|verify\|upload\|put\|fixture\|takedown` | Builds a release directory (`build`), re-checks one against its manifest (`verify`), uploads it to R2 (`upload`, or one file with `put`), rebuilds or checks the committed fixture release (`fixture [--check]`), and removes taken-down records from R2 (`takedown`). See [docs/publishing.md](docs/publishing.md). |
 
 `python -m atlas` is the same entry point.

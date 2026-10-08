@@ -40,6 +40,7 @@ from atlas.crosswalk import from_epoch_row
 from atlas.schema.record import PLACEHOLDER_ID, AtlasModel, FacilityRecord, Precision, SourceType
 from atlas.schema.rollup import RollupError, apply_rollup
 from atlas.sources.base import Candidate, ImportResult, ReviewItem, load_input
+from atlas.text import clean_text as _clean_text
 from atlas.text import find_personal_data, strip_invisible
 
 if TYPE_CHECKING:
@@ -106,7 +107,6 @@ S1_SUPPORTS = (
 _TAG_RE = re.compile(r"#(\w+)")
 _DROPPED_TAGS = frozenset({"speculative", "unlikely"})
 _MD_LINK_RE = re.compile(r"\[([^\]]*)\]\((https?://[^)\s]+)\)")
-_SPACE_RE = re.compile(r"\s+")
 
 
 def epoch_error(message: str) -> FetchError:
@@ -184,7 +184,7 @@ class Placed:
 
 
 def clean_text(s: str) -> str:
-    return _SPACE_RE.sub(" ", strip_invisible(s)).strip()
+    return _clean_text(s)
 
 
 def parse_number(s: str | None) -> float | None:

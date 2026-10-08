@@ -174,6 +174,7 @@ def test_small_helpers() -> None:
         clean_address(" 216 Greenfield Rd, Lancaster, PA \n") == "216 Greenfield Rd, Lancaster, PA"
     )
     assert clean_address("1 Main St, Kuna, ID, United States") == "1 Main St, Kuna, ID"
+    assert clean_address("1 Main\x1b St\x7f, Kuna, ID") == "1 Main St, Kuna, ID"
     assert house_number("1772-2396 145th St") == "1772"
     assert house_number("0042 Main St") == "42"
     assert house_number("Co Rd 42") is None

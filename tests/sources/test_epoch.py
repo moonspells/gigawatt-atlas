@@ -281,6 +281,28 @@ def test_fixture_run_without_geocoding(
         assert c.record.created_at == ctx.now
 
 
+def test_control_characters_in_the_csv_are_dropped(
+    make_test_context: MakeContext,
+    tmp_path: Path,
+    no_overrides: Path,
+    counties: CountyIndex,
+    today: date,
+) -> None:
+    # One stray ESC or DEL upstream must not hold a record: clean_text is the shared cleaner.
+    def edit(name: str, data: bytes) -> bytes:
+        return data.replace(b"Colossus 2", b"Colossus\x1b 2\x7f") if name.endswith(".csv") else data
+
+    ctx = make_test_context(input_path=rezip(tmp_path, edit))
+    result = IMPORTER.run(ctx, run_args(no_overrides))
+    records = by_name(result.candidates)
+    assert sorted(records) == ["Amazon Madison Mega Site", "Colossus 2"]
+    assert not [i for i in result.review if i.kind == "invalid"]
+    for c in result.candidates:
+        assert validate_record(c.record, counties=counties, today=today) == []
+        dumped = c.record.model_dump_json()
+        assert "\\u001b" not in dumped and "\\u007f" not in dumped
+
+
 def test_record_mapping(make_test_context: MakeContext, no_overrides: Path) -> None:
     result = IMPORTER.run(make_test_context(input_path=EPOCH_ZIP), run_args(no_overrides))
     colossus = by_name(result.candidates)["Colossus 2"]

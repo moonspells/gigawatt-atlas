@@ -53,7 +53,8 @@ from atlas.schema.record import (
 )
 from atlas.schema.rollup import RollupError, apply_rollup, event_key, period_start
 from atlas.sources.base import Candidate, ImportResult, ReviewItem, load_input
-from atlas.text import find_personal_data, strip_invisible
+from atlas.text import clean_text as _clean_text
+from atlas.text import find_personal_data
 
 if TYPE_CHECKING:
     from atlas.geo.counties import County, CountyIndex
@@ -81,7 +82,6 @@ REQUIRED_FIELDS = ("id", "name", "locality", "state", "stage", "verified")
 # Hosts of agenda and code platforms count as government records, like .gov and .us hosts.
 GOVERNMENT_HOST_MARKERS = ("legistar", "granicus", "civicplus", "municode")
 
-_SPACE_RE = re.compile(r"\s+")
 _PAREN_RE = re.compile(r"^(?P<outside>.*?)\s*\((?P<inside>[^()]*)\)\s*$")
 _COUNTY_RE = re.compile(r"^(?P<names>.+?)\s+(?P<kind>County|Counties|Parish|Parishes)$", re.I)
 _AK_COUNTY_RE = re.compile(
@@ -137,7 +137,7 @@ def agw_error(message: str) -> FetchError:
 
 
 def clean_text(value: object) -> str:
-    return _SPACE_RE.sub(" ", strip_invisible(str(value or ""))).strip()
+    return _clean_text(str(value or ""))
 
 
 def parse_day(value: object) -> date | None:

@@ -385,6 +385,23 @@ def test_hearing_planned_before_its_date_and_held_after(
     assert rec.status == "permitted"
 
 
+def test_control_characters_in_a_row_are_dropped(
+    make_test_context: MakeContext, tmp_path: Path
+) -> None:
+    # One stray BEL or ESC upstream must not hold a record: clean_text is the shared cleaner.
+    def edit(doc: dict[str, Any]) -> None:
+        row = project(doc, "qts-richmond-3")
+        row["name"] = "QTS\x07 Richmond 3"
+        row["locality"] = "Sandston\x1b (Henrico County)"
+
+    plain = records(run(make_test_context))["qts-richmond-3"]
+    result = run_edited(make_test_context, tmp_path, edit)
+    assert not [i for i in result.review if i.kind == "invalid"]
+    got = records(result)["qts-richmond-3"]
+    assert got.canonical_name == plain.canonical_name == "QTS Richmond 3 (Sandston, VA)"
+    assert got.location == plain.location
+
+
 def test_unverified_rows_are_skipped(make_test_context: MakeContext) -> None:
     result = run(make_test_context)
     assert "project-marvel-bessemer-al" not in records(result)

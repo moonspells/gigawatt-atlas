@@ -40,7 +40,7 @@ from atlas.geo.counties import resolve_reference, sha256_file
 from atlas.geo.fips import STATES, state_by_abbr
 from atlas.safezip import open_zip
 from atlas.schema.record import GeocodeMethod, Precision
-from atlas.text import strip_invisible
+from atlas.text import clean_text, strip_invisible
 
 if TYPE_CHECKING:
     import httpx
@@ -233,7 +233,7 @@ class ParsedAddress:
 
 def clean_address(text: str) -> str:
     """Invisible characters removed, whitespace collapsed, a trailing country name dropped."""
-    s = _SPACE_RE.sub(" ", strip_invisible(text)).strip(" ,")
+    s = clean_text(text).strip(" ,")
     return _COUNTRY_RE.sub("", s).strip(" ,")
 
 

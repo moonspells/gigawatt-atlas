@@ -40,7 +40,7 @@ from atlas.dissolve import Cluster, OsmObject, haversine_m, meters_to_degrees, r
 from atlas.net import FetchError, FetchResult, fetch
 from atlas.schema.record import Source
 from atlas.sources.base import ImportContext, InputSnapshot, ReviewItem, load_input
-from atlas.text import normalize_name, normalize_org, strip_invisible
+from atlas.text import clean_text, normalize_name, normalize_org
 
 if TYPE_CHECKING:
     from atlas.geo.counties import CountyIndex
@@ -105,7 +105,7 @@ def _clean(value: object) -> str | None:
     """A trimmed string with invisible characters removed, or None for empty and null values."""
     if value is None:
         return None
-    text = " ".join(strip_invisible(str(value)).split())
+    text = clean_text(str(value))
     return text or None
 
 
