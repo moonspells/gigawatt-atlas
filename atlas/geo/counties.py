@@ -1,8 +1,14 @@
 """County lookups against the Census 2025 cartographic boundary file (07 §3.6 rule 5, §6.5).
 
-reference/census/cb_2025_us_county_5m.zip has 3,235 features (states, DC and territories) with
-GEOID, NAME, NAMELSAD, STUSPS, STATEFP and geom in EPSG:4269 (NAD83). NAD83 and WGS84 differ by
-about a metre in the US, far below the 0.003-degree tolerance, so points are used as lon/lat as is.
+reference/census/cb_2025_us_county_500k.zip (1:500,000) has 3,235 features (states, DC and
+territories) with GEOID, NAME, NAMELSAD, STUSPS, STATEFP and geom in EPSG:4269 (NAD83). NAD83 and
+WGS84 differ by about a metre in the US, far below the 0.003-degree tolerance, so points are used
+as lon/lat as is.
+
+Point-in-polygon uses the 1:500,000 file because the 1:5,000,000 generalization moves county lines
+by more than the tolerance in places that matter: it puts Amazon IAD100-IAD103 (Prince William
+County, VA, per the Census Geocoder and PNNL) in Manassas city. The 1:5,000,000 file stays in
+reference/census for map display and still loads (KNOWN_COUNTY_FILES), with the same attributes.
 """
 
 from __future__ import annotations
@@ -19,9 +25,16 @@ from atlas.geo.duck import connect
 if TYPE_CHECKING:
     import duckdb
 
-COUNTIES_ZIP = Path("reference/census/cb_2025_us_county_5m.zip")
-COUNTIES_SHA256 = "faec522080681e79be5be435c981009a77891206ff8a7f1d142f3bf5da9ebd74"
-COUNTIES_SHP = "cb_2025_us_county_5m.shp"
+COUNTIES_ZIP = Path("reference/census/cb_2025_us_county_500k.zip")
+COUNTIES_SHA256 = "aa976c00b181939755d0da757f4c7c2dc0103c3b3b4530fb2a91c2bb62fc777c"
+COUNTIES_SHP = "cb_2025_us_county_500k.shp"
+COUNTIES_5M_ZIP = Path("reference/census/cb_2025_us_county_5m.zip")
+COUNTIES_5M_SHA256 = "faec522080681e79be5be435c981009a77891206ff8a7f1d142f3bf5da9ebd74"
+# The county files load accepts: SHA-256 -> the shapefile inside the zip.
+KNOWN_COUNTY_FILES = {
+    COUNTIES_SHA256: COUNTIES_SHP,
+    COUNTIES_5M_SHA256: "cb_2025_us_county_5m.shp",
+}
 DEFAULT_TOLERANCE_DEG = 0.003
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -88,15 +101,23 @@ class CountyIndex:
 
     @classmethod
     def load(cls, path: Path = COUNTIES_ZIP, *, verify_sha256: bool = True) -> CountyIndex:
-        """Load the county file. verify_sha256 checks it against COUNTIES_SHA256 first."""
+        """Load a county file: COUNTIES_ZIP (1:500,000, the one rule 5 uses) or the 1:5,000,000
+        file. verify_sha256 checks it against KNOWN_COUNTY_FILES first; without the check the
+        shapefile is named after the zip."""
         path = resolve_reference(path)
         if not path.exists():
             raise FileNotFoundError(f"county file not found: {path}")
         if verify_sha256:
             actual = sha256_file(path)
-            if actual != COUNTIES_SHA256:
-                raise ValueError(f"{path}: sha256 {actual} != expected {COUNTIES_SHA256}")
-        source = f"/vsizip/{path.resolve()}/{COUNTIES_SHP}"
+            shp = KNOWN_COUNTY_FILES.get(actual)
+            if shp is None:
+                raise ValueError(
+                    f"{path}: sha256 {actual} is not a known Census county file "
+                    f"(expected {COUNTIES_SHA256} for {COUNTIES_ZIP.name})"
+                )
+        else:
+            shp = f"{path.stem}.shp"
+        source = f"/vsizip/{path.resolve()}/{shp}"
         con = connect()
         con.execute(
             "CREATE TABLE counties AS SELECT GEOID AS fips, NAME AS cname, NAMELSAD AS lsad,"

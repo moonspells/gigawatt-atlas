@@ -328,7 +328,7 @@ def test_cli_text_and_json(
         "--schema",
         str(repo_root / "schema" / "facility.v1.json"),
         "--counties",
-        str(repo_root / "reference/census/cb_2025_us_county_5m.zip"),
+        str(repo_root / "reference/census/cb_2025_us_county_500k.zip"),
     ]
     assert main(["validate", "--records", str(fixture_records_dir), *common]) == 0
     out = capsys.readouterr().out
