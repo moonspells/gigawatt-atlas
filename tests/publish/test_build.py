@@ -674,7 +674,14 @@ def test_attribution_line_is_the_copy_ready_line_of_attribution_md(built: BuildR
     # The manifest and README line is the one ATTRIBUTION.md tells people to copy, with the
     # license URIs and the "adapted" notice CC BY 4.0 §3(a)(1) asks for (RD4, B9).
     text = (publish.REPO_ROOT / "ATTRIBUTION.md").read_text(encoding="utf-8")
-    quoted = " ".join(line[2:] for line in text.splitlines() if line.startswith("> "))
+    # Only the first blockquote is the copy-ready line; later ones quote source notices verbatim.
+    first: list[str] = []
+    for line in text.splitlines():
+        if line.startswith("> "):
+            first.append(line[2:])
+        elif first:
+            break
+    quoted = " ".join(first)
     assert quoted == publish.ATTRIBUTION
     assert "https://creativecommons.org/licenses/by/4.0/" in manifest(built)["attribution"]
     readme = " ".join((vdir(built) / "README.md").read_text(encoding="utf-8").split())

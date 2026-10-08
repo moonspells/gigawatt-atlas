@@ -22,7 +22,7 @@ R2_CONFIG = Config(
 )
 
 SCRIPT = """
-import boto3, duckdb, httpx, jsonschema, pydantic
+import boto3, duckdb, httpcore, httpx, jsonschema, pydantic
 from botocore.config import Config
 client = boto3.client(
     "s3",
@@ -78,6 +78,7 @@ def test_lock_pins_the_planned_versions(repo_root: Path) -> None:
     versions = {p["name"]: p["version"] for p in lock["package"]}
     assert versions["pydantic"].startswith("2.13.")
     assert versions["httpx"].startswith("0.28.")
+    assert versions["httpcore"].startswith("1.0.")
     assert versions["duckdb"].startswith("1.5.")
     assert versions["jsonschema"].startswith("4.26.")
     assert versions["boto3"].startswith("1.43.")

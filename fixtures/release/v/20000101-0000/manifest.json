@@ -1,5 +1,5 @@
 {
-  "attribution": "Gigawatt Atlas, moonspells.dev/atlas, release 20000101-0000, ODbL 1.0; contains information from OpenStreetMap contributors (ODbL), PNNL IM3 (ODbL), Epoch AI (CC BY 4.0), AI GridWatch (CC BY 4.0)",
+  "attribution": "Gigawatt Atlas, moonspells.dev/atlas, release 20000101-0000, ODbL 1.0 (https://opendatacommons.org/licenses/odbl/1-0/); contains information from OpenStreetMap contributors (ODbL), PNNL IM3 (ODbL), and data adapted from Epoch AI and AI GridWatch (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/)",
   "base_url": "https://tiles.moonspells.dev/v/20000101-0000/",
   "contract_version": 1,
   "counts": {
@@ -44,10 +44,10 @@
       "sha256": "607680718977f6f6c9607972afd98f208573f19251315ed1362a8589b51beaf5"
     },
     {
-      "bytes": 2556,
+      "bytes": 2877,
       "content_type": "text/markdown; charset=utf-8",
       "path": "README.md",
-      "sha256": "d147823d3200064992fdb840041d4c82677a392d59a8787209ed92f1b9c71d55"
+      "sha256": "70049af02bb6771285f07d6227fa870e3deb1aac5045afd25b3c32b131cb33b1"
     },
     {
       "bytes": 2580,

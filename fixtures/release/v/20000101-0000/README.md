@@ -43,9 +43,11 @@ which is the binding text). You may use, copy and build on it, commercially or n
 3. keep it open: do not add technical restrictions without also offering an
    unrestricted copy.
 
-Maps, charts and screenshots made from the data are Produced Works: they need the
-attribution, not the share-alike.
+Maps, charts and screenshots made from the data are Produced Works: made from this
+release, they need the attribution only; made from a changed version of the database,
+ODbL 4.6 asks you to offer that changed database (or a file of the changes) too.
+`facilities.pmtiles` holds the records' values, so it is part of the database.
 
 ## Attribution
 
-> Gigawatt Atlas, moonspells.dev/atlas, release 20000101-0000, ODbL 1.0; contains information from OpenStreetMap contributors (ODbL), PNNL IM3 (ODbL), Epoch AI (CC BY 4.0), AI GridWatch (CC BY 4.0)
+> Gigawatt Atlas, moonspells.dev/atlas, release 20000101-0000, ODbL 1.0 (https://opendatacommons.org/licenses/odbl/1-0/); contains information from OpenStreetMap contributors (ODbL), PNNL IM3 (ODbL), and data adapted from Epoch AI and AI GridWatch (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/)
