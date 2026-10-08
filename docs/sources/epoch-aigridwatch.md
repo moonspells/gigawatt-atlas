@@ -15,7 +15,10 @@ uv run atlas import aigridwatch --input projects.json --offline
 
 Run `epoch` before `aigridwatch`: the AI GridWatch importer skips the rows that are Epoch's sites
 by looking at the Epoch records already in the store (see
-[Epoch AI's sites in AI GridWatch](#epoch-ais-sites-in-ai-gridwatch)).
+[Epoch AI's sites in AI GridWatch](#epoch-ais-sites-in-ai-gridwatch)). On a store without Epoch
+records it refuses to run (exit 1, nothing written) unless `--without-epoch` is given; otherwise a
+first seed in the wrong order would import every Epoch site AI GridWatch republishes, and those
+records would stay.
 
 Both write `data/records/{id}.json`, `review/queue/{epoch,aigridwatch}.jsonl` and
 `data/imports/{epoch,aigridwatch}.json`. A second run with the same inputs rewrites no record. The
@@ -81,6 +84,7 @@ item.
 | License guard | The run fails unless `license == "CC BY 4.0"` and `projects` is a list. |
 | Receipt | `InputSnapshot` license `CC-BY-4.0`, `upstream_version` = `generated`. |
 | Rows | Rows with `verified: false` are leads, not facts (the dataset says so), and become `unverified_upstream` items. Matched on `external_ids.aigridwatch_id` = the row `id`. |
+| Arguments | `--without-epoch`: run on a store that holds no Epoch record (only rows whose `source` is an Epoch AI page are held as Epoch's sites). Without it such a run fails. |
 
 ### Mapping
 
@@ -119,13 +123,13 @@ without a filing and proposed with one. AI GridWatch derives the stage from data
 not always carry. When the milestones have no non-planned event, or roll up to a different status,
 an `other` event with the stage's status is appended, noted "AI GridWatch stage '{stage}' as of
 {as_of}". It is dated with the row's `as_of` (else `generated`), but never earlier than the latest
-milestone, so the record's status always equals the stage's. On 2026-10-08, 122 of 211 records
+milestone, so the record's status always equals the stage's. On 2026-10-08, 117 of 202 records
 needed one.
 
 An `announced` date later than a filing, hearing or decision date would move the record backward
 (announced after proposed, which 07 §2.3 flags). That milestone is left out and the row gets a
-`conflict` item naming both dates (3 rows on 2026-10-08, such as an announcement 15 days after the
-decision).
+`conflict` item naming both dates (2 rows on 2026-10-08, announcements dated 5 days and almost 3
+months after the rezoning filing).
 
 ## Geocoding (`atlas/geocode.py`)
 
@@ -192,28 +196,35 @@ outside of.
 - `quote` is copied verbatim from the page when it was read (`retrieved_at`), and states the
   place. When the live page refuses automated clients, the Wayback Machine snapshot that was read
   goes in `archive_url`. `tests/sources/test_epoch.py` checks that every entry has its citation
-  fields and that the place it names appears in the quote or the note.
-- An entry places the site no more precisely than the source states: the municipality (`city`,
+  fields and that the places it names appear in the quote.
+- An entry places the site no more precisely than the quote states: the municipality (`city`,
   from the Gazetteer) or the county, unless the source gives a street address. A township is not
-  a Census place, so it goes in `municipality` with the county's point.
+  a Census place, so it goes in `municipality` with the county's point. The quote itself names
+  every place the entry gives (a reader of the record's source sees only the quote), and a
+  dateline ("Kansas City, MO — March 20, 2024 —") does not count: it says where a release was
+  issued. `test_every_committed_override_is_cited` checks both; Pryor Creek, the Census name of
+  Pryor, is the one name the test maps.
 - The entry becomes its own source supporting `/location`. `county` precision without coordinates
   uses the county's point on surface, `locality` uses the Gazetteer place for `city`, and
-  coordinates (`manual`) are checked against the county or state. A bad entry fails the run.
+  coordinates (`manual`) are checked against the county or state. When an entry names a county,
+  the point (the Gazetteer place's included) must lie in it at every precision, so a record never
+  names a county its point is outside of. A bad entry fails the run.
 - Committed (owner decision of 2026-10-08: the sites the seed cannot place get cited overrides),
-  13 entries, each read on 2026-10-08:
+  13 entries, each read on 2026-10-08 (Google Kansas City East, OpenAI Stargate Michigan and AWS
+  New Albany re-read the same day for a quote that states the place):
 
 | Site | Placed at | Source |
 |---|---|---|
 | Meta Hyperion | Richland Parish, LA (county) | Meta's data center page |
 | Google Storey County | Storey County, NV (county) | Google's location page |
-| Google Kansas City East | Kansas City, MO (locality) | Hunt Midwest's release |
+| Google Kansas City East | Kansas City, MO (locality) | DCD, through the Wayback Machine (Hunt Midwest's release has only a dateline) |
 | Google Mesa | Mesa, AZ (locality) | DCD, through the Wayback Machine |
 | Anthropic Barber Lake | Colorado City, TX (locality) | Cipher Mining's release |
-| OpenAI Stargate Michigan | Washtenaw County, MI, Saline Township (county) | Michigan Public Service Commission |
+| OpenAI Stargate Michigan | Washtenaw County, MI (county) | Michigan Public Service Commission, through the Wayback Machine (the township is in another sentence) |
 | OpenAI Stargate Milam | Milam County, TX (county) | SB Energy's release |
 | OpenAI Stargate New Mexico | Doña Ana County, NM (county) | Oracle's release |
 | OpenAI Stargate Wisconsin | Port Washington, WI (locality) | Vantage's campus page |
-| AWS New Albany | New Albany, OH (locality) | City of New Albany construction updates |
+| AWS New Albany | New Albany, OH (locality) | WOSU on the City Council vote (the City's project list does not name the city) |
 | Google Pryor (North) | Pryor Creek, OK (locality; the Census name of Pryor) | Google's post |
 | Meta Huntsville | Huntsville, AL (locality) | the site contractor's project page |
 | Stream Phoenix | Goodyear, AZ (locality) | Stream's case study, through the Wayback Machine |
@@ -230,7 +241,7 @@ outside of.
 | `geocode_failed` | both | the chain found no location; Epoch: also an address that names no state |
 | `unknown_status` | both | Epoch: no timeline row dated today or earlier; AGW: a stage the crosswalk does not know |
 | `unverified_upstream` | aigridwatch | `verified: false` |
-| `possible_duplicate` | aigridwatch | the row is an Epoch site (`record_id` = the Epoch record, `data.matched_by`); no record |
+| `possible_duplicate` | aigridwatch | the row is an Epoch site (`record_id` = the Epoch record, `data.matched_by`), or may be one (`nearby`, `several`: `record_id` empty, the candidates in `data.epoch_records`); no record. `data.stored_record` names an AI GridWatch record the store already holds for the row |
 | `county_mismatch` | aigridwatch | the coordinates are not in the stated state (no record), or not in the named county (the record keeps the point and names no county) |
 | `conflict` | aigridwatch | the announced date is later than a filing, hearing or decision date (the announcement is left out) |
 | `unit_parse` | aigridwatch | `size_mw` or `acres` is not a number in range, or a party field holds a capacity (the record is kept without it) |
@@ -264,27 +275,79 @@ conflicting statuses: 29 of 61 pairs on 2026-10-07). 07 §2.1 counts each facili
 
 The AI GridWatch importer therefore makes no record for a row that is the same site as an Epoch
 record already in the store, and files a `possible_duplicate` item with that record's id
-(deterministic links only, 07 §6.6 step 1):
+(deterministic links only, 07 §6.6 step 1). Rules read from the row before it is mapped:
 
 - `name`: the row's name is the Epoch record's `epoch_name` (case and spacing aside), in the same
   state;
+- `id`: the row's id is the Epoch name in AI GridWatch's id form (accents dropped, lower case,
+  other characters as "-"), alone or followed by "-{state}", in the same state
+  (`microsoft-nebius-new-jersey` is Microsoft-Nebius New Jersey, `qts-cedar-rapids-ia` is QTS
+  Cedar Rapids);
 - `source`: the row's `source` is a link that exactly one Epoch record cites (one of Epoch's
   Selected Sources), and that record is in the same state. A report Epoch cites for several sites
   (a company's environmental report) links none;
 - `epoch_source`: the row's own `source` is an Epoch AI page (Stargate Abilene cites Epoch's
   Stargate report); no record id.
 
+AI GridWatch also has rows of its own, under other names, for some of the Epoch sites it copies,
+often next to the copy. Rules read once the row is placed, all for a row that lies in the Epoch
+record's county (the stated county, else the one containing the point):
+
+- `link`: the row cites, as `source` or in its event log, a link specific to one Epoch site: the
+  Epoch record cites it, or AI GridWatch's copy of the site (a row held by `name`, `id` or
+  `source`) does, and no other Epoch record or AI GridWatch row cites it. Without the county
+  condition this would tie Google's Haskell County row to Midlothian and Goodnight, 260 km away,
+  through one statewide announcement;
+- `street`: the row's name or id gives the Epoch record's street address, house number and street
+  words alike ("216 Greenfield Road" is 216 Greenfield Rd).
+
+Weaker evidence holds the row for review without merging it: no record, `record_id` empty, the
+Epoch records it may be in `data.epoch_records`, and a reviewer decides.
+
+- `several`: the rules tie the row to more than one Epoch site, or to one while the row shares an
+  organization with another Epoch site in the same county (AI GridWatch's "AWS Madison County data
+  center campuses" covers Epoch's Amazon Madison Mega Site and Amazon Ridgeland);
+- `nearby`: no rule ties the row, but it shares an organization (owner, operator or tenant) with
+  Epoch sites within 5 km, both points at locality precision or finer. Distance alone would merge
+  neighbours (Compass's Red Oak campus is 1.1 km from Epoch's Google Red Oak), and an organization
+  in the same county alone would merge Microsoft's withdrawn Caledonia site, 14 km from Fairwater.
+
 The Epoch record is kept, since Epoch is the origin and has the dated timeline. The rule needs the
-Epoch records, so `epoch` must run first; on a store without them only `epoch_source` applies
-(`metrics.epoch_records_seen` says how many Epoch names were seen). A row whose Epoch twin has no
-record (an Epoch site in review) is imported, so the site still appears once. Merging the AI
-GridWatch milestones into the Epoch record is entity resolution's job (M4). On 2026-10-08, 70 rows
-were held this way (69 by name, 1 by an Epoch source).
+Epoch records, so `epoch` must run first, and the run refuses a store without them unless
+`--without-epoch` is given (then only `epoch_source` applies; `metrics.epoch_records_seen` says
+how many Epoch names were seen). When the store already holds an AI GridWatch record for a row
+that is now held (one stored before its Epoch twin arrived), `merge_import` files the usual
+`removed_upstream` item and keeps it, and the `possible_duplicate` item names it in
+`data.stored_record`: a reviewer sets its `merged_into`. A row whose Epoch twin has no record (an
+Epoch site in review) is imported, so the site still appears once. Merging the AI GridWatch
+milestones into the Epoch record is entity resolution's job (M4), and so is releasing a held row
+that a reviewer finds is another site: M1 has no switch for it.
+
+On 2026-10-08, 79 rows were held: 69 by `name`, 4 by `link`, 2 by `id`, 1 by `street`, 1 by
+`epoch_source`, and 2 for review (`several`, `nearby`). The nine rows the name rule missed, with
+about 7.1 GW (7,060 MW) that had been counted twice:
+
+| AI GridWatch row | Epoch site | Rule | Evidence |
+|---|---|---|---|
+| `microsoft-nebius-new-jersey` (300 MW) | Microsoft-Nebius New Jersey | `id` | the id; the Nebius release Epoch cites is also in the event log |
+| `qts-cedar-rapids-ia` | QTS Cedar Rapids | `id` | the id |
+| `openai-stargate-dona-ana-nm` | OpenAI Stargate New Mexico | `link` | the Oracle release Epoch cites, and a Food & Water Watch story the copy cites; Doña Ana County |
+| `vantage-frontier-shackelford-tx` (1,400 MW) | OpenAI Stargate Shackelford | `link` | the groundbreaking story the copy cites; Shackelford County |
+| `aws-new-carlisle-in` (2,400 MW) | Anthropic-Amazon New Carlisle | `link` | five stories the copy cites; St. Joseph County |
+| `xai-colossus-memphis-tn` (2,000 MW) | Colossus 2 | `link` | three stories the Colossus 2 copy cites; Shelby County. The row covers the Colossus complex, Colossus 1 included, but names xAI where Epoch names SpaceXAI |
+| `216-greenfield-road-lancaster-city-pa` | CoreWeave Lancaster Greenfield site | `street` | 216 Greenfield Road in the name; Lancaster County |
+| `aws-salem-township-pa` (960 MW) | AWS Berwick (held for review) | `nearby` | Amazon, 4.3 km (Epoch's point is Berwick's Census point, in Columbia County; AI GridWatch places the campus in Salem Township, Luzerne County) |
+| `aws-madison-county-ms` | Amazon Madison Mega Site and Amazon Ridgeland (held for review) | `several` | the 2024 announcement the Mega Site copy cites; Amazon owns both Madison County sites |
+
+None of the new rules ties another row: `hexa-monroe-township-nj` shares a page with the Nebius
+row, but lies in Gloucester County, not Cumberland.
 
 ## Limits (M1)
 
 - **No other cross-source de-duplication until M4.** Entity resolution is 07 §6.6. Beyond the
-  Epoch and AI GridWatch rule above, OSM covers several Epoch campuses, and those appear twice.
+  Epoch and AI GridWatch rules above, OSM covers several Epoch campuses, and those appear twice.
+  A row the rules hold for review stays out of the store until M4 even if a reviewer finds it is
+  another site.
 - **AI GridWatch `events[]` is not imported** (2,287 events on 2026-10-07). It needs the extraction
   and verification steps of M2–M3. Only event kinds are read, for `has_filing`.
 - **AI GridWatch stage dates.** The schema cannot say "status observed on date X, event date
@@ -302,17 +365,21 @@ were held this way (69 by name, 1 by an Epoch source).
 ## Live run, 2026-10-08
 
 Full runs (`uv run atlas import epoch`, then `aigridwatch`) into an empty store, then
-`atlas validate` over the result: **288 records, 0 issues**. A second run of each: every record
+`atlas validate` over the result: **279 records, 0 issues** (re-run offline on that day's inputs
+and Census cache once the twin rules landed; 288 before them). A second run of each: every record
 `unchanged`, no Census request (all answered from the cache), no record or review file changed.
 
 | | Epoch AI | AI GridWatch |
 |---|---|---|
 | Upstream rows | 93 sites (77 US), 547 timeline rows | 284 projects (283 verified), 2,287 events |
-| Records | 77 (every US site) | 211 |
-| By location | 30 address, 1 street, 31 Gazetteer place, 2 county, 13 override (8 locality, 5 county) | 161 source coordinates, 35 Gazetteer place, 15 county centroid |
-| Review items | none | 70 `possible_duplicate` (Epoch sites), 3 `conflict` (late announcements), 3 `county_mismatch` (point outside the named county), 2 `geocode_failed` (Bloomfield CT, "Central Ohio"), 1 `unit_parse` ("67 MW" as the operator), 1 `unverified_upstream` |
-| Status events | 16 planned (projections) | 122 stage (`other`) events, 0 planned (no future hearing dates) |
-| Other | 61 Census requests (2 duplicate addresses answered from the cache) | 2 personal names left out of the parties |
+| Records | 77 (every US site) | 202 |
+| By location | 30 address, 1 street, 31 Gazetteer place, 2 county, 13 override (8 locality, 5 county) | 153 source coordinates, 35 Gazetteer place, 14 county centroid |
+| Review items | none | 79 `possible_duplicate` (Epoch sites: 77 matched, 2 held for review), 3 `county_mismatch` (point outside the named county), 2 `conflict` (late announcements), 2 `geocode_failed` (Bloomfield CT, "Central Ohio"), 1 `unit_parse` ("67 MW" as the operator), 1 `unverified_upstream` |
+| Status events | 17 planned (projections; OpenAI Stargate Milam's 2028-12-31 row is one since Epoch's IT power counts when the building count is blank) | 117 stage (`other`) events, 0 planned (no future hearing dates) |
+| Other | 61 Census requests on the first run (2 duplicate addresses answered from the cache) | 2 personal names left out of the parties |
+
+The store's capacity (IT MW, else facility MW) is 53,284 MW, 11,851 MW of it on Epoch records;
+it was 60,344 MW before the twin rules, the 7,060 MW difference being the AI GridWatch twins.
 
 Without the overrides the same run leaves 13 Epoch sites unplaced: the 8 without an address, the 3
 addresses the chain cannot place (Meta Hyperion, Google Pryor (North), Meta Huntsville) and the 2

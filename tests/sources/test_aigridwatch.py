@@ -33,7 +33,14 @@ from atlas.sources.aigridwatch import (
     resolve_county,
     row_source_type,
 )
-from atlas.sources.base import Candidate, ImportContext, ImportResult
+from atlas.sources.base import (
+    Candidate,
+    ImportContext,
+    ImportResult,
+    ReviewItem,
+    apply_import,
+    read_review_queue,
+)
 from atlas.store import RecordStore
 from atlas.validate import validate_record
 
@@ -71,21 +78,30 @@ def project(doc: dict[str, Any], pid: str) -> dict[str, Any]:
     return found
 
 
-def run(make_test_context: MakeContext, path: Path = FIXTURE, **ctx: Any) -> ImportResult:
-    return IMPORTER.run(make_test_context(input_path=path, **ctx), argparse.Namespace())
+def run(
+    make_test_context: MakeContext,
+    path: Path = FIXTURE,
+    *,
+    without_epoch: bool = True,
+    **ctx: Any,
+) -> ImportResult:
+    args = argparse.Namespace(without_epoch=without_epoch)
+    return IMPORTER.run(make_test_context(input_path=path, **ctx), args)
 
 
 def run_edited(
     make_test_context: MakeContext,
     tmp_path: Path,
     edit: Callable[[dict[str, Any]], None],
+    *,
+    without_epoch: bool = True,
     **ctx: Any,
 ) -> ImportResult:
     doc = copy.deepcopy(load_fixture())
     edit(doc)
     path = tmp_path / "projects.json"
     path.write_text(json.dumps(doc), encoding="utf-8")
-    return run(make_test_context, path, **ctx)
+    return run(make_test_context, path, without_epoch=without_epoch, **ctx)
 
 
 def records(result: ImportResult) -> dict[str, FacilityRecord]:
@@ -671,6 +687,329 @@ def test_an_epoch_site_is_not_imported_twice(
     ]
 
 
+def test_the_source_rule_needs_the_same_state(
+    make_test_context: MakeContext, make_record: Callable[..., FacilityRecord], tmp_path: Path
+) -> None:
+    # An Epoch record in another state, under a name no AI GridWatch row carries, cites
+    # qts-richmond-3's source: a link is the same site only within one state.
+    doc = load_fixture()
+    texas = epoch_record(
+        make_record, "Example Texas Campus", project(doc, "qts-richmond-3")["source"], "TX"
+    )
+    result = run(make_test_context, records={texas.id: texas})
+    assert "qts-richmond-3" in records(result)
+    assert not [i for i in result.review if i.kind == "possible_duplicate"]
+
+
+# ---------------------------------------------------------------------------- under other names
+
+BRISTOW = (38.73, -77.54)  # google-bristow's point, in Prince William County (51153)
+PRINCE_WILLIAM = ("51153", "Prince William")
+HENRICO = ("51087", "Henrico")
+
+
+def epoch_site(
+    make_record: Callable[..., FacilityRecord],
+    name: str,
+    *,
+    links: tuple[str, ...] = (),
+    owner: tuple[str, ...] = (),
+    county: tuple[str, str] = PRINCE_WILLIAM,
+    point: tuple[float, float] = BRISTOW,
+    precision: str = "locality",
+    street: str | None = None,
+    state: str = "VA",
+) -> FacilityRecord:
+    """A stored Epoch record placed where the test needs it, citing `links`."""
+    retrieved = "2026-10-12T12:00:00Z"
+    return make_record(
+        external_ids={"epoch_name": [name]},
+        parties={"owner": [{"name": n, "source_ids": ["s1"]} for n in owner]},
+        location={
+            "lat": point[0],
+            "lon": point[1],
+            "precision": precision,
+            "street": street,
+            "county_fips": county[0],
+            "county_name": county[1],
+            "state_abbr": state,
+            "geocode_method": "census_geocoder" if street else "gazetteer",
+        },
+        sources=[
+            {
+                "id": "s1",
+                "url": "https://epoch.ai/data/ai-data-centers",
+                "publisher": "Epoch AI",
+                "source_type": "open_dataset",
+                "license": "CC-BY-4.0",
+                "retrieved_at": retrieved,
+                "supports": ["/canonical_name", "/location", "/capacity", "/parties"],
+            },
+            *(
+                {
+                    "id": f"s{i}",
+                    "url": url,
+                    "publisher": "example.org",
+                    "source_type": "news",
+                    "retrieved_at": retrieved,
+                    "supports": [],
+                }
+                for i, url in enumerate(links, start=2)
+            ),
+        ],
+    )
+
+
+def duplicates(result: ImportResult) -> dict[str, ReviewItem]:
+    return {i.external_id or "": i for i in result.review if i.kind == "possible_duplicate"}
+
+
+def stored(*recs: FacilityRecord) -> dict[str, FacilityRecord]:
+    return {r.id: r for r in recs}
+
+
+def test_an_id_that_is_an_epoch_name_is_the_same_site(
+    make_test_context: MakeContext, make_record: Callable[..., FacilityRecord]
+) -> None:
+    # AI GridWatch ids are names in slug form: "microsoft-nebius-new-jersey" is Epoch's
+    # "Microsoft-Nebius New Jersey" under the name "DataOne USA / Nebius Vineland (Microsoft)",
+    # and "qts-cedar-rapids-ia" is "QTS Cedar Rapids" with the state appended.
+    qts = epoch_site(make_record, "QTS Richmond-3", county=HENRICO)
+    talen = epoch_site(make_record, "Talen Montour", state="PA", county=("42093", "Montour"))
+    other_state = epoch_site(make_record, "Meta LEAP Lebanon", state="OH")
+    result = run(make_test_context, records=stored(qts, talen, other_state))
+    dupes = duplicates(result)
+    assert {k: (v.data["matched_by"], v.record_id) for k, v in dupes.items()} == {
+        "qts-richmond-3": ("id", qts.id),
+        "talen-montour-pa": ("id", talen.id),
+    }
+    assert "meta-leap-lebanon-in" in records(result)  # the same slug in another state
+
+
+def test_a_link_specific_to_an_epoch_site_in_its_county_is_the_same_site(
+    make_test_context: MakeContext, make_record: Callable[..., FacilityRecord], tmp_path: Path
+) -> None:
+    # OpenAI Stargate New Mexico: AI GridWatch's own row (another name) cites, in its event log,
+    # the Oracle release that Epoch cites for the site.
+    doc = load_fixture()
+    link = project(doc, "google-bristow")["events"][0]["source"]
+    site = epoch_site(make_record, "Example Epoch Campus", links=(link,))
+    result = run(make_test_context, records=stored(site))
+    item = duplicates(result)["google-bristow"]
+    assert (item.data["matched_by"], item.record_id, item.data["evidence"]) == (
+        "link",
+        site.id,
+        link,
+    )
+    assert "google-bristow" not in records(result)
+    assert result.metrics["epoch_duplicates"] == 1 and result.metrics["epoch_ambiguous"] == 0
+    # The same link from an Epoch site in another county ties nothing.
+    henrico = epoch_site(make_record, "Example Epoch Campus", links=(link,), county=HENRICO)
+    assert "google-bristow" in records(run(make_test_context, records=stored(henrico)))
+
+    # A link another AI GridWatch row also cites is not specific to one site.
+    def shared(d: dict[str, Any]) -> None:
+        project(d, "pw-digital-gateway-va")["events"].append({"date": "", "source": link})
+
+    again = run_edited(make_test_context, tmp_path, shared, records=stored(site))
+    assert "google-bristow" in records(again) and not duplicates(again)
+
+
+def test_a_link_shared_with_ai_gridwatchs_copy_of_an_epoch_site_is_the_same_site(
+    make_test_context: MakeContext, make_record: Callable[..., FacilityRecord], tmp_path: Path
+) -> None:
+    # AWS New Carlisle: AI GridWatch's copy of the Epoch site (held by name) and its own row
+    # under another name cite the same local news stories.
+    story = "https://example.org/news/groundbreaking-at-the-campus"
+    site = epoch_site(make_record, "Example Epoch Campus")
+
+    def add_copy(d: dict[str, Any], *, cited_elsewhere: bool = False) -> None:
+        copy_row = copy.deepcopy(project(d, "google-bristow"))
+        copy_row.update(
+            {
+                "id": "example-epoch-campus",
+                "name": "Example Epoch Campus",
+                "source": "https://example.org/epoch-first-source",
+                "events": [{"date": "2026-01-05", "kind": "construction", "source": story}],
+            }
+        )
+        d["projects"].append(copy_row)
+        project(d, "google-bristow")["events"].append({"date": "2026-01-05", "source": story})
+        if cited_elsewhere:
+            project(d, "pw-digital-gateway-va")["events"].append({"date": "", "source": story})
+
+    result = run_edited(make_test_context, tmp_path, add_copy, records=stored(site))
+    dupes = duplicates(result)
+    assert dupes["example-epoch-campus"].data["matched_by"] == "name"
+    item = dupes["google-bristow"]
+    assert (item.data["matched_by"], item.record_id, item.data["evidence"]) == (
+        "link",
+        site.id,
+        story,
+    )
+    # The copy's site in another county (Google's Texas announcement covers sites 260 km
+    # apart), or a third row citing the story: no tie.
+    henrico = epoch_site(make_record, "Example Epoch Campus", county=HENRICO)
+    far = run_edited(make_test_context, tmp_path, add_copy, records=stored(henrico))
+    assert "google-bristow" in records(far)
+    crowded = run_edited(
+        make_test_context,
+        tmp_path,
+        lambda d: add_copy(d, cited_elsewhere=True),
+        records=stored(site),
+    )
+    assert "google-bristow" in records(crowded)
+
+
+def test_a_name_that_gives_the_epoch_sites_street_address_is_the_same_site(
+    make_test_context: MakeContext, make_record: Callable[..., FacilityRecord], tmp_path: Path
+) -> None:
+    # CoreWeave Lancaster Greenfield site (216 Greenfield Rd) is AI GridWatch's "Lancaster AI Hub
+    # East [formerly referred to as 216 Greenfield Road (Chirisa Technology Parks)]".
+    bulloch = ("13031", "Bulloch")
+    site = epoch_site(
+        make_record,
+        "Example Statesboro Campus",
+        county=bulloch,
+        point=(32.45, -81.78),
+        precision="address",
+        street="216 Greenfield Rd",
+        state="GA",
+    )
+
+    def rename(d: dict[str, Any]) -> None:
+        project(d, "burkhalter-road-statesboro-ga")["name"] = (
+            "Statesboro AI Hub [formerly referred to as 216 Greenfield Road]"
+        )
+
+    result = run_edited(make_test_context, tmp_path, rename, records=stored(site))
+    item = duplicates(result)["burkhalter-road-statesboro-ga"]
+    assert (item.data["matched_by"], item.record_id) == ("street", site.id)
+    # Another house number, or the same street address in another county, is another site.
+    other = site.model_copy(
+        update={"location": site.location.model_copy(update={"street": "218 Greenfield Rd"})}
+    )
+    assert "burkhalter-road-statesboro-ga" in records(
+        run_edited(make_test_context, tmp_path, rename, records=stored(other))
+    )
+    elsewhere = site.model_copy(
+        update={
+            "location": site.location.model_copy(
+                update={"county_fips": "13051", "county_name": "Chatham"}
+            )
+        }
+    )
+    assert "burkhalter-road-statesboro-ga" in records(
+        run_edited(make_test_context, tmp_path, rename, records=stored(elsewhere))
+    )
+
+
+def test_an_organization_in_common_nearby_is_held_for_review_not_merged(
+    make_test_context: MakeContext, make_record: Callable[..., FacilityRecord]
+) -> None:
+    # AWS Berwick (Epoch, at Berwick's point) and AI GridWatch's "AWS Salem Township campus" 4.3 km
+    # away share only Amazon: the row is held, and no Epoch record is named as the same site.
+    near = epoch_site(
+        make_record, "Example Google Campus", owner=("Google",), point=(38.748, -77.54)
+    )
+    result = run(make_test_context, records=stored(near))
+    item = duplicates(result)["google-bristow"]
+    assert (item.data["matched_by"], item.record_id, item.data["epoch_records"]) == (
+        "nearby",
+        None,
+        [near.id],
+    )
+    assert f"Example Google Campus ({near.id})" in item.reason and "not merged" in item.reason
+    assert "google-bristow" not in records(result) and result.metrics["epoch_ambiguous"] == 1
+    # Farther than 5 km, another organization, or a county-level point: no tie.
+    for site in (
+        epoch_site(make_record, "Far", owner=("Google",), point=(38.80, -77.54)),
+        epoch_site(make_record, "Other", owner=("Meta",), point=(38.748, -77.54)),
+        epoch_site(make_record, "Coarse", owner=("Google",), precision="county"),
+    ):
+        assert "google-bristow" in records(run(make_test_context, records=stored(site))), site
+
+
+def test_a_row_tied_to_more_than_one_epoch_site_is_held_for_review_not_merged(
+    make_test_context: MakeContext, make_record: Callable[..., FacilityRecord], tmp_path: Path
+) -> None:
+    # AWS Madison County data center campuses: tied by a link to Amazon Madison Mega Site, and
+    # Amazon also owns Epoch's Amazon Ridgeland in the same county.
+    doc = load_fixture()
+    first, second = (e["source"] for e in project(doc, "google-bristow")["events"])
+    by_link = epoch_site(make_record, "Example Campus One", links=(first,))
+    by_owner = epoch_site(make_record, "Example Campus Two", owner=("Google",), point=(38.8, -77.5))
+    by_other_link = epoch_site(make_record, "Example Campus Three", links=(second,))
+    for pair in ((by_link, by_owner), (by_link, by_other_link)):
+        result = run(make_test_context, records=stored(*pair))
+        item = duplicates(result)["google-bristow"]
+        assert (item.data["matched_by"], item.record_id) == ("several", None)
+        assert item.data["epoch_records"] == sorted(r.id for r in pair)
+        assert "google-bristow" not in records(result)
+
+    # A held row's own review items go with it: it is not imported.
+    def bad_size(d: dict[str, Any]) -> None:
+        project(d, "google-bristow")["size_mw"] = "lots"
+
+    result = run_edited(make_test_context, tmp_path, bad_size, records=stored(by_link))
+    assert duplicates(result)["google-bristow"].data["matched_by"] == "link"
+    assert not [i for i in result.review if i.kind == "unit_parse"]
+
+
+def test_the_run_needs_the_epoch_records(
+    make_test_context: MakeContext, make_record: Callable[..., FacilityRecord]
+) -> None:
+    # aigridwatch before epoch on an empty store would import every Epoch site AI GridWatch
+    # republishes (69 on 2026-10-08), and those records would stay after the next run.
+    with pytest.raises(FetchError, match="run `atlas import epoch` first"):
+        run(make_test_context, without_epoch=False)
+    site = epoch_site(make_record, "Google Bristow")
+    merged = site.model_copy(update={"merged_into": "gwa-01m47854008j5vt37xkj5ag72d"})
+    with pytest.raises(FetchError, match="--without-epoch"):
+        run(make_test_context, without_epoch=False, records=stored(merged))
+    result = run(make_test_context, without_epoch=False, records=stored(site))
+    assert duplicates(result)["google-bristow"].record_id == site.id
+
+
+def test_a_stored_record_for_a_row_now_held_is_named(
+    make_test_context: MakeContext,
+    make_record: Callable[..., FacilityRecord],
+    tmp_repo: Path,
+) -> None:
+    # An AI GridWatch record stored before its Epoch twin arrived is kept (records are never
+    # deleted); the duplicate item names it next to the Epoch record.
+    site = epoch_site(make_record, "Google Bristow")
+    old = make_record(external_ids={"aigridwatch_id": ["google-bristow"]})
+    store = RecordStore(tmp_repo / "data" / "records")
+    for r in (site, old):
+        store.write(r)
+    ctx = make_test_context(input_path=FIXTURE, records=store.load())
+    result = IMPORTER.run(ctx, argparse.Namespace(without_epoch=False))
+    item = duplicates(result)["google-bristow"]
+    assert (item.record_id, item.data["stored_record"]) == (site.id, old.id)
+    assert old.id in item.reason and "merged_into" in item.reason
+    receipt = apply_import(
+        IMPORTER,
+        result,
+        ctx,
+        store=store,
+        review_dir=tmp_repo / "review" / "queue",
+        receipts_dir=tmp_repo / "data" / "imports",
+    )
+    assert receipt.counts["removed_upstream"] == 1
+    queue = read_review_queue(tmp_repo / "review" / "queue", "aigridwatch")
+    assert {
+        (i.kind, i.record_id) for i in queue if old.id in (i.record_id, i.data.get("stored_record"))
+    } == {
+        ("removed_upstream", old.id),
+        ("possible_duplicate", site.id),
+    }
+    # Once a reviewer has merged it, there is nothing left to point out.
+    merged = old.model_copy(update={"merged_into": site.id})
+    again = run(make_test_context, without_epoch=False, records=stored(site, merged))
+    assert "stored_record" not in duplicates(again)["google-bristow"].data
+
+
 # ---------------------------------------------------------------------------- guards and the CLI
 
 
@@ -714,6 +1053,11 @@ def test_cli_run_is_idempotent(
         "2026-10-12T12:00:00Z",
         "--offline",
     ]
+    # The store holds no Epoch record, so the run refuses until told it may go without them.
+    assert main(common) == 1
+    assert "run `atlas import epoch` first" in capsys.readouterr().err
+    assert not (tmp_repo / "data" / "imports" / "aigridwatch.json").exists()
+    common.append("--without-epoch")
     assert main(common) == 0
     assert "import aigridwatch: candidates=11 new=11" in capsys.readouterr().out
     stored = RecordStore(tmp_repo / "data" / "records").load()
@@ -747,7 +1091,7 @@ def test_fetch_uses_the_published_url(
         return httpx.Response(404, request=request)
 
     ctx = make_test_context(handler=handler)
-    result = IMPORTER.run(ctx, argparse.Namespace())
+    result = IMPORTER.run(ctx, argparse.Namespace(without_epoch=True))
     (snap,) = result.inputs
     assert snap.upstream_version == "2026-10-07" and snap.etag == '"e1"'
     assert ctx.raw_path("aigridwatch", snap.sha256, "json").read_bytes() == body

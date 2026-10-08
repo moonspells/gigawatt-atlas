@@ -1,13 +1,13 @@
 {
   "AWS New Albany": {
     "city": "New Albany",
-    "note": "Epoch's address, 13360 Miller Rd NW, names no city or state. Its first Selected Source, the City of New Albany's construction updates, lists the AWS buildings at Miller and Beech roads in the city. A crossing is not an address.",
+    "note": "Epoch's address, 13360 Miller Rd NW, names no city or state. The City's project list, Epoch's first Selected Source, gives the AWS buildings only as Miller and Beech roads; Epoch's WOSU source, on the City Council vote, places Amazon's data center land in New Albany.",
     "precision": "locality",
-    "publisher": "City of New Albany",
-    "quote": "AWS 4, Building B Location: Generally located at Miller and Beech",
-    "retrieved_at": "2026-10-08T05:14:59Z",
-    "source_type": "government_record",
-    "source_url": "https://newalbanyohio.org/community-development/project-updates/",
+    "publisher": "WOSU Public Media",
+    "quote": "This part of the project will take up about 85 of the more than 400 acres Amazon bought this year in New Albany.",
+    "retrieved_at": "2026-10-08T20:18:32Z",
+    "source_type": "news",
+    "source_url": "https://www.wosu.org/politics-government/2023-09-20/new-albany-city-council-approves-tax-break-deal-for-3-5-billion-amazon-data-center-project",
     "state_abbr": "OH"
   },
   "Anthropic Barber Lake": {
@@ -22,14 +22,15 @@
     "state_abbr": "TX"
   },
   "Google Kansas City East": {
+    "archive_url": "https://web.archive.org/web/20260312015900/https://www.datacenterdynamics.com/en/news/google-files-project-plan-for-data-center-in-kansas-city-missouri/",
     "city": "Kansas City",
-    "note": "Epoch gives no address. Its first Selected Source, the business park developer's release, places the site in Kansas City, Missouri; it names no county, so the point is the city's Census internal point.",
+    "note": "Epoch gives no address. Hunt Midwest's release, its first Selected Source, has only a Kansas City dateline; its second, a DCD article read through its Wayback Machine snapshot because DCD refuses automated clients, places the site in Kansas City, Missouri. No county is named.",
     "precision": "locality",
-    "publisher": "Hunt Midwest",
-    "quote": "Kansas City, MO — March 20, 2024 — Hunt Midwest is proud to announce Google will build a new $1 billion data center at Hunt Midwest Business Center as the technology company expands its presence across the Midwest.",
-    "retrieved_at": "2026-10-08T05:12:26Z",
-    "source_type": "company_release",
-    "source_url": "https://huntmidwest.com/2024/03/google-announces-1-billion-data-center-at-hunt-midwest-business-center/",
+    "publisher": "DCD",
+    "quote": "Google files project plan for data center in Kansas City, Missouri",
+    "retrieved_at": "2026-10-08T20:17:48Z",
+    "source_type": "trade_press",
+    "source_url": "https://www.datacenterdynamics.com/en/news/google-files-project-plan-for-data-center-in-kansas-city-missouri/",
     "state_abbr": "MO"
   },
   "Google Mesa": {
@@ -89,13 +90,13 @@
     "state_abbr": "LA"
   },
   "OpenAI Stargate Michigan": {
+    "archive_url": "https://web.archive.org/web/20260910192140/https://www.michigan.gov/mpsc/commission/news-releases/2025/12/18/mpsc-approves-dte-electric-energy-contracts-for-data-center",
     "county_fips": "26161",
-    "municipality": "Saline Township",
-    "note": "Epoch gives no address. The regulator's release, one of Epoch's Selected Sources, names a Washtenaw County data center, and its next sentence puts it in Saline Township. Townships are not Census places, so the point is the county's.",
+    "note": "Epoch gives no address. The regulator's release, one of Epoch's Selected Sources, read through its Wayback Machine snapshot because michigan.gov refuses automated clients, names a Washtenaw County data center. The township is in another sentence, so the entry names only the county.",
     "precision": "county",
     "publisher": "Michigan Public Service Commission",
     "quote": "The Michigan Public Service Commission today conditionally approved an application from DTE Electric Co. for approval of special contracts to supply power for a Washtenaw County data center",
-    "retrieved_at": "2026-10-08T05:14:11Z",
+    "retrieved_at": "2026-10-08T20:16:25Z",
     "source_type": "court_or_regulator",
     "source_url": "https://www.michigan.gov/mpsc/commission/news-releases/2025/12/18/mpsc-approves-dte-electric-energy-contracts-for-data-center",
     "state_abbr": "MI"
