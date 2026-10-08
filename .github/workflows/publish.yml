@@ -1,6 +1,8 @@
 # Builds a release from main and uploads it to R2 `atlas-tiles` (07 §6.8, §11; 10 §11.8).
 # The build job holds no secrets; only the upload step sees the bucket-scoped R2 token, from the
 # `production` Environment (deployment branch main only). Nothing reaches v/ without a merge to main.
+# Until the seed PR lands, data/records holds no record: the build job then ends with a notice
+# and uploads nothing. A dispatch with `takedown` runs only the takedown job (07 §5.4).
 name: publish
 
 on:
@@ -17,6 +19,14 @@ on:
         description: Upload the committed fixture release (fixtures/release, 20000101-0000) instead; never touches atlas/latest.json
         type: boolean
         default: false
+      takedown:
+        description: 'Takedown only: record ids (gwa-..., space-separated) to delete from rec/ and from every stored release except the live one. Publish the hotfix release first (docs/publishing.md §7)'
+        type: string
+        default: ''
+      takedown_apply:
+        description: 'With takedown: delete for real (unticked, the run only lists what it would delete)'
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -25,6 +35,7 @@ concurrency: { group: atlas-publish, cancel-in-progress: false }
 jobs:
   build:
     name: build
+    if: inputs.takedown == ''
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -36,14 +47,29 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
+      - name: Any records to publish?
+        id: records
+        env:
+          FIXTURE: ${{ inputs.fixture == true }}
+        run: |
+          n="$(find data/records -maxdepth 1 -name '*.json' | wc -l)"
+          if [ "$FIXTURE" != "true" ] && [ "$n" -eq 0 ]; then
+            echo "::notice::data/records holds no record yet (the seed PR has not landed): nothing to publish"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        if: steps.records.outputs.skip != 'true'
         with: { version: '0.11.32', enable-cache: false }
       - run: uv sync --locked
+        if: steps.records.outputs.skip != 'true'
       - name: Build tippecanoe 2.79.0 (facilities.pmtiles)
-        if: inputs.fixture != true
+        if: steps.records.outputs.skip != 'true' && inputs.fixture != true
         env:
           TIPPECANOE_COMMIT: 68ab8dcc229f95b8b25877697d5e8d66783af503 # tag 2.79.0
         run: |
+          sudo apt-get update -q   # the runner image's package index may be stale
           sudo apt-get install -y --no-install-recommends libsqlite3-dev zlib1g-dev
           git init -q "$RUNNER_TEMP/tippecanoe" && cd "$RUNNER_TEMP/tippecanoe"
           git fetch -q --depth 1 https://github.com/felt/tippecanoe "$TIPPECANOE_COMMIT"
@@ -51,10 +77,10 @@ jobs:
           make -j"$(nproc)" tippecanoe
           echo "$RUNNER_TEMP/tippecanoe" >> "$GITHUB_PATH"
       - run: uv run --locked atlas validate
-        if: inputs.fixture != true
+        if: steps.records.outputs.skip != 'true' && inputs.fixture != true
       - name: Was the merged PR a bulk import?
         id: bulk
-        if: github.event_name == 'push'
+        if: steps.records.outputs.skip != 'true' && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -63,6 +89,7 @@ jobs:
           if jq -e '.labels // [] | index("bulk")' <<<"$pr" > /dev/null; then echo "bulk=true" >> "$GITHUB_OUTPUT"; else echo "bulk=false" >> "$GITHUB_OUTPUT"; fi
       - id: build
         name: Build the release (or stage the committed fixture)
+        if: steps.records.outputs.skip != 'true'
         env:
           FIXTURE: ${{ inputs.fixture == true }}
           ALLOW_COUNT_CHANGE: ${{ steps.bulk.outputs.bulk == 'true' || inputs.allow_count_change == true }}
@@ -79,6 +106,7 @@ jobs:
           if [ "$ALLOW_COUNT_CHANGE" = "true" ]; then args+=(--allow-count-change); fi
           uv run --locked atlas publish build "${args[@]}" --github-output "$GITHUB_OUTPUT"   # writes release=… and latest=true
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.records.outputs.skip != 'true'
         with:
           name: release
           path: ${{ runner.temp }}/release
@@ -88,6 +116,7 @@ jobs:
   upload:
     name: upload
     needs: build
+    if: needs.build.outputs.release != ''
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: production
@@ -111,3 +140,30 @@ jobs:
           args=("$RUNNER_TEMP/release" --release "$RELEASE")
           if [ "$LATEST" != "true" ]; then args+=(--no-latest); fi
           uv run --locked atlas publish upload "${args[@]}"
+
+  takedown:
+    name: takedown
+    if: github.event_name == 'workflow_dispatch' && inputs.takedown != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: production
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with: { version: '0.11.32', enable-cache: false }
+      - run: uv sync --locked
+      - name: Delete the records from rec/ and from every stored release except the live one
+        env:
+          IDS: ${{ inputs.takedown }}
+          APPLY: ${{ inputs.takedown_apply == true }}
+          CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          R2_TILES_ACCESS_KEY_ID: ${{ secrets.R2_TILES_ACCESS_KEY_ID }}
+          R2_TILES_SECRET_ACCESS_KEY: ${{ secrets.R2_TILES_SECRET_ACCESS_KEY }}
+        run: |
+          read -r -a ids <<< "$IDS"   # split on spaces, no globbing
+          args=()
+          for id in "${ids[@]}"; do args+=(--id "$id"); done   # each id is checked against gwa-{ulid}
+          if [ "$APPLY" != "true" ]; then args+=(--dry-run); fi
+          uv run --locked atlas publish takedown "${args[@]}"
