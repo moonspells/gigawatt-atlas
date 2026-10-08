@@ -3,15 +3,20 @@
 geocode() stops at the first step that succeeds:
 
 1. Source coordinates, at the precision the source states.
-2. Census Geocoder (onelineaddress): "address" when the matched house number equals the input's,
-   otherwise "street". County from the response GEOID when the point lies in it.
-3. Census Gazetteer place internal point: "locality".
+2. Census Geocoder (onelineaddress), only for a request that names its state (a match could
+   otherwise come from any state). A match counts only when its state, its street (name, type,
+   directionals and qualifiers; the input may leave out a directional or the street type) and its
+   city or ZIP agree with the request: "address" when the matched house number also equals the
+   input's, otherwise "street". Agreeing matches more than 200 m apart are ambiguous and count as
+   none. County from the response GEOID when the point lies in it.
+3. Census Gazetteer place internal point: "locality", unless a stated county does not contain it.
 4. County by name (CountyIndex.by_name) at the polygon's point on surface: "county".
 5. None: the caller files a review item.
 
 County FIPS comes from point-in-polygon when the precision is address or better, otherwise from the
 stated county name. Every result is checked against the county polygons with the tolerance that
-`atlas validate` rule 5 uses, so a result from geocode() always passes that rule.
+`atlas validate` rule 5 uses, so a result from geocode() passes that rule, and a locality point
+lies in the county the result names.
 
 Importing this module does no I/O and loads neither DuckDB nor httpx.
 """
@@ -20,6 +25,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import time
 import unicodedata
@@ -56,13 +62,19 @@ CENSUS_PARAMS = {
 }
 # The Census Geocoder answers HTTP 400 for an address longer than this.
 CENSUS_MAX_ADDRESS = 100
+# The answer that means "this address cannot be geocoded". Any other error (429, 408, 5xx, another
+# 4xx) after the retries in atlas.net.fetch is raised: a rate-limited request must not be mistaken
+# for a miss, or the record would drop to the Gazetteer for one run and come back on the next.
+CENSUS_NO_MATCH_STATUSES = frozenset({400})
+# Agreeing matches farther apart than this are ambiguous ("145th St E" and "145th St W").
+CENSUS_AMBIGUOUS_M = 200.0
 
-# Confidence of the location per step (07 §3.4: derived in code, 0.90 from an address, else 0.60;
-# imported from an open dataset, 0.70).
+# Confidence of the location per step (07 §3.4: derived in code, 0.90 when the input is address
+# precision or better, otherwise 0.60; imported from an open dataset, 0.70).
 CONFIDENCE: dict[str, float] = {
     "source_coords": 0.70,
     "address": 0.90,
-    "street": 0.80,
+    "street": 0.60,
     "locality": 0.60,
     "county": 0.60,
 }
@@ -90,6 +102,50 @@ _LSAD_SUFFIX_RE = re.compile(
 )
 _BALANCE_RE = re.compile(r"\s*\(balance\)$")
 _DIRECTIONALS = frozenset({"N", "S", "E", "W", "NE", "NW", "SE", "SW"})
+# Census preType values (as street_tokens) of numbered routes: "STATE RTE 54", "US HWY 54", "CO RD 112".
+_NUMBERED_ROUTE_TYPES = frozenset({("HWY",), ("US", "HWY"), ("CO", "RD")})
+_HOUSE_PART_RE = re.compile(r"^\s*\d+(?:\s*[-\u2013]\s*\d+)?\s+(?=\S)")
+_STREET_PUNCT_RE = re.compile(r"[.,#]")
+# Street words spelled out and abbreviated, mapped to one form on both sides of a comparison (the
+# Census writes USPS abbreviations: RD, AVE, BLVD, PKWY, CO RD).
+_STREET_WORDS = {
+    "BYPASS": "BYP",
+    "CR": "CO RD",
+    "SR": "HWY",
+    "RTE": "HWY",
+    "NORTH": "N",
+    "SOUTH": "S",
+    "EAST": "E",
+    "WEST": "W",
+    "NORTHEAST": "NE",
+    "NORTHWEST": "NW",
+    "SOUTHEAST": "SE",
+    "SOUTHWEST": "SW",
+    "AVENUE": "AVE",
+    "AV": "AVE",
+    "BOULEVARD": "BLVD",
+    "CENTER": "CTR",
+    "CENTRE": "CTR",
+    "CIRCLE": "CIR",
+    "COUNTY": "CO",
+    "COURT": "CT",
+    "DRIVE": "DR",
+    "EXPRESSWAY": "EXPY",
+    "FREEWAY": "FWY",
+    "HIGHWAY": "HWY",
+    "LANE": "LN",
+    "LP": "LOOP",
+    "PARKWAY": "PKWY",
+    "PKY": "PKWY",
+    "PLACE": "PL",
+    "PRIVATE": "PVT",
+    "ROAD": "RD",
+    "ROUTE": "HWY",
+    "SQUARE": "SQ",
+    "STREET": "ST",
+    "TERRACE": "TER",
+    "TRAIL": "TRL",
+}
 _ABBREVIATIONS = {"st": "saint", "ste": "sainte", "mt": "mount", "ft": "fort"}
 _INCORPORATED_LSAD_EXCLUDED = frozenset({"57", "55", "62"})  # CDP, comunidad, zona urbana
 
@@ -140,7 +196,12 @@ class GeocodeResult:
 
 @dataclass(frozen=True)
 class CensusMatch:
-    """The first address match of a Census Geocoder response."""
+    """One address match of a Census Geocoder response.
+
+    The street parts are the response's addressComponents in order (preQualifier, preDirection,
+    preType, streetName, suffixType, suffixDirection, suffixQualifier), each a normalized token
+    tuple; street_parts is empty when the response has no components.
+    """
 
     lat: float
     lon: float
@@ -152,6 +213,7 @@ class CensusMatch:
     postcode: str | None
     county_fips: str | None
     county_name: str | None
+    street_parts: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -190,6 +252,29 @@ def house_number(text: str | None) -> str | None:
         return None
     m = _HOUSE_RE.match(text)
     return str(int(m.group(1))) if m else None
+
+
+def street_tokens(text: str | None) -> tuple[str, ...]:
+    """Upper-case words with punctuation dropped and street words in one form (_STREET_WORDS).
+
+    Route words become HWY and "State Hwy" becomes HWY, so "Hwy 54", "State Route 54" and the
+    Census "STATE RTE 54" compare equal; "US Hwy 54" stays different.
+    """
+    words = _STREET_PUNCT_RE.sub(" ", strip_invisible(text or "")).upper().split()
+    tokens = [t for w in words for t in _STREET_WORDS.get(w, w).split()]
+    out: list[str] = []
+    for t in tokens:
+        if t == "HWY" and out and out[-1] == "STATE":
+            out[-1] = "HWY"
+        else:
+            out.append(t)
+    return tuple(out)
+
+
+def street_name_tokens(street: str | None) -> tuple[str, ...]:
+    """The street without its house number or range, as street_tokens."""
+    m = _HOUSE_PART_RE.match(street or "")
+    return street_tokens((street or "")[m.end() :] if m else street)
 
 
 def _state_part(part: str) -> tuple[str | None, str, str | None, str | None] | None:
@@ -275,16 +360,36 @@ class GeocoderError(Exception):
     """The Census Geocoder answered with something that is not a geocoder response."""
 
 
+_COMPONENT_KEYS = (
+    "preQualifier",
+    "preDirection",
+    "preType",
+    "streetName",
+    "suffixType",
+    "suffixDirection",
+    "suffixQualifier",
+)
+
+
 def parse_census_response(doc: object) -> CensusMatch | None:
     """The first address match of an onelineaddress response, or None when there is none."""
+    matches = parse_census_matches(doc)
+    return matches[0] if matches else None
+
+
+def parse_census_matches(doc: object) -> list[CensusMatch]:
+    """Every address match of an onelineaddress response, in the order given."""
     if not isinstance(doc, dict) or not isinstance(doc.get("result"), dict):
         raise GeocoderError("not a Census Geocoder response (no result object)")
     matches = doc["result"].get("addressMatches")
     if not isinstance(matches, list):
         raise GeocoderError("not a Census Geocoder response (no addressMatches list)")
-    if not matches:
-        return None
-    m = matches[0]
+    return [_census_match(m) for m in matches]
+
+
+def _census_match(m: object) -> CensusMatch:
+    if not isinstance(m, dict):
+        raise GeocoderError(f"Census Geocoder: unexpected address match: {m!r}")
     try:
         coords = m.get("coordinates") or {}
         lat, lon = float(coords["y"]), float(coords["x"])
@@ -295,6 +400,11 @@ def parse_census_response(doc: object) -> CensusMatch | None:
     county = counties[0] if counties and isinstance(counties[0], dict) else {}
     matched = str(m.get("matchedAddress") or "")
     geoid = county.get("GEOID")
+    parts = (
+        tuple((key, street_tokens(str(comps.get(key) or ""))) for key in _COMPONENT_KEYS)
+        if isinstance(comps, dict) and comps.get("streetName")
+        else ()
+    )
     return CensusMatch(
         lat=lat,
         lon=lon,
@@ -306,6 +416,7 @@ def parse_census_response(doc: object) -> CensusMatch | None:
         postcode=str(comps["zip"]) if comps.get("zip") else None,
         county_fips=str(geoid) if geoid and re.fullmatch(r"\d{5}", str(geoid)) else None,
         county_name=str(county["NAME"]) if county.get("NAME") else None,
+        street_parts=parts,
     )
 
 
@@ -346,20 +457,26 @@ class CensusGeocoder:
         return self.cache_dir / f"{digest}.json"
 
     def onelineaddress(self, address: str) -> CensusMatch | None:
-        """The first match for address, or None (no match, empty, or over 100 characters).
+        """The first match for address, or None (see matches)."""
+        found = self.matches(address)
+        return found[0] if found else None
 
-        Raises atlas.net.FetchError when the service fails after retries, and GeocoderError when
-        it answers with something else; a 4xx answer counts as no match and is not cached.
+    def matches(self, address: str) -> list[CensusMatch]:
+        """Every match for address; none for no match, an empty address or one over 100 characters.
+
+        Raises atlas.net.FetchError when the service fails after retries (429, 408, 5xx and any
+        4xx but 400 included), and GeocoderError when it answers with something else. A 400 answer
+        counts as no match and is not cached.
         """
         from atlas.net import FetchError, fetch  # httpx on use
 
         text = self.normalize(address)
         if not text or len(text) > CENSUS_MAX_ADDRESS:
-            return None
+            return []
         path = self.cache_path(text)
         if path.exists():
             try:
-                cached = parse_census_response(json.loads(path.read_text(encoding="utf-8")))
+                cached = parse_census_matches(json.loads(path.read_text(encoding="utf-8")))
             except (ValueError, GeocoderError):
                 path.unlink()  # a damaged cache entry is fetched again
             else:
@@ -378,17 +495,17 @@ class CensusGeocoder:
                 now=self._now,
             )
         except FetchError as e:
-            if e.status is not None and 400 <= e.status < 500:
-                return None
+            if e.status in CENSUS_NO_MATCH_STATUSES:
+                return []
             raise
         try:
             doc = json.loads(result.content)
         except ValueError as e:
             raise GeocoderError(f"Census Geocoder: response is not JSON: {e}") from e
-        match = parse_census_response(doc)
+        found = parse_census_matches(doc)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(result.content)
-        return match
+        return found
 
 
 # ---------------------------------------------------------------------------- Gazetteer
@@ -565,6 +682,14 @@ def _round(v: float) -> float:
     return round(float(v), 6)
 
 
+def distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance in metres (haversine, mean Earth radius)."""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = p2 - p1, math.radians(lon2 - lon1)
+    h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * 6_371_008.8 * math.asin(min(1.0, math.sqrt(h)))
+
+
 def _county_for_point(
     counties: CountyIndex, lat: float, lon: float, preferred: str | None
 ) -> County | None:
@@ -619,19 +744,91 @@ def _from_source(
     )
 
 
+def _street_forms(m: CensusMatch) -> set[tuple[str, ...]]:
+    """The ways the match's street may be written: its components in order, with each directional
+    and the street type optional (the input may leave them out)."""
+    optional = {"preDirection", "suffixDirection", "suffixType"}
+    forms: set[tuple[str, ...]] = {()}
+    for key, tokens in m.street_parts:
+        forms = {f + tokens for f in forms} | (forms if key in optional else set())
+    forms.discard(())
+    return forms
+
+
+def _street_agrees(m: CensusMatch, wanted: tuple[str, ...]) -> bool:
+    """The input street (no house number) is one of the match's street forms. A directional, type
+    or qualifier the input states must be the match's own: "S Litchfield Rd" is not "LITCHFIELD
+    RD BYP", and "Co Rd 42" is not "COUNTY CT". The one exception is a numbered route, where the
+    input may add a trailing directional the Census leaves out ("Hwy 54 W", "STATE RTE 54")."""
+    if not m.street_parts or not wanted:
+        return False
+    forms = _street_forms(m)
+    if wanted in forms:
+        return True
+    parts = dict(m.street_parts)
+    name = parts.get("streetName", ())
+    numbered_route = (
+        parts.get("preType") in _NUMBERED_ROUTE_TYPES
+        and bool(name)
+        and all(t.isdigit() for t in name)
+        and not parts.get("suffixDirection")
+    )
+    return (
+        numbered_route and len(wanted) > 1 and wanted[-1] in _DIRECTIONALS and wanted[:-1] in forms
+    )
+
+
+def _place_agrees(req: GeocodeRequest, m: CensusMatch, oneline: str) -> bool:
+    """The match's ZIP is the input's, or its city is the input's city (or, when no city could be
+    parsed, a run of words of the input text)."""
+    if req.postcode and m.postcode and req.postcode == m.postcode:
+        return True
+    if not m.city:
+        return False
+    city = normalize_place(m.city)
+    if req.city:
+        return normalize_place(req.city) == city
+    return f" {city} " in f" {normalize_place(oneline)} "
+
+
+def _census_precision(req: GeocodeRequest, m: CensusMatch, oneline: str) -> Precision | None:
+    """The precision of a match that agrees with the request (state, city or ZIP, street): "address"
+    when the house number is also the input's, else "street". None when it does not agree."""
+    if not m.state_abbr or m.state_abbr.upper() != (req.state_abbr or "").upper():
+        return None
+    if not _place_agrees(req, m, oneline):
+        return None
+    street = req.street or oneline.split(",", 1)[0]
+    wanted = street_name_tokens(street)
+    candidates = [wanted]
+    city = street_tokens(m.city)
+    if city and len(wanted) > len(city) and wanted[-len(city) :] == city:
+        candidates.append(wanted[: -len(city)])  # "5800 EDGEWOOD RD SW CEDAR RAPIDS, IA 52404"
+    if not any(_street_agrees(m, w) for w in candidates):
+        return None
+    number = house_number(street)
+    return "address" if number is not None and number == m.house_number else "street"
+
+
 def _from_census(
     req: GeocodeRequest, oneline: str, census: CensusGeocoder, counties: CountyIndex
 ) -> GeocodeResult | None:
-    m = census.onelineaddress(oneline)
-    if m is None:
+    """The Census match that agrees with the request, or None (no agreeing match, or agreeing
+    matches more than CENSUS_AMBIGUOUS_M apart), so the chain falls back to the Gazetteer."""
+    agreeing = [
+        (m, precision)
+        for m in census.matches(oneline)
+        if (precision := _census_precision(req, m, oneline)) is not None
+    ]
+    if not agreeing:
         return None
-    if m.state_abbr and not _state_ok(req, m.state_abbr.upper()):
+    first = agreeing[0][0]
+    if any(
+        distance_m(first.lat, first.lon, m.lat, m.lon) > CENSUS_AMBIGUOUS_M for m, _ in agreeing
+    ):
         return None
+    m, precision = next(((m, p) for m, p in agreeing if p == "address"), agreeing[0])
     lat, lon = _round(m.lat), _round(m.lon)
-    wanted = house_number(req.street or oneline)
-    precision: Precision = (
-        "address" if wanted is not None and wanted == m.house_number else "street"
-    )
     county = _county_for_point(counties, lat, lon, m.county_fips)
     if county is None or not _state_ok(req, county.state_abbr):
         return None
@@ -663,6 +860,8 @@ def _from_gazetteer(
     if place is None or not counties.in_state(state, place.lat, place.lon):
         return None
     named = counties.by_name(state, req.county_name) if req.county_name else None
+    if named is not None and not counties.contains(named.fips, place.lat, place.lon):
+        return None  # Abilene's point is in Taylor County, not the stated Shackelford County
     return GeocodeResult(
         lat=place.lat,
         lon=place.lon,
@@ -713,14 +912,15 @@ def geocode(
 ) -> GeocodeResult | None:
     """Run the chain; the first step that succeeds wins (07 §6.5). census=None skips step 2.
 
-    Source coordinates that fail the county or state check fall through to the later steps.
+    Source coordinates that fail the county or state check fall through to the later steps. A
+    request without a state skips step 2: a Census match could then come from any state.
     """
     state = req.state_abbr.upper() if req.state_abbr else None
     if req.lat is not None and req.lon is not None:
         result = _from_source(req, req.lat, req.lon, counties)
         if result is not None:
             return result
-    if census is not None and req.oneline:
+    if census is not None and req.oneline and state:
         result = _from_census(req, req.oneline, census, counties)
         if result is not None:
             return result

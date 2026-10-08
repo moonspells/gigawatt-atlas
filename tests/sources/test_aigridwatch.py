@@ -21,11 +21,15 @@ from atlas.schema.record import FacilityRecord
 from atlas.sources.aigridwatch import (
     IMPORTER,
     PROJECTS_URL,
+    PartyName,
     filing_names,
     has_filing,
+    late_announcement,
     looks_like_person,
+    looks_like_person_name,
     milestone_events,
     parse_locality,
+    party_name,
     resolve_county,
     row_source_type,
 )
@@ -146,6 +150,13 @@ def test_parse_locality(
     assert (got.place, got.county_texts, got.hint) == (place, counties, hint)
 
 
+def test_nearby_hints() -> None:
+    assert parse_locality("Storey County (near Reno)", "NV").hint_is_nearby
+    assert parse_locality("Hood County (Granbury area)", "TX").hint_is_nearby
+    assert not parse_locality("Decatur Township (Indianapolis)", "IN").hint_is_nearby
+    assert not parse_locality("Globeville-Elyria-Swansea (Denver)", "CO").hint_is_nearby
+
+
 def test_resolve_county_picks_the_one_containing_the_point(counties: CountyIndex) -> None:
     two = parse_locality("Somewhere (Chester / Montgomery County)", "PA")
     chester = counties.by_name("PA", "Chester County")
@@ -160,6 +171,10 @@ def test_resolve_county_picks_the_one_containing_the_point(counties: CountyIndex
         resolve_county(parse_locality("Palmetto (South Fulton County)", "GA"), "GA", counties, None)
         is None
     )
+    # One named county and a point outside it: no county, rather than a county the point is not in.
+    montgomery = counties.by_name("PA", "Montgomery County")
+    assert montgomery is not None
+    assert resolve_county(one, "PA", counties, counties.centroid(montgomery.fips)) is None
 
 
 def test_party_helpers() -> None:
@@ -167,6 +182,22 @@ def test_party_helpers() -> None:
     assert not looks_like_person("Example Holdings LLC (developer)")
     assert not looks_like_person("Constellation Energy Group (parcels)")
     assert not looks_like_person("Meta")
+    assert looks_like_person_name("Jane Example") and looks_like_person_name("Jane O'Example")
+    assert looks_like_person_name("Jane Q. Example")
+    assert not looks_like_person_name("Scale Microgrids")
+    assert not looks_like_person_name("AWS") and not looks_like_person_name("UK")
+    assert party_name("Example Ventures (Jane Example)") == PartyName("Example Ventures", True)
+    assert party_name("Jane Example (developer)") == PartyName(None, True)
+    assert party_name("Amazon (AWS)") == PartyName("Amazon")
+    assert party_name("Constellation Energy Group (parcels)") == PartyName(
+        "Constellation Energy Group"
+    )
+    assert party_name("Example Institute of Technology (proposed site)") == PartyName(
+        "Example Institute of Technology"
+    )
+    assert party_name("67 MW") == PartyName(None, capacity=True)
+    assert party_name("1.2 GW") == PartyName(None, capacity=True)
+    assert party_name("Hut 8") == PartyName("Hut 8")
     assert filing_names("Archbald I LLC / Archbald II LLC") == ["Archbald I LLC", "Archbald II LLC"]
     assert filing_names("4AM Development, LLC") == ["4AM Development, LLC"]
     assert filing_names("A One LLC; applicant changed to B Two LLC in July 2025") == ["A One LLC"]
@@ -274,6 +305,48 @@ def test_the_other_event_is_never_older_than_the_milestones(
     other = rec.status_history[-1]
     assert (other.event, other.as_of.value, rec.status) == ("other", "2026-07-20", "permitted")
     assert other.note == "AI GridWatch stage 'Approved' as of 2026-01-01"
+
+
+def test_an_announcement_after_a_filing_is_left_out_and_flagged(
+    make_test_context: MakeContext, tmp_path: Path
+) -> None:
+    pid = "meta-leap-lebanon-in"  # announced 2026-02-11
+
+    def late(doc: dict[str, Any]) -> None:
+        project(doc, pid)["rezoning_filed"] = "2026-01-15"
+
+    assert late_announcement(project(load_fixture(), pid)) is None
+    result = run_edited(make_test_context, tmp_path, late)
+    rec = records(result)[pid]
+    # Not proposed (filed) -> announced -> proposed: the late announcement is dropped.
+    assert [(e.event, e.status, e.as_of.value) for e in rec.status_history] == [
+        ("application_filed", "proposed", "2026-01-15"),
+    ]
+    assert "announced" not in rec.dates and rec.dates["first_reported"].value == "2026-01-15"
+    (item,) = [i for i in result.review if i.kind == "conflict"]
+    assert item.external_id == pid
+    assert item.data == {"announced": "2026-02-11", "rezoning_filed": "2026-01-15"}
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="needs atlas/schema/rollup.py derive_dates to skip 'other' events for first_reported, "
+    "operating_since and cancelled (cross-file request to schema-validate); remove this mark "
+    "when that lands",
+)
+def test_a_stage_observation_sets_no_derived_date(
+    make_test_context: MakeContext, tmp_path: Path
+) -> None:
+    def withdrawn_undated(doc: dict[str, Any]) -> None:
+        project(doc, "pw-digital-gateway-va")["decided_date"] = ""
+
+    got = records(run_edited(make_test_context, tmp_path, withdrawn_undated))
+    bristow = got["google-bristow"]  # Operating, with no milestone dates
+    assert [e.event for e in bristow.status_history] == ["other"] and bristow.status == "operating"
+    # The "other" event is dated when AI GridWatch read its source, not when the site opened.
+    assert "operating_since" not in bristow.dates and "first_reported" not in bristow.dates
+    pw = got["pw-digital-gateway-va"]  # Withdrawn, no decision date
+    assert pw.status == "cancelled" and "cancelled" not in pw.dates
 
 
 def test_hearing_planned_before_its_date_and_held_after(
@@ -443,10 +516,165 @@ def test_parties_aliases_capacity_and_sources(
     pw = records(result)["pw-digital-gateway-va"]
     assert [o.name for o in pw.parties.owner] == ["Example Land Holdings LLC"]
     assert result.metrics["persons_dropped"] == 1
+    stokes = records(run(make_test_context))["stokes-county-project-delta"]
+    assert [o.name for o in stokes.parties.operator] == ["Engineered Land Solutions"]  # "(ELS)"
     assert pw.capacity.it_mw is None and len(pw.sources) == 1
     assert ("unit_parse", "pw-digital-gateway-va") in {
         (i.kind, i.external_id) for i in result.review
     }
+
+
+def test_parties_hold_organizations_only(make_test_context: MakeContext, tmp_path: Path) -> None:
+    def edit(doc: dict[str, Any]) -> None:
+        p = project(doc, "pw-digital-gateway-va")
+        p["operator"] = "Example Ventures (Jane Example) / 67 MW"
+        p["owner"] = "Example Power Group (parcels) / SoftBank (Stargate)"
+        p["tenant"] = "Amazon (AWS), Amazon"
+        p["filing_llc"] = "Gateway Example LLC / Jane Example (developer)"
+
+    result = run_edited(make_test_context, tmp_path, edit)
+    pw = records(result)["pw-digital-gateway-va"]
+    assert [o.name for o in pw.parties.operator] == ["Example Ventures"]
+    assert [o.name for o in pw.parties.owner] == ["Example Power Group", "SoftBank"]
+    assert [o.name for o in pw.parties.tenant] == ["Amazon"]
+    assert [o.name for o in pw.parties.filing_entities] == ["Gateway Example LLC"]
+    assert [a.name for a in pw.aliases] == ["Gateway Example LLC"]
+    assert result.metrics["persons_dropped"] == 2
+    (item,) = [i for i in result.review if i.kind == "unit_parse"]
+    assert item.external_id == "pw-digital-gateway-va" and item.data == {"operator": "67 MW"}
+    text = json.dumps([c.record.model_dump(mode="json") for c in result.candidates])
+    assert "Jane" not in text and "67 MW" not in text
+
+
+def test_a_nearby_place_gives_no_city_and_a_place_outside_the_county_gives_the_county(
+    make_test_context: MakeContext, tmp_path: Path, counties: CountyIndex
+) -> None:
+    def edit(doc: dict[str, Any]) -> None:
+        talen = project(doc, "talen-montour-pa")  # no coordinates
+        talen.update({"locality": "Montour County (near Danville)"})
+        stokes = project(doc, "stokes-county-project-delta")
+        stokes.update({"locality": "Stokes County (Walnut Cove area)", "lat": "", "lon": ""})
+        bristow = project(doc, "google-bristow")
+        fairfax = counties.by_name("VA", "Fairfax County")
+        assert fairfax is not None
+        bristow["lat"], bristow["lon"] = counties.centroid(fairfax.fips)
+
+    result = run_edited(make_test_context, tmp_path, edit)
+    got = records(result)
+    talen = got["talen-montour-pa"].location  # Danville is the seat of Montour County
+    assert (talen.precision, talen.city, talen.county_name) == ("locality", None, "Montour")
+    stokes = got["stokes-county-project-delta"].location
+    assert (stokes.precision, stokes.city, stokes.county_name) == ("locality", None, "Stokes")
+    assert got["stokes-county-project-delta"].canonical_name == "Project Delta (Stokes County, NC)"
+    # AI GridWatch's point is outside the county its locality names: the record keeps the point,
+    # names no county, and a reviewer gets a county_mismatch item.
+    bristow = got["google-bristow"].location
+    assert (bristow.city, bristow.county_fips, bristow.county_name) == ("Bristow", None, None)
+    (item,) = [i for i in result.review if i.kind == "county_mismatch"]
+    assert item.external_id == "google-bristow" and "Prince William County" in item.reason
+
+
+def test_a_nearby_place_outside_the_county_gives_the_county_centroid(
+    make_test_context: MakeContext, tmp_path: Path, counties: CountyIndex
+) -> None:
+    def edit(doc: dict[str, Any]) -> None:
+        # Danville lies in Montour County; Bloomsburg does not.
+        project(doc, "talen-montour-pa")["locality"] = "Montour County (near Bloomsburg)"
+
+    talen = records(run_edited(make_test_context, tmp_path, edit))["talen-montour-pa"].location
+    assert (talen.precision, talen.geocode_method, talen.city) == (
+        "county",
+        "county_centroid",
+        None,
+    )
+    assert talen.county_fips is not None
+    assert (talen.lat, talen.lon) == counties.centroid(talen.county_fips)
+
+
+# ---------------------------------------------------------------------------- Epoch AI's sites
+
+
+def epoch_record(
+    make_record: Callable[..., FacilityRecord], name: str, url: str, state: str = "VA"
+) -> FacilityRecord:
+    """A stored Epoch record: its dataset source plus one Selected Sources link."""
+    rec = make_record(
+        external_ids={"epoch_name": [name]},
+        sources=[
+            {
+                "id": "s1",
+                "url": "https://epoch.ai/data/ai-data-centers",
+                "publisher": "Epoch AI",
+                "source_type": "open_dataset",
+                "license": "CC-BY-4.0",
+                "retrieved_at": "2026-10-12T12:00:00Z",
+                "supports": ["/canonical_name", "/location", "/capacity", "/parties"],
+            },
+            {
+                "id": "s2",
+                "url": url,
+                "publisher": "example.org",
+                "source_type": "news",
+                "retrieved_at": "2026-10-12T12:00:00Z",
+                "supports": [],
+            },
+        ],
+    )
+    if state != rec.location.state_abbr:
+        rec = rec.model_copy(
+            update={"location": rec.location.model_copy(update={"state_abbr": state})}
+        )
+    return rec
+
+
+def test_an_epoch_site_is_not_imported_twice(
+    make_test_context: MakeContext, make_record: Callable[..., FacilityRecord], tmp_path: Path
+) -> None:
+    doc = load_fixture()
+    bristow_source = project(doc, "google-bristow")["source"]
+    by_name = epoch_record(make_record, "Google Bristow", "https://example.org/other")
+    by_source = epoch_record(
+        make_record, "Google Bristow Campus", project(doc, "qts-richmond-3")["source"]
+    )
+    elsewhere = epoch_record(make_record, "Talen Energy Montour Data Center", bristow_source, "TX")
+    stored = {r.id: r for r in (by_name, by_source, elsewhere)}
+
+    def cite_epoch(d: dict[str, Any]) -> None:
+        project(d, "red-oak-compass-campus")["source"] = (
+            "https://epoch.ai/publications/openai-stargate-where-the-us-sites-stand"
+        )
+
+    result = run_edited(make_test_context, tmp_path, cite_epoch, records=stored)
+    got = records(result)
+    dupes = {i.external_id: i for i in result.review if i.kind == "possible_duplicate"}
+    assert set(dupes) == {"google-bristow", "qts-richmond-3", "red-oak-compass-campus"}
+    assert not set(dupes) & set(got)
+    assert (dupes["google-bristow"].record_id, dupes["google-bristow"].data["matched_by"]) == (
+        by_name.id,
+        "name",
+    )
+    assert (dupes["qts-richmond-3"].record_id, dupes["qts-richmond-3"].data["matched_by"]) == (
+        by_source.id,
+        "source",
+    )
+    assert dupes["red-oak-compass-campus"].record_id is None
+    assert dupes["red-oak-compass-campus"].data["matched_by"] == "epoch_source"
+    # The same name in another state is another site.
+    assert "talen-montour-pa" in got
+    # A link that several Epoch records cite (a company report) is not specific to one site.
+    shared = epoch_record(
+        make_record, "Another Epoch Site", project(doc, "qts-richmond-3")["source"]
+    )
+    again = run_edited(
+        make_test_context, tmp_path, cite_epoch, records={**stored, shared.id: shared}
+    )
+    assert "qts-richmond-3" in records(again)
+    assert result.metrics["epoch_duplicates"] == 3 and result.metrics["epoch_records_seen"] == 3
+    # Without Epoch records only the row that cites Epoch AI itself is held.
+    alone = run_edited(make_test_context, tmp_path, cite_epoch)
+    assert [i.external_id for i in alone.review if i.kind == "possible_duplicate"] == [
+        "red-oak-compass-campus"
+    ]
 
 
 # ---------------------------------------------------------------------------- guards and the CLI

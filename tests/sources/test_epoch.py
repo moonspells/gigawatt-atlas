@@ -8,7 +8,7 @@ import json
 import shutil
 import zipfile
 from collections.abc import Callable
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import httpx
@@ -21,16 +21,23 @@ from atlas.schema.record import FacilityRecord
 from atlas.sources.base import Candidate, ImportContext, apply_import, read_review_queue
 from atlas.sources.epoch import (
     IMPORTER,
+    OVERRIDES_PATH,
     ZIP_URL,
+    Placed,
+    Site,
     TimelineRow,
+    check_license,
     event_note,
     link_source_type,
+    load_overrides,
     selected_links,
+    site_record,
     status_events,
     strip_links,
     tagged_names,
 )
 from atlas.store import RecordStore
+from atlas.text import find_personal_data
 from atlas.validate import validate_record
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
@@ -41,6 +48,13 @@ MILAM_SOURCE = (
     "https://www.datacenterdynamics.com/en/news/softbanks-sb-energy-to-build-and-operate-"
     "openais-12gw-stargate-data-center-in-milam-county-texas/"
 )
+# The citation fields every override needs besides its place (made-up text for the test entries).
+CITED = {
+    "source_url": MILAM_SOURCE,
+    "quote": "The data center site is in Milam County, Texas.",
+    "retrieved_at": "2026-10-08T05:00:00Z",
+    "note": "x",
+}
 MakeContext = Callable[..., ImportContext]
 
 
@@ -159,6 +173,38 @@ def test_status_events_keep_only_changes_and_plan_future_rows() -> None:
     assert all(e["source_ids"] == ["s1"] for e in events + future)
 
 
+def test_water_use_is_kept_only_when_positive(make_test_context: MakeContext) -> None:
+    # Epoch writes 0.0 for "not estimated"; every water cell of the fixture ZIP is empty.
+    site = Site("Test site", "5420 Tulane Rd, Memphis, TN 38109", "", "", "", "", None)
+    placed = Placed(
+        {
+            "lat": 35.1,
+            "lon": -90.0,
+            "precision": "locality",
+            "city": "Memphis",
+            "state_abbr": "TN",
+            "geocode_method": "gazetteer",
+        },
+        "Memphis",
+        0.60,
+        "locality",
+        None,
+    )
+    ctx = make_test_context()
+
+    def water(mgd: float | None) -> FacilityRecord:
+        rows = [TimelineRow(date(2025, 1, 1), "Land clearing begins", 0, 10.0, 12.0, mgd)]
+        return site_record(site, rows, placed, ctx=ctx, retrieved_at="2026-10-12T12:00:00+00:00")
+
+    for mgd in (0.0, None):
+        rec = water(mgd)
+        assert rec.cooling.water_use_mgd is None and "/cooling/water_use_mgd" not in rec.field_meta
+    rec = water(2.5)
+    assert rec.cooling.water_use_mgd == 2.5
+    meta = rec.field_meta["/cooling/water_use_mgd"]
+    assert (meta.confidence, meta.method, meta.source_ids) == (0.70, "imported", ["s1"])
+
+
 # ---------------------------------------------------------------------------- the fixture run
 
 
@@ -195,7 +241,8 @@ def test_record_mapping(make_test_context: MakeContext, no_overrides: Path) -> N
     assert rec.money.investment_usd == 35_836_372_000.0
     assert rec.money.investment_basis == "estimate" and rec.money.currency_year == 2025
     assert rec.cooling.water_use_mgd is None
-    assert [o.name for o in rec.parties.operator] == ["SpaceXAI"]
+    assert [o.name for o in rec.parties.owner] == ["SpaceXAI"]  # Epoch's Owner column
+    assert rec.parties.operator == []
     assert [o.name for o in rec.parties.tenant] == ["Anthropic", "Cursor", "SpaceXAI"]
     assert rec.external_ids == {"epoch_name": ["Colossus 2"]}
     assert rec.evidence_level == "reported" and rec.purpose == "unknown"
@@ -235,6 +282,29 @@ def test_record_mapping(make_test_context: MakeContext, no_overrides: Path) -> N
     assert madison.aliases == []  # Project Rainier #speculative
 
 
+def test_every_committed_override_is_cited(counties: CountyIndex) -> None:
+    """Each entry names its source, the verbatim quote that states the place, when it was read,
+    and places the site no more precisely than a municipality or county (07 §6.5)."""
+    raw = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
+    overrides = load_overrides(REPO_OVERRIDES)
+    assert REPO_OVERRIDES.parts[-3:] == OVERRIDES_PATH.parts
+    assert len(overrides) == len(raw) >= 1
+    now = datetime.now(UTC)
+    for name, ov in overrides.items():
+        for key in ("source_url", "publisher", "source_type", "quote", "retrieved_at", "note"):
+            assert raw[name].get(key), (name, key)
+        assert 0 < len(ov.quote) <= 300 and ov.retrieved_at <= now, name
+        assert find_personal_data(ov.quote) == [] and find_personal_data(ov.note) == [], name
+        assert (ov.lat, ov.lon) == (None, None) and ov.precision in ("locality", "county"), name
+        cited = f"{ov.quote} {ov.note}"
+        for place in (ov.city, ov.municipality):
+            assert place is None or place in cited, (name, place)
+        if ov.county_fips is not None:
+            county = counties.get(ov.county_fips)
+            assert county is not None and county.name in cited, (name, ov.county_fips)
+        assert ov.city or ov.county_fips, name
+
+
 def test_committed_override_places_meta_hyperion(
     make_test_context: MakeContext, counties: CountyIndex, today: date
 ) -> None:
@@ -253,10 +323,14 @@ def test_committed_override_places_meta_hyperion(
     s1, s2 = rec.sources[0], rec.sources[1]
     assert "/location" not in s1.supports
     assert (s2.publisher, s2.source_type, s2.supports) == ("Meta", "company_release", ["/location"])
+    assert s2.quote is not None and "Richland Parish, Louisiana" in s2.quote
+    assert s2.quote_match == "human" and s2.retrieved_at.isoformat() == "2026-10-08T05:15:06+00:00"
     urls = [str(s.url) for s in rec.sources]
     assert len(urls) == len(set(urls))
     assert rec.field_meta["/location"].method == "stated"
     assert rec.field_meta["/location"].source_ids == ["s2"]
+    # 07 §3.4: stated with a verbatim quote, 0.85, plus 0.05 for a company release.
+    assert rec.field_meta["/location"].confidence == 0.90
     # Projections: the 2028 row (Buildings operational 9) is a planned event, so the status
     # stays under construction and there is no operating_since date.
     planned = [(e.status, e.as_of.value) for e in rec.status_history if e.planned]
@@ -277,10 +351,10 @@ def test_override_for_a_site_without_an_address(
         json.dumps(
             {
                 "OpenAI Stargate Milam": {
+                    **CITED,
                     "state_abbr": "TX",
                     "county_fips": milam.fips,
                     "precision": "county",
-                    "source_url": MILAM_SOURCE,
                     "note": "Epoch's first Selected Source names Milam County, Texas.",
                 }
             }
@@ -292,6 +366,7 @@ def test_override_for_a_site_without_an_address(
     assert rec.location.county_fips == milam.fips
     assert rec.sources[1].source_type == "news"  # by host
     assert rec.sources[1].publisher == "datacenterdynamics.com"
+    assert rec.field_meta["/location"].confidence == 0.85  # news: no source adjustment
     assert validate_record(rec, counties=counties, today=today) == []
     assert "missing_location" not in {i.kind for i in result.review}
     assert (result.metrics["overrides_used"], result.metrics["overrides_unused"]) == (1, 0)
@@ -301,33 +376,35 @@ def test_override_for_a_site_without_an_address(
     ("entry", "message"),
     [
         ({"state_abbr": "TX", "precision": "county", "note": "x"}, "not a valid overrides file"),
-        (
+        (  # cited, but without the quote that states the place
             {
+                **CITED,
                 "state_abbr": "TX",
-                "county_fips": "22083",
+                "county_fips": "48331",
                 "precision": "county",
-                "source_url": MILAM_SOURCE,
-                "note": "x",
+                "quote": "",
             },
+            "not a valid overrides file",
+        ),
+        (
+            {k: v for k, v in CITED.items() if k != "retrieved_at"}
+            | {"state_abbr": "TX", "county_fips": "48331", "precision": "county"},
+            "not a valid overrides file",
+        ),
+        (
+            {**CITED, "state_abbr": "TX", "county_fips": "22083", "precision": "county"},
             "not a county of TX",
         ),
-        (
-            {"state_abbr": "TX", "precision": "address", "source_url": MILAM_SOURCE, "note": "x"},
-            "needs lat and lon",
-        ),
-        (
-            {"state_abbr": "TX", "precision": "county", "source_url": MILAM_SOURCE, "note": "x"},
-            "needs county_fips",
-        ),
+        ({**CITED, "state_abbr": "TX", "precision": "address"}, "needs lat and lon"),
+        ({**CITED, "state_abbr": "TX", "precision": "county"}, "needs county_fips"),
         (
             {
+                **CITED,
                 "state_abbr": "TX",
                 "precision": "locality",
                 "city": "Cheyenne",
                 "lat": 41.13,
                 "lon": -104.8,
-                "source_url": MILAM_SOURCE,
-                "note": "x",
             },
             "not inside TX",
         ),
@@ -345,14 +422,88 @@ def test_bad_overrides_fail_the_run(
 def test_license_guard(make_test_context: MakeContext, tmp_path: Path, no_overrides: Path) -> None:
     def edit(name: str, data: bytes) -> bytes:
         return (
-            data.replace(b"Creative Commons Attribution", b"All rights reserved")
+            data.replace(b"https://creativecommons.org/licenses/by/4.0/", b"https://example.org/")
             if name == "README.md"
             else data
         )
 
     edited = rezip(tmp_path, edit)
-    with pytest.raises(FetchError, match="Creative Commons Attribution"):
+    with pytest.raises(FetchError, match=r"does not link creativecommons\.org/licenses/by/4\.0"):
         IMPORTER.run(make_test_context(input_path=edited), run_args(no_overrides))
+
+
+FIXTURE_LICENSE = (
+    "Epoch AI's data is free to use, distribute, and reproduce provided the source and authors "
+    "are credited under the [Creative Commons Attribution license]"
+    "(https://creativecommons.org/licenses/by/4.0/)."
+)
+
+
+@pytest.mark.parametrize(
+    ("licensing", "named"),
+    [
+        (
+            "Epoch AI's data may be used for non-commercial purposes only, under the "
+            "[Creative Commons Attribution-NonCommercial 4.0 license]"
+            "(https://creativecommons.org/licenses/by-nc/4.0/).",
+            "non-commercial",
+        ),
+        (
+            "Licensed under the [Creative Commons Attribution-NoDerivatives 4.0 license]"
+            "(https://creativecommons.org/licenses/by-nd/4.0/).",
+            "NoDeriv",
+        ),
+        (
+            "Licensed under the [Creative Commons Attribution-ShareAlike 4.0 license]"
+            "(https://creativecommons.org/licenses/by-sa/4.0/).",
+            "ShareAlike",
+        ),
+        (  # the CC BY 4.0 deed is still linked, but a restriction is added
+            FIXTURE_LICENSE + " Commercial use needs a CC BY-NC waiver.",
+            "BY-NC",
+        ),
+    ],
+)
+def test_license_guard_accepts_only_cc_by_4(
+    make_test_context: MakeContext,
+    tmp_path: Path,
+    no_overrides: Path,
+    licensing: str,
+    named: str,
+) -> None:
+    def edit(name: str, data: bytes) -> bytes:
+        if name != "README.md":
+            return data
+        assert FIXTURE_LICENSE.encode() in data
+        return data.replace(FIXTURE_LICENSE.encode(), licensing.encode())
+
+    edited = rezip(tmp_path, edit)
+    with pytest.raises(FetchError, match=f"names '{named}'"):
+        IMPORTER.run(make_test_context(input_path=edited), run_args(no_overrides))
+
+
+def test_check_license_passes_the_published_readme() -> None:
+    with zipfile.ZipFile(EPOCH_ZIP) as zf:
+        check_license(zf.read("README.md").decode("utf-8"))  # no error
+
+
+def test_an_address_without_a_state_is_not_sent_to_the_census(
+    make_test_context: MakeContext, no_overrides: Path, tmp_path: Path
+) -> None:
+    def drop_city(name: str, data: bytes) -> bytes:
+        if name != "data_centers.csv":
+            return data
+        assert b"5420 Tulane Rd, Memphis, TN 38109" in data
+        return data.replace(b"5420 Tulane Rd, Memphis, TN 38109", b"5420 Tulane Rd")
+
+    calls: list[httpx.Request] = []
+    ctx = make_test_context(input_path=rezip(tmp_path, drop_city), handler=census_handler(calls))
+    result = IMPORTER.run(ctx, run_args(no_overrides, no_geocode=False))
+    assert "Colossus 2" not in by_name(result.candidates)
+    (item,) = [i for i in result.review if i.external_id == "Colossus 2"]
+    assert item.kind == "geocode_failed" and "names no state" in item.reason
+    assert item.data == {"address": "5420 Tulane Rd"}
+    assert [r.url.params["address"] for r in calls] == ["Holly Ridge, LA 71269"]
 
 
 def test_layout_guards(make_test_context: MakeContext, tmp_path: Path, no_overrides: Path) -> None:

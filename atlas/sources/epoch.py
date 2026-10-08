@@ -1,7 +1,8 @@
 """Epoch AI Frontier Data Centers: a pipeline seed (07 §4.1, §4.3).
 
 Reads https://epoch.ai/data/data_centers/data_centers.zip (CC BY 4.0): README.md (the license is
-checked), data_centers.csv (one row per site) and data_center_timelines.csv (dated rows per site).
+checked: it must link the CC BY 4.0 deed and name no NonCommercial, NoDerivatives or ShareAlike
+term), data_centers.csv (one row per site) and data_center_timelines.csv (dated rows per site).
 Only US sites are imported. Each becomes a `project` (a `campus` once a building is operational)
 whose status_history comes from the timeline through the status crosswalk (07 §4.7):
 
@@ -33,7 +34,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
-from pydantic import Field, HttpUrl, TypeAdapter, ValidationError
+from pydantic import AwareDatetime, Field, HttpUrl, TypeAdapter, ValidationError
 
 from atlas.crosswalk import from_epoch_row
 from atlas.schema.record import PLACEHOLDER_ID, AtlasModel, FacilityRecord, Precision, SourceType
@@ -50,12 +51,27 @@ if TYPE_CHECKING:
 ZIP_URL = "https://epoch.ai/data/data_centers/data_centers.zip"
 DATASET_URL = "https://epoch.ai/data/ai-data-centers"
 LICENSE = "CC-BY-4.0"
-LICENSE_MARKER = "Creative Commons Attribution"
+# README.md must link this deed, and must not name a more restrictive Creative Commons license
+# (all of whose names also start "Creative Commons Attribution").
+LICENSE_URI = "creativecommons.org/licenses/by/4.0"
+_RESTRICTED_LICENSE_RE = re.compile(
+    r"\bby-(?:nc|nd|sa)\b|non-?commercial|no-?deriv|share-?alike", re.I
+)
 OVERRIDES_PATH = Path("config/overrides/epoch.json")
 COUNTRY = "United States"
 MAX_LINK_SOURCES = 5
 NOTE_MAX = 200
 CONFIDENCE = 0.70
+# A location an override cites with a verbatim quote: 07 §3.4 "stated, exact quote" (0.85) plus the
+# source adjustment for the cited source's type.
+OVERRIDE_CONFIDENCE = 0.85
+SOURCE_ADJUSTMENT: dict[str, float] = {
+    "government_record": 0.10,
+    "court_or_regulator": 0.10,
+    "utility_or_iso_filing": 0.07,
+    "sec_filing": 0.07,
+    "company_release": 0.05,
+}
 
 SITE_COLUMNS = (
     "Name",
@@ -104,15 +120,24 @@ def epoch_error(message: str) -> FetchError:
 
 
 class LocationOverride(AtlasModel):
-    """One entry of config/overrides/epoch.json: a location taken from a cited source."""
+    """One entry of config/overrides/epoch.json: a location taken from a cited source.
+
+    quote is the sentence (or the shortest span of it, at most 300 characters) that states the
+    location, copied verbatim from source_url when it was read at retrieved_at; archive_url is the
+    snapshot that was read when the live page refuses automated clients.
+    """
 
     state_abbr: str = Field(pattern=r"^[A-Z]{2}$")
     county_fips: str | None = Field(None, pattern=r"^\d{5}$")
     city: str | None = None
+    municipality: str | None = None
     lat: float | None = Field(None, ge=18, le=72)
     lon: float | None = Field(None, ge=-180, le=-64)
     precision: Precision
     source_url: HttpUrl
+    archive_url: HttpUrl | None = None
+    quote: str = Field(min_length=1, max_length=300)
+    retrieved_at: AwareDatetime
     note: str = Field(min_length=1, max_length=300)
     publisher: str | None = None
     source_type: SourceType | None = None
@@ -266,15 +291,25 @@ def read_zip(path: Path) -> tuple[str, list[dict[str, str]], list[dict[str, str]
             timelines = zf.read("data_center_timelines.csv").decode("utf-8-sig")
     except UnsafeZipError as e:
         raise epoch_error(f"Epoch ZIP refused: {e}") from e
-    if LICENSE_MARKER not in readme:
-        raise epoch_error(
-            f"Epoch README.md no longer says {LICENSE_MARKER!r}; check the license before importing"
-        )
+    check_license(readme)
     return (
         readme,
         _rows(sites, SITE_COLUMNS, "data_centers.csv"),
         _rows(timelines, TIMELINE_COLUMNS, "data_center_timelines.csv"),
     )
+
+
+def check_license(readme: str) -> None:
+    """Raise unless README.md grants CC BY 4.0: the deed is linked, and no NonCommercial,
+    NoDerivatives or ShareAlike term appears (a switch to one of those would bar republishing the
+    data in an ODbL database)."""
+    restricted = _RESTRICTED_LICENSE_RE.search(readme)
+    if LICENSE_URI not in readme.casefold() or restricted:
+        why = f"names {restricted.group(0)!r}" if restricted else f"does not link {LICENSE_URI}"
+        raise epoch_error(
+            f"Epoch README.md {why}, so the data may no longer be CC BY 4.0; check the license "
+            "before importing"
+        )
 
 
 def load_overrides(path: Path) -> dict[str, LocationOverride]:
@@ -401,13 +436,26 @@ def place_override(
         "lon": lon,
         "precision": ov.precision,
         "city": ov.city,
+        "municipality": ov.municipality,
         "county_name": county.name if county else None,
         "county_fips": county.fips if county else None,
         "state_abbr": ov.state_abbr,
         "geocode_method": method,
     }
-    where = ov.city or (gazetteer.county_full_name(county.fips) if county else None)
-    return Placed(location, where, 0.85, "override", ov)
+    where = (
+        ov.city or ov.municipality or (gazetteer.county_full_name(county.fips) if county else None)
+    )
+    return Placed(location, where, override_confidence(ov), "override", ov)
+
+
+def override_source_type(ov: LocationOverride) -> SourceType:
+    return ov.source_type or link_source_type(str(ov.source_url))
+
+
+def override_confidence(ov: LocationOverride) -> float:
+    """07 §3.4: stated with a verbatim quote (0.85) plus the source adjustment, at most 0.99."""
+    adjustment = SOURCE_ADJUSTMENT.get(override_source_type(ov), 0.0)
+    return round(min(0.99, OVERRIDE_CONFIDENCE + adjustment), 2)
 
 
 def site_record(
@@ -446,10 +494,13 @@ def site_record(
             {
                 "id": location_sid,
                 "url": str(ov.source_url),
+                "archive_url": str(ov.archive_url) if ov.archive_url else None,
                 "publisher": ov.publisher or host_of(str(ov.source_url)),
                 "title": None,
-                "source_type": ov.source_type or link_source_type(str(ov.source_url)),
-                "retrieved_at": retrieved_at,
+                "source_type": override_source_type(ov),
+                "retrieved_at": ov.retrieved_at.isoformat(),
+                "quote": ov.quote,
+                "quote_match": "human",
                 "supports": ["/location"],
             }
         )
@@ -504,7 +555,7 @@ def site_record(
 
     ref = {"source_ids": ["s1"]}
     parties = {
-        "operator": [{"name": n, **ref} for n in tagged_names(site.owner)],
+        "owner": [{"name": n, **ref} for n in tagged_names(site.owner)],
         "tenant": [{"name": n, **ref} for n in tagged_names(site.users)],
     }
     aliases = [{"name": n, "kind": "codename", **ref} for n in tagged_names(site.project)]
@@ -562,7 +613,7 @@ class EpochImporter:
         )
 
     def run(self, ctx: ImportContext, args: argparse.Namespace) -> ImportResult:
-        from atlas.geocode import CensusGeocoder, Gazetteer, GeocoderError
+        from atlas.geocode import CensusGeocoder, Gazetteer, GeocoderError, parse_address
 
         overrides = load_overrides(getattr(args, "overrides", OVERRIDES_PATH))
 
@@ -639,7 +690,16 @@ class EpochImporter:
             except GeocoderError as e:
                 raise epoch_error(f"Census Geocoder: {e}") from e
             if placed is None:
-                if site.address:
+                if site.address and parse_address(site.address).state_abbr is None:
+                    flag(
+                        "geocode_failed",
+                        site.name,
+                        "the address names no state, so it is not geocoded (a Census match "
+                        "could come from any state); add a cited entry to "
+                        "config/overrides/epoch.json to import it",
+                        address=site.address,
+                    )
+                elif site.address:
                     flag(
                         "geocode_failed",
                         site.name,
