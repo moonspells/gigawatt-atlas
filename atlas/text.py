@@ -41,6 +41,8 @@ _HYPHENS = frozenset("\u02d7\u2043\u2212\u2796")
 # What it writes as ".": middle dots, bullets, raised dots and the ideographic full stop (NFKD
 # has already made U+0387, U+FF61 and U+FF65 into U+00B7, U+3002 and U+30FB).
 _DOTS = frozenset("\u00b7\u2022\u2027\u2219\u22c5\u2e31\u2e33\u30fb\u3002")
+# Control characters (Cc) that are not whitespace: NUL to BS, SO to ESC, DEL, and C1 except NEL.
+_NON_SPACE_CONTROL_RE = re.compile(r"[\x00-\x08\x0e-\x1b\x7f-\x84\x86-\x9f]")
 
 _NON_WORD_RE = re.compile(r"[\W_]+")
 _ORG_SUFFIXES = (
@@ -75,6 +77,16 @@ def strip_invisible(s: str) -> str:
     if s.isascii():
         return s
     return "".join(ch for ch in s if not is_hidden(ch))
+
+
+def clean_text(s: str) -> str:
+    """Upstream text as an importer stores it: strip_invisible, every control character that is
+    not whitespace removed (NUL, BEL, ESC, DEL and the C1 controls but NEL), and each run of
+    whitespace (tab, newline, CR, NEL, U+2028 and the rest) made one space, trimmed. The result
+    has none of the characters the text rule rejects, so one stray byte upstream cannot hold a
+    record."""
+    s = _NON_SPACE_CONTROL_RE.sub("", strip_invisible(s))
+    return " ".join(s.split())
 
 
 def privacy_form(s: str) -> str:

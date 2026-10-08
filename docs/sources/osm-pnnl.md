@@ -73,8 +73,10 @@ records the endpoint that answered, `upstream_version` = `timestamp_osm_base`, a
 ## 3. Objects
 
 Every element becomes an `OsmObject(ref, lat, lon, bounds, tags, kind)`. `ref` is `node/1`, `way/1`
-or `relation/1`; `lat`/`lon` is the node position or the bounding-box midpoint. Tag values have
-invisible characters removed and whitespace collapsed. `kind` is:
+or `relation/1`; `lat`/`lon` is the node position or the bounding-box midpoint. Tag values go
+through `text.clean_text`: invisible characters and control characters (DEL, ESC, BEL and the rest
+that are not whitespace) are removed and whitespace is collapsed, so a stray control character in
+a tag does not make the record fail the text rule. `kind` is:
 
 | kind | Rule | US count (2026-10-07) |
 |---|---|---|

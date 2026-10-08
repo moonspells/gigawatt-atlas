@@ -69,7 +69,7 @@ from atlas.sources.base import (
     ReviewItem,
     load_input,
 )
-from atlas.text import normalize_name, strip_invisible
+from atlas.text import clean_text, normalize_name
 from atlas.validate import EARLIEST_DATE, FUTURE_YEARS, add_years
 
 if TYPE_CHECKING:
@@ -165,7 +165,7 @@ class OverpassError(ValueError):
 
 
 def _clean(value: object) -> str:
-    return " ".join(strip_invisible(str(value)).split())
+    return clean_text(str(value))
 
 
 def check_overpass(doc: object, *, min_elements: int = MIN_ELEMENTS) -> str:

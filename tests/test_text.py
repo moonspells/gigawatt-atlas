@@ -7,6 +7,7 @@ import pytest
 from atlas.text import (
     EMAIL_RE,
     PHONE_RE,
+    clean_text,
     find_personal_data,
     hidden_characters,
     is_hidden,
@@ -208,6 +209,34 @@ def test_strip_invisible_keeps_visible_text() -> None:
     assert strip_invisible(text) == text
     assert hidden_characters(text) == []
     assert strip_invisible("plain ascii\ttext") == "plain ascii\ttext"
+
+
+@pytest.mark.parametrize(
+    ("text", "cleaned"),
+    [
+        ("Microsoft\x7f", "Microsoft"),  # DEL
+        ("a\x1b[31mb", "a[31mb"),  # ESC
+        ("a\x07b\x00c\x08d", "abcd"),  # BEL, NUL, backspace
+        ("a\x9bb\x80c", "abc"),  # C1 controls
+        ("a\tb\nc\r\nd", "a b c d"),
+        ("a\x0bb\x0cc\x1cd\x1fe\x85f", "a b c d e f"),  # whitespace controls separate words
+        ("a\u2028b\u2029c", "a b c"),
+        ("  Data\u200b cen\u202eter\u2066 ", "Data center"),
+        ("\x7f\x1b", ""),
+        ("Quer\u00e9taro \u2014 Stra\u00dfe", "Quer\u00e9taro \u2014 Stra\u00dfe"),
+    ],
+)
+def test_clean_text(text: str, cleaned: str) -> None:
+    """SV2-3: importers store upstream text without hidden or control characters."""
+    assert clean_text(text) == cleaned
+
+
+def test_clean_text_removes_every_control_character() -> None:
+    for cp in range(0x110000):
+        ch = chr(cp)
+        if unicodedata.category(ch) in ("Cc", "Zl", "Zp"):
+            cleaned = clean_text(f"a{ch}b")
+            assert cleaned == ("a b" if ch.isspace() else "ab"), f"U+{cp:04X}"
 
 
 def test_privacy_form() -> None:
