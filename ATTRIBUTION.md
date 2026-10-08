@@ -35,12 +35,45 @@ Center Atlas* (v2026.02.09) [Data set]. MSD-LIVE. <https://doi.org/10.57931/3017
 Database License 1.0, <https://opendatacommons.org/licenses/odbl/1-0/>. Creators as listed on the
 MSD-LIVE record.
 
-The pipeline reads the public web-map file `im3_datacenter_centroids.geojson` from
-<https://immm-sfa.github.io/datacenter-atlas/>. The repository that serves it,
-`immm-sfa/datacenter-atlas`, is "Copyright (c) 2025, Battelle Memorial Institute", open source
-under the BSD 2-Clause license; MSD-LIVE gives the dataset as ODbL 1.0, so both notices are kept.
-
 Used for: county mapping, floor area, and a cross-check of the OpenStreetMap seed.
+
+The seed reads the dataset's public web-map file,
+<https://immm-sfa.github.io/datacenter-atlas/im3_datacenter_centroids.geojson> (the v2026.02.09
+export, SHA-256 2e7bd7e650fe86fe0d156b4e483ebd331cfa98a0468ce33b932f8c1b6c3245df; records cite any
+other version of the file as the file itself). The repository that serves it,
+immm-sfa/datacenter-atlas, carries this license:
+
+> IM3 Open Source Data Center Atlas
+>
+> Copyright (c) 2025, Battelle Memorial Institute
+>
+> Open source under license BSD 2-Clause
+>
+> 1. Battelle Memorial Institute (hereinafter Battelle) hereby grants permission to any person or
+> entity lawfully obtaining a copy of this software and associated documentation files
+> (hereinafter “the Software”) to redistribute and use the Software in source and binary forms,
+> with or without modification. Such person or entity may use, copy, modify, merge, publish,
+> distribute, sublicense, and/or sell copies of the Software, and may permit others to do so,
+> subject to the following conditions:
+>    - Redistributions of source code must retain the above copyright notice, this list of
+>      conditions and the following disclaimers.
+>    - Redistributions in binary form must reproduce the above copyright notice, this list of
+>      conditions and the following disclaimer in the documentation and/or other materials
+>      provided with the distribution.
+>    - Other than as used herein, neither the name Battelle Memorial Institute or Battelle may be
+>      used in any form whatsoever without the express written consent of Battelle.
+>
+> 2. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+> IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+> FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL BATTELLE OR CONTRIBUTORS BE
+> LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+> (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+> OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+> CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+> THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+MSD-LIVE gives the dataset as ODbL 1.0; both notices are kept until PNNL confirms which covers the
+web-map file.
 
 ### Epoch AI
 
