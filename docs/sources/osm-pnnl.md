@@ -136,7 +136,7 @@ deleted; a cluster that disappears upstream becomes a `removed_upstream` review 
 
 | Field | Value |
 |---|---|
-| `record_type` / `scope` | `campus`; `in_scope`, or `out_of_scope` outside the 50 states and DC (the record is kept, 07 §2.2) |
+| `record_type` / `scope` | `campus`; `in_scope`, or `out_of_scope` outside the 50 states and DC or for a telecom site (the record is kept, 07 §2.2; see below) |
 | `canonical_name` | base = the representative's `name`, else the most common member name, else "{operator} data center", else "Data center". The operator is prefixed unless the base already starts with the operator, its `operator:short`, or the operator's first word ("Lumen Ashburn" for Lumen Technologies stays as is; "CyrusOne NVA14" operated by PowerHouse becomes "PowerHouse CyrusOne NVA14"). Then " ({city}, {ST})" with `location.city`, else with the county's full Census name from the Gazetteer ("Taylor County", "Manassas city", "Orleans Parish"), as in the Epoch and AI GridWatch importers. A bare county name reads as a city and sometimes is one elsewhere: Taylor County, TX is Abilene, while the city of Taylor, TX is 300 km away. |
 | `aliases[]` | the other distinct member names (`osm_name`, source s1) |
 | `parties.operator` / `owner` | the most common `operator` / `owner` tag (source s1) |
@@ -148,7 +148,7 @@ deleted; a cluster that disappears upstream becomes a `removed_upstream` review 
 | `buildings[]` | one per building or point member: `ref` "osm:{ref}", `name`, `sqft` from PNNL, `phase_id` when the cluster has phases |
 | `capacity` | see below |
 | `status_history`, `phases` | see below; `field_meta["/status"]` = 0.60, `imported`, s1 |
-| `evidence_level` / `purpose` | `reported` / `unknown` |
+| `evidence_level` / `purpose` | `reported` / `unknown`, or `telecom` for a telecom site (then s1 also supports `/purpose`) |
 | `site.building_sqft`, `site.acreage` | from PNNL (section 7) |
 | `sources[0]` (s1) | `https://www.openstreetmap.org/{representative}`, "OpenStreetMap contributors", title "OpenStreetMap {representative}", `open_dataset`, `ODbL-1.0`, supports `/canonical_name`, `/aliases`, `/parties`, `/location`, `/buildings`, `/capacity`, `/status_history/0` |
 | `sources[1]` (s2) | PNNL, only when a PNNL row matched (section 7) |
@@ -158,6 +158,21 @@ deleted; a cluster that disappears upstream becomes a `removed_upstream` review 
 `operator:wikidata` (for joins), `owner`, the `addr:*` fields above, `it_power`,
 `input:electricity`, `start_date`, `opening_date` and the status tags. Contact tags such as `phone`,
 `email` and `website` are never copied.
+
+### Telecom sites
+
+07 §2.2 puts telecom central offices and edge sites out of scope, and OSM `telecom=data_center`
+also tags cable landing stations and telephone company offices. A cluster is a telecom site when
+every member that has a `name`, `alt_name` or `operator` names a cable landing station, a landing
+station, a central office, a wire center, or a telephone company or cooperative ("Telephone Co",
+"Telephone Coop", "Cooperative Telephone"), or is tagged `telecom=exchange` or
+`telecom=central_office`. Unnamed members count neither way, and one data center name in the
+cluster keeps it in scope. The record gets `scope: "out_of_scope"`, `purpose: "telecom"` and an
+`out_of_scope` review item naming the member and the words that matched. On 2026-10-07 this
+catches 10 sites: 8 cable landing stations (Tuckerton, Manasquan, Wall Township, Shirley, Norma
+Beach, Myrtle Beach) and 2 telephone cooperative offices. "AT&T Center" in San Diego, operated by
+"American Telephone & Telegraph", stays in scope: neither its name nor its operator says what the
+building is.
 
 ### Capacity
 
@@ -264,7 +279,7 @@ warning.
 
 | File | Kind | When |
 |---|---|---|
-| `osm.jsonl` | `out_of_scope` | the record's state is outside the 50 states and DC (the record is still written, with `scope: "out_of_scope"`) |
+| `osm.jsonl` | `out_of_scope` | the record's state is outside the 50 states and DC, or it is a telecom site (the record is still written, with `scope: "out_of_scope"`) |
 | `osm.jsonl` | `unit_parse` | an `it_power` or `input:electricity` value that is not a power value |
 | `osm.jsonl` | `missing_location` | an element without a position, or a cluster no Census county contains |
 | `osm.jsonl` | `unknown_status` | no member tag the crosswalk knows (not seen; every query clause maps) |

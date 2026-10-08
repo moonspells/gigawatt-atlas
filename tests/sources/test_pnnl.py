@@ -298,7 +298,9 @@ def test_case_fixture_effects(counties: CountyIndex) -> None:
     assert by_ref["way/1422191468"].site.acreage is None  # Dickey County, ND
     # Digital Realty ATL11 is listed in Douglas and Cobb County; one of them agrees.
     assert by_ref["way/975064000"].location.county_fips == "13097"
-    items = sorted((i.kind, i.external_id, i.data.get("osm")) for i in built.review)
+    items = sorted(
+        (i.kind, i.external_id, i.data.get("osm")) for i in built.review if i.source == "pnnl"
+    )
     assert items == [
         ("conflict", "campus@-84.585223,33.750590", "way/844352473"),
         ("conflict", "campus@-98.572441,46.013549", "way/1422191472"),

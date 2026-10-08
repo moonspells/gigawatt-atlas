@@ -14,7 +14,7 @@ from pydantic import HttpUrl
 
 from atlas.cli import main
 from atlas.commands.importer import discover_importers
-from atlas.dissolve import Bounds, OsmObject, dissolve, meters_to_degrees
+from atlas.dissolve import Bounds, Cluster, OsmObject, dissolve, meters_to_degrees
 from atlas.geo.counties import CountyIndex
 from atlas.jsonio import record_json
 from atlas.net import FetchError, make_client
@@ -44,12 +44,14 @@ from atlas.sources.osm import (
     osm_date,
     parse_mw,
     parse_overpass,
+    telecom_site,
 )
 from atlas.validate import validate_record
 
 MakeContext = Callable[..., ImportContext]
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 OVERPASS_FIXTURE = FIXTURES / "osm" / "overpass-sample.json"
+OVERPASS_CASES = FIXTURES / "osm" / "overpass-cases.json"
 PNNL_GEOJSON = FIXTURES / "pnnl" / "centroids-sample.geojson"
 OSM_BASE = "2026-10-07T22:19:21Z"
 RETRIEVED = datetime(2026, 10, 8, 6, 0, tzinfo=UTC)
@@ -502,6 +504,53 @@ def test_out_of_scope(built: BuildResult) -> None:
     assert "787" not in json.dumps(record_json(r))  # the phone tag is never copied
     (item,) = [i for i in built.review if i.kind == "out_of_scope"]
     assert (item.source, item.external_id) == ("osm", "node/10014176940")
+
+
+def test_telecom_sites_are_out_of_scope(counties: CountyIndex) -> None:
+    objects, _ = parse_overpass(json.loads(OVERPASS_CASES.read_text(encoding="utf-8")))
+    result = build(counties, objects, with_pnnl=False)
+    cls = candidate(result, "way/459188725").record  # Cable & Wireless Cable Landing Station
+    coop = candidate(result, "way/1365213539").record  # "PTC", a telephone cooperative's office
+    for r in (cls, coop):
+        assert (r.scope, r.purpose) == ("out_of_scope", "telecom")
+        assert r.sources[0].supports == [*OSM_SUPPORTS, "/purpose"]
+        assert validate_record(r, counties=counties, today=TODAY) == []
+    items = {i.external_id: i.reason for i in result.review if i.kind == "out_of_scope"}
+    assert items == {
+        "way/459188725": "a telecom site, not a data center: way/459188725 is named as a telecom "
+        "site ('Cable Landing'); kept with scope out_of_scope (07 §2.2)",
+        "way/1365213539": "a telecom site, not a data center: way/1365213539 is named as a telecom "
+        "site ('Cooperative Telephone'); kept with scope out_of_scope (07 §2.2)",
+    }
+    assert result.metrics["out_of_scope"] == 2
+    others = [c.record for c in result.candidates if c.record.scope == "in_scope"]
+    assert len(others) == len(result.candidates) - 2
+    assert {r.purpose for r in others} == {"unknown"}
+
+
+def test_telecom_site_rules() -> None:
+    def site(*members: OsmObject) -> str | None:
+        return telecom_site(Cluster(members=members, representative=members[0]))
+
+    assert site(building("way/1", 0, 0, name="Manasquan Cable Landing Station", operator="Lumen"))
+    assert site(building("way/1", 0, 0, name="Marquette-Adams Telephone Coop"))
+    assert site(building("way/1", 0, 0, name="Tuckerton", alt_name="Tuckerton landing station"))
+    assert site(building("way/1", 0, 0, building="data_center", telecom="exchange"))
+    # A data center building next to a landing station keeps the site in scope.
+    assert not site(
+        building("way/1", 0, 0, name="Example Landing Station", operator="Lumen"),
+        building("way/2", 0, 100, name="Example DC1", operator="Lumen"),
+    )
+    # Unnamed members count neither way; an unnamed site is in scope.
+    assert site(
+        building("way/1", 0, 0, name="Example Landing Station", operator="Lumen"),
+        building("way/2", 0, 100),
+    )
+    assert not site(building("way/1", 0, 0))
+    # "American Telephone & Telegraph" is not a telephone company office by name alone.
+    assert not site(
+        building("way/1", 0, 0, name="AT&T Center", operator="American Telephone & Telegraph")
+    )
 
 
 def test_metrics(built: BuildResult) -> None:

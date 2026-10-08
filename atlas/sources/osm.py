@@ -94,6 +94,7 @@ __all__ = [
     "osm_date",
     "parse_mw",
     "parse_overpass",
+    "telecom_site",
 ]
 
 OVERPASS_ENDPOINTS = (
@@ -146,6 +147,14 @@ _POWER_FACTOR = {"gw": 1000.0, "mw": 1.0, "kw": 0.001}
 _DATE_RE = re.compile(r"^\d{4}(?:-\d{2}(?:-\d{2})?)?$")
 _DATE_PRECISION: dict[int, DatePrecision] = {4: "year", 7: "month", 10: "day"}
 _MAX_MW = 10_000.0
+# 07 §2.2 puts telecom central offices and edge sites out of scope. OSM telecom=data_center also
+# tags cable landing stations and telephone company offices, whose names or operators say so.
+_TELECOM_RE = re.compile(
+    r"\b(?:cable landing|landing station|central office|wire center"
+    r"|telephone (?:co|coop|cooperative|company)|cooperative telephone)\b",
+    re.IGNORECASE,
+)
+_TELECOM_TAGS = frozenset({"exchange", "central_office"})  # telecom=* on a building=data_center
 
 
 class OverpassError(ValueError):
@@ -621,6 +630,26 @@ def _canonical_name(
     return (f"{base} ({place}, {st})" if place else f"{base} ({st})"), base_name
 
 
+def telecom_site(cluster: Cluster) -> str | None:
+    """Why the cluster is a telecom site rather than a data center (07 §2.2), or None.
+
+    It is one when every member that has a name, alt_name or operator names a cable landing
+    station, a central office, a wire center or a telephone company or cooperative, or is tagged
+    telecom=exchange; unnamed members do not count either way.
+    """
+    reasons: list[str] = []
+    for m in cluster.members:
+        text = " ".join(v for v in (m.name, m.tags.get("alt_name"), m.operator) if v)
+        found = _TELECOM_RE.search(text)
+        if m.tags.get("telecom") in _TELECOM_TAGS:
+            reasons.append(f"{m.ref} is tagged telecom={m.tags['telecom']}")
+        elif found is not None:
+            reasons.append(f"{m.ref} is named as a telecom site ({found.group(0)!r})")
+        elif text:
+            return None
+    return reasons[0] if reasons else None
+
+
 def _cluster_point(cluster: Cluster) -> tuple[float, float]:
     rep = cluster.representative
     if rep.kind == "campus":
@@ -667,7 +696,10 @@ def _build_one(
         return None
 
     st = county.state_abbr
-    scope: Literal["in_scope", "out_of_scope"] = "in_scope" if st in IN_SCOPE else "out_of_scope"
+    telecom = telecom_site(cluster)
+    scope: Literal["in_scope", "out_of_scope"] = (
+        "in_scope" if st in IN_SCOPE and telecom is None else "out_of_scope"
+    )
     location = _location(cluster, ordered, county, *point)
     operator = _most_common(m.operator for m in ordered)
     owner = _most_common(m.tags.get("owner") for m in ordered)
@@ -711,7 +743,7 @@ def _build_one(
             source_type="open_dataset",
             license=OSM_LICENSE,
             retrieved_at=ctx.osm_retrieved_at,
-            supports=list(OSM_SUPPORTS),
+            supports=[*OSM_SUPPORTS, "/purpose"] if telecom is not None else list(OSM_SUPPORTS),
         )
     ]
     external_ids: dict[str, list[str]] = {"osm": sorted(cluster.refs, key=ref_key)}
@@ -754,7 +786,7 @@ def _build_one(
                 operator=[OrgRef(name=operator, source_ids=[OSM_SOURCE_ID])] if operator else [],
                 owner=[OrgRef(name=owner, source_ids=[OSM_SOURCE_ID])] if owner else [],
             ),
-            purpose="unknown",
+            purpose="telecom" if telecom is not None else "unknown",
             status=groups[0].status.status,
             evidence_level="reported",
             status_history=events,
@@ -782,10 +814,15 @@ def _build_one(
         )
         return None
     if scope == "out_of_scope":
+        why = (
+            f"{st} is outside the 50 states and DC"
+            if st not in IN_SCOPE
+            else f"a telecom site, not a data center: {telecom}"
+        )
         review.append(
             _review(
                 "out_of_scope",
-                f"{st} is outside the 50 states and DC; kept with scope out_of_scope (07 §2.2)",
+                f"{why}; kept with scope out_of_scope (07 §2.2)",
                 external_id=rep.ref,
             )
         )
