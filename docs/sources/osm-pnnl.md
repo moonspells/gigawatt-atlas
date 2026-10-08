@@ -190,9 +190,12 @@ operating). Members are grouped by the resulting status.
   showing as under construction.
 - **`opening_date`** on a group that is not operating adds a planned `energized` event, which never
   changes the status.
-- On later runs, a `first_reported` event whose status, phase and source are unchanged keeps the
-  `as_of` already stored, so weekly runs do not move the date. A status change replaces the event;
-  recording transitions as new events is the M2 diff (07 §4.2 step 5).
+- On later runs, a `first_reported` event keeps the earliest `as_of` already stored for the same
+  status and source, so weekly runs never move `dates.first_reported` or `operating_since`
+  forward. The phase is not compared: when a building under construction appears next to an
+  operating campus, or later goes, the operating event moves between no phase and `osm-operating`
+  but its status has not changed. A status change replaces the event; recording transitions as
+  new events is the M2 diff (07 §4.2 step 5).
 
 ## 6. PNNL inputs
 

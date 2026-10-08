@@ -547,18 +547,30 @@ def _events(
 def _keep_first_reported(
     events: list[StatusEvent], existing: FacilityRecord | None
 ) -> list[StatusEvent]:
-    """Keep the stored as_of of an unchanged first_reported event, so weekly runs do not move it."""
+    """Keep the earliest stored as_of of a first_reported event with the same status and sources,
+    so weekly runs never move it forward.
+
+    The phase is not compared: when a cluster gains or loses a status group, its events move
+    between phase_id None and "osm-{status}", but the status itself has not changed.
+    """
     if existing is None:
         return events
-    stored = {
-        (e.status, e.event, e.phase_id, tuple(e.source_ids)): e.as_of
-        for e in existing.status_history
-        if not e.planned
-    }
+    stored: dict[tuple[str, tuple[str, ...]], FuzzyDate] = {}
+    for e in existing.status_history:
+        if e.planned or e.event != "first_reported":
+            continue
+        key = (e.status, tuple(e.source_ids))
+        if key not in stored or period_start(e.as_of) < period_start(stored[key]):
+            stored[key] = e.as_of
     out: list[StatusEvent] = []
     for e in events:
-        old = stored.get((e.status, e.event, e.phase_id, tuple(e.source_ids)))
-        if e.event == "first_reported" and not e.planned and old is not None:
+        old = stored.get((e.status, tuple(e.source_ids)))
+        if (
+            e.event == "first_reported"
+            and not e.planned
+            and old is not None
+            and period_start(old) <= period_start(e.as_of)
+        ):
             e = e.model_copy(update={"as_of": old.model_copy()})
         out.append(e)
     return out

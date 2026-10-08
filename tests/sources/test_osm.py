@@ -81,6 +81,7 @@ def build(
     *,
     with_pnnl: bool = True,
     existing: dict[str, FacilityRecord] | None = None,
+    osm_base: str = OSM_BASE,
 ) -> BuildResult:
     if objects is None:
         objects, _ = parse_overpass(fixture_doc())
@@ -90,7 +91,7 @@ def build(
         clusters,
         counties=counties,
         now=NOW,
-        snapshot=snapshot(),
+        snapshot=snapshot(upstream=osm_base),
         pnnl_join=join,
         pnnl_snapshot=snapshot("pnnl", None) if with_pnnl else None,
         existing=existing,
@@ -616,6 +617,56 @@ def test_existing_first_reported_date_is_kept(counties: CountyIndex) -> None:
     )
     again = candidate(build(counties, existing={stored.id: stored}), "way/300162689").record
     assert again.status_history[0].as_of.value == "2026-01"
+
+
+def test_first_reported_kept_when_a_status_group_comes_and_goes(counties: CountyIndex) -> None:
+    def history(result: BuildResult) -> list[tuple[str, str, str, str | None]]:
+        r = candidate(result, "way/1188715510").record  # Cologix ASH1
+        return [(e.status, e.event, e.as_of.value, e.phase_id) for e in r.status_history]
+
+    objects, _ = parse_overpass(fixture_doc())
+    without_ash2 = [o for o in objects if o.ref != "way/1560827027"]
+    week1 = build(counties, without_ash2, with_pnnl=False)
+    assert history(week1) == [("operating", "first_reported", "2026-10-07", None)]
+    rid = "gwa-01m4c7rym8gsp21hkfp8nhzxz1"
+
+    def stored(result: BuildResult) -> dict[str, FacilityRecord]:
+        return {rid: candidate(result, "way/1188715510").record.model_copy(update={"id": rid})}
+
+    # A week later ASH2 appears under construction next to it: the operating group becomes the
+    # phase osm-operating, but the operating status has not changed, so neither does its date.
+    week2 = build(
+        counties, objects, with_pnnl=False, existing=stored(week1), osm_base="2026-10-14T21:00:00Z"
+    )
+    assert history(week2) == [
+        ("operating", "first_reported", "2026-10-07", "osm-operating"),
+        ("under_construction", "first_reported", "2026-10-14", "osm-under_construction"),
+    ]
+    r = candidate(week2, "way/1188715510").record
+    assert {k: v.value for k, v in r.dates.items()} == {
+        "first_reported": "2026-10-07",
+        "operating_since": "2026-10-07",
+    }
+    # Another week later ASH2 is gone again: both dates stay.
+    week3 = build(
+        counties,
+        without_ash2,
+        with_pnnl=False,
+        existing=stored(week2),
+        osm_base="2026-10-21T21:00:00Z",
+    )
+    assert history(week3) == [("operating", "first_reported", "2026-10-07", None)]
+    # A stored date later than the snapshot (a re-run on an older snapshot) never wins.
+    rerun = build(counties, without_ash2, with_pnnl=False, existing=stored(week3))
+    assert history(rerun) == [("operating", "first_reported", "2026-10-07", None)]
+    late = build(
+        counties,
+        without_ash2,
+        with_pnnl=False,
+        existing=stored(week3),
+        osm_base="2026-10-01T00:00Z",
+    )
+    assert history(late) == [("operating", "first_reported", "2026-10-01", None)]
 
 
 # ---------------------------------------------------------------------------- importer and CLI
