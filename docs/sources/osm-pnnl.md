@@ -223,16 +223,32 @@ PNNL v2026.02.09 (DOI 10.57931/3017294, ODbL 1.0) is derived from OSM, with coun
   `operator`, `name`, `sqft` and `type`. It has **no OSM id and no FIPS code**, so the join is
   spatial. Fetched with the crawler policy (robots.txt, 2 s per host), kept at
   `.cache/atlas/raw/pnnl/{sha256}.geojson`.
+
+  The file does not say which dataset version it is, so `WEBMAP_VERSIONS` records the files whose
+  version is established, by SHA-256. The one served on 2026-10-07 and 2026-10-08
+  (`2e7bd7e6…45df`, 373,790 bytes) is the v2026.02.09 export: the repository behind the web map,
+  `immm-sfa/datacenter-atlas`, committed it on 2026-02-12 in the commit that also set the map's
+  own citation to v2026.02.09 (DOI 10.57931/3017294) and its legend to "Last Updated Feb 09,
+  2026". The repository README still links the v1 record (MSD-LIVE 65g71-a4731, DOI
+  10.57931/2550666) for the layer, a link from before that update, and the file's Last-Modified
+  (2026-03-31) is a later deploy that changed only the projected layers. The snapshot's
+  `upstream_version` is the file's established version, or null with a warning for any other
+  file, which records then cite as the file itself (section 7). The repository is BSD 2-Clause,
+  © 2025 Battelle Memorial Institute; the notice is in `ATTRIBUTION.md` and the PNNL fixture
+  README. MSD-LIVE gives the dataset as ODbL 1.0, and records keep `ODbL-1.0`.
 - **A CSV in the MSD-LIVE layout** (`id, state, state_abb, state_id, county, county_id, ref,
   operator, name, sqft, lat, lon, type`), passed with `--pnnl`, if the owner mirrors the MSD-LIVE
-  files. Those need an MSD-LIVE sign-in, so the importer never downloads them. With a CSV the join
-  uses ids and the snapshot cites the DOI.
+  v2026.02.09 files. Those need an MSD-LIVE sign-in, so the importer never downloads them. With a
+  CSV the join uses ids, and the snapshot cites the v2026.02.09 DOI with `upstream_version`
+  v2026.02.09.
 - **Version check:** `GET https://data.msdlive.org/api/records/p147s-4h760/versions/latest`
-  (the public records API, which redirects to the latest record), `metadata.version` →
-  the snapshot's `upstream_version`. It is an API read once per run, so robots.txt is not consulted
-  (its robots.txt answered 502 on 2026-10-07, which the crawler policy would read as "disallow
-  everything"). A failure is a warning, not an error. A version other than v2026.02.09 prints a
-  warning, because the mapping was checked against that version.
+  (the public records API, which redirects to the latest record). It is an API read once per run,
+  so robots.txt is not consulted (its robots.txt answered 502 on 2026-10-07, which the crawler
+  policy would read as "disallow everything"). A failure is a warning, not an error. A
+  `metadata.version` other than v2026.02.09 prints a warning, because the mapping was checked
+  against that version. It is not the snapshot's `upstream_version`: a newer MSD-LIVE version
+  says nothing about which version the web-map file is, and the receipt and the records must name
+  the same one.
 
 ## 7. The PNNL join
 
@@ -249,9 +265,12 @@ Effects on a matched cluster:
 
 - `external_ids.pnnl_im3` gets each row's key: `{type}:{id}` when the row has an id, else
   `{type}@{lon:.6f},{lat:.6f}` (for example `building@-77.449520,39.026368`).
-- `sources` gets s2: `https://doi.org/10.57931/3017294`, "Pacific Northwest National Laboratory
-  (IM3)", title "IM3 Open Source Data Center Atlas v2026.02.09", `open_dataset`, `ODbL-1.0`,
-  supports `/site` and `/buildings`.
+- `sources` gets s2 for the file actually read, "Pacific Northwest National Laboratory (IM3)",
+  `open_dataset`, `ODbL-1.0`, supports `/site` and `/buildings`. When the file's version is
+  established it cites that version: `https://doi.org/10.57931/3017294`, title "IM3 Open Source
+  Data Center Atlas v2026.02.09, web map file im3_datacenter_centroids.geojson" (just "IM3 Open
+  Source Data Center Atlas v2026.02.09" for the CSV). Otherwise it cites the web-map file URL,
+  title "IM3 Open Source Data Center Atlas, web map file im3_datacenter_centroids.geojson".
 - A `building` row's `sqft` goes to the matched building's (or point's) `buildings[].sqft`. When
   several building rows hit one member, PNNL has kept an older footprint next to the current one
   (Apple Data Center, Mesa, AZ: 1,338,261 and 1,263,277 sq ft on way 300974499, whose bounding box

@@ -405,7 +405,7 @@ def test_run_reports_match_rate(
 
 
 def pnnl_handler(
-    calls: list[str], *, version_status: int = 200
+    calls: list[str], *, version_status: int = 200, latest: str = "v2026.02.09"
 ) -> Callable[[httpx.Request], httpx.Response]:
     geojson = GEOJSON.read_bytes()
 
@@ -417,7 +417,7 @@ def pnnl_handler(
                 return httpx.Response(version_status)
             return httpx.Response(301, headers={"location": pnnl.MSDLIVE_RECORD})
         if url == pnnl.MSDLIVE_RECORD:
-            body = {"id": "p147s-4h760", "metadata": {"version": "v2026.02.09"}}
+            body = {"id": "p147s-4h760", "metadata": {"version": latest}}
             return httpx.Response(200, json=body)
         if url == pnnl.PNNL_GEOJSON_URL:
             return httpx.Response(
@@ -444,14 +444,69 @@ def test_fetch_pnnl_with_version_check(make_test_context: MakeContext) -> None:
         "https://immm-sfa.github.io/robots.txt",
         pnnl.PNNL_GEOJSON_URL,
     ]
+    # upstream_version is the version of the file read; the sample's version is not established.
     assert (snap.name, str(snap.url), snap.upstream_version) == (
         "pnnl",
         pnnl.PNNL_GEOJSON_URL,
-        "v2026.02.09",
+        None,
     )
     assert snap.last_modified == "Tue, 31 Mar 2026"
     assert ctx.raw_path("pnnl", snap.sha256, "geojson").read_bytes() == GEOJSON.read_bytes()
     assert not any("files" in c or c.endswith((".gpkg", ".csv")) for c in calls)
+
+
+def test_citation_follows_the_file_read(
+    make_test_context: MakeContext,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # MSD-LIVE lists a newer version. That says nothing about the web-map file, so neither the
+    # receipt nor the records take it.
+    ctx = make_test_context(handler=pnnl_handler([], latest="v2026.06.01"))
+    _, snap = pnnl.load_pnnl_input(ctx, None, sleep=lambda s: None)
+    err = capsys.readouterr().err
+    assert snap.upstream_version is None
+    assert "MSD-LIVE lists PNNL v2026.06.01" in err and "(not established)" in err
+    assert "is not the one checked as v2026.02.09" in err
+    s2 = pnnl.pnnl_source(snap)
+    assert (str(s2.url), s2.title) == (
+        pnnl.PNNL_GEOJSON_URL,
+        "IM3 Open Source Data Center Atlas, web map file im3_datacenter_centroids.geojson",
+    )
+    assert s2.retrieved_at == snap.retrieved_at and s2.license == "ODbL-1.0"
+
+    # A web-map file whose version is established cites that version's DOI, whatever MSD-LIVE's
+    # latest version is.
+    monkeypatch.setitem(pnnl.WEBMAP_VERSIONS, snap.sha256, "v2026.02.09")
+    ctx = make_test_context(handler=pnnl_handler([], latest="v2026.06.01"))
+    _, snap = pnnl.load_pnnl_input(ctx, None, sleep=lambda s: None)
+    assert "is not the one checked" not in capsys.readouterr().err
+    assert snap.upstream_version == "v2026.02.09"
+    s2 = pnnl.pnnl_source(snap)
+    assert (str(s2.url), s2.title) == (
+        "https://doi.org/10.57931/3017294",
+        "IM3 Open Source Data Center Atlas v2026.02.09, web map file "
+        "im3_datacenter_centroids.geojson",
+    )
+    # The same file passed with --pnnl is recognised the same way.
+    _, local = pnnl.load_pnnl_input(make_test_context(), GEOJSON, sleep=lambda s: None)
+    assert local.upstream_version == "v2026.02.09"
+
+    # The MSD-LIVE CSV layout is the v2026.02.09 mirror (07 §4.2 step 3 owner step).
+    _, csv_snap = pnnl.load_pnnl_input(make_test_context(), CSV, sleep=lambda s: None)
+    s2 = pnnl.pnnl_source(csv_snap)
+    assert (csv_snap.upstream_version, str(s2.url), s2.title) == (
+        "v2026.02.09",
+        "https://doi.org/10.57931/3017294",
+        "IM3 Open Source Data Center Atlas v2026.02.09",
+    )
+
+
+def test_established_web_map_file_is_documented() -> None:
+    (sha,) = pnnl.WEBMAP_VERSIONS
+    assert pnnl.WEBMAP_VERSIONS[sha] == pnnl.PNNL_VERSION
+    readme = (FIXTURES / "pnnl" / "README.md").read_text(encoding="utf-8")
+    assert sha in readme and "Battelle Memorial Institute" in readme
 
 
 def test_version_check_failure_is_a_warning(

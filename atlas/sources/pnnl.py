@@ -4,11 +4,16 @@ PNNL v2026.02.09 (DOI 10.57931/3017294, ODbL 1.0) is derived from OpenStreetMap.
 read:
 
 - the public web-map file (PNNL_GEOJSON_URL): 1,382 Point features whose properties are only
-  state_abb, county, operator, name, sqft and type. It has no OSM id and no FIPS code.
+  state_abb, county, operator, name, sqft and type. It has no OSM id and no FIPS code, and it
+  does not say which dataset version it is: WEBMAP_VERSIONS records the files whose version is
+  established, by SHA-256. Records built from any other web-map file cite that file, not a
+  version (pnnl_source). The repository that serves it is BSD 2-Clause, © 2025 Battelle
+  Memorial Institute (ATTRIBUTION.md).
 - a CSV in the MSD-LIVE column layout (id, state, state_abb, state_id, county, county_id, ref,
-  operator, name, sqft, lat, lon, type), if the owner mirrors the MSD-LIVE files. Those files need
-  an MSD-LIVE sign-in, so this module never downloads them; MSD-LIVE is used only for a version
-  check through its public records API.
+  operator, name, sqft, lat, lon, type), if the owner mirrors the MSD-LIVE v2026.02.09 files.
+  Those files need an MSD-LIVE sign-in, so this module never downloads them; MSD-LIVE is used
+  only for a version check through its public records API, which warns when a newer version is
+  out.
 
 join() matches rows to dissolved OSM clusters: by OSM id when a row has one, otherwise spatially.
 The OSM importer (atlas.sources.osm) applies the matches to its records. This module has no
@@ -26,7 +31,6 @@ import sys
 import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -42,12 +46,23 @@ if TYPE_CHECKING:
     from atlas.geo.counties import CountyIndex
 
 PNNL_GEOJSON_URL = "https://immm-sfa.github.io/datacenter-atlas/im3_datacenter_centroids.geojson"
+PNNL_WEBMAP_FILE = "im3_datacenter_centroids.geojson"
 MSDLIVE_RECORD = "https://data.msdlive.org/api/records/p147s-4h760"
 PNNL_DOI_URL = "https://doi.org/10.57931/3017294"
 PNNL_VERSION = "v2026.02.09"
 PNNL_LICENSE = "ODbL-1.0"
 PNNL_PUBLISHER = "Pacific Northwest National Laboratory (IM3)"
-PNNL_TITLE = f"IM3 Open Source Data Center Atlas {PNNL_VERSION}"
+PNNL_DATASET = "IM3 Open Source Data Center Atlas"
+PNNL_TITLE = f"{PNNL_DATASET} {PNNL_VERSION}"
+VERSION_DOIS = {PNNL_VERSION: PNNL_DOI_URL}  # the versions this importer was checked against
+# Web-map files whose dataset version is established. This one is the file that
+# immm-sfa/datacenter-atlas committed on 2026-02-12 (74ab37d, "Updated existing dc db, citation,
+# doi link and last update date"), the commit that set the map's own citation to v2026.02.09 and
+# its "Last Updated Feb 09, 2026". It was still the served file on 2026-10-08; the 2026-03-31
+# Last-Modified is a later deploy that changed only the projected layers.
+WEBMAP_VERSIONS = {
+    "2e7bd7e650fe86fe0d156b4e483ebd331cfa98a0468ce33b932f8c1b6c3245df": PNNL_VERSION,
+}
 PNNL_SUPPORTS = ("/site", "/buildings")
 REVIEW_SOURCE = "pnnl"
 
@@ -360,16 +375,32 @@ def join(clusters: Sequence[Cluster], rows: Sequence[PnnlRow]) -> JoinResult:
 # ---------------------------------------------------------------------------- effects
 
 
-def pnnl_source(retrieved_at: datetime, source_id: str = "s2") -> Source:
-    """The PNNL source entry of a matched record."""
+def pnnl_source(snapshot: InputSnapshot, source_id: str = "s2") -> Source:
+    """The PNNL source entry of a matched record, for the file actually read.
+
+    snapshot.upstream_version is the dataset version of that file when it is established (the
+    MSD-LIVE CSV, or a web-map file in WEBMAP_VERSIONS); then the entry cites that version's DOI.
+    Otherwise it cites the web-map file itself, without a version.
+    """
+    version = snapshot.upstream_version
+    doi = VERSION_DOIS.get(version) if version is not None else None
+    webmap = str(snapshot.url) == PNNL_GEOJSON_URL
+    if doi is not None:
+        url = doi
+        title = f"{PNNL_DATASET} {version}" + (
+            f", web map file {PNNL_WEBMAP_FILE}" if webmap else ""
+        )
+    else:
+        url = str(snapshot.url)
+        title = f"{PNNL_DATASET}, web map file {PNNL_WEBMAP_FILE}" if webmap else PNNL_DATASET
     return Source(
         id=source_id,
-        url=HttpUrl(PNNL_DOI_URL),
+        url=HttpUrl(url),
         publisher=PNNL_PUBLISHER,
-        title=PNNL_TITLE,
+        title=title,
         source_type="open_dataset",
         license=PNNL_LICENSE,
-        retrieved_at=retrieved_at,
+        retrieved_at=snapshot.retrieved_at,
         supports=list(PNNL_SUPPORTS),
     )
 
@@ -563,7 +594,8 @@ def unmatched_item(row: PnnlRow) -> ReviewItem:
 def msdlive_version(
     ctx: ImportContext, *, sleep: Callable[[float], None] = time.sleep
 ) -> str | None:
-    """metadata.version of the latest MSD-LIVE record version, or None (with a warning).
+    """metadata.version of the latest MSD-LIVE record version, or None (with a warning). It is
+    only compared with PNNL_VERSION; it never says which version a web-map file is.
 
     The records API is a JSON API, read once per run, so robots.txt is not consulted (as for
     Overpass); its robots.txt answered 502 on 2026-10-07. The data files are never requested.
@@ -586,14 +618,27 @@ def msdlive_version(
     except (FetchError, ValueError, KeyError, TypeError) as e:
         print(f"warning: MSD-LIVE version check failed: {e}", file=sys.stderr)
         return None
-    version = version.strip()
-    if version != PNNL_VERSION:
+    return version.strip()
+
+
+def _webmap_snapshot(snapshot: InputSnapshot, latest: str | None) -> InputSnapshot:
+    """The web-map snapshot with upstream_version = the file's established dataset version (or
+    None), and warnings when that is unknown or MSD-LIVE lists a newer version."""
+    version = WEBMAP_VERSIONS.get(snapshot.sha256)
+    if version is None:
         print(
-            f"warning: MSD-LIVE lists PNNL {version}; this importer was checked against "
-            f"{PNNL_VERSION}",
+            f"warning: the PNNL web-map file (sha256 {snapshot.sha256[:12]}) is not the one "
+            f"checked as {PNNL_VERSION}; records cite the file, without a dataset version",
             file=sys.stderr,
         )
-    return version
+    if latest is not None and latest != PNNL_VERSION:
+        print(
+            f"warning: MSD-LIVE lists PNNL {latest}; this importer was checked against "
+            f"{PNNL_VERSION}, and records cite the version of the file read "
+            f"({version or 'not established'})",
+            file=sys.stderr,
+        )
+    return snapshot.model_copy(update={"upstream_version": version})
 
 
 def load_pnnl_input(
@@ -619,11 +664,12 @@ def load_pnnl_input(
             use_ctx_input=False,
         )
         rows = parse_pnnl(data)
-        if any(r.osm_id or r.county_id for r in rows):  # the MSD-LIVE layout: cite the DOI
-            snapshot = snapshot.model_copy(update={"url": HttpUrl(PNNL_DOI_URL)})
-        return rows, snapshot
+        if any(r.osm_id or r.county_id for r in rows):  # the MSD-LIVE v2026.02.09 layout
+            update = {"url": HttpUrl(PNNL_DOI_URL), "upstream_version": PNNL_VERSION}
+            return rows, snapshot.model_copy(update=update)
+        return rows, _webmap_snapshot(snapshot, None)
 
-    version = msdlive_version(ctx, sleep=sleep)
+    latest = msdlive_version(ctx, sleep=sleep)
 
     def get() -> FetchResult:
         return fetch(
@@ -641,7 +687,6 @@ def load_pnnl_input(
         license=PNNL_LICENSE,
         ext="geojson",
         fetch=get,
-        upstream_version=version,
         use_ctx_input=False,
     )
-    return parse_pnnl(data), snapshot
+    return parse_pnnl(data), _webmap_snapshot(snapshot, latest)

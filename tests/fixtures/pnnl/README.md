@@ -8,6 +8,50 @@ License 1.0.** The atlas is derived from OpenStreetMap: © OpenStreetMap contrib
 Web map: <https://im3.pnnl.gov/datacenter-atlas> (mirror:
 <https://immm-sfa.github.io/datacenter-atlas/>).
 
+The GeoJSON features below come from the web map's file `im3_datacenter_centroids.geojson`, which
+the GitHub repository `immm-sfa/datacenter-atlas` serves. Its version: the file with SHA-256
+`2e7bd7e650fe86fe0d156b4e483ebd331cfa98a0468ce33b932f8c1b6c3245df` was committed on 2026-02-12
+(commit 74ab37d, "Updated existing dc db, citation, doi link and last update date"), the commit
+that set the map's own citation to v2026.02.09 (DOI 10.57931/3017294) and its legend to "Last
+Updated Feb 09, 2026". The repository README still links the v1 record (MSD-LIVE 65g71-a4731) for
+the existing data centers; that link predates the update. The file's Last-Modified of 2026-03-31
+is a later site deploy that changed only the projected layers. `atlas/sources/pnnl.py` records
+this file in `WEBMAP_VERSIONS`.
+
+That repository carries this license, reproduced as it requires:
+
+> IM3 Open Source Data Center Atlas
+>
+> Copyright (c) 2025, Battelle Memorial Institute
+>
+> Open source under license BSD 2-Clause
+>
+> 1. Battelle Memorial Institute (hereinafter Battelle) hereby grants permission to any person or
+> entity lawfully obtaining a copy of this software and associated documentation files
+> (hereinafter “the Software”) to redistribute and use the Software in source and binary forms,
+> with or without modification. Such person or entity may use, copy, modify, merge, publish,
+> distribute, sublicense, and/or sell copies of the Software, and may permit others to do so,
+> subject to the following conditions:
+>    - Redistributions of source code must retain the above copyright notice, this list of
+>      conditions and the following disclaimers.
+>    - Redistributions in binary form must reproduce the above copyright notice, this list of
+>      conditions and the following disclaimer in the documentation and/or other materials
+>      provided with the distribution.
+>    - Other than as used herein, neither the name Battelle Memorial Institute or Battelle may be
+>      used in any form whatsoever without the express written consent of Battelle.
+>
+> 2. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+> IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+> FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL BATTELLE OR CONTRIBUTORS BE
+> LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+> (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+> OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+> CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+> THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+MSD-LIVE gives the dataset as ODbL 1.0; whether the BSD license also covers the data file the
+repository serves is an open owner question, so both notices are kept.
+
 ## `centroids-sample.geojson`
 
 17 of the 1,382 features of the public web-map file

@@ -357,7 +357,7 @@ class _Context:
     latest_date: date  # as_of_date + 15 years: the latest date validation accepts
     osm_retrieved_at: datetime
     pnnl_join: pnnl.JoinResult | None
-    pnnl_retrieved_at: datetime | None
+    pnnl_snapshot: InputSnapshot | None
     existing: Mapping[str, FacilityRecord]
     existing_by_ref: Mapping[str, set[str]]
 
@@ -747,8 +747,8 @@ def _build_one(
         )
     ]
     external_ids: dict[str, list[str]] = {"osm": sorted(cluster.refs, key=ref_key)}
-    if pnnl_rows and ctx.pnnl_retrieved_at is not None:
-        sources.append(pnnl.pnnl_source(ctx.pnnl_retrieved_at, PNNL_SOURCE_ID))
+    if pnnl_rows and ctx.pnnl_snapshot is not None:
+        sources.append(pnnl.pnnl_source(ctx.pnnl_snapshot, PNNL_SOURCE_ID))
         external_ids["pnnl_im3"] = sorted({r.key for r in pnnl_rows})
         mismatches = pnnl.county_mismatches(
             pnnl_rows, county_fips=county.fips, state_abbr=st, counties=ctx.counties
@@ -863,7 +863,7 @@ def build_candidates(
         latest_date=add_years(as_of_date, FUTURE_YEARS),
         osm_retrieved_at=snapshot.retrieved_at,
         pnnl_join=pnnl_join,
-        pnnl_retrieved_at=pnnl_snapshot.retrieved_at if pnnl_snapshot is not None else None,
+        pnnl_snapshot=pnnl_snapshot,
         existing=stored,
         existing_by_ref=by_ref,
     )

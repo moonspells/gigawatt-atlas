@@ -66,9 +66,10 @@ def fixture_doc() -> dict[str, Any]:
 
 
 def snapshot(name: str = "overpass", upstream: str | None = OSM_BASE) -> InputSnapshot:
+    url = OVERPASS_ENDPOINTS[1] if name == "overpass" else pnnl.PNNL_GEOJSON_URL
     return InputSnapshot(
         name=name,
-        url=HttpUrl(OVERPASS_ENDPOINTS[1]),
+        url=HttpUrl(url),
         retrieved_at=RETRIEVED,
         sha256="0" * 64,
         bytes=1,
@@ -412,12 +413,11 @@ def test_campus_record(built: BuildResult) -> None:
         "ODbL-1.0",
     )
     assert s1.supports == list(OSM_SUPPORTS) and s1.retrieved_at == RETRIEVED
-    assert (s2.id, str(s2.url), s2.license) == (
-        "s2",
-        "https://doi.org/10.57931/3017294",
-        "ODbL-1.0",
+    # The 17-feature sample is not a web-map file whose version is established: s2 cites the file.
+    assert (s2.id, str(s2.url), s2.license) == ("s2", pnnl.PNNL_GEOJSON_URL, "ODbL-1.0")
+    assert s2.title == (
+        "IM3 Open Source Data Center Atlas, web map file im3_datacenter_centroids.geojson"
     )
-    assert s2.title == "IM3 Open Source Data Center Atlas v2026.02.09"
     assert s2.publisher == "Pacific Northwest National Laboratory (IM3)"
     assert s2.supports == ["/site", "/buildings"]
 
