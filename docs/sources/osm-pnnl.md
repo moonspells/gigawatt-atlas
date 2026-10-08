@@ -197,7 +197,7 @@ operating). Members are grouped by the resulting status.
   YYYY-MM or YYYY-MM-DD between 1990-01-01 and the snapshot date, the event is `energized` at that
   date instead. Earlier dates (old buildings converted to data centers, such as "1938") are
   ignored, because validation accepts nothing before 1990.
-- **Several statuses (12 clusters on 2026-10-07).** Each status group becomes a phase,
+- **Several statuses (13 clusters on 2026-10-07).** Each status group becomes a phase,
   `osm-operating`, `osm-under_construction` or `osm-proposed`, named after its members ("Under
   construction in OpenStreetMap: NTT VA8"), with one event per phase and `buildings[].phase_id`
   set. The rollup (07 §2.3) then gives the most advanced active status, so an operating campus with
@@ -344,6 +344,10 @@ The receipt `data/imports/osm.json` has the metrics `objects`, `clusters`, `out_
   {ST})", for example "Data center (Taylor County, TX)"; 51 names are shared by 186 records that
   differ only by id. Operator tags are copied as written; a few name a person or a
   non-data-center business, which the seed review should catch.
+- **Doubly mapped buildings.** Rule 3 joins only objects that both lack an operator, so an
+  unnamed way drawn on the footprint of a named building with an operator stays a record of its
+  own (way 567575425 on the Apple Data Center, way 300974499, in Mesa, AZ). A footprint-overlap
+  rule needs real geometry (`out geom`).
 - **Cross-source duplicates.** OSM and Epoch or AI GridWatch can describe the same site; entity
   resolution is M4.
 
@@ -356,17 +360,23 @@ The receipt `data/imports/osm.json` has the metrics `objects`, `clusters`, `out_
   `timestamp_osm_base` 2026-10-07T22:39:49Z. The same query took 26–27 s in the live test and the
   earlier probe. An attempt a few minutes before failed on all four endpoints (reset, 504, 500,
   500) and stopped cleanly with exit 1.
-- **Dissolve:** 88 campus objects, 1,663 buildings, 135 points → 1,367 clusters (1,141 single
-  objects, 226 with several members, at most 12).
-- **Records:** 1,367 candidates, 0 invalid; `atlas validate` passes for all 1,367 (1,365 in scope,
-  2 out of scope in Puerto Rico). Status: 1,314 operating, 52 under construction, 1 proposed; 12
-  with phases. Precision: 1,248 footprint, 119 site. `it_mw` on 19 records and `facility_mw` on 24;
-  31 dated by `start_date`; 2 planned `opening_date` events.
-- **PNNL:** MSD-LIVE latest version v2026.02.09; 1,355 of 1,382 rows matched (**98.05%**, above
-  the 95% threshold), all spatially; 971 records gained s2 and `pnnl_im3`, 34 an acreage.
-- **Review:** 27 `unmatched` (15 campus, 7 building, 5 point rows) and 7 `county_mismatch` in
-  `pnnl.jsonl` (clusters near a county line, for example Manassas city against Prince William
-  County); 2 `out_of_scope` in `osm.jsonl`.
+- **Dissolve:** 88 campus objects, 1,663 buildings, 135 points → 1,117 clusters (834 single
+  objects, 283 with several members, at most 32). The rules before the 2026-10-08 review fixes
+  gave 1,367 (section 4).
+- **Records:** 1,117 candidates, 0 invalid; `atlas validate` passes for all 1,117 (1,105 in scope;
+  12 out of scope: 2 in Puerto Rico and 10 telecom sites). Status: 1,073 operating, 43 under
+  construction, 1 proposed; 13 with phases. Precision: 1,002 footprint, 115 site. `it_mw` on 13
+  records and `facility_mw` on 19; 27 dated by `start_date`; 2 planned `opening_date` events.
+- **PNNL:** MSD-LIVE latest version v2026.02.09, and the web-map file read is the established
+  v2026.02.09 export (`upstream_version` v2026.02.09); 1,355 of 1,382 rows matched (**98.05%**,
+  above the 95% threshold), all spatially; 863 records gained s2 and `pnnl_im3`, 30 an acreage.
+- **Review:** in `pnnl.jsonl`, 27 `unmatched` (15 campus, 7 building, 5 point rows), 9 `conflict`
+  (4 campus rows on buildings, 5 building rows larger than their building's box), 7
+  `county_mismatch` (clusters near a county line, for example Manassas city against Prince
+  William County) and 4 `possible_duplicate`; in `osm.jsonl`, 12 `out_of_scope`.
+
+These counts were measured on the saved 22:39:49Z response with the code after the 2026-10-08
+review fixes; the first run (22:42 UTC) gave the figures before them, quoted in section 4.
 
 The seed records are not committed by this change; the bulk seed pull request runs the import after
 integration (07 §6.7).
