@@ -31,6 +31,43 @@ jobs:
       - run: uv run --locked ruff check .
       - run: uv run --locked ruff format --check .
       - run: uv run --locked mypy
+      - name: Release age (10 §11.8)
+        # `[tool.uv] exclude-newer = "24 hours"` applies only when uv resolves; `uv sync --locked`
+        # and `uv lock --check` accept a lock that pins a file uploaded a minute ago (a hand-edited
+        # lock, a CLI override, an old uv). This fails on any uv.lock file uploaded less than 24
+        # hours ago, except within a reviewed `exclude-newer-package` entry (see dependabot.yml).
+        # Lock values are printed through ascii(), so a PR cannot emit workflow commands.
+        run: |
+          uv run --locked python -I - <<'PY'
+          import re, sys, tomllib
+          from datetime import UTC, datetime, timedelta
+
+          now = datetime.now(UTC)
+          lock = tomllib.loads(open("uv.lock", encoding="utf-8").read())
+          span_re = re.compile(r"P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?")
+          cutoffs, bad = {}, []
+          for name, entry in lock["options"].get("exclude-newer-package", {}).items():
+              print(f"::warning::uv.lock: exclude-newer-package {ascii(name)}; drop it after a day")
+              if isinstance(entry, str):
+                  cutoffs[name] = datetime.fromisoformat(entry)
+              elif isinstance(entry, dict) and (m := span_re.fullmatch(entry.get("span", ""))):
+                  d, h, mi, s = (int(g or 0) for g in m.groups())
+                  cutoffs[name] = now - timedelta(days=d, hours=h, minutes=mi, seconds=s)
+              else:
+                  bad.append(f"{name}: unsupported exclude-newer-package entry {entry!r}")
+          for pkg in lock["package"]:
+              if "registry" not in pkg["source"]:
+                  continue
+              limit = cutoffs.get(pkg["name"], now - timedelta(hours=24))
+              for f in ([pkg["sdist"]] if "sdist" in pkg else []) + pkg.get("wheels", []):
+                  at = f.get("upload-time")
+                  if at is None or datetime.fromisoformat(at) > limit:
+                      bad.append(f"{pkg['name']} {pkg['version']}: {f['url']} uploaded {at}")
+          for line in bad:
+              print("uv.lock: less than 24 hours old or unchecked:", ascii(line))
+          print(f"{len(bad)} problem(s); checked at {now:%Y-%m-%dT%H:%M}Z")
+          sys.exit(1 if bad else 0)
+          PY
 
   test:
     name: test
