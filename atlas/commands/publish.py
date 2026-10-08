@@ -1,9 +1,10 @@
-"""`atlas publish build|verify|upload|put|fixture` (07 §6.8, §11; 10 §11.8).
+"""`atlas publish build|verify|upload|put|fixture|takedown` (07 §5.4, §6.8, §11; 10 §11.8).
 
 build writes a release directory (no network except the previous release's manifest), verify
 re-checks one, upload sends it to R2 (or --local-target), put uploads one file under the same
-rules (the basemap), and fixture rebuilds or checks the pinned fixture release 20000101-0000.
-Exit codes: 0 ok, 1 a check or upload failed, 2 usage error.
+rules (the basemap), fixture rebuilds or checks the pinned fixture release 20000101-0000, and
+takedown deletes records from rec/ and from every release still stored except the live one.
+Exit codes: 0 ok, 1 a check, upload or delete failed, 2 usage error.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from pathlib import Path
 
 PR_NUMBER_ENV = "ATLAS_PR_NUMBER"
 TILES_BASE_ENV = "ATLAS_TILES_BASE"
+DEFAULT_TILES = "https://tiles.moonspells.dev"
 
 
 def _err(message: str) -> None:
@@ -65,6 +67,8 @@ def _build(args: argparse.Namespace) -> int:
         records_dir=args.records,
         orgs_path=args.orgs,
         layers_path=args.layers,
+        attribution_path=args.attribution,
+        changelog_path=args.changelog,
         out_dir=args.out,
         release=release,
         generated_at=when if args.deterministic else now,
@@ -72,9 +76,7 @@ def _build(args: argparse.Namespace) -> int:
         allow_count_change=args.allow_count_change,
         skip_pmtiles=args.skip_pmtiles,
         fixture=args.fixture,
-        tiles_base=args.tiles_base
-        or os.environ.get(TILES_BASE_ENV)
-        or "https://tiles.moonspells.dev",
+        tiles_base=args.tiles_base or os.environ.get(TILES_BASE_ENV) or DEFAULT_TILES,
         git_commit=commit,
         pr_number=pr,
         today=now.date(),
@@ -207,8 +209,40 @@ def _fixture(args: argparse.Namespace) -> int:
     return 0
 
 
+def _takedown(args: argparse.Namespace) -> int:
+    from atlas.publish import ReleaseError, plan_takedown, run_takedown
+    from atlas.r2 import Bucket, LocalUploader, R2Error, s3_uploader_from_env, storage_errors
+
+    try:
+        bucket: Bucket = (
+            LocalUploader(args.local_target)
+            if args.local_target is not None
+            else s3_uploader_from_env()
+        )
+        plan = plan_takedown(bucket, args.id, keep=args.keep)
+        run_takedown(
+            bucket,
+            plan,
+            tiles_base=args.tiles_base or os.environ.get(TILES_BASE_ENV) or DEFAULT_TILES,
+            dry_run=args.dry_run,
+        )
+    except ReleaseError as e:
+        return _report(e.problems, "publish takedown")
+    except R2Error as e:
+        return _report([str(e)], "publish takedown")
+    except storage_errors() as e:
+        return _report([f"R2: {e}"], "publish takedown")
+    return 0
+
+
 def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    from atlas.publish import DEFAULT_LAYERS, DEFAULT_OUT, DEFAULT_PREVIOUS
+    from atlas.publish import (
+        DEFAULT_ATTRIBUTION,
+        DEFAULT_CHANGELOG,
+        DEFAULT_LAYERS,
+        DEFAULT_OUT,
+        DEFAULT_PREVIOUS,
+    )
 
     parser = sub.add_parser("publish", help="build, verify and upload a release (07 §11)")
     actions = parser.add_subparsers(dest="publish_command", metavar="action", required=True)
@@ -217,6 +251,12 @@ def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     build.add_argument("--records", type=Path, default=Path("data/records"))
     build.add_argument("--orgs", type=Path, default=Path("data/orgs.json"))
     build.add_argument("--layers", type=Path, default=DEFAULT_LAYERS)
+    build.add_argument(
+        "--attribution", type=Path, default=DEFAULT_ATTRIBUTION, help="copied as ATTRIBUTION.md"
+    )
+    build.add_argument(
+        "--changelog", type=Path, default=DEFAULT_CHANGELOG, help="copied as CHANGELOG.md"
+    )
     build.add_argument("--out", type=Path, default=DEFAULT_OUT)
     build.add_argument("--release", default=None, help="YYYYMMDD-HHMM UTC (default: now)")
     build.add_argument(
@@ -281,3 +321,24 @@ def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
         "--check", action="store_true", help="rebuild in a temp dir and compare; exit 1 on a diff"
     )
     fixture.set_defaults(handler=_fixture)
+
+    takedown = actions.add_parser(
+        "takedown", help="delete records from rec/ and from stored releases (07 §5.4)"
+    )
+    takedown.add_argument(
+        "--id", action="append", required=True, help="record id (gwa-...); repeat for several"
+    )
+    takedown.add_argument(
+        "--keep",
+        action="append",
+        default=[],
+        help="also keep this release (atlas/latest.json's release is always kept)",
+    )
+    takedown.add_argument("--dry-run", action="store_true", help="list the keys; delete nothing")
+    takedown.add_argument(
+        "--local-target", type=Path, default=None, help="act on this directory instead of R2"
+    )
+    takedown.add_argument(
+        "--tiles-base", default=None, help=f"for the purge URLs (default: env {TILES_BASE_ENV})"
+    )
+    takedown.set_defaults(handler=_takedown)

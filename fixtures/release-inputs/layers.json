@@ -1,0 +1,9 @@
+{
+  "basemap": {
+    "asOf": "2026-10-06",
+    "attribution": "© OpenStreetMap contributors · Protomaps",
+    "frozen": false,
+    "label": "Basemap",
+    "url": "https://tiles.moonspells.dev/basemap/conus-z10-20261006.pmtiles"
+  }
+}

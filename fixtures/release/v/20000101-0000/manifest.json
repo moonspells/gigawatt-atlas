@@ -69,15 +69,15 @@
     },
     {
       "bytes": 19030,
-      "content_type": "application/octet-stream",
+      "content_type": "application/vnd.apache.parquet",
       "path": "facilities.parquet",
       "sha256": "86a0e760dff190b7696fc2a675cc5c34b5facf94a77f8cff890b8d70df0d5e62"
     },
     {
-      "bytes": 51526,
+      "bytes": 51569,
       "content_type": "application/octet-stream",
       "path": "facilities.pmtiles",
-      "sha256": "52b16d7c34b0da09ae0006f777d8a85a95c1a2490936905245d2348d50cb5c94"
+      "sha256": "00cb19b7746df1d7f57ce56c1ed32dc89cdaae4226d11e44e5afa181ab1e34c2"
     },
     {
       "bytes": 111,

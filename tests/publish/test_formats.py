@@ -6,6 +6,7 @@ import csv
 import gzip
 import io
 import json
+import shlex
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -171,6 +172,42 @@ def test_render_csv_cells(facilities: list[Facility]) -> None:
     assert len(rows) == len(facilities)
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        '=HYPERLINK("https://evil.example/x","Ashburn")',
+        "+1+cmd|' /C calc'!A0",
+        "-2+3",
+        "@SUM(1+1)",
+        "\t=1+1",
+        "\r=1+1",
+        "\uff1d1+1",  # full-width =
+        "\uff0b1",
+        "\uff0d1",
+        "\uff20SUM(1)",
+    ],
+)
+def test_render_csv_neutralizes_formula_cells(
+    facilities: list[Facility], records: dict[str, FacilityRecord], name: str
+) -> None:
+    planted = make_facility(
+        public_record(records[ASHBURN].model_copy(update={"canonical_name": name}))
+    )
+    others = [f for f in facilities if f.record.id != ASHBURN]
+    rows = list(csv.DictReader(io.StringIO(render_csv([planted, *others]).decode("utf-8"))))
+    row = next(r for r in rows if r["id"] == ASHBURN)
+    assert row["name"] == "'" + name  # shown as text, never run as a formula
+    assert row["lon"] == "-77.4874"  # numbers keep their sign
+    # Only the CSV is escaped; the GeoJSON and the map keep the name as stored.
+    feature = json.loads(render_geojson([planted]))["features"][0]
+    assert feature["properties"]["name"] == name
+
+
+def test_csv_text_cells_that_stay_as_they_are() -> None:
+    for value in ("Example Campus", "2026-07", "", "a=b", " =1", "Vantage | -"):
+        assert publish.csv_text_cell(value) == value
+
+
 def test_render_geojson(facilities: list[Facility]) -> None:
     doc = json.loads(render_geojson(facilities))
     assert doc["type"] == "FeatureCollection"
@@ -211,6 +248,23 @@ def test_summary_math(facilities: list[Facility]) -> None:
     assert empty["gw_total"] == 0.0 and empty["last_updated"] is None
 
 
+def test_summary_last_updated_compares_instants(records: dict[str, FacilityRecord]) -> None:
+    # 09:00-05:00 is 14:00Z, later than 10:00Z, although the string sorts first.
+    stamps = {ASHBURN: "2026-10-06T10:00:00Z", VANTAGE: "2026-10-06T09:00:00-05:00"}
+    planted = [
+        make_facility(
+            public_record(
+                FacilityRecord.model_validate(
+                    dict(records[rid].model_dump(mode="json"), updated_at=stamp)
+                )
+            )
+        )
+        for rid, stamp in stamps.items()
+    ]
+    summary = build_summary("20261012-1200", "2026-10-12T12:00:00Z", planted, 0)
+    assert summary["last_updated"] == "2026-10-06T14:00:00Z"
+
+
 def test_geo_metadata_bbox(facilities: list[Facility]) -> None:
     geo = geo_metadata(facilities)
     points = [f.lonlat for f in facilities if f.lonlat]
@@ -229,6 +283,30 @@ def test_pmtiles_summary_reads_the_committed_fixture() -> None:
     assert summary["addressed_tiles"] > 0
     assert "generator_options" not in summary["metadata"]
     assert summary["metadata"]["vector_layers"][0]["id"] == "facilities"
+
+
+def test_pmtiles_attribution_credits_every_source() -> None:
+    # facilities.pmtiles carries names, MW and dates from all four sources (07 §5.1, §11.1).
+    for credit in (
+        "Gigawatt Atlas (ODbL)",
+        "© OpenStreetMap contributors",
+        "PNNL IM3",
+        "Epoch AI (CC BY 4.0)",
+        "AI GridWatch (CC BY 4.0)",
+    ):
+        assert credit in publish.TILES_ATTRIBUTION
+    args = publish.TIPPECANOE_ARGS
+    assert args[args.index("-A") + 1] == publish.TILES_ATTRIBUTION
+    meta = pmtiles_summary(COMMITTED / "facilities.pmtiles")["metadata"]
+    assert meta["attribution"] == publish.TILES_ATTRIBUTION
+
+
+def test_committed_archive_was_built_with_these_tippecanoe_args() -> None:
+    # CI has no tippecanoe, so a change to TIPPECANOE_ARGS must come with a rebuilt fixture
+    # archive; tippecanoe records its command line in the metadata.
+    meta = publish.pmtiles_metadata(COMMITTED / "facilities.pmtiles")
+    assert meta["generator"] == "tippecanoe v2.79.0"
+    assert meta["generator_options"] == shlex.join(publish.tippecanoe_argv())
 
 
 def test_pmtiles_summary_refuses_other_files(tmp_path: Path) -> None:
@@ -256,6 +334,29 @@ def test_layers_shape() -> None:
     bad = {"basemap": dict(layers["basemap"], url="http://x", frozen="no", asOf="2026")}
     assert len(publish.check_layers(bad)) == 3
     assert publish.check_layers({"basemap": {"url": "https://x"}})
+
+
+def test_layers_allow_additive_keys_and_site_paths() -> None:
+    # Contract 1 grows by additions (07 §11.3); metric JSON lives on the site (07 §10.3).
+    layers = json.loads((publish.REPO_ROOT / "overlays" / "out" / "layers.json").read_text("utf-8"))
+    metric = {
+        "url": "/atlas/data/electricity-price.json",
+        "asOf": "2025-12-31",
+        "label": "Industrial electricity price",
+        "attribution": "EIA",
+        "frozen": False,
+        "kind": "metric",
+    }
+    extra = dict(layers["basemap"], minzoom=0)
+    assert publish.check_layers({"basemap": extra, "electricity-price": metric}) == []
+    for url in ("/atlas/data/../x.json", "/etc/passwd", "atlas/data/x.json", "//evil.example/x"):
+        assert publish.check_layers({"m": dict(metric, url=url)}) == [
+            "layer 'm': url must be https or /atlas/data/{layer}.json"
+        ]
+    missing = {k: v for k, v in metric.items() if k != "frozen"}
+    assert publish.check_layers({"m": missing}) == [
+        "layer 'm' must have asOf, attribution, frozen, label, url"
+    ]
 
 
 def test_renderers_sort_by_id(facilities: list[Facility], org_kinds: dict[str, str]) -> None:
