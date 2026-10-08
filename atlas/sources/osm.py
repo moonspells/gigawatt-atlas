@@ -74,6 +74,7 @@ from atlas.validate import EARLIEST_DATE, FUTURE_YEARS, add_years
 
 if TYPE_CHECKING:
     from atlas.geo.counties import County, CountyIndex
+    from atlas.geocode import Gazetteer
 
 __all__ = [
     "IMPORTER",
@@ -340,6 +341,7 @@ class _Context:
     """What every cluster's record shares."""
 
     counties: CountyIndex
+    gazetteer: Gazetteer  # county full names ("Taylor County", "Manassas city") for names
     now: datetime
     as_of: FuzzyDate  # the snapshot date (timestamp_osm_base), day precision
     as_of_date: date
@@ -669,7 +671,8 @@ def _build_one(
     location = _location(cluster, ordered, county, *point)
     operator = _most_common(m.operator for m in ordered)
     owner = _most_common(m.tags.get("owner") for m in ordered)
-    name, base_name = _canonical_name(rep, ordered, operator, location.city or county.name, st)
+    place = location.city or ctx.gazetteer.county_full_name(county.fips) or county.name
+    name, base_name = _canonical_name(rep, ordered, operator, place, st)
 
     aliases: list[Alias] = []
     seen_names = {normalize_name(base_name)} if base_name else set()
@@ -798,10 +801,16 @@ def build_candidates(
     pnnl_join: pnnl.JoinResult | None = None,
     pnnl_snapshot: InputSnapshot | None = None,
     existing: Mapping[str, FacilityRecord] | None = None,
+    gazetteer: Gazetteer | None = None,
 ) -> BuildResult:
-    """One campus candidate per cluster, the review items, and metrics."""
+    """One campus candidate per cluster, the review items, and metrics. gazetteer (default: the
+    committed Census Gazetteer) gives the county's full name for clusters without a city."""
     if snapshot.upstream_version is None:
         raise ValueError("the Overpass snapshot has no timestamp_osm_base")
+    if gazetteer is None:
+        from atlas.geocode import Gazetteer  # the Census files load on use
+
+        gazetteer = Gazetteer.load()
     as_of_date = date.fromisoformat(snapshot.upstream_version[:10])
     stored = dict(existing or {})
     by_ref: dict[str, set[str]] = {}
@@ -810,6 +819,7 @@ def build_candidates(
             by_ref.setdefault(ref, set()).add(rid)
     ctx = _Context(
         counties=counties,
+        gazetteer=gazetteer,
         now=now,
         as_of=FuzzyDate(value=as_of_date.isoformat(), precision="day"),
         as_of_date=as_of_date,

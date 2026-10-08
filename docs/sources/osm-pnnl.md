@@ -137,7 +137,7 @@ deleted; a cluster that disappears upstream becomes a `removed_upstream` review 
 | Field | Value |
 |---|---|
 | `record_type` / `scope` | `campus`; `in_scope`, or `out_of_scope` outside the 50 states and DC (the record is kept, 07 §2.2) |
-| `canonical_name` | base = the representative's `name`, else the most common member name, else "{operator} data center", else "Data center". The operator is prefixed unless the base already starts with the operator, its `operator:short`, or the operator's first word ("Lumen Ashburn" for Lumen Technologies stays as is; "CyrusOne NVA14" operated by PowerHouse becomes "PowerHouse CyrusOne NVA14"). Then " ({city or county}, {ST})". |
+| `canonical_name` | base = the representative's `name`, else the most common member name, else "{operator} data center", else "Data center". The operator is prefixed unless the base already starts with the operator, its `operator:short`, or the operator's first word ("Lumen Ashburn" for Lumen Technologies stays as is; "CyrusOne NVA14" operated by PowerHouse becomes "PowerHouse CyrusOne NVA14"). Then " ({city}, {ST})" with `location.city`, else with the county's full Census name from the Gazetteer ("Taylor County", "Manassas city", "Orleans Parish"), as in the Epoch and AI GridWatch importers. A bare county name reads as a city and sometimes is one elsewhere: Taylor County, TX is Abilene, while the city of Taylor, TX is 300 km away. |
 | `aliases[]` | the other distinct member names (`osm_name`, source s1) |
 | `parties.operator` / `owner` | the most common `operator` / `owner` tag (source s1) |
 | `location.lat`, `lon` | the campus object's bounding-box center, else the mean of the member centers; 7 decimals |
@@ -306,9 +306,10 @@ The receipt `data/imports/osm.json` has the metrics `objects`, `clusters`, `out_
   Data Center - Hillsboro 3's two polygons (ways 1465196735 and 1465196736, tagged
   `proposed:building=industrial`) become two operating records, one of them with the proposed node
   11721960464 as a phase.
-- **Names.** 329 records have no name and no operator and are called "Data center ({county},
-  {ST})"; several share a name and differ only by id. Operator tags are copied as written; a few
-  name a person or a non-data-center business, which the seed review should catch.
+- **Names.** 187 records have no name and no operator and are called "Data center ({county},
+  {ST})", for example "Data center (Taylor County, TX)"; 51 names are shared by 186 records that
+  differ only by id. Operator tags are copied as written; a few name a person or a
+  non-data-center business, which the seed review should catch.
 - **Cross-source duplicates.** OSM and Epoch or AI GridWatch can describe the same site; entity
   resolution is M4.
 

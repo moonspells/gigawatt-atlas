@@ -108,8 +108,11 @@ def near(north_m: float, east_m: float) -> tuple[float, float]:
     return ASHBURN[0] + north_m * dlat, ASHBURN[1] + east_m * dlon
 
 
-def building(ref: str, north_m: float, east_m: float, **tags: str) -> OsmObject:
-    lat, lon = near(north_m, east_m)
+def building(
+    ref: str, north_m: float, east_m: float, *, at: tuple[float, float] | None = None, **tags: str
+) -> OsmObject:
+    """A data center building north_m and east_m metres from Ashburn, or at the point at."""
+    lat, lon = at if at is not None else near(north_m, east_m)
     d = 0.0002
     tags = {"building": "data_center", "telecom": "data_center"} | {
         k.replace("__", ":"): v for k, v in tags.items()
@@ -442,7 +445,7 @@ def test_names(built: BuildResult) -> None:
     names = {c.match_values[0]: c.record.canonical_name for c in built.candidates}
     assert names["way/300162689"] == "Lumen Ashburn (Ashburn, VA)"  # operator Lumen Technologies
     assert names["way/1188715508"] == "PowerHouse CyrusOne NVA14 (Ashburn, VA)"
-    assert names["node/11721960464"] == "QTS Data Center - Hillsboro 3 (Washington, OR)"
+    assert names["node/11721960464"] == "QTS Data Center - Hillsboro 3 (Washington County, OR)"
     assert names["node/13154826379"] == "NTT VA11 (Gainesville, VA)"
     equinix = candidate(built, "node/14156477686").record
     assert equinix.canonical_name == "Equinix DC10 (Ashburn, VA)"
@@ -596,15 +599,26 @@ def test_opening_date_is_planned(counties: CountyIndex) -> None:
 
 
 def test_unnamed_cluster_names(counties: CountyIndex) -> None:
+    # Without a city the name gives the county's full Census name, so that "Taylor County, TX"
+    # (Abilene) is not read as the city of Taylor, TX, 300 km away.
     bare = building("way/1", 0, 0)
     op = building("way/2", 0, 3000, operator="Example Cloud")
+    city = building("way/3", 0, 0, at=(38.7509, -77.4753))  # Manassas, an independent city
+    parish = building("way/4", 0, 0, at=(29.9511, -90.0715))  # New Orleans
+    abilene = building("way/5", 0, 0, at=(32.4487, -99.7331))
+    named = building("way/6", 0, 0, at=(32.4387, -99.7331), addr__city="Abilene")
+    objects = [bare, op, city, parish, abilene, named]
     names = {
         c.match_values[0]: c.record.canonical_name
-        for c in build(counties, [bare, op], with_pnnl=False).candidates
+        for c in build(counties, objects, with_pnnl=False).candidates
     }
     assert names == {
-        "way/1": "Data center (Loudoun, VA)",
-        "way/2": "Example Cloud data center (Loudoun, VA)",
+        "way/1": "Data center (Loudoun County, VA)",
+        "way/2": "Example Cloud data center (Loudoun County, VA)",
+        "way/3": "Data center (Manassas city, VA)",
+        "way/4": "Data center (Orleans Parish, LA)",
+        "way/5": "Data center (Taylor County, TX)",
+        "way/6": "Data center (Abilene, TX)",
     }
 
 
