@@ -20,6 +20,7 @@ from atlas.cli import main
 from atlas.geo.counties import CountyIndex
 from atlas.net import FetchError, fetch, make_client
 from atlas.schema.record import FacilityRecord
+from atlas.schema.rollup import period_start
 from atlas.sources.base import Candidate, ImportContext, apply_import, read_review_queue
 from atlas.sources.epoch import (
     IMPORTER,
@@ -346,9 +347,18 @@ def test_record_mapping(make_test_context: MakeContext, no_overrides: Path) -> N
         "/money",
         "/status_history",
     ]
-    assert len(links) == 5 and all(s.supports == [] for s in links)
+    # Five Selected Sources, and the sixth because the 2026-06-15 note links it ("found in the
+    # following company S-1 filing").
+    assert len(links) == 6 and all(s.supports == [] for s in links)
     assert links[0].title == "WSJ profile of the Colossus data centers"
-    assert [s.publisher for s in links] == ["wsj.com", "x.com", "mlgw.com", "x.com", "x.com"]
+    assert [s.publisher for s in links] == [
+        "wsj.com",
+        "x.com",
+        "mlgw.com",
+        "x.com",
+        "x.com",
+        "sec.gov",
+    ]
     assert rec.field_meta["/capacity/it_mw"].method == "imported"
     assert rec.field_meta["/capacity/it_mw"].confidence == 0.70
     events = [(e.status, e.as_of.value, e.planned) for e in rec.status_history]
@@ -423,13 +433,22 @@ def test_every_committed_override_is_cited(counties: CountyIndex) -> None:
                 assert ov.city is None and ov.municipality is None, name
             if ov.municipality is not None:
                 assert ov.precision == "locality" and ov.county_fips is not None, name
-        for part in ("timeline", "first_report", "facility_status"):
+        for part in ("timeline", "first_report", "facility_status", "capacity"):
             cited = getattr(entry, part)
             if cited is not None:
                 check_citation(f"{name} {part}", raw[name][part], cited)
         if entry.first_report is not None:
             assert entry.first_report.day <= date.today(), name
-        assert ov is not None or entry.timeline or entry.first_report or entry.facility_status
+        if entry.capacity is not None:
+            # The stated phrase is the page's, and it is no later than today.
+            assert entry.capacity.mw_as_stated in entry.capacity.quote, name
+            assert entry.capacity.as_of <= date.today(), name
+        for i, ms in enumerate(entry.milestones):
+            check_citation(f"{name} milestone {i}", raw[name]["milestones"][i], ms)
+            assert period_start(ms.fuzzy) <= date.today(), name
+        for i, conflict in enumerate(ov.conflicts if ov is not None else []):
+            check_citation(f"{name} conflict {i}", raw[name]["conflicts"][i], conflict)
+        assert entry.citations(), name
 
 
 def test_committed_override_places_meta_hyperion(
@@ -449,7 +468,13 @@ def test_committed_override_places_meta_hyperion(
     assert rec.canonical_name == "Meta Hyperion (Richland Parish, LA)"
     s1, s2 = rec.sources[0], rec.sources[1]
     assert "/location" not in s1.supports
-    assert (s2.publisher, s2.source_type, s2.supports) == ("Meta", "company_release", ["/location"])
+    # Meta's page also dates the announcement ("In December 2024, Meta announced ..."), so it
+    # backs the first report too.
+    assert (s2.publisher, s2.source_type, s2.supports) == (
+        "Meta",
+        "company_release",
+        ["/location", "/status_history"],
+    )
     assert s2.quote is not None and "Richland Parish, Louisiana" in s2.quote
     assert s2.quote_match == "human" and s2.retrieved_at.isoformat() == "2026-10-08T05:15:06+00:00"
     urls = [str(s.url) for s in rec.sources]
@@ -786,7 +811,7 @@ def test_cli_runs_offline_and_a_second_run_changes_no_file(
     assert by_epoch["Colossus 2"].location.precision == "address"
     assert by_epoch["Colossus 2"].location.city == "Memphis"
     receipt = json.loads((tmp_repo / "data" / "imports" / "epoch.json").read_text("utf-8"))
-    assert receipt["source"] == "epoch" and receipt["importer_version"] == "4"  # dates by month
+    assert receipt["source"] == "epoch" and receipt["importer_version"] == "5"  # first reports
     assert receipt["inputs"][0]["license"] == "CC-BY-4.0"
     records_before = snapshot(tmp_repo / "data" / "records", tmp_repo / "review")
 

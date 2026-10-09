@@ -14,9 +14,20 @@ whose status_history comes from the timeline through the status crosswalk (07 §
   status (07 §2.3);
 - a date on the 1st of a month, or on the 15th or the last day with a note that says it is
   estimated, is read as the month (Epoch writes its estimates there);
-- a cited `first_report` (an override entry) earlier than every row dates first_reported instead
-  of Epoch's first row, which observes what imagery shows rather than the first public report;
-- capacity and water use come from the latest row dated today or earlier.
+- first_reported is the earliest dated report among the importer's inputs when it is earlier than
+  every row: a cited `first_report` (an override entry), an announcement an entry's quote dates
+  ("In December 2024, Meta announced ..."), or one a note of Epoch's timeline dates ("their
+  September 23, 2025 announcement", on this site's row or another's that names it). Otherwise it
+  is Epoch's first row, which observes what imagery shows, and its event note says so; a site
+  without a `first_report` entry whose Selected Sources may date an earlier report (a TDLR
+  registration, a date in a link) is held for review (`unknown_status`);
+- the row that first shows a building operating dates `energized` with the period its note gives
+  for the start of operation, when it gives one ("became operational around early 2026");
+- capacity and water use come from the latest row dated today or earlier. Epoch's IT and power
+  columns are its model: a cited `capacity` entry replaces them, and when the note of the row
+  that set them states another MW figure for the counted buildings, they are held back;
+- notes keep whole URLs or none (a bare URL becomes its host), and a Selected Source a note links
+  or names is cited even past the five-link cap.
 
 Epoch's Owner column is the owner of the AI hardware, "not necessarily the owner or operator of
 the facility" (Epoch's field definitions). It is published with Users as `parties.tenant`, the
@@ -45,6 +56,10 @@ address's city is its postal city, so it is sent only as the city a Census match
 is in: the record's city is the Census place that contains a Census match's point (07 §6.5). Sites
 with no address and no override become `missing_location` review items, and sites the chain cannot
 place become `geocode_failed` items; neither becomes a record, and a cited override places them.
+An entry may also record cited `milestones` (a construction start or first operation Epoch dates
+later), the sources it rejected for the location (`conflicts`, into field_meta and a review item),
+and the status a cited page states (`states_status`): a record whose status differs is held for
+review, so its own sources never contradict it unseen.
 
 Importing this module does no I/O.
 """
@@ -61,7 +76,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Self
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Self
 from urllib.parse import urlsplit
 
 from pydantic import (
@@ -75,6 +90,7 @@ from pydantic import (
 
 from atlas.crosswalk import Crosswalked, from_epoch_row
 from atlas.schema.record import (
+    FUZZY_DATE_PATTERN,
     PLACEHOLDER_ID,
     AtlasModel,
     EventType,
@@ -83,6 +99,7 @@ from atlas.schema.record import (
     Precision,
     SourceType,
     Status,
+    StatusEvent,
 )
 from atlas.schema.rollup import ACTIVE_ORDER, RollupError, apply_rollup, period_start
 from atlas.sources.base import Candidate, ImportResult, ReviewItem, classify_source, load_input
@@ -217,8 +234,96 @@ _MINER_RE = re.compile(
 # rows on 2026-10-09 fall on the 1st, about 12 on any other day), and often on the 15th or the last
 # day ("Building 3 is operational (estimate)", 2026-06-30).
 _ESTIMATE_RE = re.compile(r"\bestimat\w*|\bassum\w*|\bbest guess\b|\bwe (?:expect|think)\b", re.I)
+_BARE_URL_RE = re.compile(r"https?://[^\s<>\"')\]]+")
+_SENTENCE_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z(\"“])")
+_MONTHS = {
+    m: i
+    for i, m in enumerate(
+        ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1
+    )
+}
+_MONTH = (
+    r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?"
+    r"|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?"
+)
+_YEAR = r"(?P<year>(?:19|20)[0-9]{2})"
+_DATE = rf"(?P<mon>{_MONTH}) (?:(?P<day>[0-9]{{1,2}})(?:st|nd|rd|th)?,? )?{_YEAR}\b"
+# A sentence that dates an announcement of the site (Epoch's Lordstown row: "within 18 months of
+# their September 23, 2025 announcement"; Meta's Hyperion page: "In December 2024, Meta
+# announced that we are building our largest data center to date").
+_ANNOUNCED_RES = (
+    re.compile(rf"\b(?:their|its|the|an?|this|that) {_DATE},? announcement\b"),
+    re.compile(rf"\bannounced (?:on |in )?{_DATE}"),
+    re.compile(rf"\b(?:On|In) {_DATE},? (?:[^.;]{{0,120}}? )?announced\b"),
+)
+# A note that says operation began at a stated period ("We estimate Building 1 became
+# operational around early 2026", "SemiAnalysis estimated the full 50 MW was reached around
+# January to February 2026"); a forecast ("is expected to be operational by") does not count.
+_OPERATION_SINCE_RE = re.compile(
+    r"\b(?:became|went|came) (?:fully )?(?:operational|online|on-line|live|energi[sz]ed)"
+    r"(?P<when> (?:around|in|by|during|since|at|about) [^.;,()]{1,40})?"
+    r"|\b(?:was|were) reached(?P<when2> (?:around|in|by|during|about) [^.;,()]{1,40})?",
+    re.I,
+)
+_MONTH_SPAN_RE = re.compile(
+    rf"(?P<m1>{_MONTH})(?: [0-9]{{1,2}})? (?:to|through|and|-|\u2013) (?P<m2>{_MONTH})"
+    rf"(?: [0-9]{{1,2}})?,? {_YEAR}",
+    re.I,
+)
+_MONTH_YEAR_RE = re.compile(rf"(?P<mon>{_MONTH})(?: [0-9]{{1,2}}(?:st|nd|rd|th)?)?,? {_YEAR}", re.I)
+_QUARTER_RE = re.compile(rf"\bQ(?P<q>[1-4]) {_YEAR}", re.I)
+_PART_OF_YEAR_RE = re.compile(rf"\b(?P<part>early|mid|mid-|late) ?-?{_YEAR}", re.I)
+_PART_OF_YEAR = {"early": (1, 6), "mid": (4, 9), "late": (7, 12)}
+_YEAR_ONLY_RE = re.compile(rf"\b{_YEAR}\b")
+# An MW figure a note says the counted buildings reached, and the words that make one an
+# estimate, another facility's (a power plant's nameplate) or a forecast.
+_STATED_MW_RE = re.compile(
+    r"\b(?:bring\w*|brought|reach\w*|deliver\w*)\b[^.;]{0,60}?\b(?P<mw>[0-9]+(?:\.[0-9]+)?) ?"
+    r"(?:MW|megawatts?)\b",
+    re.I,
+)
+_MW_HEDGE_RE = re.compile(
+    r"\bestimat\w*|\bsuggest\w*|\bnameplate\b|\bturbines?\b|\bpower plant\b|\bleases?\b"
+    r"|\bcontract\w*|\badditional\b|\bat least\b|\bup to\b|\bexpected to\b|\bwill\b|\bwould\b"
+    r"|\bcould\b|\bshould\b|\bplann\w*",
+    re.I,
+)
+_MONTH_VALUE = r"^[0-9]{4}-(0[1-9]|1[0-2])$"
+# A date in a Selected Source's link text or URL: a reviewer checks whether it reports the site
+# earlier than Epoch's first row ("(Jan 23, 2024)", ".../2024/03/hello-rosemount/").
+_TITLE_DATE_RE = re.compile(_DATE, re.I)
+_URL_DATE_RE = re.compile(
+    r"(?<![0-9])(?P<year>20[0-9]{2})(?P<sep>[/_-])(?P<month>0[1-9]|1[0-2])"
+    r"(?:(?P=sep)(?P<day>0[1-9]|[12][0-9]|3[01]))?(?![0-9])"
+)
+# Hosts whose name says nothing of who published a page (a document store, a social network).
+_GENERIC_HOSTS = frozenset(
+    {
+        "google",
+        "googleusercontent",
+        "scribd",
+        "linkedin",
+        "twitter",
+        "facebook",
+        "youtube",
+        "wikimedia",
+        "archive",
+        "dropbox",
+        "amazonaws",
+        "cloudfront",
+        "github",
+    }
+)
 PHASE_NAME = "{name} (buildings tracked by Epoch AI)"
 UNTRACKED_PHASE_NAME = "{name} (buildings Epoch AI does not track)"
+
+
+def fuzzy_date(value: str) -> FuzzyDate:
+    """A FuzzyDate from its value alone: YYYY-MM-DD, YYYY-MM, YYYY-Qn or YYYY."""
+    precision = (
+        "quarter" if "Q" in value else {10: "day", 7: "month", 4: "year"}.get(len(value), "day")
+    )
+    return FuzzyDate.model_validate({"value": value, "precision": precision})
 
 
 def epoch_error(message: str) -> FetchError:
@@ -235,7 +340,10 @@ class Citation(AtlasModel):
     """A page an override entry cites: quote is the sentence (or the shortest span of it, at most
     300 characters) that states what the entry takes from it, copied verbatim from source_url when
     it was read at retrieved_at; archive_url is the snapshot that was read when the live page
-    refuses automated clients; note says why this source."""
+    refuses automated clients; note says why this source. states_status: the facility's status
+    the page itself gives as current, when it gives one (Baxtel's "Under Construction" for Meta
+    Montgomery); a record whose status differs gets a `conflict` review item, so a source the
+    record cites never contradicts its status unseen."""
 
     source_url: HttpUrl
     archive_url: HttpUrl | None = None
@@ -244,6 +352,16 @@ class Citation(AtlasModel):
     note: str = Field(min_length=1, max_length=300)
     publisher: str | None = None
     source_type: SourceType | None = None
+    states_status: Status | None = None
+
+
+class LocationConflict(Citation):
+    """A cited source that places the site elsewhere than the entry does, which the entry's author
+    read and rejected (TDLR's SAT11-14 registration gives "Location County: Medina" for the address
+    the SAT40 entry places in Bexar County): value is the place it states. It goes into
+    field_meta /location conflicts and a `conflict` review item."""
+
+    value: str = Field(min_length=1, max_length=200)
 
 
 class LocationOverride(Citation):
@@ -263,6 +381,7 @@ class LocationOverride(Citation):
     lon: float | None = Field(None, ge=-180, le=-64)
     precision: Precision
     place_check: str | None = Field(None, min_length=1, max_length=300)
+    conflicts: list[LocationConflict] = Field(default_factory=list)
 
 
 class TimelineOverride(Citation):
@@ -275,19 +394,60 @@ class TimelineOverride(Citation):
 
 
 class FirstReport(Citation):
-    """A dated report of the facility earlier than Epoch's first row (Epoch's timeline starts
-    with what its imagery shows, not with the first public report): published_at as the page
-    states it (a date, or the time it gives), status what it reports (announced, proposed or
+    """The earliest dated report of the facility among the site's cited sources (Epoch's timeline
+    starts with what its imagery shows, not with the first public report): published_at is the
+    report's date as the page states it (the page's own date or time, the date it gives for an
+    earlier public announcement, "On February 16, 2022 ... publicly announced", or a month,
+    "2025-12", when the page gives only that), status what it reports (announced, proposed or
     permitted). It dates first_reported when it is earlier than every event of a timeline that
-    dates the facility. source_url may be the entry's location source or a Selected Source."""
+    dates the facility; an entry that is not earlier records that a reviewer checked the site's
+    sources, and Epoch's first row stays first_reported. source_url may be the entry's location
+    source, a Selected Source or another page."""
 
-    published_at: AwareDatetime | date
+    published_at: AwareDatetime | date | Annotated[str, Field(pattern=_MONTH_VALUE)]
     status: Literal["announced", "proposed", "permitted"]
 
     @property
-    def day(self) -> date:
+    def as_of(self) -> dict[str, str]:
         p = self.published_at
-        return p.date() if isinstance(p, datetime) else p
+        if isinstance(p, str):
+            return {"value": p, "precision": "month"}
+        return {
+            "value": (p.date() if isinstance(p, datetime) else p).isoformat(),
+            "precision": "day",
+        }
+
+    @property
+    def day(self) -> date:
+        """The first day of the report's date (its month for a month)."""
+        return period_start(FuzzyDate.model_validate(self.as_of))
+
+
+class CapacityOverride(Citation):
+    """The capacity of the buildings Epoch AI tracks at the site as a cited page states it (an
+    operator's release), as of the page's date: it replaces Epoch's IT and power columns, which
+    are Epoch's model, not a stated figure. it_mw and facility_mw only where the page states that
+    basis (07 §2.4); mw_as_stated is the page's phrase, verbatim. Epoch's figures stay in
+    field_meta conflicts."""
+
+    it_mw: float | None = Field(None, gt=0, le=10_000)
+    facility_mw: float | None = Field(None, gt=0, le=10_000)
+    mw_as_stated: str = Field(min_length=1, max_length=200)
+    as_of: date
+
+
+class Milestone(Citation):
+    """A milestone a cited page dates earlier than Epoch AI's row for it: `construction_start`
+    (ground broken) or `energized` (the first building in service). as_of is the date as the page
+    states it, at its precision (YYYY, YYYY-Qn, YYYY-MM or YYYY-MM-DD: "became operational in 2023"
+    is 2023). It replaces Epoch's event for the milestone, which becomes an observation."""
+
+    event: Literal["construction_start", "energized"]
+    as_of: str = Field(pattern=FUZZY_DATE_PATTERN)
+
+    @property
+    def fuzzy(self) -> FuzzyDate:
+        return fuzzy_date(self.as_of)
 
 
 class FacilityStatus(Citation):
@@ -305,13 +465,15 @@ _LOCATION_KEYS = frozenset(LocationOverride.model_fields)
 
 class SiteOverride(AtlasModel):
     """One entry of config/overrides/epoch.json, keyed by Epoch's site name: a location (its
-    fields at the top level of the entry), and any of timeline, first_report and
-    facility_status (each with its own citation)."""
+    fields at the top level of the entry), and any of timeline, first_report, facility_status,
+    capacity and milestones (each with its own citation)."""
 
     location: LocationOverride | None = None
     timeline: TimelineOverride | None = None
     first_report: FirstReport | None = None
     facility_status: FacilityStatus | None = None
+    capacity: CapacityOverride | None = None
+    milestones: list[Milestone] = Field(default_factory=list)
 
     @model_validator(mode="before")
     @classmethod
@@ -325,9 +487,23 @@ class SiteOverride(AtlasModel):
 
     @model_validator(mode="after")
     def _not_empty(self) -> Self:
-        if not (self.location or self.timeline or self.first_report or self.facility_status):
-            raise ValueError("an entry needs a location, timeline, first_report or facility_status")
+        parts = (self.location, self.timeline, self.first_report, self.facility_status)
+        if not (any(parts) or self.capacity or self.milestones):
+            raise ValueError(
+                "an entry needs a location, timeline, first_report, facility_status, capacity "
+                "or milestones"
+            )
         return self
+
+    def citations(self) -> list[Citation]:
+        """Every citation of the entry, the location's first."""
+        out: list[Citation] = []
+        if self.location is not None:
+            out += [self.location, *self.location.conflicts]
+        for part in (self.timeline, self.first_report, self.facility_status, self.capacity):
+            if part is not None:
+                out.append(part)
+        return out + list(self.milestones)
 
 
 _OVERRIDES = TypeAdapter(dict[str, SiteOverride])
@@ -409,15 +585,167 @@ def strip_links(text: str) -> str:
     return _MD_LINK_RE.sub(lambda m: m.group(1), text)
 
 
+def strip_urls(text: str) -> str:
+    """Bare URLs replaced by their host ("Source: https://www.datacenterdynamics.com/en/news/…" ->
+    "Source: datacenterdynamics.com"), so a note shortened to 200 characters never ends in a cut
+    URL: a note keeps whole URLs or none."""
+    return _BARE_URL_RE.sub(lambda m: host_of(m.group(0)) or "", text)
+
+
 def event_note(text: str) -> str | None:
-    """The construction-status text as an event note: links reduced, at most 200 characters,
-    dropped if it looks like it holds contact details."""
-    note = clean_text(strip_links(text))
+    """The construction-status text as an event note: links reduced to their text and bare URLs
+    to their host, at most 200 characters, dropped if it looks like it holds contact details."""
+    note = clean_text(strip_urls(strip_links(text)))
     if not note or find_personal_data(note):
         return None
     if len(note) > NOTE_MAX:
         note = note[: NOTE_MAX - 1].rstrip() + "…"
     return note
+
+
+def _sentences(text: str) -> list[str]:
+    return [s.strip() for s in _SENTENCE_RE.split(text) if s.strip()]
+
+
+def _date_match(m: re.Match[str]) -> dict[str, str] | None:
+    """The FuzzyDate dict of a _DATE match (a day, or a month without one), None if not a date."""
+    month = _MONTHS[m.group("mon")[:3].casefold()]
+    year = int(m.group("year"))
+    try:
+        if m.group("day"):
+            return {"value": date(year, month, int(m.group("day"))).isoformat(), "precision": "day"}
+    except ValueError:
+        return None
+    return {"value": f"{year:04d}-{month:02d}", "precision": "month"}
+
+
+def announced_dates(text: str) -> list[tuple[dict[str, str], str]]:
+    """(date, sentence) for each sentence that dates an announcement: "their September 23, 2025
+    announcement", "announced on March 3, 2024", "In December 2024, Meta announced ..."."""
+    out: list[tuple[dict[str, str], str]] = []
+    for sentence in _sentences(text):
+        for pattern in _ANNOUNCED_RES:
+            m = pattern.search(sentence)
+            if m is not None and (as_of := _date_match(m)) is not None:
+                out.append((as_of, sentence))
+                break
+    return out
+
+
+@dataclass(frozen=True)
+class Period:
+    """A period a note states: its FuzzyDate dict, and its first and last day (an "early 2026"
+    is the year 2026 that lies within January to June)."""
+
+    as_of: dict[str, str]
+    start: date
+    end: date
+    text: str = ""
+
+
+def _month_end(year: int, month: int) -> date:
+    return date(year, month, calendar.monthrange(year, month)[1])
+
+
+def parse_period(text: str) -> Period | None:
+    """The period a phrase names: "January to February 2026" (2026-Q1), "March 2026", "Q1 2026",
+    "early 2026" (2026, January to June), "2026"; None if it names none."""
+    m = _MONTH_SPAN_RE.search(text)
+    if m is not None:
+        y = int(m.group("year"))
+        a, b = _MONTHS[m.group("m1")[:3].casefold()], _MONTHS[m.group("m2")[:3].casefold()]
+        if a > b:
+            return None
+        start, end = date(y, a, 1), _month_end(y, b)
+        if a == b:
+            as_of = {"value": f"{y:04d}-{a:02d}", "precision": "month"}
+        elif (a - 1) // 3 == (b - 1) // 3:
+            as_of = {"value": f"{y:04d}-Q{(a - 1) // 3 + 1}", "precision": "quarter"}
+        else:
+            as_of = {"value": f"{y:04d}", "precision": "year"}
+        return Period(as_of, start, end, m.group(0))
+    m = _MONTH_YEAR_RE.search(text)
+    if m is not None:
+        y, mo = int(m.group("year")), _MONTHS[m.group("mon")[:3].casefold()]
+        return Period(
+            {"value": f"{y:04d}-{mo:02d}", "precision": "month"},
+            date(y, mo, 1),
+            _month_end(y, mo),
+            m.group(0),
+        )
+    m = _QUARTER_RE.search(text)
+    if m is not None:
+        y, q = int(m.group("year")), int(m.group("q"))
+        return Period(
+            {"value": f"{y:04d}-Q{q}", "precision": "quarter"},
+            date(y, 3 * q - 2, 1),
+            _month_end(y, 3 * q),
+            m.group(0),
+        )
+    m = _PART_OF_YEAR_RE.search(text)
+    if m is not None:
+        y = int(m.group("year"))
+        first, last = _PART_OF_YEAR[m.group("part").casefold().replace("-", "")]
+        return Period(
+            {"value": f"{y:04d}", "precision": "year"},
+            date(y, first, 1),
+            _month_end(y, last),
+            m.group(0),
+        )
+    m = _YEAR_ONLY_RE.search(text)
+    if m is not None:
+        y = int(m.group("year"))
+        return Period(
+            {"value": f"{y:04d}", "precision": "year"}, date(y, 1, 1), date(y, 12, 31), m.group(0)
+        )
+    return None
+
+
+def operation_period(
+    text: str, day: date, after: date | None = None
+) -> tuple[Period | None, list[str]] | None:
+    """When a note says operation began earlier than its row ("We estimate Building 1 became
+    operational around early 2026", "the full 50 MW was reached around January to February
+    2026"): (the period, the clauses that say so). The period is the most precise one that lies
+    within every other the note states, and must start on or before the row's day and after
+    `after` (the previous event); (None, clauses) when the note says so in words this cannot
+    read, or its periods disagree. None when the note says nothing of it."""
+    clauses: list[str] = []
+    periods: list[Period | None] = []
+    for sentence in _sentences(text):
+        for m in _OPERATION_SINCE_RE.finditer(sentence):
+            group = "when" if m.group("when") else "when2"
+            when = m.group(group)
+            period = parse_period(when) if when else None
+            end = m.end()
+            if period is not None and when:
+                end = m.start(group) + when.find(period.text) + len(period.text)
+            clauses.append(sentence[:end].strip())
+            periods.append(period)
+    if not clauses:
+        return None
+    found = [p for p in periods if p is not None]
+    if len(found) < len(periods) or not found:
+        return None, clauses
+    best = min(found, key=lambda p: (p.end - p.start, p.start))
+    if any(not (p.start <= best.start and best.end <= p.end) for p in found):
+        return None, clauses
+    if best.start > day or (after is not None and best.start <= after):
+        return None, clauses
+    return best, clauses
+
+
+def stated_capacity(text: str) -> tuple[float, str] | None:
+    """An MW figure a note says the counted buildings reached ("bringing the first building to its
+    expected 100 MW"), with its phrase; a hedged figure (an estimate, a plant's nameplate, a
+    lease, a forecast) does not count."""
+    for sentence in _sentences(text):
+        if _MW_HEDGE_RE.search(sentence):
+            continue
+        m = _STATED_MW_RE.search(sentence)
+        if m is not None:
+            return float(m.group("mw")), m.group(0)
+    return None
 
 
 def host_of(url: str) -> str:
@@ -591,7 +919,13 @@ def status_events(
 ) -> list[dict[str, Any]]:
     """One event per status change; rows after today are planned (07 §2.3). With observed=True
     every row dated today or earlier is an `other` event (see _event_type); with reported=True
-    (an earlier dated report gives first_reported) no row is a `first_reported` event."""
+    (an earlier dated report gives first_reported) no row is a `first_reported` event.
+
+    The row that first shows a building operating dates `energized` with its own date, unless its
+    note says operation began earlier ("We estimate Building 1 became operational around early
+    2026"): then with that period, at its precision, and the clauses that say so as the note; a
+    note that says so in words operation_period cannot read makes the row an `other` event, which
+    dates nothing (operation_review files the review item)."""
     events: list[dict[str, Any]] = []
     previous: str | None = None
     for row in rows:
@@ -601,20 +935,53 @@ def status_events(
             continue
         previous = cw.status
         planned = row.day > today
+        kind = _event_type(
+            cw, text, planned=planned, first=not events, observed=observed, reported=reported
+        )
+        as_of, note = row_date(row, text), event_note(text)
+        if kind == "energized" and not planned:
+            after = period_start(FuzzyDate.model_validate(events[-1]["as_of"])) if events else None
+            stated = operation_period(text, row.day, after)
+            if stated is not None:
+                period, clauses = stated
+                if period is None:
+                    kind = "other"
+                else:
+                    as_of, note = dict(period.as_of), event_note(" … ".join(clauses))
         event: dict[str, Any] = {
             "seq": len(events) + 1,
             "status": cw.status,
-            "event": _event_type(
-                cw, text, planned=planned, first=not events, observed=observed, reported=reported
-            ),
-            "as_of": row_date(row, text),
+            "event": kind,
+            "as_of": as_of,
             "phase_id": phase_id,
             "planned": planned,
             "source_ids": ["s1"],
-            "note": event_note(text),
+            "note": note,
         }
         events.append(event)
     return events
+
+
+def operation_review(rows: Sequence[TimelineRow], today: date) -> tuple[str, str] | None:
+    """(row date, note) of a first operating row whose note says operation began earlier in
+    words operation_period cannot read (or periods that disagree): its event dates nothing, and a
+    reviewer dates the start of operation."""
+    previous: str | None = None
+    last: date | None = None
+    for row in rows:
+        if row.day > today:
+            break
+        text = row_text(row)
+        cw = from_epoch_row(text, row.buildings_operational, it_mw=row.it_mw)
+        if cw.status != previous and cw.status == "operating":
+            stated = operation_period(text, row.day, last)
+            if stated is not None and stated[0] is None:
+                return row.day.isoformat(), " … ".join(stated[1])
+            return None
+        if cw.status != previous:
+            last = period_start(FuzzyDate.model_validate(row_date(row, text)))
+        previous = cw.status
+    return None
 
 
 @dataclass(frozen=True)
@@ -833,11 +1200,11 @@ def place_override(
     return Placed(location, where, override_confidence(ov), "override", ov)
 
 
-def override_source_type(ov: LocationOverride) -> SourceType:
+def override_source_type(ov: Citation) -> SourceType:
     return ov.source_type or classify_source(str(ov.source_url))
 
 
-def override_confidence(ov: LocationOverride) -> float:
+def override_confidence(ov: Citation) -> float:
     """07 §3.4: stated with a verbatim quote (0.85) plus the source adjustment, at most 0.99."""
     adjustment = SOURCE_ADJUSTMENT.get(override_source_type(ov), 0.0)
     return round(min(0.99, OVERRIDE_CONFIDENCE + adjustment), 2)
@@ -878,9 +1245,12 @@ def site_record(
     *,
     ctx: ImportContext,
     retrieved_at: str,
+    override: SiteOverride | None = None,
 ) -> FacilityRecord:
     """The candidate record for one site (id PLACEHOLDER_ID, rollup applied)."""
-    return campus_record([(site, rows)], placed, ctx=ctx, retrieved_at=retrieved_at)
+    return campus_record(
+        [(site, rows)], placed, ctx=ctx, retrieved_at=retrieved_at, override=override
+    )
 
 
 def _cite(
@@ -928,16 +1298,49 @@ def _cite(
     return sid
 
 
+FIRST_REPORT_NOTE = "The earliest dated report among the record's sources"
+FIRST_OBSERVATION = "Epoch AI's first observation, not a dated report: "
+
+
+@dataclass(frozen=True)
+class Report:
+    """A dated report that may date first_reported: as_of (a FuzzyDate dict), the status it
+    reports, the event note, and the citation it comes from (None: a note in Epoch's dataset,
+    s1), with the page's time when it gives one."""
+
+    as_of: dict[str, str]
+    status: Literal["announced", "proposed", "permitted"]
+    note: str
+    cite: Citation | None = None
+    published_at: datetime | None = None
+
+    @property
+    def start(self) -> date:
+        return period_start(FuzzyDate.model_validate(self.as_of))
+
+    @property
+    def end(self) -> date:
+        value, precision = self.as_of["value"], self.as_of["precision"]
+        if precision == "day":
+            return date.fromisoformat(value)
+        if precision == "month":
+            return _month_end(int(value[:4]), int(value[5:7]))
+        if precision == "quarter":
+            return _month_end(int(value[:4]), 3 * int(value[-1]))
+        return date(int(value[:4]), 12, 31)
+
+
 def _first_report_event(
-    report: FirstReport, events: Sequence[dict[str, Any]]
+    report: FirstReport | Report, events: Sequence[dict[str, Any]]
 ) -> dict[str, Any] | None:
-    """A first_reported event for a cited report, when it is earlier than every event dated
+    """A first_reported event for a dated report, when it is earlier than every event dated
     today or earlier and its status is not ahead of the first of them (07 §2.3); else None."""
     actual = [e for e in events if not e["planned"]]
     if not actual:
         return None
+    start = period_start(FuzzyDate.model_validate(report.as_of))
     first = min(actual, key=lambda e: period_start(FuzzyDate.model_validate(e["as_of"])))
-    if report.day >= period_start(FuzzyDate.model_validate(first["as_of"])):
+    if start >= period_start(FuzzyDate.model_validate(first["as_of"])):
         return None
     if first["status"] in ACTIVE_ORDER and ACTIVE_ORDER.index(report.status) > ACTIVE_ORDER.index(
         first["status"]
@@ -946,11 +1349,258 @@ def _first_report_event(
     return {
         "status": report.status,
         "event": "first_reported",
-        "as_of": {"value": report.day.isoformat(), "precision": "day"},
+        "as_of": dict(report.as_of),
         "phase_id": None,
         "planned": False,
-        "note": "The earliest dated report among the record's sources",
+        "note": report.note if isinstance(report, Report) else FIRST_REPORT_NOTE,
     }
+
+
+def earliest_report(reports: Sequence[Report]) -> Report | None:
+    """The earliest report by the first day of its date, the more precise on a tie, else the
+    first given: "2025-10" (a permit narrative dated October 2025) before "2025-10-31"."""
+    if not reports:
+        return None
+    return min(reports, key=lambda r: (r.start, r.end))
+
+
+def site_reports(
+    members: Sequence[tuple[Site, Sequence[TimelineRow]]],
+    override: SiteOverride | None,
+    noted: Mapping[str, Sequence[tuple[dict[str, str], str]]],
+    today: date,
+) -> list[Report]:
+    """The dated reports among the importer's inputs for a campus: the cited `first_report`;
+    an announcement a quote of the entry dates ("In December 2024, Meta announced ..."); and one
+    that a note of Epoch's timeline dates (`noted`, by site: "their September 23, 2025
+    announcement", also on another site's row that names this one). Only those dated today or
+    earlier."""
+    reports: list[Report] = []
+    if override is not None and override.first_report is not None:
+        fr = override.first_report
+        published = fr.published_at if isinstance(fr.published_at, datetime) else None
+        reports.append(Report(fr.as_of, fr.status, FIRST_REPORT_NOTE, fr, published))
+    if override is not None:
+        quoted = [c for c in (override.location, override.timeline, override.facility_status) if c]
+        for cit in quoted:
+            for as_of, _sentence in announced_dates(cit.quote):
+                reports.append(Report(as_of, "announced", FIRST_REPORT_NOTE, cit))
+    for site, _rows in members:
+        for as_of, sentence in noted.get(site.name, ()):
+            note = event_note(sentence) or FIRST_REPORT_NOTE
+            reports.append(Report(as_of, "announced", note))
+    return [r for r in reports if r.start <= today]
+
+
+def noted_announcements(
+    sites: Sequence[Site], timelines: Mapping[str, Sequence[TimelineRow]]
+) -> dict[str, list[tuple[dict[str, str], str]]]:
+    """By site name, the announcements Epoch's timeline notes date: a sentence of any row of a
+    site (a projection's too) dates an announcement of that site, and of another site whose
+    name's own words (those not in the row's site's name) all appear in it: Epoch's Lordstown
+    row, "OpenAI stated Lordstown and Milam County could scale to 1.5 GW within 18 months of
+    their September 23, 2025 announcement", dates OpenAI Stargate Milam's too."""
+
+    def words(name: str) -> set[str]:
+        return {w.casefold() for w in re.findall(r"[A-Za-z0-9]+", name)}
+
+    out: dict[str, list[tuple[dict[str, str], str]]] = {}
+    for site in sites:
+        for row in timelines.get(site.name, ()):
+            for as_of, sentence in announced_dates(row_text(row)):
+                said = words(sentence)
+                for other in sites:
+                    own = words(other.name) - words(site.name)
+                    if other.name == site.name or (own and own <= said):
+                        entry = (as_of, sentence)
+                        if entry not in out.setdefault(other.name, []):
+                            out[other.name].append(entry)
+    return out
+
+
+def _named_in(title: str, url: str, texts: Sequence[str]) -> bool:
+    """Whether a Selected Source is linked or named in a note: its URL, the publisher a link text
+    leads with ("SemiAnalysis: Stop Saying ..."), or its host's name ("semianalysis")."""
+    target = str(HttpUrl(url))
+    names: set[str] = set()
+    lead = re.match(r"\s*([^:]{2,40}):", title)
+    if lead:
+        names.add(lead.group(1).strip().casefold())
+    labels = host_of(url).split(".")
+    if len(labels) >= 2 and labels[-2] not in _GENERIC_HOSTS and len(labels[-2]) >= 5:
+        names.add(labels[-2])
+    for text in texts:
+        for m in _MD_LINK_RE.finditer(text):
+            if str(HttpUrl(m.group(2))) == target:
+                return True
+        for m in _BARE_URL_RE.finditer(text):
+            try:
+                if str(HttpUrl(m.group(0).rstrip(".,;"))) == target:
+                    return True
+            except ValidationError:
+                continue
+        plain = clean_text(strip_urls(strip_links(text))).casefold()
+        if any(re.search(rf"\b{re.escape(n)}\b", plain) for n in names):
+            return True
+    return False
+
+
+def selected_date(title: str, url: str) -> date | None:
+    """The earliest date a Selected Source's link text ("(Jan 23, 2024)", "Dec. 2024") or URL path
+    (".../2024/03/hello-rosemount/", "2023-09-20") states, as its first day."""
+    days: list[date] = []
+    for m in _TITLE_DATE_RE.finditer(title):
+        as_of = _date_match(m)
+        if as_of is not None:
+            days.append(period_start(FuzzyDate.model_validate(as_of)))
+    path = urlsplit(url).path
+    for m in _URL_DATE_RE.finditer(path):
+        y, mo = int(m.group("year")), int(m.group("month"))
+        try:
+            days.append(date(y, mo, int(m.group("day") or 1)))
+        except ValueError:
+            continue
+    return min(days) if days else None
+
+
+def first_report_review(
+    record: FacilityRecord,
+    members: Sequence[tuple[Site, Sequence[TimelineRow]]],
+    override: SiteOverride | None,
+) -> tuple[str, dict[str, Any]] | None:
+    """The review item a first_reported date calls for: it is Epoch AI's first observation, the
+    site has no cited `first_report` entry (whose author checked its sources), and a Selected
+    Source may date an earlier report: a TDLR TABS registration (its Registration Date), or a
+    date in a link's text or URL earlier than the observation."""
+    if override is not None and override.first_report is not None:
+        return None
+    first = record.dates.get("first_reported")
+    event = next(
+        (
+            e
+            for e in sorted(record.status_history, key=lambda e: period_start(e.as_of))
+            if not e.planned and e.event != "other"
+        ),
+        None,
+    )
+    if first is None or event is None or not (event.note or "").startswith(FIRST_OBSERVATION):
+        return None
+    observed = period_start(first)
+    doubts: list[str] = []
+    for site, _rows in members:
+        for title, url in selected_links(site.selected_sources):
+            parts = urlsplit(url)
+            if host_of(url) == "tdlr.texas.gov" and "/TABS/Search/Project/" in parts.path:
+                doubts.append(url)
+                continue
+            day = selected_date(title, url)
+            if day is not None and day < observed:
+                doubts.append(url)
+    if not doubts:
+        return None
+    return (
+        f"first_reported ({first.value}) is Epoch AI's first observation, and a Selected Source "
+        "may date an earlier report (a TDLR registration's Registration Date, or a date in the "
+        "link): a reviewer dates the earliest report among the record's sources and adds it as a "
+        "cited first_report entry in config/overrides/epoch.json",
+        {"first_observation": first.value, "sources": doubts},
+    )
+
+
+def apply_milestones(
+    events: list[dict[str, Any]],
+    sources: list[dict[str, Any]],
+    milestones: Sequence[Milestone],
+) -> list[str]:
+    """Each cited milestone earlier than Epoch's event for it (the first `construction_start`, or
+    the first operating event) becomes a record-level event citing its page, and Epoch's event an
+    observation (`other`). A milestone that would precede an event of an earlier status, or that
+    has no Epoch event to replace, is not applied: the messages say why."""
+    problems: list[str] = []
+    for ms in milestones:
+        start = period_start(ms.fuzzy)
+        status: Status = "under_construction" if ms.event == "construction_start" else "operating"
+        actual = [e for e in events if not e["planned"] and e["phase_id"] is None]
+
+        def matches(e: dict[str, Any], event: str = ms.event, status: str = status) -> bool:
+            if event == "construction_start":
+                return bool(e["event"] in ("construction_start", "first_reported"))
+            return bool(e["status"] == status and e["event"] != "other")
+
+        target = next(
+            (e for e in sorted(actual, key=lambda e: e["seq"]) if matches(e)),
+            None,
+        )
+        rank = ACTIVE_ORDER.index(status)
+        earlier = [
+            e
+            for e in actual
+            if e["status"] in ACTIVE_ORDER and ACTIVE_ORDER.index(e["status"]) < rank
+        ]
+        if target is None:
+            problems.append(f"{ms.event} {ms.as_of}: no Epoch event of that milestone to replace")
+            continue
+        target_start = period_start(FuzzyDate.model_validate(target["as_of"]))
+        if start >= target_start:
+            problems.append(f"{ms.event} {ms.as_of}: not earlier than Epoch's {target_start}")
+            continue
+        if any(period_start(FuzzyDate.model_validate(e["as_of"])) > start for e in earlier):
+            problems.append(f"{ms.event} {ms.as_of}: earlier than an event of an earlier status")
+            continue
+        sid = _cite(sources, ms, ["/status_history"])
+        if target["event"] == "first_reported" and ms.event == "construction_start":
+            pass  # Epoch's row stays the first report: the milestone is only a start
+        else:
+            target["event"] = "other"
+        events.append(
+            {
+                "seq": (start, -1, 0),
+                "status": status,
+                "event": ms.event,
+                "as_of": ms.fuzzy.model_dump(),
+                "phase_id": None,
+                "planned": False,
+                "source_ids": [sid],
+                "note": event_note(ms.quote),
+            }
+        )
+    return problems
+
+
+def site_capacity(
+    site: Site,
+    rows: Sequence[TimelineRow],
+    today: date,
+    cited: CapacityOverride | None,
+) -> tuple[dict[str, Any], dict[str, float], tuple[float, str] | None]:
+    """(capacity, Epoch's figures, the MW its note states) for one site. Epoch's IT and power
+    columns of its latest row dated today or earlier are Epoch's model: a cited capacity entry
+    replaces them; and when the note of the row that set them says the counted buildings reached
+    another figure ("bringing the first building to its expected 100 MW" against 68 MW IT, 88 MW
+    power), they are held back and only that phrase is kept, in mw_as_stated (07 §2.4)."""
+    latest = _latest_actual(rows, today)
+    epoch = _capacity(latest)
+    if cited is not None:
+        out: dict[str, Any] = {
+            k: v for k, v in (("it_mw", cited.it_mw), ("facility_mw", cited.facility_mw)) if v
+        }
+        out["mw_as_stated"] = cited.mw_as_stated
+        return out, epoch, None
+    if not epoch or latest is None:
+        return epoch, epoch, None
+    actual = [r for r in rows if r.day <= today]
+    setting = latest
+    for r in reversed(actual):
+        if (positive(r.it_mw), positive(r.power_mw)) != (
+            positive(latest.it_mw),
+            positive(latest.power_mw),
+        ):
+            break
+        setting = r
+    stated = stated_capacity(row_text(setting))
+    if stated is not None and all(abs(stated[0] - v) >= 0.5 for v in epoch.values()):
+        return {"mw_as_stated": stated[1]}, epoch, stated
+    return epoch, epoch, None
 
 
 def campus_record(
@@ -961,6 +1611,9 @@ def campus_record(
     retrieved_at: str,
     coverage: Coverage | None = None,
     override: SiteOverride | None = None,
+    overrides: Mapping[str, SiteOverride] | None = None,
+    noted: Mapping[str, Sequence[tuple[dict[str, str], str]]] | None = None,
+    problems: list[str] | None = None,
 ) -> FacilityRecord:
     """The candidate record for one campus: one Epoch site, or several at one street address
     (the first names the record; each is a phase). id PLACEHOLDER_ID, rollup applied.
@@ -970,9 +1623,14 @@ def campus_record(
     water use or cost of its own, and no construction or operating date. The override of the
     campus's first site adds, each with its cited source: the source of a `timeline` entry
     (supporting /phases); a `facility_status` (for an observed timeline only) as an `other` event
-    on a phase of the buildings Epoch does not track; and a `first_report` (for a timeline that
-    dates the facility, when it is the earliest) as the record's first_reported event, after which
-    no Epoch row is a first report.
+    on a phase of the buildings Epoch does not track; `milestones` (for a timeline that dates the
+    facility) that Epoch dates later; and the location's rejected `conflicts`, in field_meta.
+    A site's own entry (`overrides`) may give its `capacity`, which replaces Epoch's model.
+
+    first_reported is the earliest dated report among the importer's inputs (site_reports: a
+    cited `first_report`, an announcement an entry's quote or a note of Epoch's timeline dates)
+    when it is earlier than every event, after which no Epoch row is a first report. Otherwise it
+    is Epoch's first row, an observation, and its event note says so.
     """
     timeline = override.timeline if override is not None else None
     if coverage is None:
@@ -981,7 +1639,9 @@ def campus_record(
     phased = observed or len(members) > 1
     primary = members[0][0]
     facility_status = override.facility_status if override is not None and observed else None
-    report = override.first_report if override is not None and not observed else None
+    entries = overrides if overrides is not None else {}
+    if override is not None:
+        entries = {**entries, primary.name: override}
 
     sources: list[dict[str, Any]] = [
         {
@@ -1016,11 +1676,16 @@ def campus_record(
             }
         )
     cited = {str(HttpUrl(str(s["url"]))) for s in sources}
-    for site, _rows in members:
+    for site, rows in members:
         links = [
             (t, u) for t, u in selected_links(site.selected_sources) if str(HttpUrl(u)) not in cited
         ]
-        for title, url in links[:MAX_LINK_SOURCES]:
+        notes = [r.status_text for r in rows]
+        for i, (title, url) in enumerate(links):
+            # Past the cap only a source the notes link or name (SemiAnalysis, the 6th of
+            # Microsoft-Nebius New Jersey's, whose estimate the note gives).
+            if i >= MAX_LINK_SOURCES and not _named_in(title, url, notes):
+                continue
             cited.add(str(HttpUrl(url)))
             sources.append(
                 {
@@ -1038,16 +1703,28 @@ def campus_record(
         _cite(sources, timeline, ["/phases"] if observed else ["/status_history"])
 
     imported = {"confidence": CONFIDENCE, "method": "imported", "source_ids": ["s1"]}
-    field_meta: dict[str, Any] = {
-        "/location": {
-            "confidence": placed.confidence,
-            "method": "stated" if placed.override is not None else "derived",
-            "source_ids": [location_sid],
-        }
+    location_meta: dict[str, Any] = {
+        "confidence": placed.confidence,
+        "method": "stated" if placed.override is not None else "derived",
+        "source_ids": [location_sid],
     }
+    if placed.override is not None and placed.override.conflicts:
+        location_meta["conflicts"] = [
+            {
+                "value": c.value,
+                "source_ids": [_cite(sources, c, [])],
+                "note": c.note,
+            }
+            for c in placed.override.conflicts
+        ]
+    field_meta: dict[str, Any] = {"/location": location_meta}
     events: list[dict[str, Any]] = []
     phases: list[dict[str, Any]] = []
     totals: dict[str, float] = {}
+    stated_mw: list[str] = []
+    capacity_conflicts: dict[str, list[dict[str, Any]]] = {}
+    capacity_sids: dict[str, str] = {}
+    capacity_cited: dict[str, CapacityOverride] = {}
     water = 0.0
     cost = 0.0
     operational = False
@@ -1064,19 +1741,39 @@ def campus_record(
                 {**e, "seq": (period_start(FuzzyDate.model_validate(e["as_of"])), order, e["seq"])}
             )
         latest = _latest_actual(rows, ctx.today)
-        site_capacity = _capacity(latest)
+        entry = entries.get(site.name)
+        cited_capacity = entry.capacity if entry is not None else None
+        site_cap, epoch_cap, _stated = site_capacity(site, rows, ctx.today, cited_capacity)
+        key = pid or ""
+        if cited_capacity is not None:
+            capacity_cited[key] = cited_capacity
+            capacity_sids[key] = _cite(sources, cited_capacity, [])
+            if epoch_cap:
+                capacity_conflicts[key] = [
+                    {
+                        "value": epoch_cap,
+                        "source_ids": ["s1"],
+                        "note": "Epoch AI's modelled IT power and power, not a stated figure",
+                    }
+                ]
         operational = operational or any(row_operational(r) for r in rows if r.day <= ctx.today)
         if pid is not None:
+            phase_sources = ["s1"]
+            if key in capacity_sids:
+                phase_sources.append(capacity_sids[key])
             phases.append(
                 {
                     "phase_id": pid,
                     "name": PHASE_NAME.format(name=site.name),
-                    "capacity": site_capacity,
-                    "source_ids": ["s1"],
+                    "capacity": site_cap,
+                    "source_ids": _unique(phase_sources),
                 }
             )
-        for key, mw in site_capacity.items():
-            totals[key] = totals.get(key, 0.0) + mw
+        for k in ("it_mw", "facility_mw"):
+            if k in site_cap:
+                totals[k] = totals.get(k, 0.0) + float(site_cap[k])
+        if "mw_as_stated" in site_cap:
+            stated_mw.append(str(site_cap["mw_as_stated"]))
         water += (positive(latest.water_mgd) if latest is not None else None) or 0.0
         cost += positive(site.capital_cost_billions) or 0.0
     if facility_status is not None:
@@ -1104,28 +1801,71 @@ def campus_record(
             }
         )
         operational = operational or facility_status.status == "operating"
+    if override is not None and override.milestones and not phased:
+        found = apply_milestones(events, sources, override.milestones)
+        if problems is not None:
+            problems.extend(found)
+    report = None
+    if not observed:
+        candidates = site_reports(members, override, noted or {}, ctx.today)
+        report = earliest_report([c for c in candidates if _first_report_event(c, events)])
     reported = _first_report_event(report, events) if report is not None else None
     if reported is not None and report is not None:
-        published = report.published_at if isinstance(report.published_at, datetime) else None
-        sid = _cite(sources, report, ["/status_history"], published_at=published)
+        if report.cite is not None:
+            sid = _cite(sources, report.cite, ["/status_history"], published_at=report.published_at)
+        else:
+            sid = "s1"
         # The report is the first one: no Epoch row is a first report any more.
         for e in events:
             if e["event"] == "first_reported":
                 e["event"] = "other"
-        events.append({**reported, "seq": (report.day, -1, 0), "source_ids": [sid]})
+        events.append({**reported, "seq": (report.start, -1, 0), "source_ids": [sid]})
     # seq follows the date, then the order of the sites, then the order within a site.
     events.sort(key=lambda e: e["seq"])
     for i, e in enumerate(events, start=1):
         e["seq"] = i
+    if reported is None and not observed:
+        # first_reported is Epoch's first row (or its construction start): say so.
+        dated = [e for e in events if not e["planned"] and e["event"] != "other"]
+        first = min(
+            dated, key=lambda e: period_start(FuzzyDate.model_validate(e["as_of"])), default=None
+        )
+        if (
+            first is not None
+            and first["source_ids"] == ["s1"]
+            and first["event"] in ("first_reported", "construction_start")
+        ):
+            text = (first["note"] or "").rstrip("…")
+            first["note"] = event_note(FIRST_OBSERVATION + text if text else FIRST_OBSERVATION[:-2])
 
     capacity: dict[str, Any] = {}
     cooling: dict[str, Any] = {}
     money: dict[str, Any] = {}
     if not observed:
-        for key in ("it_mw", "facility_mw"):
-            if key in totals:
-                capacity[key] = totals[key]
-                field_meta[f"/capacity/{key}"] = imported
+        # A shared campus sums its sites; a cited capacity's source backs it, with Epoch's for
+        # the sites Epoch's columns give.
+        cap_sids = _unique(capacity_sids.values())
+        cap_meta: dict[str, Any] = imported
+        if cap_sids:
+            epoch_sites = len(members) > len(capacity_cited)
+            cap_meta = {
+                "confidence": min(
+                    [override_confidence(c) for c in capacity_cited.values()]
+                    + ([CONFIDENCE] if epoch_sites else [])
+                ),
+                "method": "stated",
+                "source_ids": cap_sids + (["s1"] if epoch_sites else []),
+            }
+        for k in ("it_mw", "facility_mw"):
+            if k in totals:
+                capacity[k] = totals[k]
+                field_meta[f"/capacity/{k}"] = cap_meta
+        if stated_mw:
+            capacity["mw_as_stated"] = "; ".join(stated_mw)
+            field_meta["/capacity/mw_as_stated"] = cap_meta
+        conflicts = [c for cs in capacity_conflicts.values() for c in cs]
+        if conflicts:
+            field_meta["/capacity"] = {**cap_meta, "conflicts": conflicts}
         if water > 0:
             cooling["water_use_mgd"] = water
             field_meta["/cooling/water_use_mgd"] = imported
@@ -1136,6 +1876,15 @@ def campus_record(
                 "currency_year": 2025,
             }
             field_meta["/money/investment_usd"] = imported
+    for i, phase in enumerate(phases):
+        pid = phase["phase_id"]
+        if pid in capacity_cited:
+            field_meta[f"/phases/{i}/capacity"] = {
+                "confidence": override_confidence(capacity_cited[pid]),
+                "method": "stated",
+                "source_ids": [capacity_sids[pid]],
+                "conflicts": capacity_conflicts.get(pid, []),
+            }
 
     ref = {"source_ids": ["s1"]}
     # Epoch's Owner owns the AI hardware, "not necessarily the owner or operator of the facility":
@@ -1211,6 +1960,160 @@ def coverage_review(
     return None
 
 
+def first_reported_event(record: FacilityRecord) -> StatusEvent | None:
+    """The event that dates first_reported: the earliest non-planned event that is not `other`."""
+    dated = [e for e in record.status_history if not e.planned and e.event != "other"]
+    return min(dated, key=lambda e: (period_start(e.as_of), e.seq), default=None)
+
+
+def _setting_row(rows: Sequence[TimelineRow], today: date) -> TimelineRow | None:
+    """The row dated today or earlier from which Epoch's latest IT and power figures stand."""
+    actual = [r for r in rows if r.day <= today]
+    if not actual:
+        return None
+    latest = actual[-1]
+    figures = (positive(latest.it_mw), positive(latest.power_mw))
+    setting = latest
+    for r in reversed(actual):
+        if (positive(r.it_mw), positive(r.power_mw)) != figures:
+            break
+        setting = r
+    return setting
+
+
+def record_reviews(
+    record: FacilityRecord,
+    members: Sequence[tuple[Site, Sequence[TimelineRow]]],
+    coverage: Coverage,
+    overrides: Mapping[str, SiteOverride],
+    placed: Placed,
+    problems: Sequence[str],
+    today: date,
+) -> list[tuple[str, str, dict[str, Any]]]:
+    """The review items (kind, reason, data) a kept record calls for, besides its coverage:
+    a first_reported that is Epoch's first observation while a Selected Source may date an
+    earlier report; a note that dates the start of operation in words the importer cannot read;
+    Epoch's modelled capacity against the MW its note states (held back), or a cited capacity
+    older than Epoch's latest figures; the location's rejected conflicting sources; a cited
+    source that states another status than the record's; and a cited milestone not applied."""
+    out: list[tuple[str, str, dict[str, Any]]] = []
+    primary = members[0][0]
+    override = overrides.get(primary.name)
+    doubt = first_report_review(record, members, override)
+    if doubt is not None:
+        out.append(("unknown_status", *doubt))
+    fr = override.first_report if override is not None else None
+    first = first_reported_event(record)
+    if (
+        fr is not None
+        and not coverage.observed
+        and first is not None
+        and fr.day < period_start(first.as_of)
+        and first.status in ACTIVE_ORDER
+        and ACTIVE_ORDER.index(fr.status) > ACTIVE_ORDER.index(first.status)
+    ):
+        out.append(
+            (
+                "conflict",
+                f"the cited first report ({fr.as_of['value']}, {fr.status}) is earlier than the "
+                f"record's first event ({first.as_of.value}, {first.status}) but its status is "
+                "ahead of it, so it dates nothing: a reviewer decides how the two are read",
+                {
+                    "first_report": fr.as_of["value"],
+                    "first_report_status": fr.status,
+                    "first_event": first.as_of.value,
+                    "first_event_status": first.status,
+                    "source_url": str(fr.source_url),
+                },
+            )
+        )
+    for site, rows in members:
+        entry = overrides.get(site.name)
+        cited = entry.capacity if entry is not None else None
+        if not coverage.observed:
+            unread = operation_review(rows, today)
+            if unread is not None:
+                out.append(
+                    (
+                        "unknown_status",
+                        f"{site.name}: Epoch AI's note on its {unread[0]} row says operation began "
+                        "earlier, in words the importer cannot read, so the row dates nothing and "
+                        "the record has no operating_since: a reviewer dates it (a cited energized "
+                        "milestone in config/overrides/epoch.json)",
+                        {"row": unread[0], "note": event_note(unread[1]) or ""},
+                    )
+                )
+        _cap, epoch_cap, stated = site_capacity(site, rows, today, cited)
+        if stated is not None:
+            out.append(
+                (
+                    "conflict",
+                    f"{site.name}: Epoch AI's IT and power columns are its model, and its note "
+                    f"says the counted buildings reached {stated[0]:g} MW ({stated[1]!r}): the "
+                    "capacity is held back and only that phrase is kept in mw_as_stated; a cited "
+                    "capacity entry in config/overrides/epoch.json gives it",
+                    {"epoch": dict(epoch_cap), "stated": stated[1]},
+                )
+            )
+        setting = _setting_row(rows, today)
+        if cited is not None and setting is not None and setting.day > cited.as_of:
+            out.append(
+                (
+                    "conflict",
+                    f"{site.name}: Epoch AI's capacity changed on {setting.day.isoformat()}, after "
+                    f"the cited capacity's date ({cited.as_of.isoformat()}): a reviewer checks "
+                    "the capacity entry in config/overrides/epoch.json",
+                    {"epoch": dict(epoch_cap), "cited": cited.mw_as_stated},
+                )
+            )
+    if placed.override is not None and placed.override.conflicts:
+        out.append(
+            (
+                "conflict",
+                "the record's cited sources disagree on its location: "
+                + "; ".join(
+                    f"{c.publisher or host_of(str(c.source_url))} states {c.value!r}"
+                    for c in placed.override.conflicts
+                )
+                + " (in field_meta /location conflicts); the entry's source is kept: a reviewer "
+                "confirms it",
+                {
+                    "conflicts": [
+                        {"value": c.value, "source_url": str(c.source_url), "quote": c.quote}
+                        for c in placed.override.conflicts
+                    ]
+                },
+            )
+        )
+    for site, _rows in members:
+        entry = overrides.get(site.name)
+        for cit in entry.citations() if entry is not None else []:
+            if cit.states_status is not None and cit.states_status != record.status:
+                out.append(
+                    (
+                        "conflict",
+                        f"a source the record cites ({cit.publisher or host_of(str(cit.source_url))})"
+                        f" states the facility {cit.states_status}, while the record is "
+                        f"{record.status}: a reviewer checks which is right",
+                        {
+                            "source_url": str(cit.source_url),
+                            "states_status": cit.states_status,
+                            "status": record.status,
+                        },
+                    )
+                )
+    if problems:
+        out.append(
+            (
+                "conflict",
+                "a cited milestone in config/overrides/epoch.json is not applied: "
+                + "; ".join(problems),
+                {"problems": list(problems)},
+            )
+        )
+    return out
+
+
 def address_key(address: str) -> str | None:
     """A street address as a campus key: case, punctuation and spacing folded. None unless it
     starts with a house number: a town or a road alone is no address two sites can share."""
@@ -1227,7 +2130,7 @@ class EpochImporter:
     match_key = "epoch_name"
     owned_external_keys = ("epoch_name",)
     review_sources = ("epoch",)
-    version = "4"
+    version = "5"
     help = "Epoch AI Frontier Data Centers (CC BY 4.0): US sites with dated timelines"
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
@@ -1336,6 +2239,7 @@ class EpochImporter:
 
         # Sites with the same street address are one campus (07 §2.1), in the CSV's order.
         campuses: dict[str, list[tuple[Site, list[TimelineRow]]]] = {}
+        all_sites: list[Site] = []
         for row in site_rows:
             if clean_text(row["Country"]) != COUNTRY:
                 continue
@@ -1353,6 +2257,7 @@ class EpochImporter:
             )
             if not site.name:
                 continue
+            all_sites.append(site)
             rows = timelines.get(site.name, [])
             if not any(r.day <= ctx.today for r in rows):
                 flag(
@@ -1365,6 +2270,7 @@ class EpochImporter:
             key = address_key(site.address) or f"site:{site.name}"
             campuses.setdefault(key, []).append((site, rows))
 
+        noted = noted_announcements(all_sites, timelines)
         coverages: Counter[str] = Counter()
         for members in campuses.values():
             site = next(
@@ -1385,6 +2291,7 @@ class EpochImporter:
             coverage = timeline_coverage(
                 members, ctx.today, override.timeline if override is not None else None
             )
+            problems: list[str] = []
             try:
                 record = campus_record(
                     members,
@@ -1393,6 +2300,9 @@ class EpochImporter:
                     retrieved_at=retrieved_at,
                     coverage=coverage,
                     override=override,
+                    overrides=overrides,
+                    noted=noted,
+                    problems=problems,
                 )
             except (ValidationError, RollupError) as e:
                 flag("invalid", primary, "the row does not map to a valid record", error=str(e))
@@ -1406,13 +2316,31 @@ class EpochImporter:
             if item is not None and not item[2]:
                 coverages["status_unknown"] += 1
                 continue
+            for kind, reason, data in record_reviews(
+                record, members, coverage, overrides, placed, problems, ctx.today
+            ):
+                flag(kind, primary, reason, **data)
             candidates.append(Candidate(tuple(s.name for s, _ in members), record))
             coverages["held" if coverage.held else "partial" if coverage.partial else "whole"] += 1
-            if record.dates.get("first_reported") is not None and any(
-                e.event == "first_reported" and e.source_ids != ["s1"]
-                for e in record.status_history
-            ):
+            first = first_reported_event(record)
+            if first is not None and first.source_ids != ["s1"]:
                 coverages["first_reports"] += 1
+            elif (
+                first is not None
+                and first.event == "first_reported"
+                and not (first.note or "").startswith(FIRST_OBSERVATION)
+            ):
+                coverages["first_reports_noted"] += 1
+            elif first is not None:
+                coverages["first_observations"] += 1
+            coverages["capacities_cited"] += sum(
+                1 for s, _ in members if (o := overrides.get(s.name)) and o.capacity
+            )
+            coverages["milestones_cited"] += sum(
+                1
+                for e in record.status_history
+                if e.event in ("construction_start", "energized") and e.source_ids != ["s1"]
+            )
             if cited_status:
                 coverages["facility_statuses"] += 1
 
@@ -1430,6 +2358,10 @@ class EpochImporter:
             "timelines_held": coverages["held"],
             "timelines_status_unknown": coverages["status_unknown"],
             "first_reports_cited": coverages["first_reports"],
+            "first_reports_noted": coverages["first_reports_noted"],
+            "first_observations": coverages["first_observations"],
+            "capacities_cited": coverages["capacities_cited"],
+            "milestones_cited": coverages["milestones_cited"],
             "facility_statuses_cited": coverages["facility_statuses"],
             "missing_location": sum(1 for i in review if i.kind == "missing_location"),
             "geocode_failed": sum(1 for i in review if i.kind == "geocode_failed"),
