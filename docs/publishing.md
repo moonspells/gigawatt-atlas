@@ -6,7 +6,8 @@ basemap and the fixture release get there. Source of truth: the site plan, chapt
 [r2-setup.md](r2-setup.md).
 
 Nothing reaches `v/` except through the `upload` job of `publish.yml`, which runs only after a
-merge to `main` (or a dispatch from `main`) and, with the `takedown` job (section 7), is the only
+merge to `main` (or a dispatch from `main`). With the `takedown` job (section 7) and the `upload` job
+of `basemap.yml` (section 5, which writes only `basemap/conus-z10-{build}.pmtiles`), it is the only
 job that sees the R2 token.
 
 ## 1. Release layout (contract_version 1)
@@ -239,7 +240,7 @@ the committed fixture and stages it; the upload job sends `v/20000101-0000/**` a
 `https://tiles.moonspells.dev/v/20000101-0000/manifest.json`. The lifecycle rule deletes `v/`
 objects 120 days after their last upload (r2-setup.md §7), so dispatch it again before then
 while site CI pins it: `--renew` puts every object already stored with the same SHA-256 again,
-which restarts its age, and the log counts them as `renewed`. Without `--renew` the same upload
+which restarts its age, and the last line of the **Upload to R2** step counts them as `renewed`. Without `--renew` the same upload
 skips them and their age stays as it was. A changed fixture under the same id fails the
 upload, by design, because immutable keys are never overwritten: to replace it, the owner
 deletes `v/20000101-0000/` (and the stale `rec/` objects, if any) in the R2 dashboard, purges

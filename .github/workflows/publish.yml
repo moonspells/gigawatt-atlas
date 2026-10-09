@@ -1,6 +1,7 @@
 # Builds a release from main and uploads it to R2 `atlas-tiles` (07 §6.8, §11; 10 §11.8).
-# The build job holds no secrets; only the upload step sees the bucket-scoped R2 token, from the
-# `production` Environment (deployment branch main only). Nothing reaches v/ without a merge to main.
+# The build job holds no secrets; only the upload and takedown steps see the bucket-scoped R2
+# token, from the `production` Environment (deployment branch main only). Nothing reaches v/
+# without a merge to main.
 # Until the seed PR lands, data/records holds no record: the build job then ends with a notice
 # and uploads nothing. A dispatch with `takedown` runs only the takedown job (07 §5.4).
 name: publish

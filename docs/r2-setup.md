@@ -110,8 +110,8 @@ Age counts from each object's last upload, so the fixture release `v/20000101-00
 expires 120 days after it was last uploaded. While site CI pins it, renew it before then (a
 calendar reminder every 100 days): dispatch `publish.yml` from `main` with `fixture` ticked. Its
 upload runs `atlas publish upload --renew`, which puts every object already stored with the same
-SHA-256 again, byte for byte, so its age starts over; the job log's last line counts them as
-`renewed`. A plain upload skips those objects and leaves their age as it was, and a changed
+SHA-256 again, byte for byte, so its age starts over; the last line of the **Upload to R2** step
+counts them as `renewed`. A plain upload skips those objects and leaves their age as it was, and a changed
 fixture still fails (publishing.md §6). The release the site pins must likewise stay younger
 than 120 days, which every merged site data PR renews.
 
@@ -144,8 +144,9 @@ One token per bucket, each **Object Read & Write** on that bucket only, with a 9
    not store them anywhere else. The **Token value** is not stored anywhere, in GitHub or
    elsewhere: it is the same credential in Cloudflare API form (the Secret Access Key is its
    SHA-256), and nothing here uses it, because `atlas publish` talks to R2 over the S3 API with
-   the key pair alone. Close the page once the two secrets are saved; if one is lost, create a
-   new token as in the rotation below.
+   the key pair alone. Close the page once the two secrets are saved (if you already saved the
+   Token value somewhere, delete that copy); if one is lost, create a new token as in the
+   rotation below.
 4. Repeat with name `gigawatt-atlas-raw` for `atlas-raw`.
 
 GitHub: **moonspells/gigawatt-atlas → Settings → Environments → production**:
@@ -178,7 +179,10 @@ upload fail with an access error and changes nothing in the bucket.
 
 1. Basemap: if `basemap.yml` already ran (its extract keeps the file 30 days), open that run and
    **Re-run failed jobs**; otherwise dispatch it with build `20261006` (publishing.md §5).
-2. Fixture release: dispatch `publish.yml` with `fixture` ticked.
+2. Fixture release: dispatch `publish.yml` with `fixture` ticked. Then set a calendar reminder every
+   100 days, for as long as site CI pins `20000101-0000`, to dispatch it again (§7). After the first
+   renewal, check once in **R2 → atlas-tiles → Objects** that `v/20000101-0000/manifest.json` shows
+   the renewal's upload date.
 3. Check the headers:
 
 ```sh
