@@ -151,9 +151,13 @@ def test_the_same_specific_name_joins_within_500_m() -> None:
     assert specific_name("QTS Data Center", words) is None
     assert specific_name("Building 2", words) is None
     assert specific_name("Meta Sarpy Data Center", words) == "meta sarpy data center"
+    # Two objects of one such name and one operator join within 500 m all the same (second
+    # seed check n4, n8: QTS Phoenix II's two "QTS" buildings 345 m apart); beyond, they do not.
     g1 = obj("way/6", bounds=box(500, 0, 550, 50), name="Google", operator="Google")
     g2 = obj("way/7", bounds=box(500, 400, 550, 450), name="Google", operator="Google")
-    assert len(dissolve([g1, g2])) == 2
+    assert len(dissolve([g1, g2])) == 1
+    g3 = obj("way/8", bounds=box(500, 951, 550, 1000), name="Google", operator="Google")
+    assert len(dissolve([g1, g3])) == 2
 
 
 def test_an_unnamed_object_joins_an_operator_at_its_address() -> None:

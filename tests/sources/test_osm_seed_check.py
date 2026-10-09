@@ -37,6 +37,7 @@ FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 SEED_CHECK = FIXTURES / "osm" / "overpass-seed-check.json"
 CASES = FIXTURES / "osm" / "overpass-cases.json"
 PNNL_SEED_CHECK = FIXTURES / "pnnl" / "centroids-seed-check.geojson"
+NO_OVERRIDES = FIXTURES / "osm" / "overrides-empty.json"
 OSM_BASE = "2026-10-08T20:47:34Z"
 NOW = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)
 
@@ -69,7 +70,7 @@ def run(make_test_context: MakeContext) -> ImportResult:
     the county regions and the PNNL join."""
     parser = argparse.ArgumentParser()
     OsmImporter().add_arguments(parser)
-    args = parser.parse_args(["--pnnl", str(PNNL_SEED_CHECK)])
+    args = parser.parse_args(["--pnnl", str(PNNL_SEED_CHECK), "--overrides", str(NO_OVERRIDES)])
     return OsmImporter().run(make_test_context(input_path=SEED_CHECK), args)
 
 
@@ -225,14 +226,16 @@ def test_a_construction_site_holds_its_halls(run: ImportResult) -> None:
 
 def test_clusters_stay_in_one_county(run: ImportResult) -> None:
     """n10: xAI's building in Southaven, DeSoto County, MS, was joined into a Shelby County, TN,
-    record by rule 2 (same operator within 300 m). The county line now splits them."""
+    record by rule 2 (same operator within 300 m). The county line now keeps them apart, and
+    (second seed check n11) the smaller part makes no record: one campus counts once until a
+    reviewer decides."""
     memphis = record(run, "way/1386926534")
-    southaven = record(run, "way/1077131079")
     assert memphis.external_ids["osm"] == ["way/1386926534"]
-    assert southaven.external_ids["osm"] == ["way/1077131079"]
     assert (memphis.location.county_fips, memphis.location.state_abbr) == ("47157", "TN")
-    assert (southaven.location.county_fips, southaven.location.state_abbr) == ("28033", "MS")
-    assert southaven.canonical_name == "xAI Macrohardrr (DeSoto County, MS)"
+    assert not any("way/1077131079" in c.match_values for c in run.candidates)
+    (held,) = items(run, "possible_duplicate", "way/1077131079")
+    assert held.data["other"] == "way/1386926534"
+    assert "DeSoto County" in held.reason and "Shelby County" in held.reason
 
 
 def test_same_name_and_same_address_join(run: ImportResult) -> None:
@@ -251,17 +254,21 @@ def test_same_name_and_same_address_join(run: ImportResult) -> None:
 def test_operator_conflicts_are_flagged(run: ImportResult) -> None:
     """n54, n72: a node inside another operator's building (CoreSite LA2 in the USPO Terminal
     Annex) and AWS buildings inside a Microsoft polygon that has no building of its own were kept
-    apart with no review item. Both now raise possible_duplicate items, one per pair of records."""
-    (la2,) = items(run, "possible_duplicate", "node/13042311881")
-    assert la2.data["other"] == "way/30666790"
-    (quail,) = items(run, "possible_duplicate", "way/1301654223")
-    assert quail.data["other"] == "way/897226569"
+    apart with no review item. Since the second seed check (n0, n3) the post office's operator is
+    not the data center's, so LA2 joins the building, and the polygon, which its buildings'
+    addresses contradict, is held with a possible_duplicate item instead of a record."""
+    la2 = record(run, "node/13042311881")
+    assert la2.external_ids["osm"] == ["node/13042311881", "way/30666790"]
+    assert items(run, "possible_duplicate", "node/13042311881") == []
+    (quail,) = items(run, "possible_duplicate", "way/897226569")
+    assert quail.data["other"] == "way/1301654223"
     assert quail.data["osm"] == [
         "way/897226574",
         "way/897226575",
         "way/1301654223",
         "way/1301654224",
     ]
+    assert not any("way/897226569" in c.match_values for c in run.candidates)
 
 
 @pytest.mark.parametrize(
@@ -368,7 +375,7 @@ def test_the_city_is_the_census_place_that_contains_the_point(
     assert loc.lat is not None and loc.lon is not None
     parser = argparse.ArgumentParser()
     OsmImporter().add_arguments(parser)
-    args = parser.parse_args(["--pnnl", str(PNNL_SEED_CHECK)])
+    args = parser.parse_args(["--pnnl", str(PNNL_SEED_CHECK), "--overrides", str(NO_OVERRIDES)])
     peachtree = places_around(tmp_path, loc.lat, loc.lon, "Peachtree Corners", "GA")
     ctx = make_test_context(input_path=SEED_CHECK, places=peachtree)
     r = record(OsmImporter().run(ctx, args), "way/392324240")

@@ -46,6 +46,7 @@ from atlas.dissolve import (
     meters_to_degrees,
     operators_compatible,
     ref_key,
+    ring_area_m2,
 )
 from atlas.net import FetchError, FetchResult, fetch
 from atlas.schema.record import Source
@@ -518,7 +519,9 @@ def site_values(
     - A campus row gives site.acreage only when it hit a campus or site object, and only when
       every campus or site member that no other one covers has such a row (a partial sum would
       read as the site's area). One whose campus polygon has left OpenStreetMap lands on a
-      building, and is a conflict item.
+      building, and is a conflict item. So is a row on a member whose position OpenStreetMap
+      calls approximate, or whose area is more than FOOTPRINT_SLACK off the outline the import
+      read (or above its bounding box, without an outline): then no acreage is set.
 
     Rows with the same key are counted once (PNNL repeats a site that straddles a county line).
     """
@@ -526,6 +529,7 @@ def site_values(
     by_ref = {m.ref: m for m in cluster.members}
     on_member: dict[str, list[tuple[PnnlRow, float]]] = {}
     campus_sqft: dict[str, float] = {}
+    campus_rows: dict[str, list[PnnlRow]] = {}
     review: list[ReviewItem] = []
     for row in _unique(rows):
         ref = members.get(row.key)
@@ -534,6 +538,7 @@ def site_values(
             continue
         if row.type == "campus" and member.kind in AREA_KINDS:
             campus_sqft[member.ref] = campus_sqft.get(member.ref, 0.0) + row.sqft
+            campus_rows.setdefault(member.ref, []).append(row)
         elif row.type == "campus":
             reason = (
                 f"PNNL campus row ({row.sqft / SQFT_PER_ACRE:.1f} acres) lies on {member.ref}, "
@@ -570,8 +575,50 @@ def site_values(
     top = _top_level(cluster)
     acreage = None
     if top and all(m.ref in campus_sqft for m in top):
-        acreage = round(sum(campus_sqft[m.ref] for m in top) / SQFT_PER_ACRE, 1) or None
+        doubts = {m.ref: why for m in top if (why := _campus_doubt(m, campus_sqft[m.ref]))}
+        for ref in sorted(doubts, key=ref_key):
+            for row in campus_rows[ref]:
+                review.append(_held("conflict", doubts[ref], row, by_ref[ref], rep))
+        if not doubts:
+            acreage = round(sum(campus_sqft[m.ref] for m in top) / SQFT_PER_ACRE, 1) or None
     return SiteValues(acreage=acreage, review=review)
+
+
+def _campus_doubt(member: OsmObject, sqft: float) -> str | None:
+    """Why the PNNL campus rows on an area member do not give its acreage, or None: OpenStreetMap
+    calls the member's position or boundary approximate (Meta Cheyenne: "location and boundary
+    very approximate"), or the rows' area differs by more than FOOTPRINT_SLACK from the outline
+    this run read (PNNL measured another version of the polygon), or, without an outline,
+    exceeds the member's bounding box by more than that."""
+    acres = sqft / SQFT_PER_ACRE
+    note = member.approximate_note
+    if note is not None:
+        return (
+            f"OpenStreetMap calls the position of {member.ref} approximate ({note[:80]!r}), so "
+            f"its boundary does not give the site's area; the PNNL campus row ({acres:.1f} "
+            "acres) is not applied"
+        )
+    row_m2 = sqft / SQFT_PER_M2
+    outline_m2 = ring_area_m2(member.outline)
+    slack = FOOTPRINT_SLACK - 1
+    if outline_m2 is not None and outline_m2 > 0:
+        if abs(row_m2 - outline_m2) > slack * outline_m2:
+            outline_acres = outline_m2 * SQFT_PER_M2 / SQFT_PER_ACRE
+            return (
+                f"the PNNL campus row ({acres:.1f} acres) differs by more than {slack:.0%} from "
+                f"the outline of {member.ref} this import read ({outline_acres:.1f} acres): it "
+                "describes another version of the polygon; acreage not applied"
+            )
+        return None
+    box_m2 = member.area_m2()
+    if member.outline is None and member.bounds is not None and row_m2 > box_m2 * FOOTPRINT_SLACK:
+        box_acres = box_m2 * SQFT_PER_M2 / SQFT_PER_ACRE
+        return (
+            f"the PNNL campus row ({acres:.1f} acres) exceeds the bounding box of {member.ref} "
+            f"({box_acres:.1f} acres) by more than {slack:.0%}: it describes another polygon; "
+            "acreage not applied"
+        )
+    return None
 
 
 def county_mismatch(

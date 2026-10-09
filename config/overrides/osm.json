@@ -1,0 +1,53 @@
+{
+  "node/10780794741": {
+    "operator": "Data Canopy",
+    "publisher": "Baxtel",
+    "quote": "The just-bought colocation company Data Canopy took over the colocation data center hosting division of IT security provider Ntirety.",
+    "reason": "The node's operator=Ntirety is out of date: Baxtel's page for the facility at 630 3rd St, titled 'DataCanopy: San Francisco', lists Data Canopy as its operator and reports Data Canopy's purchase of Ntirety's colocation business.",
+    "retrieved_at": "2026-10-09T13:18:55Z",
+    "reviewed_at": "2026-10-09",
+    "source_type": "commercial_aggregator",
+    "source_url": "https://baxtel.com/data-center/datacanopy-san-francisco"
+  },
+  "way/293211687": {
+    "operator": "Sabey Data Centers",
+    "publisher": "PeeringDB",
+    "quote": "\"address1\": \"3433 South 120th Place\", \"address2\": \"Sabey Intergate East Building 4\"",
+    "reason": "The way's operator=Digital Realty is out of date: PeeringDB facility 4226 at 3433 South 120th Place, the way's address, is 'Sabey Intergate East Building 4', organization Sabey Data Centers, with the notes 'fka: Telx SEA1' and 'fka: Digital Realty' (updated 2025-09-26).",
+    "retrieved_at": "2026-10-09T13:18:55Z",
+    "reviewed_at": "2026-10-09",
+    "source_type": "community_report",
+    "source_url": "https://www.peeringdb.com/api/fac/4226"
+  },
+  "way/439365340": {
+    "name": null,
+    "publisher": "Baxtel",
+    "quote": "JLL is offering for lease or sale at 11751 Meadowville Lane in Chester, south of Richmond. The Virginia IT agency had been based there until it left last year.",
+    "reason": "The way's name, 'Virginia Information Technologies Agency', names a tenant that left the building at 11751 Meadowville Lane in 2022 (Baxtel, 2023-05-15); no source names the data center now, so the record names none.",
+    "retrieved_at": "2026-10-09T13:18:55Z",
+    "reviewed_at": "2026-10-09",
+    "source_type": "trade_press",
+    "source_url": "https://baxtel.com/news/old-virginia-government-data-centerup-for-sale"
+  },
+  "way/460212563": {
+    "operator": "Centersquare",
+    "publisher": "Baxtel",
+    "quote": "Cyxtera's BR1 site in Burbank was acquired via a $2.8 billion transaction to acquire 57 datacenters from CenturyLink.",
+    "reason": "The way's operator=Centurylink (owner=Digital Realty) is out of date: Baxtel's page 'Centersquare: Burbank BR1', at 3015 Winona Avenue in the Digital Realty building, says CenturyLink's site passed to Cyxtera in 2017 and that Cyxtera's sites were rebranded Centersquare in April 2024.",
+    "retrieved_at": "2026-10-09T13:18:55Z",
+    "reviewed_at": "2026-10-09",
+    "source_type": "commercial_aggregator",
+    "source_url": "https://baxtel.com/data-center/centersquare-burbank-br1"
+  },
+  "way/635022480": {
+    "name": null,
+    "operator": "GI Partners",
+    "publisher": "Baxtel",
+    "quote": "In 2025, GI Partners paid $253M for 4905 North Point Parkway, a 185K SF data center, from Lincoln Rackhouse and Principal Asset Management.",
+    "reason": "The way's name 'Ascent - Atlanta Data Center' and operator=Ascent are out of date: Baxtel's page for Ascent's former ATL1 ('Ascent acquired the enterprise-grade data center in 2017') now lists GI Partners as its operator and owner, after sales in 2022 and 2025.",
+    "retrieved_at": "2026-10-09T13:18:55Z",
+    "reviewed_at": "2026-10-09",
+    "source_type": "commercial_aggregator",
+    "source_url": "https://baxtel.com/data-center/ascent-atlanta-atl1"
+  }
+}

@@ -55,6 +55,8 @@ OVERPASS_CASES = FIXTURES / "osm" / "overpass-cases.json"
 SEED_CHECK = FIXTURES / "osm" / "overpass-seed-check.json"
 SEED_CHECK_BASE = "2026-10-08T20:47:34Z"
 PNNL_GEOJSON = FIXTURES / "pnnl" / "centroids-sample.geojson"
+# The committed config/overrides/osm.json names elements a fixture does not have.
+NO_OVERRIDES = FIXTURES / "osm" / "overrides-empty.json"
 OSM_BASE = "2026-10-07T22:19:21Z"
 RETRIEVED = datetime(2026, 10, 8, 6, 0, tzinfo=UTC)
 NOW = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
@@ -876,13 +878,15 @@ def test_importer_is_discovered() -> None:
     assert importer.match_key == "osm"
     assert importer.owned_external_keys == ("osm", "pnnl_im3")
     assert importer.review_sources == ("osm", "pnnl")
-    assert importer.version == "2"
+    assert importer.version == "3"  # 3: the second seed check's mapping (2026-10-09)
 
 
 def parse_args(*argv: str) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     IMPORTER.add_arguments(parser)
-    return parser.parse_args(argv)
+    return parser.parse_args(
+        argv if "--overrides" in argv else (*argv, "--overrides", str(NO_OVERRIDES))
+    )
 
 
 def test_arguments() -> None:
@@ -937,6 +941,8 @@ def test_cli_import_is_idempotent(
     argv = [
         "import",
         "osm",
+        "--overrides",
+        str(NO_OVERRIDES),
         "--input",
         str(OVERPASS_FIXTURE),
         "--pnnl",
@@ -1001,6 +1007,7 @@ def test_cli_import_drops_control_characters(
         repo = tmp_path_factory.mktemp("repo")
         census_reference_cache(repo / "cache")
         argv = ["import", "osm", "--input", str(overpass), "--no-pnnl"]
+        argv += ["--overrides", str(NO_OVERRIDES)]
         argv += ["--now", "2026-10-12T00:00:00Z", "--offline"]
         argv += ["--records", str(repo / "records"), "--review-dir", str(repo / "review")]
         argv += ["--receipts-dir", str(repo / "imports"), "--cache-dir", str(repo / "cache")]
@@ -1050,6 +1057,8 @@ def test_cli_weekly_rerun_is_unchanged(
         argv = [
             "import",
             "osm",
+            "--overrides",
+            str(NO_OVERRIDES),
             "--input",
             str(overpass),
             "--pnnl",
@@ -1091,6 +1100,8 @@ def test_cli_offline_without_input_fails(
         [
             "import",
             "osm",
+            "--overrides",
+            str(NO_OVERRIDES),
             "--no-pnnl",
             "--records",
             str(tmp_repo / "data" / "records"),
@@ -1116,4 +1127,6 @@ def test_live_overpass(make_test_context: MakeContext) -> None:
         result = fetch_overpass(
             ctx, ["https://maps.mail.ru/osm/tools/overpass/api/interpreter"], retries=1
         )
-    assert 1_500 <= len(result.doc["elements"]) <= 2_500
+    # 2,062 on 2026-10-09 before the campus outlines and the containers came too (a campus
+    # polygon now comes twice, and a container once).
+    assert 1_500 <= len(result.doc["elements"]) <= 3_500
