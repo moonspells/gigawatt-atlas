@@ -65,6 +65,8 @@ POINT_PRECISIONS = frozenset(
     {"footprint", "parcel", "site", "address", "street", "locality", "county"}
 )
 NO_POINT_PRECISIONS = frozenset({"state", "unknown"})
+# Precisions whose point is a centroid or absent, so the record names no city or municipality.
+NO_PLACE_PRECISIONS = frozenset({"county", "state", "unknown"})
 # Precisions whose point must fall inside the stated county polygon (rule 5).
 COUNTY_CHECKED_PRECISIONS = frozenset(
     {"footprint", "parcel", "site", "address", "street", "county"}
@@ -321,6 +323,16 @@ def _check_geo(record: FacilityRecord, counties: CountyIndex | None, add: Add) -
     checked = loc.precision in COUNTY_CHECKED_PRECISIONS
     if checked and loc.county_fips is None:
         add("geo", f"precision {loc.precision} needs county_fips", "/location/county_fips")
+    if loc.precision in NO_PLACE_PRECISIONS:
+        # The point is a county or state centroid (or there is none), which need not lie in
+        # any place, so a city or municipality would be published at a point outside it.
+        for name, value in (("city", loc.city), ("municipality", loc.municipality)):
+            if value is not None:
+                add(
+                    "geo",
+                    f"precision {loc.precision} must not name a {name} ({value!r})",
+                    f"/location/{name}",
+                )
     if counties is None:
         return
     county = counties.get(loc.county_fips) if loc.county_fips is not None else None

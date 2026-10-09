@@ -615,6 +615,7 @@ class CountySubdivision:
     funcstat: str
     lat: float
     lon: float
+    area_m2: float = 0.0  # ALAND + AWATER
 
     @property
     def county_fips(self) -> str:
@@ -691,6 +692,7 @@ class Gazetteer:
         self._counties = {c.geoid: c for c in counties}
         self._county_names = {(c.state_abbr, normalize_place(c.name)): c for c in counties}
         self._cousubs: dict[tuple[str, str], list[CountySubdivision]] = {}
+        self._cousub_areas = {c.geoid: c.area_m2 for c in cousubs or []}
         for c in cousubs or []:
             if c.active:
                 for key in {normalize_place(c.base_name), normalize_place(c.name)}:
@@ -765,6 +767,7 @@ class Gazetteer:
                     funcstat=r["FUNCSTAT"],
                     lat=round(float(r["INTPTLAT"]), 6),
                     lon=round(float(r["INTPTLONG"]), 6),
+                    area_m2=float(r.get("ALAND") or 0) + float(r.get("AWATER") or 0),
                 )
                 for r in _read_gazetteer(
                     cousub_zip, reference.COUNTY_SUBDIVISIONS.sha256 if verify_sha256 else None
@@ -802,6 +805,11 @@ class Gazetteer:
         if county_fips is not None:
             unique = [c for c in unique if c.county_fips == county_fips]
         return unique[0] if len(unique) == 1 else None
+
+    def cousub_area(self, geoid: str) -> float | None:
+        """Land plus water area (m2) of the county subdivision geoid, active or not, or None when
+        it is not in the loaded file."""
+        return self._cousub_areas.get(geoid)
 
     def has_locality(self, abbr: str, name: str, county_fips: str | None = None) -> bool:
         """True when geocode()'s step 3 can place name as a locality: a Census place, or (when

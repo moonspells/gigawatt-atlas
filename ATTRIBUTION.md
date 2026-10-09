@@ -100,11 +100,15 @@ Commons Attribution 4.0 International (CC BY 4.0), <https://creativecommons.org/
 
 Used for: proposed and contested projects, hearing and decision dates, filing entities.
 
-Changes made (the data is adapted, not copied): verified rows only, and rows that are Epoch AI
-sites are left to the Epoch record; stages and milestone dates mapped to Atlas statuses and events,
-a stage the milestones do not reach recorded as seen on the row's as_of date or the file's date;
-rows without coordinates placed at their Census place, town or county; organizations only, with personal
-names left out; capacity and acreage outside plausible ranges left out. Details:
+Changes made (the data is adapted, not copied): verified rows only, and rows that are Epoch AI sites
+are left to the Epoch record; stages and milestone dates mapped to Atlas statuses and events (a
+decision counts as an approval only when the row names a land-use approval or a permit, and a date
+on January 1 is read as its year), a stage the milestones do not reach recorded as seen on the row's
+as_of date or the file's date, and a first report taken from the row's event log only where it can
+be dated; rows without coordinates placed at their Census place, town or county, and a city or
+municipality named only where the row's point lies in it; the "Operator/developer" field listed as
+the developer, never as the operator, and an electric utility named there left out; organizations
+only, with personal names left out; capacity and acreage outside plausible ranges left out. Details:
 <https://github.com/moonspells/gigawatt-atlas/blob/main/docs/sources/epoch-aigridwatch.md>.
 
 ### U.S. Census Bureau

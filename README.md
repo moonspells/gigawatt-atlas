@@ -54,8 +54,9 @@ atlas/                 the pipeline (Python package)
   geocode.py           Census Geocoder, Gazetteer and county fallbacks
   publish.py r2.py     the release builder and the R2 uploader
   net.py safezip.py    guarded HTTP and ZIP handling for untrusted upstream files
-config/overrides/      cited location overrides (epoch.json) and reviewer releases of held AI
-                       GridWatch rows (aigridwatch.json)
+config/overrides/      cited location and timeline overrides (epoch.json), reviewer releases
+                       of held AI GridWatch rows (aigridwatch.json) and reviewers' decisions
+                       on OSM elements (osm.json, docs/sources/osm-pnnl.md section 9)
 data/records/          one canonical JSON file per record ({id}.json)
 data/orgs.json         organizations (gwo- ids)
 data/imports/          import receipts

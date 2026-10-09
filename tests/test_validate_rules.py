@@ -167,6 +167,29 @@ def test_county_name_must_be_the_fips_county(
     assert issues_of(r) == []  # without counties the check is skipped
 
 
+@pytest.mark.parametrize("precision", ["county", "state", "unknown"])
+def test_a_centroid_or_no_point_names_no_city_or_municipality(
+    make_record: MakeRecord, precision: str
+) -> None:
+    # AWS Berwick: Luzerne County's centroid lies in Rice township, not in the Salem Township
+    # the record named, so a county-precision record cannot name a city or municipality.
+    loc: dict[str, Any] = {
+        "lat": 41.16574,
+        "lon": -75.954718,
+        "precision": precision,
+        "city": "Berwick",
+        "municipality": "Salem Township",
+        "county_fips": "42079",
+        "state_abbr": "PA",
+    }
+    if precision != "county":
+        loc.update(lat=None, lon=None, county_fips=None)
+    r = make_record(location=loc)
+    assert issues_of(r) == [("geo", "/location/city"), ("geo", "/location/municipality")]
+    loc.update(city=None, municipality=None)
+    assert issues_of(make_record(location=loc)) == []
+
+
 def test_county_name_forms_of_an_independent_city(counties: CountyIndex) -> None:
     for name in ("Manassas", "Manassas city", "City of Manassas", "manassas city"):
         assert counties.name_matches("51683", name), name

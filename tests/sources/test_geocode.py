@@ -271,6 +271,10 @@ def test_gazetteer_county_subdivisions(gazetteer_with_cousubs: Gazetteer) -> Non
     assert g.cousub_entry("KY", "Bloomfield") is None
     assert g.cousub_entry("IL", "Bloomfield") is None
     assert g.cousub_entry("WI", "Bloomfield") is None  # two Bloomfield towns
+    # cousub_area: every row's area, for a township's extent.
+    assert g.cousub_area(salem.geoid) == 74_442_584 + 2_681_721  # ALAND + AWATER
+    assert g.cousub_area("2117990272") == 193_259_235 + 2_424_932  # a CCD (S) is listed too
+    assert g.cousub_area("0900000000") is None
     assert (cousub_base_name("Bloomfield charter township"), cousub_base_name("Gore")) == (
         "Bloomfield",
         "Gore",
