@@ -11,12 +11,13 @@
     "state_abbr": "OH"
   },
   "Anthropic Barber Lake": {
+    "archive_url": "https://web.archive.org/web/20261004081703/https://www.globenewswire.com/news-release/2025/09/25/3156107/0/en/Cipher-Mining-Signs-168-MW-10-Year-AI-Hosting-Agreement-with-Fluidstack.html",
     "city": "Colorado City",
-    "note": "Epoch gives no address. Its first Selected Source, the site owner's release, places the Barber Lake site in Colorado City, Texas.",
+    "note": "Epoch gives no address. Its first Selected Source, the site owner's release, read through its Wayback Machine snapshot because globenewswire.com refuses automated clients, places the Barber Lake site in Colorado City, Texas.",
     "precision": "locality",
     "publisher": "Cipher Mining",
     "quote": "Under the agreement, Cipher will deliver 168 MW of critical IT load, supported by a maximum of 244 MW of gross capacity, at its Barber Lake site in Colorado City, Texas.",
-    "retrieved_at": "2026-10-08T05:18:09Z",
+    "retrieved_at": "2026-10-09T03:13:03Z",
     "source_type": "company_release",
     "source_url": "https://www.globenewswire.com/news-release/2025/09/25/3156107/0/en/Cipher-Mining-Signs-168-MW-10-Year-AI-Hosting-Agreement-with-Fluidstack.html",
     "state_abbr": "TX"
@@ -113,12 +114,13 @@
     "state_abbr": "TX"
   },
   "OpenAI Stargate New Mexico": {
+    "archive_url": "https://web.archive.org/web/20260427210558/https://www.oracle.com/news/announcement/oracle-borderplex-and-bloom-energy-to-power-project-jupiter-with-fuel-cell-technology-2026-04-27/",
     "county_fips": "35013",
-    "note": "Epoch gives no address. Its Selected Source from Oracle places Project Jupiter, Epoch's name for this site's project, in Doña Ana County, New Mexico.",
+    "note": "Epoch gives no address. Its Selected Source from Oracle, read through its Wayback Machine snapshot because oracle.com refuses automated clients, places Project Jupiter, Epoch's name for this site's project, in Doña Ana County, New Mexico.",
     "precision": "county",
     "publisher": "Oracle",
     "quote": "Oracle and BorderPlex Digital Assets today announced Project Jupiter will utilize Bloom Energy fuel cells to fully power the AI data center campus in Doña Ana County, New Mexico.",
-    "retrieved_at": "2026-10-08T05:14:58Z",
+    "retrieved_at": "2026-10-09T03:13:27Z",
     "source_type": "company_release",
     "source_url": "https://www.oracle.com/news/announcement/oracle-borderplex-and-bloom-energy-to-power-project-jupiter-with-fuel-cell-technology-2026-04-27/",
     "state_abbr": "NM"
