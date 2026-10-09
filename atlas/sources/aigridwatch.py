@@ -1251,7 +1251,7 @@ class AIGridWatchImporter:
     match_key = "aigridwatch_id"
     owned_external_keys = ("aigridwatch_id",)
     review_sources = ("aigridwatch",)
-    version = "1"
+    version = "2"
     help = "AI GridWatch project tracker (CC BY 4.0): contested proposals and their milestones"
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:

@@ -1489,6 +1489,8 @@ def test_cli_run_is_idempotent(
     common.append("--without-epoch")
     assert main(common) == 0
     assert "import aigridwatch: candidates=11 new=11" in capsys.readouterr().out
+    receipt = json.loads((tmp_repo / "data" / "imports" / "aigridwatch.json").read_text("utf-8"))
+    assert receipt["importer_version"] == "2"  # undated stages imported, county subdivisions
     stored = RecordStore(tmp_repo / "data" / "records").load()
     assert len(stored) == 11  # every verified row
     queue = (tmp_repo / "review" / "queue" / "aigridwatch.jsonl").read_text(encoding="utf-8")
