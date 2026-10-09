@@ -12,7 +12,7 @@ upstream said.
 
 | Atlas status | AI GridWatch stage | Epoch timeline row | OSM tag | Agenda or permit outcome (M2+) |
 |---|---|---|---|---|
-| `announced` | Proposed with no known filing; Rumored (with `evidence_level: "rumor"`) | pre-construction text only | `proposed:telecom=data_center`, `proposed:building=*`, `proposed=*` (no OSM tag is a filing) | press or company announcement |
+| `announced` | Proposed with no known filing; In review, Hearing scheduled or Awaiting decision with no known filing when the note says nothing was formally proposed; Rumored (with `evidence_level: "rumor"`) | pre-construction text only | `proposed:telecom=data_center`, `proposed:building=*`, `proposed=*` (no OSM tag is a filing) | press or company announcement |
 | `proposed` | Proposed with a filing, In review, Hearing scheduled, Awaiting decision | n/a | n/a | application filed, TABS registration, DRI submitted |
 | `permitted` | Approved | n/a | n/a | rezoning approved, permit issued |
 | `under_construction` | Under construction | construction text, or anything not clearly pre-construction, with 0 buildings operational | `construction:telecom=data_center`, `construction=data_center`, `construction:building=*`, `building=construction`, `landuse=construction` | building permits plus construction reports |
@@ -67,13 +67,20 @@ member `building=construction` (14), `landuse=construction` (1), `proposed:build
 ## AI GridWatch (`from_aigridwatch_stage`)
 
 Confidence 0.70. Stages are matched ignoring case and extra spaces. `has_filing` is true when the
-project has a `rezoning_filed` date or an event of kind `filing` or `rezoning`.
+project has a `rezoning_filed` date or an event-log entry that is one of its own applications: of
+kind `filing` or `rezoning`, about an application, a petition, a request, a plan or a permit, and
+not about the place's rules (an ordinance, a moratorium, a text amendment, a resolution, fees), a
+property deal or someone else's lawsuit, appeal or motion (`aigridwatch.own_filing`; Posey County's
+only `rezoning` entry is its Area Plan Commission revising its own data center ordinance).
+`no_application` is true when the row's note says nothing has been formally proposed ("despite no
+official proposal", "No formal application"; `aigridwatch.no_application`).
 
 | Stage | Status | Event | Evidence | Reason |
 |---|---|---|---|---|
 | Rumored | `announced` | `announced` | `rumor` | |
 | Proposed, no filing | `announced` | `announced` | | |
 | Proposed, with a filing | `proposed` | `application_filed` | | |
+| In review, Hearing scheduled or Awaiting decision, with no filing and `no_application` | `announced` | `announced` | | |
 | In review | `proposed` | `application_filed` | | |
 | Hearing scheduled | `proposed` | `application_filed` | | |
 | Awaiting decision | `proposed` | `application_filed` | | |
@@ -85,14 +92,23 @@ project has a `rezoning_filed` date or an event of kind `filing` or `rezoning`.
 | Withdrawn | `cancelled` | `withdrawn` | | none (see below) |
 
 Any other stage raises `UnknownStatus`; the importer turns it into an `unknown_status` review item.
+07 §2.3 makes `proposed` a pending formal application, so a stage that implies one (In review,
+Hearing scheduled, Awaiting decision) is `announced` when the row states no filing and its note says
+nothing has been formally proposed, and the importer files a `conflict` item for a reviewer
+(Posey County's commissioners signed an NDA "despite no official proposal" while the stage read
+Awaiting decision).
 
-The event above is what the stage means when the row's milestone dates reach it. When they do not
-(no milestone, or one with another status), the importer records the stage as an `other` event
-with the stage's status instead, dated with the row's `as_of`, or, for a row without `as_of`, with
+The event above is what the stage means when the row's milestone dates reach it. A `decided_date`
+with outcome `approved` is an `approved` event only when the row names it a land-use approval or a
+permit (a performance agreement or a tax abatement is no approval to build;
+[epoch-aigridwatch.md](sources/epoch-aigridwatch.md#status-history)). When the milestones do not
+reach the stage (no milestone, or one with another status), the importer records the stage as an
+`other` event with the stage's status instead, dated with the row's `as_of`, or, for a row without `as_of`, with
 the file's `generated` date (owner decision of 2026-10-09). Like an OSM tag, it is an observation:
 it sets the status and dates nothing (`derive_dates` skips `other` events). A row whose own event
-log reports a milestone the stage has not reached stays held for review with a `conflict` item
-([epoch-aigridwatch.md](sources/epoch-aigridwatch.md#status-history)).
+log or note reports a milestone the stage has not reached, or leaves no application under review (an
+application refused as incomplete, a moratorium adopted after the filing), stays held for review
+with a `conflict` item ([epoch-aigridwatch.md](sources/epoch-aigridwatch.md#status-history)).
 
 "Withdrawn" does not say who withdrew. On 2026-10-08, 13 rows read Withdrawn: in some the developer
 withdrew ("Deep Green withdrew its rezoning request"), in others a mayor dropped his support, a host
