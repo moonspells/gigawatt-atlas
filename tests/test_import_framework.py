@@ -26,6 +26,7 @@ from atlas.sources.base import (
     ImportResult,
     ReviewItem,
     apply_import,
+    classify_source,
     load_input,
     read_review_queue,
 )
@@ -445,6 +446,89 @@ def test_atlas_import_discovers_and_runs_an_importer(
 
     # --now must carry a time zone.
     assert main(["import", "zzdummy", "--now", "2026-10-12T12:00:00", "--offline"]) == 2
+
+
+# ---------------------------------------------------------------------------- source types
+
+
+@pytest.mark.parametrize(
+    ("url", "title", "expected"),
+    [
+        # n20: primary documents the seed published as news.
+        (
+            "https://ir.applieddigital.com/sec-filings/all-sec-filings/content/"
+            "0001641172-25-013199/form8-k.htm",
+            "SEC 8k Filing with Applied Digital",
+            "sec_filing",
+        ),
+        (
+            "https://investors.corescientific.com/sec-filings/all-sec-filings/content/"
+            "0001628280-26-031246/q1fy26earningsdeck.htm",
+            "Core Scientific - Q1 2026 Fiscal Earnings Call",
+            "sec_filing",
+        ),
+        (
+            "https://ir.applieddigital.com/news-events/press-releases/detail/157/"
+            "applied-digital-delivers-second-building-at-polaris-forge-1",
+            "Applied Digital Delivers Second Building at Polaris Forge 1",
+            "company_release",
+        ),
+        (
+            "https://citycouncildocuments.acfw.net/documents/download/2023-12-19/R-23-12-02.pdf",
+            "City Council approval",
+            "government_record",
+        ),
+        (
+            "https://www.govonlinesaas.com/LCPH/EasyAir/Public/EnSuite/Shared/Pages/util/"
+            "StreamDoc.ashx?id=260&type=attachment",
+            "Permit application",
+            "government_record",
+        ),
+        (
+            "https://cdn.misoenergy.org/NEW%20LOAD%20ANNOUNCEMENTS%20IN%20MISO%20REGIONS%2012062024684954.pdf",
+            "MISO new load announcements",
+            "utility_or_iso_filing",
+        ),
+        # Documents on a document store: the link text says what they are.
+        (
+            "https://drive.google.com/file/d/1dQ5/view",
+            "Air Construction Permit",
+            "government_record",
+        ),
+        (
+            "https://drive.google.com/file/d/1D4e/view",
+            "MISO update with 1.8 GW substation",
+            "utility_or_iso_filing",
+        ),
+        ("https://drive.google.com/file/d/1oHW/view", "Crusoe 2024 Impact Report", "news"),
+        ("https://drive.google.com/file/d/1abc/view", "30 sec site walk", "news"),
+        ("https://drive.google.com/file/d/1def/view", "Form 10-q, Q2 2025", "sec_filing"),
+        (
+            "https://www.scribd.com/document/1/x",
+            "July 2025 Permit for Gas Turbines",
+            "government_record",
+        ),
+        # Host rules, unchanged.
+        ("https://www.sec.gov/Archives/edgar/data/1/x.htm", None, "sec_filing"),
+        ("https://www.tdlr.texas.gov/TABS/Projects/TABS2026012091", None, "government_record"),
+        ("https://co.armstrong.tx.us/page", None, "government_record"),
+        ("https://lnklan.granicus.com/DocumentViewer.php?file=a.pdf", None, "government_record"),
+        ("https://www.prnewswire.com/news-releases/x-302836104.html", None, "company_release"),
+        (
+            "https://investors.coreweave.com/news/news-details/2025/x/default.aspx",
+            None,
+            "company_release",
+        ),
+        ("https://www.pjm.com/-/media/planning/x.pdf", None, "utility_or_iso_filing"),
+        # A news site's headline is not read: these stay news.
+        ("https://www.datacenterdynamics.com/en/news/x/", "County approves permit", "news"),
+        ("https://www.reuters.com/x/", "SEC filing shows Meta lease", "news"),
+        ("https://www.thelocalfw.com/data-center-diesel-generators/", None, "news"),
+        ("https://notsec.gov.example.com/x", None, "news"),
+    ],
+)
+def test_classify_source(url: str, title: str | None, expected: str) -> None:
+    assert classify_source(url, title) == expected
 
 
 # ---------------------------------------------------------------------------- places
