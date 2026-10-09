@@ -62,7 +62,8 @@ def test_osm_unrelated_tags() -> None:
         ("Operating", False, "operating", "energized", None, None),
         ("Blocked by ban", False, "paused", "paused", None, "moratorium"),
         ("Denied", False, "denied", "denied", None, "local_denial"),
-        ("Withdrawn", False, "cancelled", "withdrawn", None, "developer_withdrawal"),
+        # Who withdrew is not in the stage (a developer, a mayor, a lapsed agreement, a court).
+        ("Withdrawn", False, "cancelled", "withdrawn", None, None),
     ],
 )
 def test_aigridwatch_stages(

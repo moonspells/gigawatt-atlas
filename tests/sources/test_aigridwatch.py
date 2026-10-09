@@ -20,6 +20,7 @@ from atlas.net import FetchError, fetch, make_client
 from atlas.schema.record import FacilityRecord
 from atlas.sources.aigridwatch import (
     IMPORTER,
+    OVERRIDES_PATH,
     PROJECTS_URL,
     PartyName,
     filing_names,
@@ -28,6 +29,8 @@ from atlas.sources.aigridwatch import (
     looks_like_person,
     looks_like_person_name,
     milestone_events,
+    org_key,
+    orgs_overlap,
     parse_locality,
     party_name,
     resolve_county,
@@ -61,16 +64,30 @@ EXPECTED = {
     "red-oak-compass-campus": ("Approved", "permitted", None, "reported"),
     "sabey-decatur-township-in": ("Approved", "permitted", None, "reported"),
     "burkhalter-road-statesboro-ga": ("Awaiting decision", "proposed", None, "reported"),
-    "pw-digital-gateway-va": ("Withdrawn", "cancelled", "developer_withdrawal", "reported"),
+    # "the rezoning was judicially voided": a court ruling ended it, not the developer.
+    "pw-digital-gateway-va": ("Withdrawn", "cancelled", "litigation", "reported"),
     "talen-montour-pa": ("Denied", "denied", "local_denial", "reported"),
     "meta-leap-lebanon-in": ("Proposed", "announced", None, "reported"),
     "abei-energy-data-center-starke-in": ("Blocked by ban", "paused", "moratorium", "reported"),
 }
 
 
+# Rows of the fixture without as_of (sabey-decatur-township-in, talen-montour-pa): no milestone
+# reaches their stage, so their stage has no date and they are held for review. Tests about other
+# things date them through dated().
+UNDATED = ("sabey-decatur-township-in", "talen-montour-pa")
+
+
 def load_fixture() -> dict[str, Any]:
     doc: dict[str, Any] = json.loads(FIXTURE.read_text(encoding="utf-8"))
     return doc
+
+
+def dated(doc: dict[str, Any]) -> None:
+    """Give the fixture's rows without as_of the file's date, as if AI GridWatch had read them."""
+    for p in doc["projects"]:
+        if not p["as_of"]:
+            p["as_of"] = "2026-10-07"
 
 
 def project(doc: dict[str, Any], pid: str) -> dict[str, Any]:
@@ -106,6 +123,14 @@ def run_edited(
 
 def records(result: ImportResult) -> dict[str, FacilityRecord]:
     return {c.match_values[0]: c.record for c in result.candidates}
+
+
+def gazetteer_place(state: str, name: str) -> tuple[float, float]:
+    from atlas.geocode import Gazetteer
+
+    found = Gazetteer.load().place(state, name)
+    assert found is not None, name
+    return found[0], found[1]
 
 
 def snapshot(*roots: Path) -> dict[str, bytes]:
@@ -226,9 +251,9 @@ def test_party_helpers() -> None:
 
 
 def test_every_stage_maps_through_the_crosswalk(
-    make_test_context: MakeContext, counties: CountyIndex, today: date
+    make_test_context: MakeContext, counties: CountyIndex, today: date, tmp_path: Path
 ) -> None:
-    result = run(make_test_context)
+    result = run_edited(make_test_context, tmp_path, dated)
     got = records(result)
     assert sorted(got) == sorted(EXPECTED)
     doc = load_fixture()
@@ -258,6 +283,31 @@ def test_every_stage_maps_through_the_crosswalk(
     assert result.metrics["projects"] == 12 and result.metrics["upstream_events_unused"] == 30
 
 
+def test_a_stage_without_a_date_is_held_for_review(make_test_context: MakeContext) -> None:
+    # Sabey (Approved) and Talen (Denied) have no as_of and no milestone date that reaches their
+    # stage. The file's generated date is not the day AI GridWatch read a source for them, so the
+    # stage cannot be dated, and the rows are held instead of dated with the file (2026-10-08).
+    result = run(make_test_context)
+    got = records(result)
+    assert not set(UNDATED) & set(got) and len(got) == len(EXPECTED) - 2
+    held = {
+        i.external_id: i for i in result.review if i.kind == "unknown_status" and "stage" in i.data
+    }
+    assert set(held) == set(UNDATED)
+    assert held["sabey-decatur-township-in"].data == {"stage": "Approved"}
+    assert (
+        "no as_of" in held["talen-montour-pa"].reason
+        and "held for review" in held["talen-montour-pa"].reason
+    )
+    assert result.metrics["held_for_review"] == 2
+    # Nothing in any record is dated with the file's date for want of an as_of.
+    assert all(
+        e.note is None or "as of 2026-10-07" not in e.note
+        for rec in got.values()
+        for e in rec.status_history
+    )
+
+
 def test_proposed_splits_on_a_filing(make_test_context: MakeContext, tmp_path: Path) -> None:
     pid = "meta-leap-lebanon-in"
 
@@ -266,9 +316,10 @@ def test_proposed_splits_on_a_filing(make_test_context: MakeContext, tmp_path: P
 
     rec = records(run_edited(make_test_context, tmp_path, add_filing))[pid]
     assert rec.status == "proposed"
-    assert [(e.event, e.as_of.value) for e in rec.status_history] == [
-        ("announced", "2026-02-11"),
-        ("application_filed", "2026-03-01"),
+    # A date on the 1st of a month is AI GridWatch's way of writing the month.
+    assert [(e.event, e.as_of.value, e.as_of.precision) for e in rec.status_history] == [
+        ("announced", "2026-02-11", "day"),
+        ("application_filed", "2026-03", "month"),
     ]
 
     def filing_event(doc: dict[str, Any]) -> None:
@@ -284,17 +335,24 @@ def test_proposed_splits_on_a_filing(make_test_context: MakeContext, tmp_path: P
 def test_milestones_that_agree_with_the_stage_add_no_event(make_test_context: MakeContext) -> None:
     got = records(run(make_test_context))
     red_oak = got["red-oak-compass-campus"]
+    # The May 11 hearing is not imported: nothing in the row says it was held that day (the
+    # decision came on May 12). The event log's earliest entry dates the first report.
     assert [
         (e.seq, e.event, e.status, e.as_of.value, e.planned) for e in red_oak.status_history
     ] == [
-        (1, "hearing_held", "proposed", "2026-05-11", False),
+        (1, "first_reported", "announced", "2020-01-29", False),
         (2, "approved", "permitted", "2026-05-12", False),
     ]
     assert red_oak.dates["approved"].value == "2026-05-12"
+    assert red_oak.dates["first_reported"].value == "2020-01-29"
     pw = got["pw-digital-gateway-va"]
-    assert [(e.event, e.status) for e in pw.status_history] == [("withdrawn", "cancelled")]
-    assert pw.dates["cancelled"].value == "2026-04-01"
-    assert all(e.source_ids == ["s1"] and e.as_of.precision == "day" for e in pw.status_history)
+    assert [(e.event, e.status) for e in pw.status_history] == [
+        ("first_reported", "announced"),
+        ("withdrawn", "cancelled"),
+    ]
+    # decided_date 2026-04-01 is April 2026; the event log says "(April 2026)".
+    assert (pw.dates["cancelled"].value, pw.dates["cancelled"].precision) == ("2026-04", "month")
+    assert all(e.source_ids == ["s1"] for e in pw.status_history)
 
 
 def test_a_stage_the_milestones_do_not_reach_adds_an_other_event(
@@ -302,7 +360,8 @@ def test_a_stage_the_milestones_do_not_reach_adds_an_other_event(
 ) -> None:
     abei = records(run(make_test_context))["abei-energy-data-center-starke-in"]
     *milestones, other = abei.status_history
-    assert [e.event for e in milestones] == ["announced", "application_filed", "hearing_held"]
+    # The 2025-11-12 hearing is not imported: no decision or event of that day says it was held.
+    assert [e.event for e in milestones] == ["announced", "application_filed"]
     assert (other.event, other.status, other.as_of.value) == ("other", "paused", "2026-09-02")
     assert other.note == "AI GridWatch stage 'Blocked by ban' as of 2026-09-02"
     assert abei.status == "paused" and abei.status_reason == "moratorium"
@@ -334,11 +393,13 @@ def test_an_announcement_after_a_filing_is_left_out_and_flagged(
     assert late_announcement(project(load_fixture(), pid)) is None
     result = run_edited(make_test_context, tmp_path, late)
     rec = records(result)[pid]
-    # Not proposed (filed) -> announced -> proposed: the late announcement is dropped.
+    # Not proposed (filed) -> announced -> proposed: the late announcement is dropped. Without
+    # AI GridWatch's announced date, the event log's earliest entry dates the first report.
     assert [(e.event, e.status, e.as_of.value) for e in rec.status_history] == [
+        ("first_reported", "announced", "2024-11-25"),
         ("application_filed", "proposed", "2026-01-15"),
     ]
-    assert "announced" not in rec.dates and rec.dates["first_reported"].value == "2026-01-15"
+    assert "announced" not in rec.dates and rec.dates["first_reported"].value == "2024-11-25"
     (item,) = [i for i in result.review if i.kind == "conflict"]
     assert item.external_id == pid
     assert item.data == {"announced": "2026-02-11", "rezoning_filed": "2026-01-15"}
@@ -369,15 +430,15 @@ def test_hearing_planned_before_its_date_and_held_after(
         ("hearing_scheduled", True),
         ("approved", True),
     ]
+    # Once the date has passed, a hearing is held only when the row says so (see
+    # test_a_past_hearing_is_held_only_when_the_row_says_so).
     after = milestone_events(red_oak, date(2026, 10, 12))
-    assert [(e["event"], e["planned"]) for e in after] == [
-        ("hearing_held", False),
-        ("approved", False),
-    ]
+    assert [(e["event"], e["planned"]) for e in after] == [("approved", False)]
     # Run as of 2026-05-01: the planned events do not set the status; the stage does.
     early = datetime(2026, 5, 1, 12, 0, tzinfo=UTC)
     rec = records(run(make_test_context, now=early, today=early.date()))["red-oak-compass-campus"]
     assert [(e.event, e.planned) for e in rec.status_history] == [
+        ("first_reported", False),
         ("hearing_scheduled", True),
         ("approved", True),
         ("other", False),
@@ -421,7 +482,7 @@ def test_unknown_stage_and_bad_rows(make_test_context: MakeContext, tmp_path: Pa
     assert ("unknown_status", "qts-richmond-3") in kinds
     assert ("out_of_scope", "google-bristow") in kinds
     assert ("invalid", None) in kinds
-    assert len(result.candidates) == 8
+    assert len(result.candidates) == 7  # 11 verified rows, 3 edited out, Sabey held (no as_of)
 
 
 # ---------------------------------------------------------------------------- location and parties
@@ -453,9 +514,9 @@ def test_location_and_county_from_the_locality(
 
 
 def test_rows_without_coordinates_are_geocoded(
-    make_test_context: MakeContext, counties: CountyIndex
+    make_test_context: MakeContext, counties: CountyIndex, tmp_path: Path
 ) -> None:
-    got = records(run(make_test_context))
+    got = records(run_edited(make_test_context, tmp_path, dated))
     talen = got["talen-montour-pa"].location
     assert (talen.precision, talen.geocode_method, talen.county_name) == (
         "county",
@@ -505,10 +566,9 @@ def test_parties_aliases_capacity_and_sources(
     ]
     bristow = got["google-bristow"]
     assert [o.name for o in bristow.parties.tenant] == ["Google DeepMind"]
-    assert (
-        bristow.capacity.it_mw == 279.0
-        and bristow.field_meta["/capacity/it_mw"].method == "imported"
-    )
+    # "Epoch AI estimates ~279 MW" states no basis: the figure is kept as stated, not as IT MW.
+    assert bristow.capacity.mw_as_stated == "AI GridWatch size_mw: 279"
+    assert bristow.capacity.it_mw is None and "/capacity/it_mw" not in bristow.field_meta
     assert got["pw-digital-gateway-va"].site.acreage == 2100.0
     s1, s2 = archbald.sources
     assert (str(s1.url), s1.publisher, s1.source_type, s1.license) == (
@@ -577,6 +637,7 @@ def test_a_nearby_place_gives_no_city_and_a_place_outside_the_county_gives_the_c
     make_test_context: MakeContext, tmp_path: Path, counties: CountyIndex
 ) -> None:
     def edit(doc: dict[str, Any]) -> None:
+        dated(doc)
         talen = project(doc, "talen-montour-pa")  # no coordinates
         talen.update({"locality": "Montour County (near Danville)"})
         stokes = project(doc, "stokes-county-project-delta")
@@ -593,18 +654,27 @@ def test_a_nearby_place_gives_no_city_and_a_place_outside_the_county_gives_the_c
     stokes = got["stokes-county-project-delta"].location
     assert (stokes.precision, stokes.city, stokes.county_name) == ("locality", None, "Stokes")
     assert got["stokes-county-project-delta"].canonical_name == "Project Delta (Stokes County, NC)"
-    # AI GridWatch's point is outside the county its locality names: the record keeps the point,
-    # names no county, and a reviewer gets a county_mismatch item.
+    # AI GridWatch's point is outside the county its locality names: the text is taken over the
+    # coordinates. Bristow is not a Census place, so the record is placed at Prince William
+    # County's point, names that county, and a reviewer gets a county_mismatch item.
     bristow = got["google-bristow"].location
-    assert (bristow.city, bristow.county_fips, bristow.county_name) == ("Bristow", None, None)
+    assert (bristow.lat, bristow.lon) == counties.centroid(PRINCE_WILLIAM[0])
+    assert (bristow.precision, bristow.geocode_method, bristow.city) == (
+        "county",
+        "county_centroid",
+        "Bristow",
+    )
+    assert (bristow.county_fips, bristow.county_name) == PRINCE_WILLIAM
     (item,) = [i for i in result.review if i.kind == "county_mismatch"]
     assert item.external_id == "google-bristow" and "Prince William County" in item.reason
+    assert "coordinates are not used" in item.reason
 
 
 def test_a_nearby_place_outside_the_county_gives_the_county_centroid(
     make_test_context: MakeContext, tmp_path: Path, counties: CountyIndex
 ) -> None:
     def edit(doc: dict[str, Any]) -> None:
+        dated(doc)
         # Danville lies in Montour County; Bloomsburg does not.
         project(doc, "talen-montour-pa")["locality"] = "Montour County (near Bloomsburg)"
 
@@ -667,6 +737,7 @@ def test_an_epoch_site_is_not_imported_twice(
     stored = {r.id: r for r in (by_name, by_source, elsewhere)}
 
     def cite_epoch(d: dict[str, Any]) -> None:
+        dated(d)
         project(d, "red-oak-compass-campus")["source"] = (
             "https://epoch.ai/publications/openai-stargate-where-the-us-sites-stand"
         )
@@ -683,6 +754,11 @@ def test_an_epoch_site_is_not_imported_twice(
     assert (dupes["qts-richmond-3"].record_id, dupes["qts-richmond-3"].data["matched_by"]) == (
         by_source.id,
         "source",
+    )
+    # Both notes say "Epoch AI estimates ~… MW": AI GridWatch's copies of Epoch's sites.
+    assert all(
+        "republishes this Epoch AI site" in dupes[p].reason
+        for p in ("google-bristow", "qts-richmond-3")
     )
     assert dupes["red-oak-compass-campus"].record_id is None
     assert dupes["red-oak-compass-campus"].data["matched_by"] == "epoch_source"
@@ -723,6 +799,7 @@ def test_the_source_rule_needs_the_same_state(
 BRISTOW = (38.73, -77.54)  # google-bristow's point, in Prince William County (51153)
 PRINCE_WILLIAM = ("51153", "Prince William")
 HENRICO = ("51087", "Henrico")
+STOKES = ("37169", "Stokes")
 
 
 def epoch_site(
@@ -794,32 +871,44 @@ def test_an_id_that_is_an_epoch_name_is_the_same_site(
     qts = epoch_site(make_record, "QTS Richmond-3", county=HENRICO)
     talen = epoch_site(make_record, "Talen Montour", state="PA", county=("42093", "Montour"))
     other_state = epoch_site(make_record, "Meta LEAP Lebanon", state="OH")
-    result = run(make_test_context, records=stored(qts, talen, other_state))
+    # Accents are dropped from the name: "Doña Ana Campus" is "dona-ana-campus" (NEW-4).
+    accented = epoch_site(make_record, "Stókes Coünty Projéct Delta", state="NC", county=STOKES)
+    result = run(make_test_context, records=stored(qts, talen, other_state, accented))
     dupes = duplicates(result)
     assert {k: (v.data["matched_by"], v.record_id) for k, v in dupes.items()} == {
         "qts-richmond-3": ("id", qts.id),
         "talen-montour-pa": ("id", talen.id),
+        "stokes-county-project-delta": ("id", accented.id),
     }
     assert "meta-leap-lebanon-in" in records(result)  # the same slug in another state
+    # Talen's note quotes no Epoch AI estimate: it is AI GridWatch's own row, whose milestones are
+    # not merged into the Epoch record (n42); QTS's copy says "Epoch AI estimates".
+    assert "own row for this Epoch site" in dupes["talen-montour-pa"].reason
+    assert "republishes" not in dupes["talen-montour-pa"].reason
+    assert "republishes this Epoch AI site" in dupes["qts-richmond-3"].reason
 
 
-def test_a_link_specific_to_an_epoch_site_in_its_county_is_the_same_site(
+def test_a_link_only_in_the_event_log_holds_the_row_without_merging(
     make_test_context: MakeContext, make_record: Callable[..., FacilityRecord], tmp_path: Path
 ) -> None:
     # OpenAI Stargate New Mexico: AI GridWatch's own row (another name) cites, in its event log,
-    # the Oracle release that Epoch cites for the site.
+    # the Oracle release that Epoch cites for the site. An event log is not the row's own claim
+    # (AI GridWatch copied New Carlisle's history into its row on Amazon's Northern Indiana
+    # expansion), so the row is held for review with the site as a candidate, not merged.
     doc = load_fixture()
     link = project(doc, "google-bristow")["events"][0]["source"]
     site = epoch_site(make_record, "Example Epoch Campus", links=(link,))
     result = run(make_test_context, records=stored(site))
     item = duplicates(result)["google-bristow"]
     assert (item.data["matched_by"], item.record_id, item.data["evidence"]) == (
-        "link",
-        site.id,
+        "weak_link",
+        None,
         link,
     )
+    assert item.data["epoch_records"] == [site.id]
+    assert "only in the row's event log" in item.reason and "not merged" in item.reason
     assert "google-bristow" not in records(result)
-    assert result.metrics["epoch_duplicates"] == 1 and result.metrics["epoch_ambiguous"] == 0
+    assert result.metrics["epoch_duplicates"] == 1 and result.metrics["epoch_ambiguous"] == 1
     # The same link from an Epoch site in another county ties nothing.
     henrico = epoch_site(make_record, "Example Epoch Campus", links=(link,), county=HENRICO)
     assert "google-bristow" in records(run(make_test_context, records=stored(henrico)))
@@ -835,12 +924,14 @@ def test_a_link_specific_to_an_epoch_site_in_its_county_is_the_same_site(
 def test_a_link_shared_with_ai_gridwatchs_copy_of_an_epoch_site_is_the_same_site(
     make_test_context: MakeContext, make_record: Callable[..., FacilityRecord], tmp_path: Path
 ) -> None:
-    # AWS New Carlisle: AI GridWatch's copy of the Epoch site (held by name) and its own row
-    # under another name cite the same local news stories.
+    # AI GridWatch's copy of the Epoch site (held by name) and its own row under another name
+    # cite the same local news story; the row's own source is that story, so it is the same site.
     story = "https://example.org/news/groundbreaking-at-the-campus"
     site = epoch_site(make_record, "Example Epoch Campus")
 
-    def add_copy(d: dict[str, Any], *, cited_elsewhere: bool = False) -> None:
+    def add_copy(
+        d: dict[str, Any], *, cited_elsewhere: bool = False, own_source: bool = True
+    ) -> None:
         copy_row = copy.deepcopy(project(d, "google-bristow"))
         copy_row.update(
             {
@@ -851,7 +942,11 @@ def test_a_link_shared_with_ai_gridwatchs_copy_of_an_epoch_site_is_the_same_site
             }
         )
         d["projects"].append(copy_row)
-        project(d, "google-bristow")["events"].append({"date": "2026-01-05", "source": story})
+        bristow = project(d, "google-bristow")
+        if own_source:
+            bristow["source"] = story
+        else:
+            bristow["events"].append({"date": "2026-01-05", "source": story})
         if cited_elsewhere:
             project(d, "pw-digital-gateway-va")["events"].append({"date": "", "source": story})
 
@@ -864,6 +959,16 @@ def test_a_link_shared_with_ai_gridwatchs_copy_of_an_epoch_site_is_the_same_site
         site.id,
         story,
     )
+    # The row's milestones are not merged into the Epoch record: the reason says so.
+    assert "own row for this Epoch site" in item.reason and "M4" in item.reason
+    # The story only in the row's event log: held for review, not merged.
+    logged = run_edited(
+        make_test_context,
+        tmp_path,
+        lambda d: add_copy(d, own_source=False),
+        records=stored(site),
+    )
+    assert duplicates(logged)["google-bristow"].data["matched_by"] == "weak_link"
     # The copy's site in another county (Google's Texas announcement covers sites 260 km
     # apart), or a third row citing the story: no tie.
     henrico = epoch_site(make_record, "Example Epoch Campus", county=HENRICO)
@@ -876,6 +981,38 @@ def test_a_link_shared_with_ai_gridwatchs_copy_of_an_epoch_site_is_the_same_site
         records=stored(site),
     )
     assert "google-bristow" in records(crowded)
+
+
+def test_a_link_with_mw_more_than_twice_apart_holds_the_row(
+    make_test_context: MakeContext, make_record: Callable[..., FacilityRecord], tmp_path: Path
+) -> None:
+    # aws-new-carlisle-in (2,400 MW, Amazon's expansion to new Indiana sites) against Epoch's
+    # Anthropic-Amazon New Carlisle (910 MW IT): more than x2 apart, so even a link of its own does
+    # not make it the same site (07 §6.6, Size). Within x2, it does.
+    story = "https://example.org/news/the-campus"
+
+    def add_copy(size_mw: int) -> Callable[[dict[str, Any]], None]:
+        def edit(d: dict[str, Any]) -> None:
+            copy_row = copy.deepcopy(project(d, "google-bristow"))
+            copy_row.update({"id": "example-epoch-campus", "name": "Example Epoch Campus"})
+            copy_row.update({"source": story, "events": []})
+            d["projects"].append(copy_row)
+            project(d, "google-bristow").update({"source": story, "size_mw": size_mw})
+
+        return edit
+
+    site = epoch_site(make_record, "Example Epoch Campus")
+    site = site.model_copy(update={"capacity": site.capacity.model_copy(update={"it_mw": 910.0})})
+    far = duplicates(run_edited(make_test_context, tmp_path, add_copy(2400), records=stored(site)))
+    item = far["google-bristow"]
+    assert (item.data["matched_by"], item.record_id) == ("weak_link", None)
+    assert item.data["epoch_records"] == [site.id]
+    assert "2400 MW and the site's 910 MW differ by more than x2" in item.reason
+    near = duplicates(run_edited(make_test_context, tmp_path, add_copy(1500), records=stored(site)))
+    assert (near["google-bristow"].data["matched_by"], near["google-bristow"].record_id) == (
+        "link",
+        site.id,
+    )
 
 
 def test_a_name_that_gives_the_epoch_sites_street_address_is_the_same_site(
@@ -947,6 +1084,138 @@ def test_an_organization_in_common_nearby_is_held_for_review_not_merged(
         assert "google-bristow" in records(run(make_test_context, records=stored(site))), site
 
 
+def test_a_row_at_its_county_point_is_not_nearby_anything(
+    make_test_context: MakeContext,
+    make_record: Callable[..., FacilityRecord],
+    tmp_path: Path,
+    counties: CountyIndex,
+) -> None:
+    # The nearby rule needs both points at locality precision or finer (NEW-4: the Epoch side's
+    # condition had a test, the AI GridWatch side's did not). Talen has no coordinates and is
+    # placed at Montour County's point: a precise Epoch site of Talen's 1 km from that point is
+    # not "nearby", since the row's point says nothing about where the site is.
+    montour = ("42093", "Montour")
+    lat, lon = counties.centroid(montour[0])
+    site = epoch_site(
+        make_record,
+        "Example Talen Campus",
+        owner=("Talen Energy",),
+        state="PA",
+        county=montour,
+        point=(lat + 0.009, lon),
+    )
+
+    def dated_owned(doc: dict[str, Any]) -> None:
+        dated(doc)
+        project(doc, "talen-montour-pa")["owner"] = "Talen Energy"
+
+    result = run_edited(make_test_context, tmp_path, dated_owned, records=stored(site))
+    talen = records(result)["talen-montour-pa"]
+    assert (talen.location.precision, talen.location.geocode_method) == (
+        "county",
+        "county_centroid",
+    )
+    assert "talen-montour-pa" not in duplicates(result)
+
+
+def test_organizations_are_compared_without_an_alias_table(
+    make_test_context: MakeContext, make_record: Callable[..., FacilityRecord], tmp_path: Path
+) -> None:
+    # xai-colossus-memphis-tn names "xAI"; Epoch's Colossus 1 and Colossus 2 name "SpaceXAI". A
+    # link ties the row to Colossus 2 alone, but Colossus 1, in the same county, may share its
+    # organization: the row is held as `several`, naming both, not merged into Colossus 2 (n37).
+    assert org_key("X.AI Corp") == org_key("xAI") == "xai" and org_key("SpaceXAI") == "spacexai"
+    assert orgs_overlap(frozenset({"xai"}), frozenset({"spacexai"}))
+    assert not orgs_overlap(frozenset({"ai"}), frozenset({"openai"}))  # too short to tell
+    doc = load_fixture()
+    link = project(doc, "google-bristow")["events"][0]["source"]
+    two = epoch_site(make_record, "Example Colossus 2", links=(link,), owner=("SpaceXAI",))
+    one = epoch_site(make_record, "Example Colossus 1", owner=("SpaceXAI",), point=(38.75, -77.5))
+
+    def xai(d: dict[str, Any]) -> None:
+        project(d, "google-bristow").update({"operator": "xAI", "tenant": "xAI"})
+
+    result = run_edited(make_test_context, tmp_path, xai, records=stored(one, two))
+    item = duplicates(result)["google-bristow"]
+    assert (item.data["matched_by"], item.record_id) == ("several", None)
+    assert item.data["epoch_records"] == sorted([one.id, two.id])
+
+
+def test_a_row_citing_an_epoch_ai_page_lists_the_sites_it_may_be(
+    make_test_context: MakeContext, make_record: Callable[..., FacilityRecord], tmp_path: Path
+) -> None:
+    # stargate-abilene-tx cites Epoch's Stargate report: it is held (epoch_source) without a
+    # record id, and the reviewer now sees the Epoch site at the same point with an organization
+    # in common (n39). Nothing is merged.
+    site = epoch_site(
+        make_record, "Example Google Campus", owner=("Google",), point=(38.731, -77.54)
+    )
+
+    def cite_epoch(d: dict[str, Any]) -> None:
+        project(d, "google-bristow")["source"] = (
+            "https://epoch.ai/publications/openai-stargate-where-the-us-sites-stand"
+        )
+
+    result = run_edited(make_test_context, tmp_path, cite_epoch, records=stored(site))
+    item = duplicates(result)["google-bristow"]
+    assert (item.data["matched_by"], item.record_id) == ("epoch_source", None)
+    assert item.data["epoch_records"] == [site.id] and f"({site.id})" in item.reason
+    assert "google-bristow" not in records(result)
+
+
+def test_a_reviewer_releases_a_held_row(
+    make_test_context: MakeContext, make_record: Callable[..., FacilityRecord], tmp_path: Path
+) -> None:
+    # NEW-2: a row the nearby rule holds, which a reviewer finds is another site, is imported
+    # through config/overrides/aigridwatch.json, and an item notes the release.
+    near = epoch_site(
+        make_record, "Example Google Campus", owner=("Google",), point=(38.748, -77.54)
+    )
+    held = run(make_test_context, records=stored(near))
+    assert "google-bristow" not in records(held)
+    overrides = tmp_path / "overrides.json"
+    overrides.write_text(
+        json.dumps(
+            {
+                "google-bristow": {
+                    "release": ["epoch"],
+                    "reason": "test: the county's site plan shows two campuses",
+                    "reviewed_at": "2026-10-09",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    args = argparse.Namespace(without_epoch=False, overrides=overrides)
+    result = IMPORTER.run(make_test_context(input_path=FIXTURE, records=stored(near)), args)
+    assert "google-bristow" in records(result)
+    (item,) = duplicates(result).values()
+    assert item.external_id == "google-bristow" and item.record_id is None
+    assert (item.data["matched_by"], item.data["released"], item.data["epoch_records"]) == (
+        "nearby",
+        "epoch",
+        [near.id],
+    )
+    assert "released by config/overrides/aigridwatch.json" in item.reason
+    assert result.metrics["released"] == 1 and result.metrics["overrides_used"] == 1
+    # A row held by its name, released: one item notes it, and the location rules do not run.
+    named = epoch_site(make_record, "Google Bristow", owner=("Google",))
+    by_name = IMPORTER.run(
+        make_test_context(input_path=FIXTURE, records=stored(named)),
+        argparse.Namespace(without_epoch=False, overrides=overrides),
+    )
+    assert "google-bristow" in records(by_name)
+    assert [i.data["matched_by"] for i in duplicates(by_name).values()] == ["name"]
+    # With no overrides file at the default path, nothing is released.
+    assert (
+        IMPORTER.run(
+            make_test_context(input_path=FIXTURE, records=stored(near)),
+            argparse.Namespace(without_epoch=False, overrides=OVERRIDES_PATH),
+        ).metrics["overrides_used"]
+        == 0
+    )
+
+
 def test_a_row_tied_to_more_than_one_epoch_site_is_held_for_review_not_merged(
     make_test_context: MakeContext, make_record: Callable[..., FacilityRecord], tmp_path: Path
 ) -> None:
@@ -969,7 +1238,7 @@ def test_a_row_tied_to_more_than_one_epoch_site_is_held_for_review_not_merged(
         project(d, "google-bristow")["size_mw"] = "lots"
 
     result = run_edited(make_test_context, tmp_path, bad_size, records=stored(by_link))
-    assert duplicates(result)["google-bristow"].data["matched_by"] == "link"
+    assert duplicates(result)["google-bristow"].data["matched_by"] == "weak_link"
     assert not [i for i in result.review if i.kind == "unit_parse"]
 
 
@@ -1076,14 +1345,14 @@ def test_cli_run_is_idempotent(
     assert not (tmp_repo / "data" / "imports" / "aigridwatch.json").exists()
     common.append("--without-epoch")
     assert main(common) == 0
-    assert "import aigridwatch: candidates=11 new=11" in capsys.readouterr().out
+    assert "import aigridwatch: candidates=9 new=9" in capsys.readouterr().out
     stored = RecordStore(tmp_repo / "data" / "records").load()
-    assert len(stored) == 11
+    assert len(stored) == 9  # 11 verified rows; Sabey and Talen have no as_of
     queue = (tmp_repo / "review" / "queue" / "aigridwatch.jsonl").read_text(encoding="utf-8")
     assert '"kind":"unverified_upstream"' in queue
     before = snapshot(tmp_repo / "data" / "records", tmp_repo / "review")
     assert main(common) == 0
-    assert "unchanged=11" in capsys.readouterr().out
+    assert "unchanged=9" in capsys.readouterr().out
     assert snapshot(tmp_repo / "data" / "records", tmp_repo / "review") == before
     everything = snapshot(tmp_repo / "data", tmp_repo / "review")
     assert main(common) == 0
