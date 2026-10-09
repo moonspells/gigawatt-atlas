@@ -12,6 +12,10 @@ whose status_history comes from the timeline through the status crosswalk (07 §
   row is otherwise a `first_reported` observation, and a later one an `other` event;
 - rows dated after today are Epoch's projections and become planned events, which never set the
   status (07 §2.3);
+- a date on the 1st of a month, or on the 15th or the last day with a note that says it is
+  estimated, is read as the month (Epoch writes its estimates there);
+- a cited `first_report` (an override entry) earlier than every row dates first_reported instead
+  of Epoch's first row, which observes what imagery shows rather than the first public report;
 - capacity and water use come from the latest row dated today or earlier.
 
 Epoch's Owner column is the owner of the AI hardware, "not necessarily the owner or operator of
@@ -19,16 +23,22 @@ the facility" (Epoch's field definitions). It is published with Users as `partie
 companies whose computing the facility houses; Epoch names no facility owner or operator.
 
 Epoch tracks the buildings it counts as AI compute, and a site can be buildings added to an older
-campus (07 §2.1: an expansion is a phase). When a note says so (an expansion, a conversion of
-existing buildings, a building Epoch leaves out of its count), or the first row already counts
-operational buildings, the timeline does not date the facility: its rows become `other` events on
-a phase for the tracked buildings, which carries the capacity, and the record gets no
-construction or operating date, capacity, water use or cost of its own. A site whose cited sources
-only mention an expansion is treated the same way and held for review (`conflict`), since Epoch's
-fields do not say which campus the expansion belongs to. Sites with the same street address are
-one campus, with a phase per site.
+campus or converted from a bitcoin site (07 §2.1: an expansion is a phase). When a note or link
+title says so (an expansion, a conversion of existing or owned infrastructure, a building Epoch
+leaves out of its count, only part of a campus counted), the first row already counts operational
+buildings, or a cited `timeline` entry says so, the timeline does not date the facility: its rows
+become `other` events on a phase for the tracked buildings, which carries the capacity, and the
+record gets no construction or operating date, capacity, water use or cost of its own. A site that
+Epoch's fields only suggest is one (a cited source or the name mentions an expansion, the name or
+the first row names part of a site, a bitcoin miner owns or hosts it) is treated the same way and
+held for review (`conflict`). When such a timeline's tracked buildings are not operating, their
+status is not the facility's: there is no record (a `conflict` item says why) unless a cited
+`facility_status` entry gives the facility's status, on a phase of the buildings Epoch does not
+track. Sites with the same street address are one campus, with a phase per site.
 
-The CSV has an address but no coordinates. A cited entry in config/overrides/epoch.json wins;
+The CSV has an address but no coordinates. A cited entry in config/overrides/epoch.json wins (a
+municipality at its county subdivision's Gazetteer point; a city that is also the address's postal
+city only with a place_check, how the site was found inside the city's place polygon);
 otherwise the address goes through atlas.geocode (Census Geocoder, then the county by name). The
 address's city is its postal city, so it is sent only as the city a Census match must agree with
 (and the point of the postal city inside a county the address states), never as the place the site
@@ -42,18 +52,26 @@ Importing this module does no I/O.
 from __future__ import annotations
 
 import argparse
+import calendar
 import csv
 import io
 import re
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, Self
 from urllib.parse import urlsplit
 
-from pydantic import AwareDatetime, Field, HttpUrl, TypeAdapter, ValidationError
+from pydantic import (
+    AwareDatetime,
+    Field,
+    HttpUrl,
+    TypeAdapter,
+    ValidationError,
+    model_validator,
+)
 
 from atlas.crosswalk import Crosswalked, from_epoch_row
 from atlas.schema.record import (
@@ -61,10 +79,12 @@ from atlas.schema.record import (
     AtlasModel,
     EventType,
     FacilityRecord,
+    FuzzyDate,
     Precision,
     SourceType,
+    Status,
 )
-from atlas.schema.rollup import RollupError, apply_rollup
+from atlas.schema.rollup import ACTIVE_ORDER, RollupError, apply_rollup, period_start
 from atlas.sources.base import Candidate, ImportResult, ReviewItem, classify_source, load_input
 from atlas.text import clean_text as _clean_text
 from atlas.text import find_personal_data, strip_invisible
@@ -150,13 +170,20 @@ _START_RE = re.compile(
 # first operational in 2021", "this multi-tenant building", "245 MW of Bitcoin-mining capacity",
 # "the non AI building (PX1)", "we suspect this building is not for AI compute". Between
 # "existing" and the noun only names, numbers and a parenthesis may stand, so "an existing
-# substation to the northeast of the data center" does not count.
+# substation to the northeast of the data center" does not count. Also (seed input 2026-10-09):
+# "about 70 MW of HPC infrastructure from 100 MW of owned infrastructure. Site modifications were
+# expected" (a bitcoin site's conversion), "we're only including roughly 44% of all the New Albany
+# campuses IT Power", and a Selected Sources title, "a set of three long buildings, which includes
+# the first building we believe is for AI". A retrofit or conversion alone ("retrofitting a former
+# Electrolux building") says nothing of an older data center.
 _PARTIAL_RE = re.compile(
     r"(?i:\bexisting)\s+(?:(?:[A-Z0-9][\w'-]*|\([^)]*\))\s+){0,4}"
     r"(?i:data ?cent(?:er|re)s?\b|datacenters?\b|bitcoin\b|crypto)"
     r"|(?i:\bformer (?:crypto|bitcoin)\b|\b(?:data ?cent(?:er|re)|datacenter) was formerly\b"
     r"|\bfirst operational in (?:19|20)[0-9]{2}\b|\bmulti-tenant building\b"
-    r"|\b(?:bitcoin|crypto)[- ]mining\b|\bnon[- ]AI building\b|\bnot for AI\b)"
+    r"|\b(?:bitcoin|crypto)[- ]mining\b|\bnon[- ]AI building\b|\bnot for AI\b"
+    r"|\bsite modifications?\b|\bof owned infrastructure\b|\bonly (?:including|counting)\b"
+    r"|\bbelieve (?:is|are) for AI\b)"
 )
 # The same, on the first row only, where it describes the start of Epoch's tracking: "Land cleared
 # for site expansion", "Building 1 of expansion", "the ... site begins expanding", "Land clearing
@@ -170,7 +197,28 @@ _PARTIAL_FIRST_RE = re.compile(
 # growth ("Plan for 9-building and 6-building expansions") or the reason the site exists ("Campus
 # extension announcement"): Epoch's fields do not say which, so the site is held for review.
 _EXPANSION_RE = re.compile(r"\bexpansions?\b|\bextension\b", re.I)
+# A site name that names part of a site: "Google Council Bluffs (East)", "Google Pryor (North)".
+_PART_NAME_RE = re.compile(r"\((?:north|south|east|west)(?:[- ]?(?:east|west))?\)\s*$", re.I)
+# A first row that starts with some of a site's buildings, not its first: "Land clearing begins for
+# east buildings" (Council Bluffs East, beside Google's older campus), "for Buildings 5-9 (eastern
+# campus)". "for northern two buildings (Building 1-2)" names the first ones, so it does not count.
+_PART_BUILDINGS_RE = re.compile(r"\bfor (?:the )?(?:north|south|east|west)\w* buildings\b", re.I)
+_BUILDING_NUMBER_RE = re.compile(r"\bbuildings? ([0-9]+)", re.I)
+# A site that a bitcoin miner owns or hosts (named in the site's name, Owner, Users, Project,
+# Selected Sources titles or notes): its AI buildings may be converted from, or added to, a mining
+# facility, which Epoch's fields do not say (CoreWeave Marble: Core Scientific's site, mining since
+# 2018). Held for review.
+_MINER_RE = re.compile(
+    r"\b(?:Core Scientific|TeraWulf|Galaxy Digital|Cipher Mining|Hut 8|Riot Platforms|"
+    r"Bitfarms|CleanSpark|Marathon Digital|Applied Digital|Bit Digital|Bitdeer|Greenidge|"
+    r"Soluna|Mawson|Stronghold Digital|Northern Data|HIVE Digital|Iris Energy)\b|\b(?:IREN|MARA)\b",
+)
+# Notes that give a date as an estimate: Epoch writes those on the 1st of a month (83 of the 452 US
+# rows on 2026-10-09 fall on the 1st, about 12 on any other day), and often on the 15th or the last
+# day ("Building 3 is operational (estimate)", 2026-06-30).
+_ESTIMATE_RE = re.compile(r"\bestimat\w*|\bassum\w*|\bbest guess\b|\bwe (?:expect|think)\b", re.I)
 PHASE_NAME = "{name} (buildings tracked by Epoch AI)"
+UNTRACKED_PHASE_NAME = "{name} (buildings Epoch AI does not track)"
 
 
 def epoch_error(message: str) -> FetchError:
@@ -183,21 +231,12 @@ def epoch_error(message: str) -> FetchError:
     return FetchError(message)
 
 
-class LocationOverride(AtlasModel):
-    """One entry of config/overrides/epoch.json: a location taken from a cited source.
+class Citation(AtlasModel):
+    """A page an override entry cites: quote is the sentence (or the shortest span of it, at most
+    300 characters) that states what the entry takes from it, copied verbatim from source_url when
+    it was read at retrieved_at; archive_url is the snapshot that was read when the live page
+    refuses automated clients; note says why this source."""
 
-    quote is the sentence (or the shortest span of it, at most 300 characters) that states the
-    location, copied verbatim from source_url when it was read at retrieved_at; archive_url is the
-    snapshot that was read when the live page refuses automated clients.
-    """
-
-    state_abbr: str = Field(pattern=r"^[A-Z]{2}$")
-    county_fips: str | None = Field(None, pattern=r"^\d{5}$")
-    city: str | None = None
-    municipality: str | None = None
-    lat: float | None = Field(None, ge=18, le=72)
-    lon: float | None = Field(None, ge=-180, le=-64)
-    precision: Precision
     source_url: HttpUrl
     archive_url: HttpUrl | None = None
     quote: str = Field(min_length=1, max_length=300)
@@ -207,7 +246,91 @@ class LocationOverride(AtlasModel):
     source_type: SourceType | None = None
 
 
-_OVERRIDES = TypeAdapter(dict[str, LocationOverride])
+class LocationOverride(Citation):
+    """The location part of an entry of config/overrides/epoch.json, taken from a cited source.
+
+    place_check: when the entry's city is also the postal city of Epoch's address, how the site
+    was found inside that city's Census place polygon (a postal city is only near the site, 07
+    §6.5: Google Pryor (North) is mailed to Pryor but lies in Mayes County); without it such an
+    entry fails the run.
+    """
+
+    state_abbr: str = Field(pattern=r"^[A-Z]{2}$")
+    county_fips: str | None = Field(None, pattern=r"^\d{5}$")
+    city: str | None = None
+    municipality: str | None = None
+    lat: float | None = Field(None, ge=18, le=72)
+    lon: float | None = Field(None, ge=-180, le=-64)
+    precision: Precision
+    place_check: str | None = Field(None, min_length=1, max_length=300)
+
+
+class TimelineOverride(Citation):
+    """Whether Epoch's timeline dates the facility, as a reviewer read it in a cited source:
+    "partial" when the facility is older or larger than the buildings Epoch tracks (Meta Sarpy:
+    "2017 Broke ground on the Sarpy Data Center", Epoch's Building 1 from 2024), "whole" when the
+    timeline is the whole facility although a rule would hold it (07 §2.1)."""
+
+    coverage: Literal["partial", "whole"]
+
+
+class FirstReport(Citation):
+    """A dated report of the facility earlier than Epoch's first row (Epoch's timeline starts
+    with what its imagery shows, not with the first public report): published_at as the page
+    states it (a date, or the time it gives), status what it reports (announced, proposed or
+    permitted). It dates first_reported when it is earlier than every event of a timeline that
+    dates the facility. source_url may be the entry's location source or a Selected Source."""
+
+    published_at: AwareDatetime | date
+    status: Literal["announced", "proposed", "permitted"]
+
+    @property
+    def day(self) -> date:
+        p = self.published_at
+        return p.date() if isinstance(p, datetime) else p
+
+
+class FacilityStatus(Citation):
+    """The facility's status on as_of, from a cited source, for a site whose Epoch timeline does
+    not date the facility: it goes on a phase of the buildings Epoch does not track, as an `other`
+    event that dates nothing (Google Fort Wayne: operating on 2025-12-11, while Epoch's buildings
+    are under construction)."""
+
+    status: Status
+    as_of: date
+
+
+_LOCATION_KEYS = frozenset(LocationOverride.model_fields)
+
+
+class SiteOverride(AtlasModel):
+    """One entry of config/overrides/epoch.json, keyed by Epoch's site name: a location (its
+    fields at the top level of the entry), and any of timeline, first_report and
+    facility_status (each with its own citation)."""
+
+    location: LocationOverride | None = None
+    timeline: TimelineOverride | None = None
+    first_report: FirstReport | None = None
+    facility_status: FacilityStatus | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _flat_location(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "location" not in data:
+            location = {k: v for k, v in data.items() if k in _LOCATION_KEYS}
+            data = {k: v for k, v in data.items() if k not in _LOCATION_KEYS}
+            if location:
+                data["location"] = location
+        return data
+
+    @model_validator(mode="after")
+    def _not_empty(self) -> Self:
+        if not (self.location or self.timeline or self.first_report or self.facility_status):
+            raise ValueError("an entry needs a location, timeline, first_report or facility_status")
+        return self
+
+
+_OVERRIDES = TypeAdapter(dict[str, SiteOverride])
 
 
 @dataclass(frozen=True)
@@ -366,7 +489,7 @@ def check_license(readme: str) -> None:
         )
 
 
-def load_overrides(path: Path) -> dict[str, LocationOverride]:
+def load_overrides(path: Path) -> dict[str, SiteOverride]:
     from atlas.geo.counties import resolve_reference
 
     path = resolve_reference(path)
@@ -419,21 +542,43 @@ def row_operational(row: TimelineRow) -> bool:
 
 
 def _event_type(
-    cw: Crosswalked, text: str, *, planned: bool, first: bool, observed: bool
+    cw: Crosswalked,
+    text: str,
+    *,
+    planned: bool,
+    first: bool,
+    observed: bool,
+    reported: bool = False,
 ) -> EventType:
     """The event a row adds. A projection keeps the crosswalk's event, which never dates anything.
     An observed timeline (one that does not date the facility) adds `other` events. Otherwise a
     first row that already counts operational buildings is an observation (`other`: Epoch began
     tracking a site that was running, so it dates neither the first report nor the start of
     operation), and an under-construction row dates the start only when its note says
-    construction starts: else the first row is `first_reported` and a later one `other`."""
+    construction starts: else the first row is `first_reported` and a later one `other`. With
+    reported=True (an earlier dated report gives first_reported) the first row is `other` too."""
     if planned:
         return cw.event
     if observed or (first and cw.status == "operating"):
         return "other"
     if cw.event == "construction_start" and not _START_RE.search(text):
-        return "first_reported" if first else "other"
+        return "first_reported" if first and not reported else "other"
     return cw.event
+
+
+def row_date(row: TimelineRow, text: str | None = None) -> dict[str, str]:
+    """A row's date as an event's as_of. Epoch writes a date it estimates on the 1st of a month
+    (Google Kansas City East, 2026-08-01: "Building 1 operational. Estimated based on present
+    construction progress and typical timelines"; DCD dates Google Mesa's groundbreaking 2023-07-12,
+    Epoch 2023-07-01), so a date on the 1st is read as the month, as for AI GridWatch. So is one on
+    the 15th or the last day of a month whose note says it is estimated or assumed ("Building 3 is
+    operational (estimate)", 2026-06-30). Any other date is the day."""
+    day = row.day
+    note = row_text(row) if text is None else text
+    month_end = day.day in (15, calendar.monthrange(day.year, day.month)[1])
+    if day.day == 1 or (month_end and _ESTIMATE_RE.search(note)):
+        return {"value": f"{day.year:04d}-{day.month:02d}", "precision": "month"}
+    return {"value": day.isoformat(), "precision": "day"}
 
 
 def status_events(
@@ -442,9 +587,11 @@ def status_events(
     *,
     observed: bool = False,
     phase_id: str | None = None,
+    reported: bool = False,
 ) -> list[dict[str, Any]]:
     """One event per status change; rows after today are planned (07 §2.3). With observed=True
-    every row dated today or earlier is an `other` event (see _event_type)."""
+    every row dated today or earlier is an `other` event (see _event_type); with reported=True
+    (an earlier dated report gives first_reported) no row is a `first_reported` event."""
     events: list[dict[str, Any]] = []
     previous: str | None = None
     for row in rows:
@@ -457,8 +604,10 @@ def status_events(
         event: dict[str, Any] = {
             "seq": len(events) + 1,
             "status": cw.status,
-            "event": _event_type(cw, text, planned=planned, first=not events, observed=observed),
-            "as_of": {"value": row.day.isoformat(), "precision": "day"},
+            "event": _event_type(
+                cw, text, planned=planned, first=not events, observed=observed, reported=reported
+            ),
+            "as_of": row_date(row, text),
             "phase_id": phase_id,
             "planned": planned,
             "source_ids": ["s1"],
@@ -472,43 +621,89 @@ def status_events(
 class Coverage:
     """Whether a site's timeline dates the whole facility (07 §2.1).
 
-    partial: Epoch's notes say the tracked buildings were converted from or added to an older
-    facility, or leave a building out of the count, or the first row already counts operational
-    buildings. held: a cited source or the name mentions an expansion, which Epoch's fields do not
-    place; the site is treated as partial and held for review. evidence: what decided it.
+    partial: Epoch's notes or link titles say the tracked buildings were converted from or added
+    to an older facility, or leave a building out of the count, or the first row already counts
+    operational buildings, or a reviewer's cited `timeline` entry says so. held: Epoch's fields
+    suggest it and do not decide it (a cited source or the name mentions an expansion, the name or
+    the first row names part of a site, a bitcoin miner owns or hosts the site); the site is
+    treated as partial and held for review. why: what kind of signal held it, for the review item.
+    evidence: what decided it. cited: a `timeline` entry decided it.
     """
 
     partial: bool = False
     held: bool = False
     evidence: str | None = None
+    why: str | None = None
+    cited: bool = False
 
     @property
     def observed(self) -> bool:
         return self.partial or self.held
 
 
+def _first_building_number(text: str) -> int | None:
+    numbers = [int(m.group(1)) for m in _BUILDING_NUMBER_RE.finditer(text)]
+    return min(numbers) if numbers else None
+
+
 def timeline_coverage(
-    members: Sequence[tuple[Site, Sequence[TimelineRow]]], today: date
+    members: Sequence[tuple[Site, Sequence[TimelineRow]]],
+    today: date,
+    timeline: TimelineOverride | None = None,
 ) -> Coverage:
-    """How far the timelines of one campus's sites date the campus (see Coverage). Every site's
-    notes count; the cited sources and the name only of the first site, since the others are its
-    phases and their sources describe them as such."""
+    """How far the timelines of one campus's sites date the campus (see Coverage). A cited
+    `timeline` entry decides first. Every site's notes count; the cited sources and the name only
+    of the first site, since the others are its phases and their sources describe them as such."""
+    if timeline is not None:
+        if timeline.coverage == "whole":
+            return Coverage(evidence=timeline.quote, cited=True)
+        return Coverage(partial=True, evidence=timeline.quote, cited=True)
 
     def evidence(row: TimelineRow) -> str:
         return f"{row.day.isoformat()}: {event_note(row_text(row)) or ''}".rstrip()
 
-    for _site, rows in members:
-        actual = [r for r in rows if r.day <= today]
+    primary = members[0][0]
+    titles = [t for t, _ in selected_links(primary.selected_sources)]
+    actuals = [[r for r in rows if r.day <= today] for _site, rows in members]
+    for actual in actuals:
         if actual and row_operational(actual[0]):
             return Coverage(partial=True, evidence=evidence(actual[0]))
         for i, r in enumerate(actual):
             text = row_text(r)
             if _PARTIAL_RE.search(text) or (i == 0 and _PARTIAL_FIRST_RE.search(text)):
                 return Coverage(partial=True, evidence=evidence(r))
-    primary = members[0][0]
-    for title in (primary.name, *(t for t, _ in selected_links(primary.selected_sources))):
+    for title in titles:
+        if _PARTIAL_RE.search(title):
+            return Coverage(partial=True, evidence=title)
+    for title in (primary.name, *titles):
         if _EXPANSION_RE.search(title):
-            return Coverage(held=True, evidence=title)
+            return Coverage(
+                held=True, evidence=title, why="a cited source or the name mentions an expansion"
+            )
+    part = "the name or the first row names part of a site"
+    if _PART_NAME_RE.search(primary.name):
+        return Coverage(held=True, evidence=primary.name, why=part)
+    first = actuals[0][0] if actuals[0] else None
+    if first is not None:
+        text = row_text(first)
+        lowest = _first_building_number(text)
+        if (_PART_BUILDINGS_RE.search(text) and lowest is None) or (lowest or 1) > 1:
+            return Coverage(held=True, evidence=evidence(first), why=part)
+    for site, rows in members:
+        texts = [
+            *(f"{k}: {v}" for k, v in (("Name", site.name), ("Owner", site.owner))),
+            *(f"{k}: {v}" for k, v in (("Users", site.users), ("Project", site.project))),
+            *(t for t, _ in selected_links(site.selected_sources)),
+            *(evidence(r) for r in rows if r.day <= today),
+        ]
+        for text in texts:
+            m = _MINER_RE.search(strip_links(strip_invisible(text)))
+            if m:
+                return Coverage(
+                    held=True,
+                    evidence=clean_text(text)[:NOTE_MAX],
+                    why=f"the site is a bitcoin miner's ({m.group(0)})",
+                )
     return Coverage()
 
 
@@ -529,11 +724,26 @@ def _location_from_result(r: GeocodeResult) -> dict[str, Any]:
 
 
 def place_override(
-    name: str, ov: LocationOverride, *, counties: CountyIndex, gazetteer: Gazetteer
+    name: str,
+    ov: LocationOverride,
+    *,
+    counties: CountyIndex,
+    gazetteer: Gazetteer,
+    postal_city: str | None = None,
 ) -> Placed:
     """The location an override describes, checked like `atlas validate` rule 5 would; a point
-    never lies outside the county the entry names, at any precision (as in atlas.geocode)."""
-    from atlas.geocode import COUNTY_CHECKED_PRECISIONS, POINT_IN_POLYGON_PRECISIONS
+    never lies outside the county the entry names, at any precision (as in atlas.geocode).
+
+    A county entry names no city or municipality, since the county's point need not lie in it
+    (AWS Berwick's Luzerne County point is in Rice township, its campus in Salem Township). A
+    municipality (a township, a New England town) is placed at its county subdivision's Gazetteer
+    point in the entry's county, at `locality`. A city that is also postal_city, the city of
+    Epoch's address, counts only with place_check: the postal city is only near the site."""
+    from atlas.geocode import (
+        COUNTY_CHECKED_PRECISIONS,
+        POINT_IN_POLYGON_PRECISIONS,
+        normalize_place,
+    )
 
     def bad(why: str) -> FetchError:
         return epoch_error(f"config/overrides/epoch.json entry {name!r}: {why}")
@@ -541,10 +751,28 @@ def place_override(
     county = counties.get(ov.county_fips) if ov.county_fips else None
     if ov.county_fips and (county is None or county.state_abbr != ov.state_abbr):
         raise bad(f"county_fips {ov.county_fips} is not a county of {ov.state_abbr}")
+    if ov.precision == "county" and (ov.city or ov.municipality):
+        raise bad(
+            "a county entry names no city or municipality: the county's point need not lie in "
+            "it (give precision locality to place the site at the municipality)"
+        )
+    if (
+        ov.precision == "locality"
+        and ov.city
+        and postal_city
+        and normalize_place(ov.city) == normalize_place(postal_city)
+        and ov.place_check is None
+    ):
+        raise bad(
+            f"{ov.city!r} is also the postal city of Epoch's address, which is only near the site "
+            "(07 §6.5): say in place_check how the site was found inside the city's Census place "
+            "polygon, or place it at the county a source states"
+        )
     lat, lon = ov.lat, ov.lon
     if (lat is None) != (lon is None):
         raise bad("set both lat and lon, or neither")
     method: str | None = "manual"
+    what = f"({lat}, {lon})"
     if lat is None or lon is None:
         if ov.precision == "county" and county is not None:
             lat, lon = counties.centroid(county.fips)
@@ -555,12 +783,26 @@ def place_override(
                 raise bad(f"no Gazetteer place {ov.city!r} in {ov.state_abbr}")
             lat, lon = hit[0], hit[1]
             method = "gazetteer"
+            what = f"the Gazetteer place {ov.city!r}"
+        elif ov.precision == "locality" and ov.municipality:
+            if county is None:
+                raise bad(
+                    "a municipality needs county_fips: the same name is used in many counties"
+                )
+            sub = gazetteer.cousub_entry(ov.state_abbr, ov.municipality, county.fips)
+            if sub is None:
+                raise bad(
+                    f"no Gazetteer county subdivision {ov.municipality!r} in county {county.fips}"
+                )
+            lat, lon = sub.lat, sub.lon
+            method = "gazetteer"
+            what = f"the Gazetteer county subdivision {ov.municipality!r}"
         elif ov.precision in ("state", "unknown"):
             method = None
         elif ov.precision == "county":
             raise bad("precision county needs county_fips (or lat and lon)")
         elif ov.precision == "locality":
-            raise bad("precision locality needs city (or lat and lon)")
+            raise bad("precision locality needs city or municipality (or lat and lon)")
         else:
             raise bad(f"precision {ov.precision} needs lat and lon")
     elif ov.precision in POINT_IN_POLYGON_PRECISIONS and county is None:
@@ -573,10 +815,7 @@ def place_override(
             raise bad(f"({lat}, {lon}) is not inside {ov.state_abbr}")
         elif county is not None and not counties.contains(county.fips, lat, lon):
             # A record never names a county its point lies outside of (the geocode chain's rule).
-            point = (
-                f"the Gazetteer place {ov.city!r}" if method == "gazetteer" else f"({lat}, {lon})"
-            )
-            raise bad(f"{point} is not inside county {county.fips}")
+            raise bad(f"{what} is not inside county {county.fips}")
     location = {
         "lat": lat,
         "lon": lon,
@@ -644,6 +883,76 @@ def site_record(
     return campus_record([(site, rows)], placed, ctx=ctx, retrieved_at=retrieved_at)
 
 
+def _cite(
+    sources: list[dict[str, Any]],
+    cit: Citation,
+    supports: Sequence[str],
+    *,
+    published_at: datetime | None = None,
+) -> str:
+    """The id of the source for cit: a source the record already has for its URL (the location
+    source, a Selected Source), which then also supports `supports` and takes the citation's quote
+    when it has none, else a new source."""
+    url = str(HttpUrl(str(cit.source_url)))
+    for source in sources:
+        if str(HttpUrl(str(source["url"]))) == url:
+            if source.get("quote") is None:
+                source.update(
+                    quote=cit.quote,
+                    quote_match="human",
+                    retrieved_at=cit.retrieved_at.isoformat(),
+                    archive_url=str(cit.archive_url) if cit.archive_url else None,
+                    publisher=cit.publisher or source["publisher"],
+                    source_type=cit.source_type or source["source_type"],
+                )
+            source["supports"] = _unique([*source["supports"], *supports])
+            if published_at is not None and source.get("published_at") is None:
+                source["published_at"] = published_at.isoformat()
+            return str(source["id"])
+    sid = f"s{len(sources) + 1}"
+    sources.append(
+        {
+            "id": sid,
+            "url": str(cit.source_url),
+            "archive_url": str(cit.archive_url) if cit.archive_url else None,
+            "publisher": cit.publisher or host_of(str(cit.source_url)),
+            "title": None,
+            "source_type": cit.source_type or classify_source(str(cit.source_url)),
+            "published_at": published_at.isoformat() if published_at is not None else None,
+            "retrieved_at": cit.retrieved_at.isoformat(),
+            "quote": cit.quote,
+            "quote_match": "human",
+            "supports": list(supports),
+        }
+    )
+    return sid
+
+
+def _first_report_event(
+    report: FirstReport, events: Sequence[dict[str, Any]]
+) -> dict[str, Any] | None:
+    """A first_reported event for a cited report, when it is earlier than every event dated
+    today or earlier and its status is not ahead of the first of them (07 §2.3); else None."""
+    actual = [e for e in events if not e["planned"]]
+    if not actual:
+        return None
+    first = min(actual, key=lambda e: period_start(FuzzyDate.model_validate(e["as_of"])))
+    if report.day >= period_start(FuzzyDate.model_validate(first["as_of"])):
+        return None
+    if first["status"] in ACTIVE_ORDER and ACTIVE_ORDER.index(report.status) > ACTIVE_ORDER.index(
+        first["status"]
+    ):
+        return None
+    return {
+        "status": report.status,
+        "event": "first_reported",
+        "as_of": {"value": report.day.isoformat(), "precision": "day"},
+        "phase_id": None,
+        "planned": False,
+        "note": "The earliest dated report among the record's sources",
+    }
+
+
 def campus_record(
     members: Sequence[tuple[Site, Sequence[TimelineRow]]],
     placed: Placed,
@@ -651,18 +960,28 @@ def campus_record(
     ctx: ImportContext,
     retrieved_at: str,
     coverage: Coverage | None = None,
+    override: SiteOverride | None = None,
 ) -> FacilityRecord:
     """The candidate record for one campus: one Epoch site, or several at one street address
     (the first names the record; each is a phase). id PLACEHOLDER_ID, rollup applied.
 
     A timeline that does not date the facility (coverage.observed) becomes `other` events on a
     phase for the tracked buildings, which carries the capacity; the record then has no capacity,
-    water use or cost of its own, and no construction or operating date.
+    water use or cost of its own, and no construction or operating date. The override of the
+    campus's first site adds, each with its cited source: the source of a `timeline` entry
+    (supporting /phases); a `facility_status` (for an observed timeline only) as an `other` event
+    on a phase of the buildings Epoch does not track; and a `first_report` (for a timeline that
+    dates the facility, when it is the earliest) as the record's first_reported event, after which
+    no Epoch row is a first report.
     """
-    coverage = coverage if coverage is not None else timeline_coverage(members, ctx.today)
+    timeline = override.timeline if override is not None else None
+    if coverage is None:
+        coverage = timeline_coverage(members, ctx.today, timeline)
     observed = coverage.observed
     phased = observed or len(members) > 1
     primary = members[0][0]
+    facility_status = override.facility_status if override is not None and observed else None
+    report = override.first_report if override is not None and not observed else None
 
     sources: list[dict[str, Any]] = [
         {
@@ -715,6 +1034,9 @@ def campus_record(
                 }
             )
 
+    if timeline is not None and coverage.cited:
+        _cite(sources, timeline, ["/phases"] if observed else ["/status_history"])
+
     imported = {"confidence": CONFIDENCE, "method": "imported", "source_ids": ["s1"]}
     field_meta: dict[str, Any] = {
         "/location": {
@@ -738,7 +1060,9 @@ def campus_record(
                 pid = f"{pid}-{order + 1}"
             phase_ids.add(pid)
         for e in status_events(rows, ctx.today, observed=observed, phase_id=pid):
-            events.append({**e, "seq": (e["as_of"]["value"], order, e["seq"])})
+            events.append(
+                {**e, "seq": (period_start(FuzzyDate.model_validate(e["as_of"])), order, e["seq"])}
+            )
         latest = _latest_actual(rows, ctx.today)
         site_capacity = _capacity(latest)
         operational = operational or any(row_operational(r) for r in rows if r.day <= ctx.today)
@@ -755,6 +1079,40 @@ def campus_record(
             totals[key] = totals.get(key, 0.0) + mw
         water += (positive(latest.water_mgd) if latest is not None else None) or 0.0
         cost += positive(site.capital_cost_billions) or 0.0
+    if facility_status is not None:
+        sid = _cite(sources, facility_status, ["/status_history"])
+        pid = f"{phase_slug(primary.name)}-untracked"
+        phases.append(
+            {
+                "phase_id": pid,
+                "name": UNTRACKED_PHASE_NAME.format(name=primary.name),
+                "capacity": {},
+                "source_ids": [sid],
+            }
+        )
+        day = facility_status.as_of
+        events.append(
+            {
+                "seq": (day, -1, 0),
+                "status": facility_status.status,
+                "event": "other",
+                "as_of": {"value": day.isoformat(), "precision": "day"},
+                "phase_id": pid,
+                "planned": day > ctx.today,
+                "source_ids": [sid],
+                "note": f"The facility's status, from {facility_status.publisher or 'a cited source'}",
+            }
+        )
+        operational = operational or facility_status.status == "operating"
+    reported = _first_report_event(report, events) if report is not None else None
+    if reported is not None and report is not None:
+        published = report.published_at if isinstance(report.published_at, datetime) else None
+        sid = _cite(sources, report, ["/status_history"], published_at=published)
+        # The report is the first one: no Epoch row is a first report any more.
+        for e in events:
+            if e["event"] == "first_reported":
+                e["event"] = "other"
+        events.append({**reported, "seq": (report.day, -1, 0), "source_ids": [sid]})
     # seq follows the date, then the order of the sites, then the order within a site.
     events.sort(key=lambda e: e["seq"])
     for i, e in enumerate(events, start=1):
@@ -820,29 +1178,35 @@ def campus_record(
 
 
 def coverage_review(
-    record: FacilityRecord, coverage: Coverage
-) -> tuple[str, dict[str, Any]] | None:
-    """The review item (reason, data) a campus's coverage calls for, if any.
+    record: FacilityRecord, coverage: Coverage, *, cited_status: bool = False
+) -> tuple[str, dict[str, Any], bool] | None:
+    """The review item (reason, data, keep) a campus's coverage calls for, if any; keep is False
+    when the record is held back.
 
     A held site: Epoch's fields do not say whether its timeline is the facility's, so the dates
-    and capacity it would give the facility are left out. A partial timeline whose tracked
-    buildings are not operating: the facility (older, or with a building Epoch does not count) may
-    be further along than the status Epoch's buildings give it.
+    and capacity it would give the facility are left out (the record is kept). A partial timeline
+    whose tracked buildings are not operating: the facility (older, or with a building Epoch does
+    not count) may be further along, so the tracked buildings' status is not the facility's and
+    the record is held back, unless a cited facility_status gives it.
     """
     data: dict[str, Any] = {"evidence": coverage.evidence, "status": record.status}
     if coverage.held:
         return (
-            "a cited source or the name mentions an expansion, so Epoch's timeline may cover only "
-            "buildings added to an older campus: the record gives no construction or operating "
-            "date and puts the capacity on the phase; restore them if the timeline covers the "
-            "whole facility",
+            f"{coverage.why or 'Epoch fields suggest it'}, so Epoch's timeline may cover only "
+            "buildings added to or converted from an older facility: the record gives no "
+            "construction or operating date and puts the capacity on the phase; restore them if "
+            "the timeline covers the whole facility (a cited timeline entry with coverage whole "
+            "in config/overrides/epoch.json)",
             data,
+            True,
         )
-    if coverage.partial and record.status != "operating":
+    if coverage.partial and record.status != "operating" and not cited_status:
         return (
-            "Epoch's timeline covers only part of the facility, so the facility may be further "
-            f"along than the {record.status} of the buildings Epoch tracks",
+            "Epoch's timeline covers only part of the facility and the buildings it tracks are "
+            f"{record.status}, so the facility may be further along and its status is unknown: no "
+            "record until a cited facility_status entry in config/overrides/epoch.json gives it",
             data,
+            False,
         )
     return None
 
@@ -907,10 +1271,11 @@ class EpochImporter:
         )
         # The Census place polygons name the city of a Census match (downloaded on first use);
         # without the Census step nothing needs them. The Gazetteer gives county names, override
-        # places and a postal city's point: Epoch states no town or township, so it needs no
-        # county subdivisions.
+        # places and a postal city's point; Epoch states no town or township, so it needs the
+        # county subdivisions (downloaded on first use) only for an override that names one.
         places = ctx.places() if census is not None else None
-        gazetteer = Gazetteer.load()
+        townships = any(o.location and o.location.municipality for o in overrides.values())
+        gazetteer = ctx.gazetteer() if townships else Gazetteer.load()
         counties = ctx.counties()
         retrieved_at = snapshot.retrieved_at.isoformat()
 
@@ -1002,7 +1367,10 @@ class EpochImporter:
 
         coverages: Counter[str] = Counter()
         for members in campuses.values():
-            site = next((s for s, _ in members if s.name in overrides), members[0][0])
+            site = next(
+                (s for s, _ in members if (o := overrides.get(s.name)) and o.location),
+                members[0][0],
+            )
             try:
                 placed = self._place(site, overrides, census, gazetteer, counties, places)
             except GeocoderError as e:
@@ -1012,20 +1380,41 @@ class EpochImporter:
                     unplaced(s)
                 continue
             methods[placed.method] += 1
-            coverage = timeline_coverage(members, ctx.today)
             primary = members[0][0].name
+            override = overrides.get(primary)
+            coverage = timeline_coverage(
+                members, ctx.today, override.timeline if override is not None else None
+            )
             try:
                 record = campus_record(
-                    members, placed, ctx=ctx, retrieved_at=retrieved_at, coverage=coverage
+                    members,
+                    placed,
+                    ctx=ctx,
+                    retrieved_at=retrieved_at,
+                    coverage=coverage,
+                    override=override,
                 )
             except (ValidationError, RollupError) as e:
                 flag("invalid", primary, "the row does not map to a valid record", error=str(e))
                 continue
-            candidates.append(Candidate(tuple(s.name for s, _ in members), record))
-            coverages["held" if coverage.held else "partial" if coverage.partial else "whole"] += 1
-            item = coverage_review(record, coverage)
+            cited_status = (
+                coverage.observed and override is not None and override.facility_status is not None
+            )
+            item = coverage_review(record, coverage, cited_status=cited_status)
             if item is not None:
                 flag("conflict", primary, item[0], **item[1])
+            if item is not None and not item[2]:
+                coverages["status_unknown"] += 1
+                continue
+            candidates.append(Candidate(tuple(s.name for s, _ in members), record))
+            coverages["held" if coverage.held else "partial" if coverage.partial else "whole"] += 1
+            if record.dates.get("first_reported") is not None and any(
+                e.event == "first_reported" and e.source_ids != ["s1"]
+                for e in record.status_history
+            ):
+                coverages["first_reports"] += 1
+            if cited_status:
+                coverages["facility_statuses"] += 1
 
         planned = sum(1 for c in candidates for e in c.record.status_history if e.planned)
         metrics: dict[str, float | int] = {
@@ -1039,10 +1428,13 @@ class EpochImporter:
             ),
             "timelines_partial": coverages["partial"],
             "timelines_held": coverages["held"],
+            "timelines_status_unknown": coverages["status_unknown"],
+            "first_reports_cited": coverages["first_reports"],
+            "facility_statuses_cited": coverages["facility_statuses"],
             "missing_location": sum(1 for i in review if i.kind == "missing_location"),
             "geocode_failed": sum(1 for i in review if i.kind == "geocode_failed"),
         }
-        names = {clean_text(r["Name"]) for r in site_rows}
+        names = {clean_text(r["Name"]) for r in site_rows}  # every country: an entry is per name
         metrics["overrides_used"] = sum(1 for n in overrides if n in names)
         metrics["overrides_unused"] = sum(1 for n in overrides if n not in names)
         for method, n in sorted(methods.items()):
@@ -1055,7 +1447,7 @@ class EpochImporter:
     @staticmethod
     def _place(
         site: Site,
-        overrides: Mapping[str, LocationOverride],
+        overrides: Mapping[str, SiteOverride],
         census: CensusGeocoder | None,
         gazetteer: Gazetteer,
         counties: CountyIndex,
@@ -1069,11 +1461,17 @@ class EpochImporter:
         from atlas.geocode import GeocodeRequest, geocode, parse_address
 
         override = overrides.get(site.name)
-        if override is not None:
-            return place_override(site.name, override, counties=counties, gazetteer=gazetteer)
-        if not site.address:
+        parsed = parse_address(site.address) if site.address else None
+        if override is not None and override.location is not None:
+            return place_override(
+                site.name,
+                override.location,
+                counties=counties,
+                gazetteer=gazetteer,
+                postal_city=parsed.city if parsed is not None else None,
+            )
+        if parsed is None:
             return None
-        parsed = parse_address(site.address)
         result = geocode(
             GeocodeRequest(
                 state_abbr=parsed.state_abbr,

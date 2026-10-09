@@ -25,6 +25,7 @@ from atlas.sources.epoch import (
     IMPORTER,
     OVERRIDES_PATH,
     ZIP_URL,
+    Citation,
     Placed,
     Site,
     TimelineRow,
@@ -148,18 +149,18 @@ def row(day: str, text: str, operational: float | None) -> TimelineRow:
 def test_status_events_keep_only_changes_and_plan_future_rows() -> None:
     rows = [
         row("2024-01-10", "Site acquired for the campus", 0),
-        row("2024-06-01", "Land clearing begins", 0),
-        row("2024-09-01", "Steel framing and roofing underway", 0),
-        row("2025-03-01", "Building 1 operational", 1),
-        row("2025-09-01", "Building 2 operational", 2),
-        row("2027-01-01", "Building 3 projected", 3),
+        row("2024-06-03", "Land clearing begins", 0),
+        row("2024-09-04", "Steel framing and roofing underway", 0),
+        row("2025-03-05", "Building 1 operational", 1),
+        row("2025-09-06", "Building 2 operational", 2),
+        row("2027-01-07", "Building 3 projected", 3),
     ]
     events = status_events(rows, date(2026, 10, 12))
     got = [(e["seq"], e["status"], e["event"], e["as_of"]["value"], e["planned"]) for e in events]
     assert got == [
         (1, "announced", "announced", "2024-01-10", False),
-        (2, "under_construction", "construction_start", "2024-06-01", False),
-        (3, "operating", "energized", "2025-03-01", False),
+        (2, "under_construction", "construction_start", "2024-06-03", False),
+        (3, "operating", "energized", "2025-03-05", False),
     ]
     future = status_events(
         [row("2025-01-01", "Land clearing begins", 0), row("2028-01-01", "Phase 1 online", 9)],
@@ -364,8 +365,6 @@ def test_record_mapping(make_test_context: MakeContext, no_overrides: Path) -> N
     assert madison.aliases == []  # Project Rainier #speculative
 
 
-# The name a quote uses for a city whose Census place name differs (Pryor is Pryor Creek).
-QUOTED_AS = {"Pryor Creek": "Pryor"}
 # Hosts that answered the project's user agent with 403 or a bot challenge (2026-10-08), so an entry
 # citing them must name the Wayback snapshot that was read.
 REFUSING_HOSTS = (
@@ -378,40 +377,59 @@ REFUSING_HOSTS = (
 REFUSES_NOTE = "refuses automated clients"
 # "Kansas City, MO — March 20, 2024 — ...": a dateline says where a release was issued.
 DATELINE_RE = re.compile(r"^[A-Z][\w .]*, [A-Z]{2}\.? (?:\u2014|\u2013|-) ")
+CITATION_KEYS = ("source_url", "publisher", "source_type", "quote", "retrieved_at", "note")
+
+
+def check_citation(name: str, raw: dict[str, Any], cit: Citation) -> None:
+    """A citation names its source, the verbatim quote, when it was read and why; a page that
+    refuses automated clients is cited with the snapshot that was read, and the note says so (and
+    only then)."""
+    for key in CITATION_KEYS:
+        assert raw.get(key), (name, key)
+    assert 0 < len(cit.quote) <= 300 and cit.retrieved_at <= datetime.now(UTC), name
+    assert find_personal_data(cit.quote) == [] and find_personal_data(cit.note) == [], name
+    host = (cit.source_url.host or "").removeprefix("www.")
+    if host.endswith(REFUSING_HOSTS):
+        assert cit.archive_url is not None, (name, host)
+    assert (cit.archive_url is not None) == (REFUSES_NOTE in cit.note), name
+    if cit.archive_url is not None:
+        assert str(cit.archive_url).startswith("https://web.archive.org/web/"), name
+        assert str(cit.archive_url).endswith(str(cit.source_url)), name
 
 
 def test_every_committed_override_is_cited(counties: CountyIndex) -> None:
-    """Each entry names its source, the verbatim quote that states the place, when it was read,
-    and places the site no more precisely than a municipality or county (07 §6.5). The quote
+    """Each location names its source, the verbatim quote that states the place, when it was
+    read, and places the site no more precisely than a municipality or county (07 §6.5). The quote
     itself names every place the entry gives: a reader of the record's source sees only the
-    quote, not the note."""
+    quote, not the note. A county entry names no city or municipality (its point is the county's).
+    A timeline, first_report or facility_status part has its own citation."""
     raw = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
     overrides = load_overrides(REPO_OVERRIDES)
     assert REPO_OVERRIDES.parts[-3:] == OVERRIDES_PATH.parts
     assert len(overrides) == len(raw) >= 1
-    now = datetime.now(UTC)
-    for name, ov in overrides.items():
-        for key in ("source_url", "publisher", "source_type", "quote", "retrieved_at", "note"):
-            assert raw[name].get(key), (name, key)
-        assert 0 < len(ov.quote) <= 300 and ov.retrieved_at <= now, name
-        assert find_personal_data(ov.quote) == [] and find_personal_data(ov.note) == [], name
-        assert (ov.lat, ov.lon) == (None, None) and ov.precision in ("locality", "county"), name
-        assert not DATELINE_RE.match(ov.quote), name
-        for place in (ov.city, ov.municipality):
-            assert place is None or QUOTED_AS.get(place, place) in ov.quote, (name, place)
-        if ov.county_fips is not None:
-            county = counties.get(ov.county_fips)
-            assert county is not None and county.name in ov.quote, (name, ov.county_fips)
-        assert ov.city or ov.county_fips, name
-        # A page that refuses automated clients is cited with the snapshot that was read, and the
-        # note says so (and only then).
-        host = (ov.source_url.host or "").removeprefix("www.")
-        if host.endswith(REFUSING_HOSTS):
-            assert ov.archive_url is not None, (name, host)
-        assert (ov.archive_url is not None) == (REFUSES_NOTE in ov.note), name
-        if ov.archive_url is not None:
-            assert str(ov.archive_url).startswith("https://web.archive.org/web/"), name
-            assert str(ov.archive_url).endswith(str(ov.source_url)), name
+    for name, entry in overrides.items():
+        ov = entry.location
+        if ov is not None:
+            check_citation(name, raw[name], ov)
+            assert (ov.lat, ov.lon) == (None, None) and ov.precision in ("locality", "county")
+            assert not DATELINE_RE.match(ov.quote), name
+            for place in (ov.city, ov.municipality):
+                assert place is None or place in ov.quote, (name, place)
+            if ov.county_fips is not None:
+                county = counties.get(ov.county_fips)
+                assert county is not None and county.name in ov.quote, (name, ov.county_fips)
+            assert ov.city or ov.county_fips, name
+            if ov.precision == "county":
+                assert ov.city is None and ov.municipality is None, name
+            if ov.municipality is not None:
+                assert ov.precision == "locality" and ov.county_fips is not None, name
+        for part in ("timeline", "first_report", "facility_status"):
+            cited = getattr(entry, part)
+            if cited is not None:
+                check_citation(f"{name} {part}", raw[name][part], cited)
+        if entry.first_report is not None:
+            assert entry.first_report.day <= date.today(), name
+        assert ov is not None or entry.timeline or entry.first_report or entry.facility_status
 
 
 def test_committed_override_places_meta_hyperion(
@@ -443,7 +461,7 @@ def test_committed_override_places_meta_hyperion(
     # Projections: the 2028 row (Buildings operational 9) is a planned event, so the status
     # stays under construction and there is no operating_since date.
     planned = [(e.status, e.as_of.value) for e in rec.status_history if e.planned]
-    assert planned == [("operating", "2028-01-01")]
+    assert planned == [("operating", "2028-01")]  # a date on the 1st is the month
     assert rec.status == "under_construction" and rec.record_type == "project"
     assert "operating_since" not in rec.dates
     assert [a.name for a in rec.aliases] == ["Hyperion"]
@@ -479,9 +497,10 @@ def test_override_for_a_site_without_an_address(
     assert validate_record(rec, counties=counties, today=today) == []
     assert "missing_location" not in {i.kind for i in result.review}
     assert (result.metrics["overrides_used"], result.metrics["overrides_unused"]) == (1, 0)
-    # The 2028-12-31 row has no building count but 857 MW of IT power: a planned operating event.
+    # The 2028-12-31 row has no building count but 857 MW of IT power: a planned operating event,
+    # dated to the month (an estimate on the last day of a month).
     planned = [(e.status, e.as_of.value) for e in rec.status_history if e.planned]
-    assert planned == [("operating", "2028-12-31")]
+    assert planned == [("operating", "2028-12")]
     assert rec.status == "under_construction" and rec.record_type == "project"
 
 

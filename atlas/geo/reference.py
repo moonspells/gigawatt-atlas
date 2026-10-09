@@ -11,11 +11,11 @@ keep the repository small:
 
 An import that needs one asks ensure_reference() for it. The copy in
 `{cache_dir}/reference/census/{name}` (by default `.cache/atlas/reference/census/`) is used when
-it is there; otherwise the file is fetched from census.gov through atlas.net.fetch, under the same
-crawler policy as every fetch (the address guard, robots.txt, redirects re-checked, a byte cap of
-the pinned size, a zip content type). Its size and SHA-256 must equal the values pinned below
-before anything is written, and it is written atomically, so a failed, cut-off or altered download
-leaves no file. A copy is checked against the pin every time it is used, and one that differs fails
+it is there; otherwise the file is fetched from census.gov through atlas.net.fetch, with the guards
+of every fetch (the address guard, redirects re-checked, the per-host delay, a byte cap of the
+pinned size, a zip content type) but without consulting robots.txt (see _ROBOTS below). Its size
+and SHA-256 must equal the values pinned below before anything is written, and it is written
+atomically, so a failed, cut-off or altered download leaves no file. A copy is checked against the pin every time it is used, and one that differs fails
 the run. With --offline and no copy, the run fails with a message naming the file and how to get
 it. Tests use small samples (tests/fixtures/geocode/) and never fetch these.
 
@@ -43,6 +43,18 @@ if TYPE_CHECKING:
 CACHE_SUBDIR = Path("reference") / "census"
 ZIP_TYPES = ("application/zip", "application/x-zip-compressed", "application/octet-stream")
 DOWNLOAD_TIMEOUT_S = 120.0
+# robots.txt is not consulted for these downloads. They are two fixed files, each pinned by size and
+# SHA-256 and fetched once per cache directory: a download the owner decided an import makes on
+# first use (07 §6.5), not a crawl, like the Census Geocoder, Overpass and MSD-LIVE API calls
+# (robots=False there too). www2.census.gov/robots.txt (read 2026-10-09) begins
+# "User-agent: *", a blank line, then "User-agent: RavenCrawler" and "Disallow: /". Under the
+# original robots.txt format a blank line ends a record, so the "*" record is empty and every
+# other crawler may fetch everything; RFC 9309 has no blank-line rule and joins the two lines into
+# one group, which Python's robotparser (3.13) follows, so every unnamed crawler would be refused
+# the whole host, Googlebot and bingbot excepted. The Bureau publishes these files for download, and
+# the group plainly targets RavenCrawler; the import would otherwise never get them
+# (tests/geo/test_reference.py holds that robots.txt).
+_ROBOTS = False
 
 
 @dataclass(frozen=True)
@@ -132,6 +144,7 @@ def ensure_reference(
             allowed_types=ZIP_TYPES,
             max_bytes=ref.size,
             timeout=DOWNLOAD_TIMEOUT_S,
+            robots=_ROBOTS,
             sleep=sleep if sleep is not None else time.sleep,
         )
     except OfflineError as e:
