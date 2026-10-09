@@ -15,9 +15,11 @@ read:
   only for a version check through its public records API, which warns when a newer version is
   out.
 
-join() matches rows to dissolved OSM clusters: by OSM id when a row has one, otherwise spatially.
-The OSM importer (atlas.sources.osm) applies the matches to its records. This module has no
-IMPORTER: PNNL rows only enrich and cross-check OSM records.
+join() matches rows to dissolved OSM clusters: by OSM id when a row has one, otherwise spatially,
+and failing that by name nearby. The OSM importer (atlas.sources.osm) applies the matches to its
+records. This module has no IMPORTER: PNNL rows only enrich and cross-check OSM records. PNNL's
+sqft is the area of the OSM footprint, not a floor area, so it is used to check the match and is
+not published as building_sqft.
 """
 
 from __future__ import annotations
@@ -36,7 +38,15 @@ from typing import TYPE_CHECKING
 
 from pydantic import HttpUrl, JsonValue
 
-from atlas.dissolve import Cluster, OsmObject, haversine_m, meters_to_degrees, ref_key
+from atlas.dissolve import (
+    AREA_KINDS,
+    Cluster,
+    OsmObject,
+    haversine_m,
+    meters_to_degrees,
+    operators_compatible,
+    ref_key,
+)
 from atlas.net import FetchError, FetchResult, fetch
 from atlas.schema.record import Source
 from atlas.sources.base import ImportContext, InputSnapshot, ReviewItem, load_input
@@ -63,7 +73,7 @@ VERSION_DOIS = {PNNL_VERSION: PNNL_DOI_URL}  # the versions this importer was ch
 WEBMAP_VERSIONS = {
     "2e7bd7e650fe86fe0d156b4e483ebd331cfa98a0468ce33b932f8c1b6c3245df": PNNL_VERSION,
 }
-PNNL_SUPPORTS = ("/site", "/buildings")
+PNNL_SUPPORTS = ("/site",)  # site.acreage; PNNL's sqft is a footprint and is not published
 REVIEW_SOURCE = "pnnl"
 
 CSV_COLUMNS = (
@@ -84,6 +94,9 @@ CSV_COLUMNS = (
 ROW_TYPES = ("point", "building", "campus")
 CONTAIN_MARGIN_M = 30.0  # a row point inside a member's bounding box expanded by this much
 NEAR_RADIUS_M = 50.0  # or within this distance of a member's center
+# A row that reaches no member matches a member of the same name and a compatible operator within
+# this distance: OSM node 13311012216 (Fiberhub LAS1) moved 119 m after PNNL took its position.
+NAME_RADIUS_M = 250.0
 SQFT_PER_ACRE = 43_560.0
 SQFT_PER_M2 = 10.763_910_4
 # PNNL's sqft is the footprint polygon's area, so it cannot exceed the footprint's bounding box. 5%
@@ -267,12 +280,15 @@ def load_pnnl(path: Path) -> list[PnnlRow]:
 
 @dataclass(frozen=True)
 class JoinResult:
-    """matched: representative ref -> rows (in input order); members: row key -> member ref."""
+    """matched: representative ref -> rows (in input order); members: row key -> member ref;
+    nearest: unmatched row key -> (the nearest member's ref, its distance in metres)."""
 
     matched: dict[str, list[PnnlRow]]
     unmatched: list[PnnlRow]
     members: dict[str, str] = field(default_factory=dict)
     by_id: int = 0
+    by_name: int = 0
+    nearest: dict[str, tuple[str, float]] = field(default_factory=dict)
 
     @property
     def total(self) -> int:
@@ -325,14 +341,19 @@ def _same_org(row: PnnlRow, m: OsmObject) -> bool:
 
 def spatial_match(row: PnnlRow, candidates: Sequence[OsmObject]) -> OsmObject | None:
     """The member whose expanded bounding box holds the row point, or whose center is within
-    50 m. Ties break on the same normalized name, then the same normalized operator, then
-    distance, then ref."""
+    50 m. A member whose own box (no margin) holds the point comes first, then one of the row's
+    kind (a campus row: a campus or site; a building or point row: a building or point); then
+    the same normalized name, the same normalized operator, distance and ref break ties. A row
+    on the center of the current building is that building's, whatever the old name PNNL kept
+    ("QTS Manassas DC1" on DC2's polygon, 2026-10-08)."""
     hits = [m for m in candidates if _reaches(m, row)]
     if not hits:
         return None
     return min(
         hits,
         key=lambda m: (
+            m.bounds is None or not m.bounds.contains(row.lat, row.lon),
+            (row.type == "campus") != (m.kind in AREA_KINDS),
             not _same_name(row, m),
             not _same_org(row, m),
             haversine_m(row.lat, row.lon, m.lat, m.lon),
@@ -341,19 +362,46 @@ def spatial_match(row: PnnlRow, candidates: Sequence[OsmObject]) -> OsmObject | 
     )
 
 
+def _name_match(row: PnnlRow, members: Sequence[OsmObject]) -> OsmObject | None:
+    """The nearest member within NAME_RADIUS_M with the row's normalized name and an operator
+    that does not disagree with the row's."""
+    if not row.name:
+        return None
+    probe = OsmObject("node/0", row.lat, row.lon, None, {"operator": row.operator or ""}, "point")
+    hits = [
+        (haversine_m(row.lat, row.lon, m.lat, m.lon), m)
+        for m in members
+        if _same_name(row, m) and operators_compatible(probe, m)
+    ]
+    hits = [(d, m) for d, m in hits if d <= NAME_RADIUS_M]
+    return min(hits, key=lambda h: (h[0], ref_key(h[1].ref)))[1] if hits else None
+
+
+def _nearest(row: PnnlRow, members: Sequence[OsmObject]) -> tuple[str, float] | None:
+    if not members:
+        return None
+    d, m = min(
+        ((haversine_m(row.lat, row.lon, m.lat, m.lon), m) for m in members),
+        key=lambda h: (h[0], ref_key(h[1].ref)),
+    )
+    return m.ref, round(d, 1)
+
+
 def join(clusters: Sequence[Cluster], rows: Sequence[PnnlRow]) -> JoinResult:
     """Match PNNL rows to clusters: by OSM id when the row has one (point -> node, building and
-    campus -> way, then relation), otherwise spatially (spatial_match). A row with an id that OSM
-    no longer has is unmatched."""
+    campus -> way, then relation), otherwise spatially (spatial_match), and failing that by name
+    (_name_match). A row with an id that OSM no longer has is unmatched."""
     cluster_of: dict[str, Cluster] = {}
     for cluster in clusters:
         for m in cluster.members:
             cluster_of[m.ref] = cluster
-    grid = _Grid(m for c in clusters for m in c.members)
+    every = [m for c in clusters for m in c.members]
+    grid = _Grid(every)
     matched: dict[str, list[PnnlRow]] = {}
     members: dict[str, str] = {}
     unmatched: list[PnnlRow] = []
-    by_id = 0
+    nearest: dict[str, tuple[str, float]] = {}
+    by_id = by_name = 0
     for row in rows:
         member_ref: str | None = None
         if row.osm_id:
@@ -362,14 +410,25 @@ def join(clusters: Sequence[Cluster], rows: Sequence[PnnlRow]) -> JoinResult:
                 by_id += 1
         else:
             hit = spatial_match(row, grid.near(row.lat, row.lon))
+            if hit is None and (hit := _name_match(row, every)) is not None:
+                by_name += 1
             member_ref = hit.ref if hit is not None else None
         if member_ref is None:
             unmatched.append(row)
+            if (found := _nearest(row, every)) is not None:
+                nearest.setdefault(row.key, found)
             continue
         rep = cluster_of[member_ref].representative.ref
         matched.setdefault(rep, []).append(row)
         members.setdefault(row.key, member_ref)
-    return JoinResult(matched=matched, unmatched=unmatched, members=members, by_id=by_id)
+    return JoinResult(
+        matched=matched,
+        unmatched=unmatched,
+        members=members,
+        by_id=by_id,
+        by_name=by_name,
+        nearest=nearest,
+    )
 
 
 # ---------------------------------------------------------------------------- effects
@@ -417,8 +476,6 @@ def _unique(rows: Iterable[PnnlRow]) -> list[PnnlRow]:
 class SiteValues:
     """What a cluster's matched PNNL rows give its record, and the rows held back for review."""
 
-    building_sqft: dict[str, float] = field(default_factory=dict)  # buildings[].sqft by ref
-    site_sqft: float | None = None  # site.building_sqft
     acreage: float | None = None  # site.acreage
     review: list[ReviewItem] = field(default_factory=list)
 
@@ -434,47 +491,58 @@ def _held(kind: str, reason: str, row: PnnlRow, member: OsmObject, rep: str) -> 
     )
 
 
+def _top_level(cluster: Cluster) -> list[OsmObject]:
+    """The campus and site members that no larger campus or site member of the cluster covers."""
+    areas = [m for m in cluster.members if m.kind in AREA_KINDS]
+    return [
+        m
+        for m in areas
+        if not any(
+            o.ref != m.ref and o.area_m2() > m.area_m2() and o.covers(m.lat, m.lon) for o in areas
+        )
+    ]
+
+
 def site_values(
     cluster: Cluster, rows: Sequence[PnnlRow], members: Mapping[str, str]
 ) -> SiteValues:
-    """Floor areas and acreage from the PNNL rows matched to a cluster (members: row key ->
+    """Acreage from the PNNL rows matched to a cluster, and review items (members: row key ->
     member ref, from JoinResult).
 
-    - A building row's sqft goes to the building or point it matched. When several rows hit one
-      member (PNNL kept an old footprint next to the current one), the row with the member's
-      name, else the nearest, is kept and the others are possible_duplicate items. A kept sqft
-      more than FOOTPRINT_SLACK above the member's bounding box describes another footprint and
-      is a conflict item instead.
-    - Building rows that hit a campus object count towards site.building_sqft only.
-    - A campus row gives site.acreage only when it hit a campus object. One whose campus polygon
-      has left OpenStreetMap lands on a building, and is a conflict item.
+    - A building row checks the building or point it matched. When several rows hit one member
+      (PNNL kept an old footprint next to the current one), the row with the member's name, else
+      the nearest, is the match and the others are possible_duplicate items. A sqft more than
+      FOOTPRINT_SLACK above the member's bounding box describes another footprint and is a
+      conflict item. PNNL's sqft is the footprint's area, not a floor area, so no building row
+      sets buildings[].sqft or site.building_sqft.
+    - A campus row gives site.acreage only when it hit a campus or site object, and only when
+      every campus or site member that no other one covers has such a row (a partial sum would
+      read as the site's area). One whose campus polygon has left OpenStreetMap lands on a
+      building, and is a conflict item.
 
     Rows with the same key are counted once (PNNL repeats a site that straddles a county line).
     """
     rep = cluster.representative.ref
     by_ref = {m.ref: m for m in cluster.members}
     on_member: dict[str, list[tuple[PnnlRow, float]]] = {}
-    on_campus: list[float] = []
-    campus_sqft: list[float] = []
+    campus_sqft: dict[str, float] = {}
     review: list[ReviewItem] = []
     for row in _unique(rows):
         ref = members.get(row.key)
         member = by_ref.get(ref) if ref is not None else None
         if member is None or row.sqft is None:
             continue
-        if row.type == "campus" and member.kind == "campus":
-            campus_sqft.append(row.sqft)
+        if row.type == "campus" and member.kind in AREA_KINDS:
+            campus_sqft[member.ref] = campus_sqft.get(member.ref, 0.0) + row.sqft
         elif row.type == "campus":
             reason = (
                 f"PNNL campus row ({row.sqft / SQFT_PER_ACRE:.1f} acres) lies on {member.ref}, "
-                f"a {member.kind}, not on a campus polygon in OpenStreetMap; acreage not applied"
+                f"a {member.kind}, not on a campus or site polygon in OpenStreetMap; acreage not "
+                "applied"
             )
             review.append(_held("conflict", reason, row, member, rep))
-        elif row.type == "building" and member.kind == "campus":
-            on_campus.append(row.sqft)
-        elif row.type == "building":
+        elif row.type == "building" and member.kind not in AREA_KINDS:
             on_member.setdefault(member.ref, []).append((row, row.sqft))
-    sqft: dict[str, float] = {}
     for ref in sorted(on_member, key=ref_key):
         member = by_ref[ref]
         (kept, kept_sqft), *extra = sorted(
@@ -487,8 +555,8 @@ def site_values(
         )
         for row, _ in extra:
             reason = (
-                f"PNNL has {len(extra) + 1} building rows on {ref}; {kept.key} is kept (the "
-                "same name, else the nearest) and this row is not applied"
+                f"PNNL has {len(extra) + 1} building rows on {ref}; {kept.key} is the match (the "
+                "same name, else the nearest) and this row is another footprint"
             )
             review.append(_held("possible_duplicate", reason, row, member, rep))
         box_sqft = member.area_m2() * SQFT_PER_M2
@@ -496,19 +564,14 @@ def site_values(
             reason = (
                 f"PNNL sqft {kept_sqft:,.0f} exceeds the bounding box of {ref} "
                 f"({box_sqft:,.0f} sq ft) by more than {FOOTPRINT_SLACK - 1:.0%}: the row "
-                "describes another footprint; not applied"
+                "describes another footprint"
             )
             review.append(_held("conflict", reason, kept, member, rep))
-            continue
-        sqft[ref] = kept_sqft
-    total = [*sqft.values(), *on_campus]
-    acreage = round(sum(campus_sqft) / SQFT_PER_ACRE, 1) if campus_sqft else None
-    return SiteValues(
-        building_sqft=sqft,
-        site_sqft=round(sum(total), 1) if total else None,
-        acreage=acreage or None,
-        review=review,
-    )
+    top = _top_level(cluster)
+    acreage = None
+    if top and all(m.ref in campus_sqft for m in top):
+        acreage = round(sum(campus_sqft[m.ref] for m in top) / SQFT_PER_ACRE, 1) or None
+    return SiteValues(acreage=acreage, review=review)
 
 
 def county_mismatch(
@@ -570,21 +633,33 @@ def county_mismatches(
     return out
 
 
-def unmatched_item(row: PnnlRow) -> ReviewItem:
+def unmatched_item(row: PnnlRow, nearest: tuple[str, float] | None = None) -> ReviewItem:
+    """The review item for a row no OSM-derived record took. The import reads only data center
+    elements (atlas.sources.osm.OVERPASS_QUERY), so OSM may still have the feature, retagged
+    (telecom=exchange, office=*) or moved; nearest names the closest element the import read."""
+    what = f"PNNL {row.type} row" if row.type != "point" else "PNNL point"
     if row.osm_id:
-        reason = f"OSM no longer has {' or '.join(row.osm_refs())} (PNNL {PNNL_VERSION})"
+        reason = (
+            f"the {what}'s {' or '.join(row.osm_refs())} is not among the OSM data center "
+            f"elements this import read (PNNL {PNNL_VERSION}): deleted, or retagged"
+        )
     else:
         reason = (
-            f"no OSM object contains this PNNL {row.type} point or lies within "
-            f"{NEAR_RADIUS_M:g} m of it"
+            f"no OSM data center element this import read takes the {what}: no bounding box "
+            f"(+{CONTAIN_MARGIN_M:g} m) holds its point, no center is within {NEAR_RADIUS_M:g} m "
+            f"and no element of its name is within {NAME_RADIUS_M:g} m"
         )
+    data = row.to_json()
+    if nearest is not None:
+        reason += f"; the nearest is {nearest[0]}, {nearest[1]:,.0f} m away"
+        data |= {"nearest_osm": nearest[0], "nearest_m": nearest[1]}
     return ReviewItem(
         source=REVIEW_SOURCE,
         kind="unmatched",
         external_id=row.key,
         record_id=None,
         reason=reason,
-        data=row.to_json(),
+        data=data,
     )
 
 

@@ -52,6 +52,8 @@ MakeContext = Callable[..., ImportContext]
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 OVERPASS_FIXTURE = FIXTURES / "osm" / "overpass-sample.json"
 OVERPASS_CASES = FIXTURES / "osm" / "overpass-cases.json"
+SEED_CHECK = FIXTURES / "osm" / "overpass-seed-check.json"
+SEED_CHECK_BASE = "2026-10-08T20:47:34Z"
 PNNL_GEOJSON = FIXTURES / "pnnl" / "centroids-sample.geojson"
 OSM_BASE = "2026-10-07T22:19:21Z"
 RETRIEVED = datetime(2026, 10, 8, 6, 0, tzinfo=UTC)
@@ -348,7 +350,7 @@ def test_campus_record(built: BuildResult) -> None:
     assert c.match_values == AWS_REFS
     assert r.id == PLACEHOLDER_ID
     assert r.record_type == "campus" and r.scope == "in_scope"
-    assert r.canonical_name == "Amazon Web Services (Ashburn, VA)"
+    assert r.canonical_name == "Amazon Web Services (Loudoun County, VA)"
     assert [a.name for a in r.aliases] == [
         "Amazon Web Services Datacenter Complex",
         "Amazon IAD-78",
@@ -369,11 +371,9 @@ def test_campus_record(built: BuildResult) -> None:
     assert loc.precision == "footprint" and loc.geocode_method == "osm"
     assert loc.geometry_ref == "osm:way/460053030"
     assert (loc.county_fips, loc.county_name, loc.state_abbr) == ("51107", "Loudoun", "VA")
-    assert (loc.street, loc.city, loc.postcode) == (
-        "44862 Interconnection Plaza",
-        "Ashburn",
-        "20147",
-    )
+    # The campus polygon has no address and its buildings have four: no street rather than one
+    # building's address under the campus name (seed check n6). City and postcode agree.
+    assert (loc.street, loc.city, loc.postcode) == (None, "Ashburn", "20147")
 
     assert r.capacity.it_mw == 245.0  # 45 + 47 + 28 + 59 + 28 + 38
     assert r.capacity.facility_mw == 260.0  # 45 + 45 + 32.5 + 65 + 32.5 + 40
@@ -383,35 +383,37 @@ def test_campus_record(built: BuildResult) -> None:
         "OSM input:electricity: Amazon IAD-78 45 MW; Amazon IAD-79 45 MW; "
         "Amazon IAD-71 32.5 MW; Amazon IAD-50 65 MW; Amazon IAD-60 32.5 MW; Amazon IAD-80 40 MW"
     )
+    # PNNL's sqft is the footprint's area, not a floor area: matched, but not published.
     assert [(b.ref, b.name, b.sqft) for b in r.buildings] == [
-        ("osm:way/463571875", "Amazon IAD-78", 147979.0),
-        ("osm:way/463571876", "Amazon IAD-79", 148678.0),
-        ("osm:way/556599693", "Amazon IAD-71", 121176.0),
+        ("osm:way/463571875", "Amazon IAD-78", None),
+        ("osm:way/463571876", "Amazon IAD-79", None),
+        ("osm:way/556599693", "Amazon IAD-71", None),
         ("osm:way/556599694", "Amazon IAD-50", None),
         ("osm:way/556599695", "Amazon IAD-60", None),
-        ("osm:way/596690174", "Amazon IAD-80", 150443.0),
+        ("osm:way/596690174", "Amazon IAD-80", None),
     ]
-    assert r.site.building_sqft == 568276.0 and r.site.acreage is None
+    assert r.site.building_sqft is None and r.site.acreage is None
 
-    # The campus has no start_date and the earliest building's is 2015 (IAD-50): energized 2015.
+    # The campus has no start_date and the earliest building's is 2015 (IAD-50). A start_date is
+    # OSM's date for the feature, not the start of operation: it dates nothing, and a reviewer
+    # gets it as an unverified_upstream item.
     (event,) = r.status_history
-    assert (event.seq, event.status, event.event, event.planned) == (
-        1,
-        "operating",
-        "energized",
-        False,
-    )
-    assert (event.as_of.value, event.as_of.precision) == ("2015", "year")
+    assert (event.seq, event.status, event.event, event.planned) == (1, "operating", "other", False)
+    assert (event.as_of.value, event.as_of.precision) == ("2026-10-07", "day")
     assert event.source_ids == ["s1"]
-    assert (
-        event.note
-        == "start_date=2015 on way/556599694; tagged telecom=data_center in OpenStreetMap"
+    assert event.note == (
+        "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot "
+        "date, not the date it began; start_date=2015 on way/556599694 is not read as the start "
+        "of operation"
     )
     assert r.status == "operating" and r.evidence_level == "reported" and r.purpose == "unknown"
-    assert {k: v.value for k, v in r.dates.items()} == {
-        "first_reported": "2015",
-        "operating_since": "2015",
-    }
+    assert r.dates == {}
+    (item,) = [
+        i
+        for i in built.review
+        if i.kind == "unverified_upstream" and i.external_id == "way/460053030"
+    ]
+    assert item.data["start_date"] == "2015" and item.data["osm"] == "way/556599694"
 
     assert r.external_ids == {
         "osm": list(c.match_values),
@@ -440,7 +442,7 @@ def test_campus_record(built: BuildResult) -> None:
         "IM3 Open Source Data Center Atlas, web map file im3_datacenter_centroids.geojson"
     )
     assert s2.publisher == "Pacific Northwest National Laboratory (IM3)"
-    assert s2.supports == ["/site", "/buildings"]
+    assert s2.supports == ["/site"]
 
     meta = {k: (v.confidence, v.method, v.source_ids) for k, v in r.field_meta.items()}
     assert meta == {
@@ -453,34 +455,49 @@ def test_campus_record(built: BuildResult) -> None:
     assert r.created_at == r.updated_at == r.last_verified_at == NOW
 
 
-def test_first_reported_at_snapshot_date(built: BuildResult) -> None:
+def test_the_snapshot_dates_nothing(built: BuildResult) -> None:
+    """Seed check 2026-10-08 (n0, n7, n47, n51, n59, n65, n74, n77): 1,027 operating OSM records
+    published the snapshot date as operating_since. OSM says what a feature is on the day it was
+    read, not when its status began, so the event is `other`: it sets the status and dates
+    neither operating_since nor first_reported (rollup.derive_dates)."""
     r = candidate(built, "way/300162689").record  # Lumen Ashburn: no start_date
     (event,) = r.status_history
-    assert (event.event, event.as_of.value, event.as_of.precision) == (
-        "first_reported",
+    assert (event.event, event.status, event.as_of.value, event.as_of.precision) == (
+        "other",
+        "operating",
         "2026-10-07",
         "day",
     )
-    assert event.note == "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7"
+    assert event.note == (
+        "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot "
+        "date, not the date it began"
+    )
+    assert r.status == "operating" and r.dates == {}
+    for c in built.candidates:
+        assert "operating_since" not in c.record.dates, c.match_values
+        assert "first_reported" not in c.record.dates, c.match_values
 
 
 def test_names(built: BuildResult) -> None:
     names = {c.match_values[0]: c.record.canonical_name for c in built.candidates}
-    assert names["way/300162689"] == "Lumen Ashburn (Ashburn, VA)"  # operator Lumen Technologies
-    assert names["way/1188715508"] == "PowerHouse CyrusOne NVA14 (Ashburn, VA)"
+    # The place is the county: addr:city is a postal city, which need not contain the point.
+    assert names["way/300162689"] == "Lumen Ashburn (Loudoun County, VA)"  # Lumen Technologies
+    assert names["way/1188715508"] == "PowerHouse CyrusOne NVA14 (Loudoun County, VA)"
     assert names["node/11721960464"] == "QTS Data Center - Hillsboro 3 (Washington County, OR)"
-    assert names["node/13154826379"] == "NTT VA11 (Gainesville, VA)"
+    assert names["node/13154826379"] == "NTT VA11 (Prince William County, VA)"
     equinix = candidate(built, "node/14156477686").record
-    assert equinix.canonical_name == "Equinix DC10 (Ashburn, VA)"
+    assert equinix.canonical_name == "Equinix DC10 (Loudoun County, VA)"
     assert "Equinix Ashburn DC18" in [a.name for a in equinix.aliases]
     assert equinix.location.precision == "footprint"
 
 
 def test_status_mapping(built: BuildResult) -> None:
+    # OSM proposed:* is not a filing (07 §2.3), so it reads as announced (seed check n80).
     qts = candidate(built, "node/11721960464").record
-    assert qts.status == "proposed" and qts.location.precision == "site"
+    assert qts.status == "announced" and qts.location.precision == "site"
     assert qts.status_history[0].note == (
-        "Tagged proposed:telecom=data_center in OpenStreetMap; status per 07 §4.7"
+        "Tagged proposed:telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the "
+        "snapshot date, not the date it began"
     )
     ntt = candidate(built, "node/13154826379").record
     assert ntt.status == "under_construction"
@@ -492,7 +509,7 @@ def test_status_mapping(built: BuildResult) -> None:
 
 def test_mixed_statuses_become_phases(built: BuildResult) -> None:
     r = candidate(built, "way/1560827027").record  # Cologix ASH1 (operating) + ASH2 (construction)
-    assert r.canonical_name == "Cologix ASH1 (Ashburn, VA)"
+    assert r.canonical_name == "Cologix ASH1 (Loudoun County, VA)"
     assert [(p.phase_id, p.name, p.source_ids) for p in r.phases] == [
         ("osm-operating", "Operating in OpenStreetMap: Cologix ASH1", ["s1"]),
         ("osm-under_construction", "Under construction in OpenStreetMap: Cologix ASH2", ["s1"]),
@@ -502,7 +519,8 @@ def test_mixed_statuses_become_phases(built: BuildResult) -> None:
         (2, "under_construction", "osm-under_construction"),
     ]
     assert r.status_history[1].note == (
-        "Tagged construction=data_center in OpenStreetMap; status per 07 §4.7"
+        "Tagged construction=data_center in OpenStreetMap; status per 07 §4.7, seen on the "
+        "snapshot date, not the date it began"
     )
     assert [(b.ref, b.phase_id) for b in r.buildings] == [
         ("osm:way/1188715510", "osm-operating"),
@@ -520,7 +538,7 @@ def test_out_of_scope(built: BuildResult) -> None:
     c = candidate(built, "node/10014176940")
     r = c.record
     assert r.scope == "out_of_scope"
-    assert r.canonical_name == "Microsoft (Guaynabo, PR)"
+    assert r.canonical_name == "Microsoft (Guaynabo Municipio, PR)"
     assert (r.location.state_abbr, r.location.county_fips) == ("PR", "72061")
     assert "787" not in json.dumps(record_json(r))  # the phone tag is never copied
     (item,) = [i for i in built.review if i.kind == "out_of_scope"]
@@ -578,15 +596,20 @@ def test_metrics(built: BuildResult) -> None:
     assert built.metrics == {
         "objects": 30,
         "clusters": 12,
+        "held": 0,
         "out_of_scope": 1,
         "unit_parse": 0,
         "pnnl_rows": 17,
         "pnnl_matched": 16,
         "pnnl_matched_by_id": 0,
+        "pnnl_matched_by_name": 0,
+        "pnnl_on_held": 0,
         "pnnl_match_rate": 0.9412,
     }
     assert sorted((i.source, i.kind) for i in built.review) == [
         ("osm", "out_of_scope"),
+        ("osm", "unverified_upstream"),  # start_date on the AWS campus
+        ("osm", "unverified_upstream"),  # start_date=2017 on Equinix DC12
         ("pnnl", "unmatched"),
     ]
 
@@ -644,19 +667,22 @@ def test_campus_level_power_covers_the_site(counties: CountyIndex) -> None:
     assert cand.record.capacity.it_mw == 70.0  # no campus value: every building has one
 
 
-def test_county_fallback_moves_the_point(counties: CountyIndex) -> None:
-    class MeanPointOffshore:
-        """No county contains the cluster's mean point; the representative's lookup is real."""
+def test_county_is_the_representatives(counties: CountyIndex) -> None:
+    """Seed check n10: the record's county came from the mean of the member centers, which can lie
+    in another county. It is now the representative's, and the record sits at the representative
+    when the mean point is elsewhere."""
 
-        def __init__(self) -> None:
-            self.asked: list[tuple[float, float]] = []
+    class OnlyTheRepresentative:
+        """No county contains any point but the representative's."""
+
+        def __init__(self, rep: tuple[float, float]) -> None:
+            self.rep = rep
 
         def lookup_many(self, points: Sequence[tuple[float, float]]) -> list[County | None]:
-            return [None] * len(points)
+            return [counties.lookup(*p) if p == self.rep else None for p in points]
 
         def lookup(self, lat: float, lon: float) -> County | None:
-            self.asked.append((lat, lon))
-            return counties.lookup(lat, lon)
+            raise AssertionError("lookup_many answers every point")
 
     lat, lon = near(0, 0)
     big = OsmObject(
@@ -668,7 +694,7 @@ def test_county_fallback_moves_the_point(counties: CountyIndex) -> None:
         "building",
     )
     small = building("way/2", 0, 150, operator="Example")
-    stub = MeanPointOffshore()
+    stub = OnlyTheRepresentative((round(big.lat, 7), round(big.lon, 7)))
     result = build_candidates(
         dissolve([big, small]),
         counties=cast(CountyIndex, stub),
@@ -677,7 +703,6 @@ def test_county_fallback_moves_the_point(counties: CountyIndex) -> None:
     )
     (cand,) = result.candidates
     loc = cand.record.location
-    assert stub.asked == [(big.lat, big.lon)]
     # The record sits at the representative, the point the county was found for, not at the
     # mean point that no county contains.
     assert (loc.lat, loc.lon) == (round(big.lat, 7), round(big.lon, 7))
@@ -692,15 +717,23 @@ def test_power_units(counties: CountyIndex) -> None:
 
 
 def test_start_date_rules(counties: CountyIndex) -> None:
+    """Seed check n1, n60, n75: a start_date was read as the date the site was energized (Apple
+    Mesa's 2012 is the former factory's; QTS NAL1's 2024-04-01 is the start of construction). It
+    now dates nothing, stays in the note, and becomes an unverified_upstream item."""
     old = building("way/1", 0, 0, name="Old", start_date="1938")
     month = building("way/2", 0, 2000, name="Month", start_date="2019-05")
     future = building("way/3", 0, 4000, name="Future", start_date="2027")
     built_ = build(counties, [old, month, future], with_pnnl=False)
-    events = {c.match_values[0]: c.record.status_history[0] for c in built_.candidates}
-    assert (events["way/1"].event, events["way/1"].as_of.value) == ("first_reported", "2026-10-07")
-    assert (events["way/2"].event, events["way/2"].as_of.value) == ("energized", "2019-05")
-    assert events["way/2"].as_of.precision == "month"
-    assert (events["way/3"].event, events["way/3"].as_of.value) == ("first_reported", "2026-10-07")
+    records = {c.match_values[0]: c.record for c in built_.candidates}
+    for r in records.values():
+        (event,) = r.status_history
+        assert (event.event, event.as_of.value) == ("other", "2026-10-07")
+        assert r.dates == {}
+    assert "start_date=2019-05 on way/2 is not read" in str(records["way/2"].status_history[0].note)
+    assert "start_date" not in str(records["way/1"].status_history[0].note)  # before 1990
+    (item,) = [i for i in built_.review if i.kind == "unverified_upstream"]
+    assert (item.source, item.external_id, item.data["start_date"]) == ("osm", "way/2", "2019-05")
+    assert "not the start of operation" in item.reason
 
 
 def test_opening_date_is_planned(counties: CountyIndex) -> None:
@@ -716,7 +749,7 @@ def test_opening_date_is_planned(counties: CountyIndex) -> None:
     (cand,) = build(counties, [site], with_pnnl=False).candidates
     r = cand.record
     assert [(e.seq, e.status, e.event, e.planned, e.as_of.value) for e in r.status_history] == [
-        (1, "under_construction", "first_reported", False, "2026-10-07"),
+        (1, "under_construction", "other", False, "2026-10-07"),
         (2, "operating", "energized", True, "2028"),
     ]
     assert r.status == "under_construction"
@@ -724,9 +757,26 @@ def test_opening_date_is_planned(counties: CountyIndex) -> None:
     assert validate_record(r, counties=counties, today=TODAY) == []
 
 
+def test_an_opening_date_that_has_passed_is_not_planned(counties: CountyIndex) -> None:
+    """Seed check n50: opening_date=2025 on a site OSM still tags under construction on the
+    2026-10-08 snapshot became a planned energized event in the past. The date is dropped and
+    becomes a conflict item; an opening_date within the snapshot's own year is still ahead."""
+    objects, _ = parse_overpass(json.loads(SEED_CHECK.read_text(encoding="utf-8")))
+    tuscaloosa = [o for o in objects if o.ref == "way/1374729776"]
+    assert tuscaloosa[0].tags["opening_date"] == "2025"
+    result = build(counties, tuscaloosa, with_pnnl=False, osm_base=SEED_CHECK_BASE)
+    (cand,) = result.candidates
+    assert [(e.event, e.planned) for e in cand.record.status_history] == [("other", False)]
+    (item,) = [i for i in result.review if i.kind == "conflict"]
+    assert item.external_id == "way/1374729776" and item.data["opening_date"] == "2025"
+    this_year = building("way/2", 0, 0, building="construction", opening_date="2026")
+    (cand,) = build(counties, [this_year], with_pnnl=False, osm_base=SEED_CHECK_BASE).candidates
+    assert [(e.event, e.planned) for e in cand.record.status_history][-1] == ("energized", True)
+
+
 def test_unnamed_cluster_names(counties: CountyIndex) -> None:
-    # Without a city the name gives the county's full Census name, so that "Taylor County, TX"
-    # (Abilene) is not read as the city of Taylor, TX, 300 km away.
+    # The name gives the county's full Census name, so that "Taylor County, TX" (Abilene) is not
+    # read as the city of Taylor, TX, 300 km away; addr:city is a postal city and is not used.
     bare = building("way/1", 0, 0)
     op = building("way/2", 0, 3000, operator="Example Cloud")
     city = building("way/3", 0, 0, at=(38.7509, -77.4753))  # Manassas, an independent city
@@ -744,7 +794,7 @@ def test_unnamed_cluster_names(counties: CountyIndex) -> None:
         "way/3": "Data center (Manassas city, VA)",
         "way/4": "Data center (Orleans Parish, LA)",
         "way/5": "Data center (Taylor County, TX)",
-        "way/6": "Data center (Abilene, TX)",
+        "way/6": "Data center (Taylor County, TX)",  # addr:city is a postal city (n57)
     }
 
 
@@ -767,7 +817,7 @@ def test_first_reported_kept_when_a_status_group_comes_and_goes(counties: County
     objects, _ = parse_overpass(fixture_doc())
     without_ash2 = [o for o in objects if o.ref != "way/1560827027"]
     week1 = build(counties, without_ash2, with_pnnl=False)
-    assert history(week1) == [("operating", "first_reported", "2026-10-07", None)]
+    assert history(week1) == [("operating", "other", "2026-10-07", None)]
     rid = "gwa-01m4c7rym8gsp21hkfp8nhzxz1"
 
     def stored(result: BuildResult) -> dict[str, FacilityRecord]:
@@ -779,14 +829,11 @@ def test_first_reported_kept_when_a_status_group_comes_and_goes(counties: County
         counties, objects, with_pnnl=False, existing=stored(week1), osm_base="2026-10-14T21:00:00Z"
     )
     assert history(week2) == [
-        ("operating", "first_reported", "2026-10-07", "osm-operating"),
-        ("under_construction", "first_reported", "2026-10-14", "osm-under_construction"),
+        ("operating", "other", "2026-10-07", "osm-operating"),
+        ("under_construction", "other", "2026-10-14", "osm-under_construction"),
     ]
     r = candidate(week2, "way/1188715510").record
-    assert {k: v.value for k, v in r.dates.items()} == {
-        "first_reported": "2026-10-07",
-        "operating_since": "2026-10-07",
-    }
+    assert r.dates == {}  # an observation dates nothing
     # Another week later ASH2 is gone again: both dates stay.
     week3 = build(
         counties,
@@ -795,10 +842,10 @@ def test_first_reported_kept_when_a_status_group_comes_and_goes(counties: County
         existing=stored(week2),
         osm_base="2026-10-21T21:00:00Z",
     )
-    assert history(week3) == [("operating", "first_reported", "2026-10-07", None)]
+    assert history(week3) == [("operating", "other", "2026-10-07", None)]
     # A stored date later than the snapshot (a re-run on an older snapshot) never wins.
     rerun = build(counties, without_ash2, with_pnnl=False, existing=stored(week3))
-    assert history(rerun) == [("operating", "first_reported", "2026-10-07", None)]
+    assert history(rerun) == [("operating", "other", "2026-10-07", None)]
     late = build(
         counties,
         without_ash2,
@@ -806,7 +853,15 @@ def test_first_reported_kept_when_a_status_group_comes_and_goes(counties: County
         existing=stored(week3),
         osm_base="2026-10-01T00:00Z",
     )
-    assert history(late) == [("operating", "first_reported", "2026-10-01", None)]
+    assert history(late) == [("operating", "other", "2026-10-01", None)]
+    # A record an earlier version wrote, with a first_reported event, keeps that event's date.
+    old = stored(week3)[rid]
+    first = old.status_history[0].model_copy(
+        update={"event": "first_reported", "as_of": FuzzyDate(value="2026-09-30", precision="day")}
+    )
+    legacy = {rid: old.model_copy(update={"status_history": [first]})}
+    again = build(counties, without_ash2, with_pnnl=False, existing=legacy)
+    assert history(again) == [("operating", "other", "2026-09-30", None)]
 
 
 # ---------------------------------------------------------------------------- importer and CLI

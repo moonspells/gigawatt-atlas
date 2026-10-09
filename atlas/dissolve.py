@@ -1,11 +1,14 @@
 """Dissolve OpenStreetMap data center objects into campuses (07 §4.2 step 2).
 
-The Overpass query returns campuses (landuse-style polygons tagged telecom=data_center without a
-building tag), buildings and points. One campus record should stand for each site, so objects are
+The Overpass query returns campuses (landuse-style polygons tagged as a data center without a
+building tag), sites (polygons tagged industrial=data_centre and nothing else that marks a data
+center), buildings and points. One campus record should stand for each site, so objects are
 joined with union-find:
 
 1. Containment: an object whose center lies inside a campus object's bounding box, expanded by
-   30 m, joins that campus; inside several, it joins the smallest one. A campus and an object
+   30 m, joins that campus; inside several, it joins the smallest one. Any object (a campus too)
+   whose center lies inside a site polygon (its outline when the query returned one, else its
+   bounding box expanded by 30 m) joins the smallest such site. A campus or site and an object
    whose operators disagree do not join this way (operators_compatible), because a bounding box
    is only an approximation of the campus polygon and in dense areas such as Ashburn it covers
    other operators' buildings.
@@ -16,28 +19,82 @@ joined with union-find:
    join when their bounding boxes are within NEIGHBOR_GAP_M and they have the same
    normalize_name(name) or neither has a name, or when they have the same addr:housenumber and
    addr:street and their boxes are within radius_m.
+4. Same name: two objects of any kind with the same specific normalize_name(name) (one that says
+   more than an operator and words such as "data center" or "building", see specific_name) join
+   when their boxes are within NAME_GAP_M and the operators of their two clusters are compatible,
+   so an operator-less node joins the polygons of the same name but never bridges two operators.
+5. Same address: an unnamed object without operator information joins a non-campus object with
+   an operator at the same addr:housenumber and addr:street within NEIGHBOR_GAP_M, unless objects
+   with that address name operators that disagree (a carrier hotel). A named one may be another
+   tenant, so it does not join this way.
+6. A point inside a building: a node inside a building's bounding box joins it when the two and
+   every other node in that box have compatible operators.
 
-Distances are gaps between bounding boxes, not between centers, so two large buildings that touch
-join although their centers are far apart. Two campus objects never join each other directly. The
-result does not depend on input order.
+When regions is given (ref -> county FIPS), no rule joins two objects in different regions, so a
+cluster never crosses a county or state line. Distances are gaps between bounding boxes, not
+between centers, so two large buildings that touch join although their centers are far apart.
+Two campus objects join each other directly only by name (rule 4) or inside one site. The result
+does not depend on input order.
 """
 
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from itertools import pairwise
 from typing import Literal
 
 from atlas.text import normalize_name, normalize_org
 
-ObjectKind = Literal["campus", "building", "point"]
+ObjectKind = Literal["campus", "site", "building", "point"]
+AREA_KINDS: tuple[ObjectKind, ...] = ("campus", "site")  # objects that stand for a whole site
 
 EARTH_RADIUS_M = 6_371_008.8
 METERS_PER_DEGREE_LAT = math.pi * EARTH_RADIUS_M / 180  # about 111,195 m, the same sphere
 CONTAIN_MARGIN_M = 30.0
 DEFAULT_RADIUS_M = 300.0
 NEIGHBOR_GAP_M = 50.0  # rule 3; 100 m chained unnamed buildings across 1.5 km on 2026-10-07
+# Rule 4. The same specific name 380 m apart was one campus on 2026-10-08 (Meta Henrico, Meta
+# Sarpy, Compugen New Albany); two TulsaConnect nodes 558 m apart were not.
+NAME_GAP_M = 500.0
+# Words that say nothing about which site a name means (rule 4, specific_name).
+GENERIC_NAME_WORDS = frozenset(
+    {
+        "a",
+        "and",
+        "at",
+        "bldg",
+        "building",
+        "buildings",
+        "campus",
+        "center",
+        "centers",
+        "centre",
+        "centres",
+        "co",
+        "company",
+        "corp",
+        "data",
+        "datacenter",
+        "datacenters",
+        "datacentre",
+        "datacentres",
+        "dc",
+        "east",
+        "facility",
+        "hall",
+        "inc",
+        "llc",
+        "north",
+        "of",
+        "phase",
+        "site",
+        "south",
+        "the",
+        "west",
+    }
+)
 _TYPE_ORDER = {"node": 0, "way": 1, "relation": 2}
 
 
@@ -104,9 +161,27 @@ class Bounds:
         )
 
 
+Polyline = tuple[tuple[float, float], ...]  # (lat, lon) vertices
+
+
+def point_in_outline(lat: float, lon: float, outline: Sequence[Polyline]) -> bool:
+    """Even-odd test against every segment of the outline's polylines. A way's outline is one
+    closed ring; a multipolygon's is its member ways, whose segments close the rings together, so
+    the rings need not be assembled and inner rings are holes."""
+    inside = False
+    for line in outline:
+        for (lat1, lon1), (lat2, lon2) in pairwise(line):
+            if (lat1 > lat) != (lat2 > lat):
+                cross = lon1 + (lat - lat1) * (lon2 - lon1) / (lat2 - lat1)
+                if lon < cross:
+                    inside = not inside
+    return inside
+
+
 @dataclass(frozen=True)
 class OsmObject:
-    """One Overpass element. lat/lon is the node position or the bounding-box midpoint."""
+    """One Overpass element. lat/lon is the node position or the bounding-box midpoint. outline is
+    the polygon (Overpass `out geom`) when the query returned it, which it does for sites only."""
 
     ref: str  # "node/1" | "way/1" | "relation/1"
     lat: float
@@ -114,6 +189,7 @@ class OsmObject:
     bounds: Bounds | None
     tags: Mapping[str, str] = field(hash=False)
     kind: ObjectKind
+    outline: tuple[Polyline, ...] | None = field(default=None, hash=False, repr=False)
 
     @property
     def osm_type(self) -> str:
@@ -166,6 +242,14 @@ class OsmObject:
         """The distance in metres between the two objects' extents, 0 when they overlap."""
         return self.extent.gap_m(other.extent)
 
+    def covers(self, lat: float, lon: float, *, margin_m: float = CONTAIN_MARGIN_M) -> bool:
+        """True when the point lies inside the outline, or, without one, inside the bounding box
+        expanded by margin_m. A node covers nothing."""
+        if self.outline:
+            inside_box = self.bounds is None or self.bounds.contains(lat, lon)
+            return inside_box and point_in_outline(lat, lon, self.outline)
+        return self.bounds is not None and self.bounds.expanded(margin_m).contains(lat, lon)
+
 
 @dataclass(frozen=True)
 class Cluster:
@@ -180,7 +264,8 @@ class Cluster:
 
     @property
     def campuses(self) -> tuple[OsmObject, ...]:
-        return tuple(m for m in self.members if m.kind == "campus")
+        """The campus and site members."""
+        return tuple(m for m in self.members if m.kind in AREA_KINDS)
 
 
 def _word_prefix(a: str, b: str) -> bool:
@@ -207,6 +292,10 @@ def operators_compatible(obj: OsmObject, campus: OsmObject) -> bool:
     return True
 
 
+def _all_compatible(objects: Sequence[OsmObject]) -> bool:
+    return all(operators_compatible(a, b) for i, a in enumerate(objects) for b in objects[i + 1 :])
+
+
 class _UnionFind:
     def __init__(self, n: int) -> None:
         self.parent = list(range(n))
@@ -226,13 +315,12 @@ class _UnionFind:
 def containing_campus(
     obj: OsmObject, campuses: Sequence[OsmObject], *, margin_m: float = CONTAIN_MARGIN_M
 ) -> OsmObject | None:
-    """The smallest compatible campus whose expanded bounding box holds obj's center (rule 1)."""
+    """The smallest compatible campus (or site) that covers obj's center (rule 1)."""
     hits = [
         c
         for c in campuses
         if c.ref != obj.ref
-        and c.bounds is not None
-        and c.bounds.expanded(margin_m).contains(obj.lat, obj.lon)
+        and c.covers(obj.lat, obj.lon, margin_m=margin_m)
         and operators_compatible(obj, c)
     ]
     if not hits:
@@ -240,10 +328,58 @@ def containing_campus(
     return min(hits, key=lambda c: (c.area_m2(), ref_key(c.ref)))
 
 
+def operator_conflicts(objects: Sequence[OsmObject]) -> list[tuple[OsmObject, OsmObject]]:
+    """(inner, outer) pairs that rule 1 or 6 would join but for operators that disagree: an object
+    whose center a campus or site covers, or a node inside a building's bounding box. Sorted by
+    the refs."""
+    areas = [o for o in objects if o.kind in AREA_KINDS]
+    buildings = [o for o in objects if o.kind == "building" and o.bounds is not None]
+    found: list[tuple[OsmObject, OsmObject]] = []
+    for obj in objects:
+        if obj.kind == "site":
+            continue  # rule 1 joins nothing into a site but campuses, buildings and points
+        outers = [
+            a
+            for a in areas
+            if a.ref != obj.ref
+            and (obj.kind != "campus" or a.kind == "site")
+            and a.covers(obj.lat, obj.lon)
+        ]
+        if obj.kind == "point":
+            outers += [b for b in buildings if b.extent.contains(obj.lat, obj.lon)]
+        found += [(obj, o) for o in outers if not operators_compatible(obj, o)]
+    return sorted(found, key=lambda pair: (ref_key(pair[0].ref), ref_key(pair[1].ref)))
+
+
+def operator_words(objects: Iterable[OsmObject]) -> frozenset[str]:
+    """Every word of every operator and operator:short in objects (normalized), for
+    specific_name."""
+    words: set[str] = set()
+    for o in objects:
+        for value in (o.operator, o.tags.get("operator:short")):
+            if value:
+                words.update(normalize_name(value).split())
+                words.update(normalize_org(value).split())
+    return frozenset(words)
+
+
+def specific_name(name: str | None, operators: frozenset[str]) -> str | None:
+    """normalize_name(name) when it says which site it means: some word is not a word of an
+    operator, not in GENERIC_NAME_WORDS, not a number and longer than one letter. "Meta Sarpy
+    Data Center" is specific; "Google", "Amazon Web Services" and "Building 2" are not."""
+    key = normalize_name(name) if name else ""
+    words = [
+        w
+        for w in key.split()
+        if w not in operators and w not in GENERIC_NAME_WORDS and not w.isdigit() and len(w) > 1
+    ]
+    return key if words else None
+
+
 def choose_representative(members: Sequence[OsmObject]) -> OsmObject:
-    """The campus object (the largest if several), else the largest way or relation by bounding
-    box, else the node with the lowest id."""
-    campuses = [m for m in members if m.kind == "campus"]
+    """The campus or site object (the largest if several), else the largest way or relation by
+    bounding box, else the node with the lowest id."""
+    campuses = [m for m in members if m.kind in AREA_KINDS]
     if campuses:
         return min(campuses, key=lambda m: (-m.area_m2(), ref_key(m.ref)))
     shapes = [m for m in members if m.osm_type in ("way", "relation")]
@@ -252,13 +388,17 @@ def choose_representative(members: Sequence[OsmObject]) -> OsmObject:
     return min(members, key=lambda m: ref_key(m.ref))
 
 
+Join = Callable[[OsmObject, OsmObject], None]
+
+
 def _join_close(
-    uf: _UnionFind,
-    index: Mapping[str, int],
+    join: Join,
     groups: Iterable[Sequence[OsmObject]],
     limit_m: float,
+    accept: Callable[[OsmObject, OsmObject], bool] | None = None,
 ) -> None:
-    """Union every two objects of a group whose extents are within limit_m of each other.
+    """Join every two objects of a group whose extents are within limit_m of each other (and that
+    accept allows).
 
     Each group is swept in order of the extents' southern edge, so only pairs that overlap in
     latitude (within limit_m) are measured.
@@ -271,13 +411,19 @@ def _join_close(
             for b in swept[i + 1 :]:
                 if b.extent.minlat > north:
                     break
-                if a.gap_m(b) <= limit_m:
-                    uf.union(index[a.ref], index[b.ref])
+                if a.gap_m(b) <= limit_m and (accept is None or accept(a, b)):
+                    join(a, b)
 
 
-def dissolve(objects: Sequence[OsmObject], *, radius_m: float = DEFAULT_RADIUS_M) -> list[Cluster]:
-    """Group objects into clusters (see the module docstring). Clusters are sorted by their
-    representative's ref_key, and each cluster's members by ref_key."""
+def dissolve(
+    objects: Sequence[OsmObject],
+    *,
+    radius_m: float = DEFAULT_RADIUS_M,
+    regions: Mapping[str, str | None] | None = None,
+) -> list[Cluster]:
+    """Group objects into clusters (see the module docstring). regions (ref -> county FIPS) keeps
+    every cluster inside one region. Clusters are sorted by their representative's ref_key, and
+    each cluster's members by ref_key."""
     if radius_m <= 0:
         raise ValueError(f"radius_m must be positive, not {radius_m}")
     by_ref: dict[str, OsmObject] = {}
@@ -289,14 +435,24 @@ def dissolve(objects: Sequence[OsmObject], *, radius_m: float = DEFAULT_RADIUS_M
     index = {o.ref: i for i, o in enumerate(ordered)}
     uf = _UnionFind(len(ordered))
 
-    campuses = [o for o in ordered if o.kind == "campus"]
-    others = [o for o in ordered if o.kind != "campus"]
+    def join(a: OsmObject, b: OsmObject) -> None:
+        # Every set is one region, so comparing the two objects keeps it so.
+        if regions is None or regions.get(a.ref) == regions.get(b.ref):
+            uf.union(index[a.ref], index[b.ref])
 
-    # Rule 1: containment in a campus bounding box.
+    campuses = [o for o in ordered if o.kind == "campus"]
+    sites = [o for o in ordered if o.kind == "site"]
+    others = [o for o in ordered if o.kind not in AREA_KINDS]
+
+    # Rule 1: containment in a campus bounding box, and of anything but a site in a site.
     for obj in others:
         campus = containing_campus(obj, campuses)
         if campus is not None:
-            uf.union(index[obj.ref], index[campus.ref])
+            join(obj, campus)
+    for obj in others + campuses:
+        site = containing_campus(obj, sites)
+        if site is not None:
+            join(obj, site)
 
     # Rule 2: same operator (name or Wikidata id), extents within radius_m.
     by_operator: dict[str, list[OsmObject]] = {}
@@ -305,7 +461,7 @@ def dissolve(objects: Sequence[OsmObject], *, radius_m: float = DEFAULT_RADIUS_M
             by_operator.setdefault("name:" + obj.operator_key, []).append(obj)
         if obj.operator_qid is not None:
             by_operator.setdefault("qid:" + obj.operator_qid, []).append(obj)
-    _join_close(uf, index, by_operator.values(), radius_m)
+    _join_close(join, by_operator.values(), radius_m)
 
     # Rule 3: objects without operator information, by name (or both unnamed) within
     # NEIGHBOR_GAP_M, or by street address within radius_m.
@@ -317,8 +473,64 @@ def dissolve(objects: Sequence[OsmObject], *, radius_m: float = DEFAULT_RADIUS_M
         by_name.setdefault(normalize_name(obj.name) if obj.name else "", []).append(obj)
         if obj.address_key is not None:
             by_address.setdefault(obj.address_key, []).append(obj)
-    _join_close(uf, index, by_name.values(), NEIGHBOR_GAP_M)
-    _join_close(uf, index, by_address.values(), radius_m)
+    _join_close(join, by_name.values(), NEIGHBOR_GAP_M)
+    _join_close(join, by_address.values(), radius_m)
+
+    # Rule 4: the same specific name, compatible operators, extents within NAME_GAP_M. The
+    # operators of both clusters must agree, so an object without an operator never bridges two
+    # operators' clusters.
+    words = operator_words(ordered)
+    by_specific: dict[str, list[OsmObject]] = {}
+    for obj in ordered:
+        key = specific_name(obj.name, words)
+        if key is not None:
+            by_specific.setdefault(key, []).append(obj)
+    with_operator: dict[int, list[OsmObject]] = {}
+    for obj in ordered:
+        if obj.has_operator:
+            with_operator.setdefault(uf.find(index[obj.ref]), []).append(obj)
+
+    def agree(a: OsmObject, b: OsmObject) -> bool:
+        ra, rb = uf.find(index[a.ref]), uf.find(index[b.ref])
+        return ra == rb or all(
+            operators_compatible(x, y)
+            for x in with_operator.get(ra, [])
+            for y in with_operator.get(rb, [])
+        )
+
+    def join_named(a: OsmObject, b: OsmObject) -> None:
+        ra, rb = uf.find(index[a.ref]), uf.find(index[b.ref])
+        join(a, b)
+        root = uf.find(index[a.ref])
+        if ra != rb and root == uf.find(index[b.ref]):
+            with_operator[root] = with_operator.pop(ra, []) + with_operator.pop(rb, [])
+
+    _join_close(join_named, by_specific.values(), NAME_GAP_M, agree)
+
+    # Rule 5: an unnamed object without an operator and one with an operator at the same address.
+    at_address: dict[tuple[str, str], list[OsmObject]] = {}
+    for obj in others:
+        if obj.address_key is not None:
+            at_address.setdefault(obj.address_key, []).append(obj)
+    for same in at_address.values():
+        named = [o for o in same if o.has_operator]
+        if not named or not _all_compatible(named):
+            continue
+        for obj in same:
+            if not obj.has_operator and not obj.name:
+                for other in named:
+                    if obj.gap_m(other) <= NEIGHBOR_GAP_M:
+                        join(obj, other)
+
+    # Rule 6: a node inside a building's bounding box.
+    points = [o for o in others if o.kind == "point"]
+    for building in others:
+        if building.kind != "building" or building.bounds is None:
+            continue
+        inside = [p for p in points if building.bounds.contains(p.lat, p.lon)]
+        if inside and _all_compatible([building, *inside]):
+            for p in inside:
+                join(p, building)
 
     grouped: dict[int, list[OsmObject]] = {}
     for obj in ordered:

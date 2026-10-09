@@ -1,0 +1,120 @@
+{
+  "type": "FeatureCollection",
+  "name": "im3_datacenter_centroids",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "NV",
+        "county": "Clark County",
+        "operator": "Fiberhub",
+        "name": "Fiberhub LAS1",
+        "sqft": null,
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -115.1398835,
+          36.065940500000025
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "NJ",
+        "county": "Middlesex County",
+        "operator": null,
+        "name": "Verizon Wireline Network Building",
+        "sqft": 32247.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.44309493400539,
+          40.49490313194832
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Prince William County",
+        "operator": "Quality Technology Services",
+        "name": "QTS Manassas DC5",
+        "sqft": 153531.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.51744671852035,
+          38.75469273478202
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Prince William County",
+        "operator": "Quality Technology Services",
+        "name": "QTS Manassas DC1",
+        "sqft": 123471.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.51311070295142,
+          38.752517119624976
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Prince William County",
+        "operator": "Quality Technology Services",
+        "name": "QTS Manassas DC2",
+        "sqft": 137971.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.510797022767,
+          38.75319464849555
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "VA",
+        "county": "Prince William County",
+        "operator": "Quality Technology Services",
+        "name": "QTS Manassas DC1",
+        "sqft": 128120.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.51252254419992,
+          38.75255127695993
+        ]
+      }
+    }
+  ]
+}
