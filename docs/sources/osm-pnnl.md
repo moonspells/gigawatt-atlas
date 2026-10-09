@@ -258,11 +258,14 @@ company offices and a telecom shed among the operating records, all tagged `tele
 purpose stays `unknown`. A reviewer who finds it is a data center sets it in scope. A cluster is
 doubted when:
 
-- **any member** is named or noted as a cryptocurrency mine (crypto, cryptocurrency, cryptomine,
-  bitcoin, blockchain, BTC, mining, miners), is tagged `industrial=mine` or
-  `cryptocurrency_mine` or `data_centre=crypto`, or is a power plant (`power=plant`, any
-  `generator:source`): "Nautilus Cryptomine", "Greenidge Power Plant and Data Center", MARA. 07
-  §2.2 admits crypto sites only when they convert to, or are marketed as, data centers;
+- **a campus or site member, or every member that has a name, operator or note**, is named or
+  noted as a cryptocurrency mine (crypto, cryptocurrency, cryptomine, bitcoin, blockchain, BTC,
+  mining, miners), is tagged `industrial=mine` or `cryptocurrency_mine` or `data_centre=crypto`,
+  or is a power plant (`power=plant`, any `generator:source`): "Nautilus Cryptomine", "Greenidge
+  Power Plant and Data Center", MARA, Riot. 07 §2.2 admits crypto sites only when they convert
+  to, or are marketed as, data centers. A data center building on a site that also holds a mine
+  keeps the cluster in scope (the Susquehanna site holds Nautilus Cryptomine and Amazon's
+  buildings);
 - **every member with text** is named or described as a room or a non-compute use: a computer,
   server, machine, equipment or network room, lab or closet, a classroom, "somewhere in this
   building", a tape vault, vital records or records storage ("SDSU Computer Room", "Vital
@@ -280,10 +283,11 @@ carrier hotel or an internet exchange:
   Systems", "IT"); "TierPoint Milwaukee" stays, because TierPoint operates other objects;
 - every named member is called only by a telephone company's brand ("CenturyLink", "Verizon",
   "AT&T", "Windstream"): as often an exchange as a data center;
-- an operator or name is a city, county, town, village, borough or township ("City of Searcy").
+- every member with a name or operator names a city, county, town, village, borough or township
+  ("City of Searcy").
 
-On the 2026-10-08 seed input the screen holds 71 clusters (83 out of scope with the 10 telecom
-sites and the 2 Puerto Rico records), 69 with the site polygons of 2026-10-09 (some doubted
+On the 2026-10-08 seed input the screen holds 70 clusters (82 out of scope with the 10 telecom
+sites and the 2 Puerto Rico records), 67 with the site polygons of 2026-10-09 (some doubted
 clusters join a site that names a data center).
 
 ### Capacity
@@ -555,13 +559,13 @@ seed input (`--input overpass-us-20261008T204734Z.json --pnnl im3_datacenter_cen
 | | Seed (before) | Re-run | Re-run + site polygons |
 |---|---|---|---|
 | Objects / clusters | 1,888 / 1,115 | 1,888 / 1,106 | 2,044 / 1,073 |
-| Records (in scope) | 1,115 (1,103) | 1,103 (1,020) | 1,031 (950) |
+| Records (in scope) | 1,115 (1,103) | 1,103 (1,021) | 1,031 (952) |
 | Held, no record | 0 | 3 | 42 |
 | Operating / under construction / proposed or announced | 1,054 / 53 / 8 proposed | 1,048 / 50 / 5 announced | 993 / 33 / 5 announced |
 | `dates.operating_since` / `first_reported` | 1,054 / 1,115 | 0 / 0 | 0 / 0 |
 | `site.building_sqft` / `buildings[].sqft` / `site.acreage` | 745 / 1,216 / 28 | 0 / 0 / 28 | 0 / 0 / 34 |
 | Records with an operator | 649 | 651 | 663 |
-| Review items (osm / pnnl) | 12 / 46 | 160 / 41 | 178 / 21 |
+| Review items (osm / pnnl) | 12 / 46 | 159 / 41 | 176 / 21 |
 | PNNL matched | 1,355 (98.05%) | 1,356 (98.12%) | 1,372 (99.28%) |
 
 The third column adds the 172 site polygons of a separate query run on 2026-10-09 (the second

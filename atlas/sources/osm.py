@@ -883,10 +883,12 @@ def scope_doubt(cluster: Cluster, operators: frozenset[str]) -> str | None:
     is kept out of scope with an `out_of_scope` item, so a reviewer decides; the rules catch
     what the 2026-10-08 seed check found imported as operating data centers:
 
-    - a cryptocurrency mine or a power plant (any member): a name or note with crypto, bitcoin or
-      mining words, industrial=mine or cryptocurrency_mine, data_centre=crypto, power=plant or a
-      generator:source tag ("Nautilus Cryptomine", "Greenidge Power Plant and Data Center").
-      07 §2.2 admits crypto sites only when they convert to, or are marketed as, data centers;
+    - a cryptocurrency mine or a power plant: a campus or site member, or every member that has a
+      name, operator or note, with crypto, bitcoin or mining words, industrial=mine or
+      cryptocurrency_mine, data_centre=crypto, power=plant or a generator:source tag ("Nautilus
+      Cryptomine", "Greenidge Power Plant and Data Center"). 07 §2.2 admits crypto sites only
+      when they convert to, or are marketed as, data centers. A data center building on a site
+      that also holds a mine (the Susquehanna campus) keeps the cluster in scope;
     - a room or a non-compute use (every member with text): a computer or server room, a lab or
       classroom, a node "somewhere in this building", a records or tape vault ("SDSU Computer
       Room", "Vital Records");
@@ -901,21 +903,16 @@ def scope_doubt(cluster: Cluster, operators: frozenset[str]) -> str | None:
       does not start with an operator known elsewhere in the input ("K-Motion Interactive",
       "Accelera Data Systems", "IT");
     - a telephone company's building or a government office by name: every named member is
-      called only by a telephone company brand ("CenturyLink", "Verizon"), or its operator or
-      name is a city, county, town or village, with no data center words ("City of Searcy").
+      called only by a telephone company brand ("CenturyLink", "Verizon"), or every member with a
+      name or operator names a city, county, town or village ("City of Searcy").
     """
     members = cluster.members
-    for m in members:
-        crypto = _CRYPTO_RE.search(_texts(m, (*_TEXT_KEYS, "operator")))
-        tags = m.tags
-        if crypto is not None:
-            return f"{m.ref} is named as a cryptocurrency mine ({crypto.group(0)!r})"
-        if tags.get("industrial") in _CRYPTO_INDUSTRIAL or any(
-            tags.get(k) in _CRYPTO_VALUES for k in ("data_centre", "data_center")
-        ):
-            return f"{m.ref} is tagged as a cryptocurrency mine"
-        if tags.get("power") == "plant" or "generator:source" in tags:
-            return f"{m.ref} is tagged as a power plant"
+    mines = {m.ref: why for m in members if (why := _mine(m)) is not None}
+    told = [m for m in members if _texts(m, (*_TEXT_KEYS, "operator"))]
+    areas = [m for m in members if m.kind in AREA_KINDS and m.ref in mines]
+    if areas or (told and all(m.ref in mines for m in told)):
+        m = (areas or told)[0]
+        return f"{m.ref} {mines[m.ref]}"
     texts = [(m, _texts(m)) for m in members]
     rooms = [_ROOM_RE.search(t) for _, t in texts if t]
     if rooms and all(found is not None for found in rooms):
@@ -942,10 +939,27 @@ def scope_doubt(cluster: Cluster, operators: frozenset[str]) -> str | None:
         return f"{members[0].ref} is a point with a business name and no operator ({names[0]!r})"
     if names and all(normalize_name(n) in _TELEPHONE_BRANDS for n in names):
         return f"{members[0].ref} is named only as a telephone company ({names[0]!r})"
-    for m in members:
-        for value in (m.operator, m.name):
-            if value and _GOVERNMENT_RE.match(value):
-                return f"{m.ref} is a local government's building ({value!r})"
+    named = [m for m in members if m.operator or m.name]
+    if named and all(
+        any(v and _GOVERNMENT_RE.match(v) for v in (m.operator, m.name)) for m in named
+    ):
+        value = next(v for v in (named[0].operator, named[0].name) if v and _GOVERNMENT_RE.match(v))
+        return f"{named[0].ref} is a local government's building ({value!r})"
+    return None
+
+
+def _mine(m: OsmObject) -> str | None:
+    """Why the member is a cryptocurrency mine or a power plant, or None."""
+    crypto = _CRYPTO_RE.search(_texts(m, (*_TEXT_KEYS, "operator")))
+    if crypto is not None:
+        return f"is named as a cryptocurrency mine ({crypto.group(0)!r})"
+    tags = m.tags
+    if tags.get("industrial") in _CRYPTO_INDUSTRIAL or any(
+        tags.get(k) in _CRYPTO_VALUES for k in ("data_centre", "data_center")
+    ):
+        return "is tagged as a cryptocurrency mine"
+    if tags.get("power") == "plant" or "generator:source" in tags:
+        return "is tagged as a power plant"
     return None
 
 

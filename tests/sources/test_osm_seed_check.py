@@ -4,6 +4,7 @@ finding). tests/fixtures/osm/overpass-seed-check.json holds the OSM elements of 
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -364,3 +365,34 @@ def test_records_of_one_name_close_together_are_flagged(counties: CountyIndex) -
     (item,) = [i for i in result.review if i.kind == "possible_duplicate"]
     assert item.data["representatives"] == ["way/1", "way/2", "way/3"]
     assert item.reason.startswith("3 records are called 'Data center (Taylor County, TX)'")
+
+
+def test_a_mine_on_a_data_center_site_does_not_hold_the_site(counties: CountyIndex) -> None:
+    """A crypto mine on a campus that also has a data center building (the Susquehanna site holds
+    Nautilus Cryptomine and Amazon's buildings) keeps the cluster in scope; a site polygon tagged
+    as a mine, or a cluster whose every named member is one, is held."""
+    lat, lon = 41.08, -76.15
+    site = OsmObject(
+        "way/1",
+        lat,
+        lon,
+        Bounds(lat - 0.005, lon - 0.005, lat + 0.005, lon + 0.005),
+        {"industrial": "data_centre", "landuse": "industrial"},
+        "site",
+    )
+
+    def hall(ref: str, dlat: float, **tags: str) -> OsmObject:
+        b = Bounds(lat + dlat - 3e-4, lon - 3e-4, lat + dlat + 3e-4, lon + 3e-4)
+        return OsmObject(ref, *b.center, b, {"telecom": "data_center", **tags}, "building")
+
+    mine = hall("way/2", 0.002, name="Nautilus Cryptomine")
+    aws = hall("way/3", -0.002, name="Amazon PHL", operator="Amazon Web Services")
+    (both,) = dissolve([site, mine, aws])
+    assert scope_doubt(both, frozenset()) is None
+    (alone,) = dissolve([mine])
+    assert (
+        scope_doubt(alone, frozenset()) == "way/2 is named as a cryptocurrency mine ('Cryptomine')"
+    )
+    crypto_site = dataclasses.replace(site, tags={**site.tags, "data_centre": "crypto"})
+    (held,) = dissolve([crypto_site, aws])
+    assert scope_doubt(held, frozenset()) == "way/1 is tagged as a cryptocurrency mine"
