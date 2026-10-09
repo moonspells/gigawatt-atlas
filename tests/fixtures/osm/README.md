@@ -1,7 +1,7 @@
 # OpenStreetMap test fixtures
 
-`overpass-sample.json`, `overpass-cases.json`, `overpass-seed-check.json` and
-`overpass-fix4.json` are small extracts of OpenStreetMap data for the tests of
+`overpass-sample.json`, `overpass-cases.json`, `overpass-seed-check.json`, `overpass-fix4.json`
+and `overpass-fix5.json` are small extracts of OpenStreetMap data for the tests of
 `atlas/sources/osm.py` and `atlas/dissolve.py`.
 
 **© OpenStreetMap contributors. Available under the Open Database License 1.0
@@ -104,7 +104,7 @@ and id; the `version`, `generator` and `osm3s` header is the seed response's.
 
 ## `overpass-fix4.json`
 
-176 elements copied verbatim, one per line under the `version`, `generator` and `osm3s` header,
+184 elements copied verbatim, one per line under the `version`, `generator` and `osm3s` header,
 from the second seed import's Overpass response, which
 `https://maps.mail.ru/osm/tools/overpass/api/interpreter` returned on 2026-10-09 for the query of
 that day (`osm3s.timestamp_osm_base` 2026-10-09T09:47:46Z, 2,062 elements, SHA-256
@@ -129,10 +129,34 @@ bb`, and from the second with its geometry). Each group is a case the second see
 | No acreage from an approximate or another boundary | Meta Cheyenne site way 1455907959 and ways 1485867768, 1485867769; Amazon New Albany site way 1281982572 and ways 1386016627, 1386016628 |
 | An area without an operator over two operators | Digital Loudoun Plaza ways 1020953454, 1020953461 with Digital Realty ways 300969614, 300969616, 300969617, 300969619, 597970806, 597970809, 597970811, 597970813 and AWS ways 300969615, 460175672 |
 | The scope screen | Compute North way 1092757323 (`resource=cryptocurrency`); Duke's lab node 10567817971; Myndshift Technologies way 836947535 (`healthcare:speciality`); Old Main way 42000820 (`amenity=university`) |
-| The committed overrides | node 10780794741 (630 3rd Street); way 293211687 with Sabey's Intergate ways 205724881, 205724885, 293211683, 293211686, 337126739, 337126741, 337126742; ways 439365340, 460212563, 635022480 |
+| The committed overrides | node 10780794741 (630 3rd Street); way 293211687 with Sabey's Intergate ways 205724881, 205724885, 293211683, 293211686, 337126739, 337126741, 337126742; ways 439365340, 460212563, 635022480; and the entries of fix round 5, added then from the same response: node 3732415309 with the Pittock Block, way 369452572; ways 138643160, 396296733, 440666998, 487170215, 903642490, 1188691868 |
 
 ## `overrides-empty.json`
 
 An empty overrides file (`{}`): the tests that run the importer on the other fixtures pass it with
 `--overrides`, because the committed `config/overrides/osm.json` names elements those fixtures do
 not have, and an unknown ref stops the import.
+
+## `overpass-fix5.json`
+
+69 elements copied verbatim, one per line under the `version`, `generator` and `osm3s` header,
+from the same response as `overpass-fix4.json` (the second seed import's Overpass response of
+2026-10-09, `osm3s.timestamp_osm_base` 2026-10-09T09:47:46Z, SHA-256
+`b0fc73d78f3494d8fd1cf56b0ef0b8911578e7e13ccc98f3b5895aac1f40c234`, which the fourth seed import
+read again). Elements are sorted by type and id. Each group is a case the pre-check of the fourth
+seed import found (`tests/sources/test_osm_fix5.py`; the finding numbers are in the tests):
+
+| Case | Elements |
+|---|---|
+| A genealogy room tagged as a data center | Family History Center, way 903642490 (Montpelier, ID) |
+| A numbered sibling 364 m away | Iron Mountain VA-1 to VA-7, ways 996723585, 996723586, 1283698132, 1287260556, 1287260557, 1304357577, 1510517637 |
+| A campus and its expansion site | Meta New Albany Data Center way 708899010, Meta LCO 3 Project way 1281938077, ways 671301768, 802160675, 1252196813, 1386016634, 1386016635 |
+| Two outers of one site | Google Lenoir Data Center relation 9474864, Google Project Cardinal way 682979410, ways 186515922, 844372538 |
+| A series split 720 m apart | RagingWire CA1 to CA3, ways 32560290, 32560292, 190868312 |
+| An unnamed building in a row, and a tenant-tagged building beside it | Digital Realty Dallas ways 597876721, 597876722, 597876724, 597876726, 597876730, 597876798; way 597876723 (904 Quality Way); Rackspace way 597876719 |
+| One campus as two records 650 m apart | CloudHQ Ashburn Campus way 1343774537 with LC1 to LC3 (ways 794147654, 794147655, 1443187163); LC4 to LC14 (nodes 14201428241 to 14201428243, ways 1381994242, 1560822516 to 1560822519, 1560822523) |
+| A same-street building 348 m away | Digital Realty IAD39, IAD40, IAD73 and IAD41, ways 701923203, 1518717349, 701923202, 793087858 |
+| A PNNL row with another building number | NTT Ashburn Campus way 649365745 and ways 649365751, 793888429, 793888430, 1188691867, 1188691868, 1556781864, 1560827941 |
+| A building drawn twice inside its site | Apple Mesa ways 300974499, 567575425 and its site way 567575428 |
+| A campus named after one building | QTS NAL1 construction polygon way 1281938083, DC1 and DC2 ways 1425043215, 1425043214 |
+| Status and values from members other than the representative | AWS Canton site way 1459880367 and buildings 1430720170 to 1430720174; Flexential Brentwood way 826001604 and node 12112295055 |

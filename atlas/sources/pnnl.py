@@ -514,7 +514,9 @@ def site_values(
       (PNNL kept an old footprint next to the current one), the row with the member's name, else
       the nearest, is the match and the others are possible_duplicate items. A sqft more than
       FOOTPRINT_SLACK above the member's bounding box describes another footprint and is a
-      conflict item. PNNL's sqft is the footprint's area, not a floor area, so no building row
+      conflict item, and so is a row whose name gives the member another building number of
+      the same code (site_number: "NTT Ashburn VA8 Data Centre" on the way OpenStreetMap has
+      renamed "NTT VA9"). PNNL's sqft is the footprint's area, not a floor area, so no building row
       sets buildings[].sqft or site.building_sqft.
     - A campus row gives site.acreage only when it hit a campus or site object, and only when
       every campus or site member that no other one covers has such a row (a partial sum would
@@ -564,6 +566,20 @@ def site_values(
                 "same name, else the nearest) and this row is another footprint"
             )
             review.append(_held("possible_duplicate", reason, row, member, rep))
+        numbers = (site_number(kept.name), site_number(member.name))
+        if (
+            numbers[0]
+            and numbers[1]
+            and numbers[0][0] == numbers[1][0]
+            and numbers[0] != numbers[1]
+        ):
+            reason = (
+                f"PNNL names {ref} {kept.name!r}, OpenStreetMap {member.name!r}: building "
+                f"{numbers[0][0].upper()}{numbers[0][1]} or {numbers[1][0].upper()}"
+                f"{numbers[1][1]}? A rename in OpenStreetMap or an older name in PNNL; a reviewer "
+                "decides which building this is"
+            )
+            review.append(_held("conflict", reason, kept, member, rep))
         box_sqft = member.area_m2() * SQFT_PER_M2
         if member.bounds is not None and kept_sqft > box_sqft * FOOTPRINT_SLACK:
             reason = (
@@ -582,6 +598,17 @@ def site_values(
         if not doubts:
             acreage = round(sum(campus_sqft[m.ref] for m in top) / SQFT_PER_ACRE, 1) or None
     return SiteValues(acreage=acreage, review=review)
+
+
+_SITE_NUMBER_RE = re.compile(r"\b([a-z]+) ?(\d+)\b")
+
+
+def site_number(name: str | None) -> tuple[str, int] | None:
+    """The last code and number in a name, normalized, or None: "NTT Ashburn VA8 Data Centre"
+    gives ("va", 8); "Amazon IAD-78" and "Amazon IAD78" both give ("iad", 78), so a difference of
+    punctuation is none; "Building 3" gives ("building", 3)."""
+    found = list(_SITE_NUMBER_RE.finditer(normalize_name(name))) if name else []
+    return (found[-1].group(1), int(found[-1].group(2))) if found else None
 
 
 def _campus_doubt(member: OsmObject, sqft: float) -> str | None:

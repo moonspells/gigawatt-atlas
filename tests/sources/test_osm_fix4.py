@@ -351,9 +351,11 @@ def test_the_committed_overrides_correct_stale_tags(run: ImportResult) -> None:
     # Intergate Building 4 is Sabey's: it joins the Sabey campus.
     sabey = record(run, "way/293211687")
     assert "way/293211686" in sabey.external_ids["osm"]
-    assert [(o.name, o.source_ids) for o in sabey.parties.operator] == [
-        ("Sabey Data Centers", ["s1", "s3"])
-    ]
+    ((sabey_name, sabey_sids),) = [(o.name, o.source_ids) for o in sabey.parties.operator]
+    # The entry's source for Building 4, the members' own elements for the others (n12).
+    assert sabey_name == "Sabey Data Centers" and sabey_sids[:2] == ["s1", "s3"]
+    osm_ids = {s.id for s in sabey.sources if s.url.host == "www.openstreetmap.org"}
+    assert set(sabey_sids) - {"s3"} <= osm_ids
     # A tenant that left: the name is removed, not replaced.
     vita = record(run, "way/439365340")
     assert vita.canonical_name == "Data center (Chesterfield County, VA)"
@@ -362,7 +364,7 @@ def test_the_committed_overrides_correct_stale_tags(run: ImportResult) -> None:
     assert burbank.canonical_name == "Centersquare data center (Los Angeles County, CA)"
     gi = record(run, "way/635022480")
     assert gi.canonical_name == "GI Partners data center (Fulton County, GA)"
-    assert run.metrics["overrides"] == 5
+    assert run.metrics["overrides"] == 12  # seven more of fix round 5 (test_osm_fix5.py)
 
 
 def write(tmp_path: Path, entries: Mapping[str, object]) -> Path:
@@ -424,7 +426,7 @@ def test_apply_overrides_replaces_and_removes_tags() -> None:
     entries = load_overrides(REPO_OVERRIDES)
     kept, dropped = apply_overrides(objects, entries)
     by_ref = {o.ref: o for o in kept}
-    assert dropped == []
+    assert [o.ref for o in dropped] == ["way/903642490"]  # the Family History Center
     assert by_ref["way/293211687"].tags["operator"] == "Sabey Data Centers"
     assert "operator:wikidata" not in by_ref["way/293211687"].tags
     assert "name" not in by_ref["way/439365340"].tags
