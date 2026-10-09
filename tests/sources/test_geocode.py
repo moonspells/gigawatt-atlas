@@ -276,6 +276,13 @@ def test_gazetteer_county_subdivisions(gazetteer_with_cousubs: Gazetteer) -> Non
         "Gore",
     )
     assert Gazetteer.load().cousub_count == 0  # not loaded unless asked for
+    # has_locality: what an importer may send as GeocodeRequest.locality.
+    assert g.has_locality("CT", "Bloomfield") and not Gazetteer.load().has_locality(
+        "CT", "Bloomfield"
+    )
+    assert g.has_locality("WY", "Cheyenne")  # a place
+    assert not g.has_locality("PA", "Salem Township")  # five of them
+    assert g.has_locality("PA", "Salem Township", "42079")
 
 
 # ---------------------------------------------------------------------------- Census Geocoder

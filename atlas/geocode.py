@@ -789,6 +789,15 @@ class Gazetteer:
             unique = [c for c in unique if c.county_fips == county_fips]
         return unique[0] if len(unique) == 1 else None
 
+    def has_locality(self, abbr: str, name: str, county_fips: str | None = None) -> bool:
+        """True when geocode()'s step 3 can place name as a locality: a Census place, or (when
+        loaded) a county subdivision (in county_fips, when given). For an importer choosing which
+        of a source's place names to send as GeocodeRequest.locality."""
+        return (
+            self.place_entry(abbr, name) is not None
+            or self.cousub_entry(abbr, name, county_fips) is not None
+        )
+
     def county(self, abbr: str, name: str) -> tuple[float, float, str] | None:
         """(lat, lon, GEOID) of a county's internal point, by its full name ("Madison County")."""
         c = self._county_names.get((abbr.upper(), normalize_place(name)))
