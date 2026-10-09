@@ -57,12 +57,10 @@ def site(name: str, *, sources: str = "") -> Site:
 
 # The sites whose address places only through the Census, which these offline runs skip: a
 # postal city gives no point without a stated county (07 §6.5). Each gets a test entry at its
-# county (made-up citation text); a shared campus needs one for its first site.
+# county (made-up citation text); a shared campus needs one for its first site. OpenAI Stargate
+# Abilene, Google New Albany and QTS Richmond 1 have committed entries, which place them here.
 TEST_COUNTIES = {
     "Coreweave Helios": ("TX", "Dickens"),
-    "OpenAI Stargate Abilene": ("TX", "Taylor"),
-    "Google New Albany": ("OH", "Licking"),
-    "QTS Richmond 1": ("VA", "Henrico"),
     "Core42 Lake Mariner": ("NY", "Niagara"),
     "CoreWeave Dalton 1 & 2": ("GA", "Whitfield"),
     "xAI QTS Atlanta": ("GA", "Fulton"),

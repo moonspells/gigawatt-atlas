@@ -118,7 +118,8 @@ title. The title may name the tracked site's own growth ("Plan for 9-building an
 expansions") or the reason the site exists (Meta Gallatin's "Campus extension announcement"), and
 Epoch's fields do not say which; a reviewer restores the dates and capacity where the timeline
 covers the whole facility. On 2026-10-08, with every Epoch site placed: 14 timelines that do not
-date the facility, 10 held (12 and 3 on the integrated run, where 33 sites wait for an override).
+date the facility, 10 held (12 and 3 on the integrated run while 33 sites waited for an override,
+14 and 10 again with the overrides of 2026-10-09).
 
 ### Sites that share a campus
 
@@ -150,7 +151,8 @@ re-run the import on an empty store.
    its postal city, which gives no point without a county a source states"), with the Census
    matches the chain refused in `data.census_matches` (Meta Jeffersonville: 500 E 8TH ST, a
    directional the address does not state). Neither becomes a record: a cited override places it
-   (owner decision of 2026-10-09). On 2026-10-08, 33 sites wait for one.
+   (owner decision of 2026-10-09). On the 2026-10-08 inputs 33 sites waited for one; since the
+   entries of 2026-10-09, only QTS Richmond 2 and QTS Richmond 3 do.
 
 ## AI GridWatch (`atlas/sources/aigridwatch.py`)
 
@@ -356,9 +358,10 @@ county.
   coordinates (`manual`) are checked against the county or state. When an entry names a county,
   the point (the Gazetteer place's included) must lie in it at every precision, so a record never
   names a county its point is outside of. A bad entry fails the run.
-- Committed (owner decision of 2026-10-08: the sites the seed cannot place get cited overrides),
-  13 entries, each read on 2026-10-08 (Google Kansas City East, OpenAI Stargate Michigan and AWS
-  New Albany re-read the same day for a quote that states the place):
+- Committed (owner decisions of 2026-10-08 and 2026-10-09: the sites the seed cannot place, and
+  those whose only place is their postal city, get cited overrides), 43 entries. The first 13
+  were read on 2026-10-08 (Google Kansas City East, OpenAI Stargate Michigan and AWS New Albany
+  re-read the same day for a quote that states the place):
 
 | Site | Placed at | Source |
 |---|---|---|
@@ -379,6 +382,48 @@ county.
   Eight have no address in Epoch; Meta Hyperion, Google Pryor (North) and Meta Huntsville have an
   address the chain cannot place; AWS New Albany and Stream Phoenix have an address without a
   state.
+
+  The other 30 were read on 2026-10-09, for sites whose address has only a postal city (Amazon
+  Ridgeland: one whose city the parser cannot find):
+
+| Site | Placed at | Source |
+|---|---|---|
+| AWS Berwick | Salem Township, Luzerne County, PA (county) | the Susquehanna River Basin Commission's Federal Register notice |
+| Amazon Ridgeland | Ridgeland, Madison County, MS (locality) | MDEQ's permit review summary |
+| Anthropic-Amazon New Carlisle | St. Joseph County, IN (county) | Amazon's Project Rainier post |
+| Colossus 1 | Memphis, TN (locality; the quote says South Memphis) | a Senate Environment and Public Works Committee letter to EPA |
+| CoreWeave Denton TX | Denton, TX (locality) | Core Scientific's site page |
+| CoreWeave Muskogee OK | Muskogee County, OK (county) | Oklahoma DEQ's draft construction permit |
+| Goodnight | Armstrong County, TX (county) | Crusoe's TCEQ air permit application |
+| Google Arcola | Arcola, Loudoun County, VA (locality; a CDP) | Bisnow |
+| Google Columbus | Columbus, OH (locality) | Google's Ohio location page |
+| Google Lincoln | Lincoln, NE (locality) | Google's Nebraska location page |
+| Google Midlothian | Midlothian, Ellis County, TX (locality) | Google's Texas location page |
+| Google New Albany | New Albany, OH (locality) | the City of New Albany's economic development news |
+| Google Papillion | Papillion, Sarpy County, NE (locality) | Nebraska's air permit fact sheet for Fireball Group, LLC |
+| Google The Dalles | The Dalles, OR (locality) | Columbia Community Connection |
+| Meta Aiken | Aiken County, SC (county) | Meta's announcement |
+| Meta Cheyenne | Cheyenne, WY (locality) | Meta's announcement |
+| Meta Eagle Mountain | Eagle Mountain, Utah County, UT (locality) | Meta's post on the data center going online |
+| Meta Gallatin | Gallatin, TN (locality) | Tennessee's economic development department |
+| Meta Jeffersonville | Jeffersonville, IN (locality) | Turner Construction's release |
+| Meta Los Lunas | Los Lunas, NM (locality) | a 2017 New Mexico House memorial |
+| Meta Montgomery | Montgomery, AL (locality) | Meta's announcement |
+| Meta Prometheus | New Albany, OH (locality) | Meta's nuclear energy release |
+| Meta Rosemount | Rosemount, MN (locality) | Meta's announcement |
+| Meta Temple | Temple, TX (locality) | the City of Temple's release |
+| Microsoft Goodyear | Goodyear, AZ (locality) | Microsoft's 2019 post on its Arizona campuses |
+| Microsoft Project Osmium | West Des Moines, IA (locality) | Business Record |
+| Microsoft SAT40 | Bexar County, TX (county) | TDLR's registration for SAT40 |
+| OpenAI Stargate Abilene | Abilene, Taylor County, TX (locality) | the campus's Title V application to TCEQ |
+| QTS Eagle Mountain | Eagle Mountain, Utah County, UT (locality) | Utah DAQ's approval order |
+| QTS Richmond 1 | Henrico County, VA (county) | the Henrico Economic Development Authority |
+
+  OpenAI Stargate Abilene's entry also places Crusoe Abilene Expansion, which shares its campus:
+  the importer places a shared campus by the entry of its first site in the CSV, so the campus
+  has one entry. QTS Richmond 2 and QTS Richmond 3 have none: no source read states their county
+  in a sentence (Epoch's Virginia DEQ permit refuses the project's client, and its Wayback
+  snapshot could not be reached), so they stay `geocode_failed`.
 
 ## Review items
 
@@ -517,13 +562,17 @@ reviewer decides whether to release it as a project of its own. None of the rule
 `hexa-monroe-township-nj` shares a page with the Nebius row, but lies in Gloucester County, not
 Cumberland.
 
-Until the 33 Epoch sites that have only a postal city get their cited overrides (see
-[Location](#location)), they have no record, so their AI GridWatch rows are imported: on the
-integrated offline run of 2026-10-09, 47 rows are held as Epoch's sites (37 `name`, 2 `id`, 2
+While the 33 Epoch sites that have only a postal city had no cited override (see
+[Location](#location)), they had no record, so their AI GridWatch rows were imported: on the
+integrated offline run of 2026-10-09, 47 rows were held as Epoch's sites (37 `name`, 2 `id`, 2
 `street`, 5 `weak_link`, 1 `epoch_source`), and `aws-salem-township-pa` and `aws-new-carlisle-in`
-are records of their own while AWS Berwick and Anthropic-Amazon New Carlisle wait for theirs.
-The next import after the overrides holds them again; the stored AI GridWatch records are then
-`removed_upstream` items with `data.stored_record` for a reviewer to merge.
+were records of their own. With the overrides of 2026-10-09 the same run holds 79 (67 `name`, 2
+`id`, 2 `street`, 1 `source`, 4 `weak_link`, 2 `several`, 1 `epoch_source`), `aws-new-carlisle-in`
+among them (a `weak_link` to Anthropic-Amazon New Carlisle). `aws-salem-township-pa` stays a
+record beside AWS Berwick: no rule ties them (other names, and the Epoch record has Luzerne
+County's point). A store that imported a row before its Epoch site was placed holds it on the
+next import; the stored AI GridWatch record is then a `removed_upstream` item with
+`data.stored_record` for a reviewer to merge.
 
 A held row whose stage disagrees with its Epoch record's status also gets a `conflict` item
 (`record_id` = the Epoch record): its stage is not applied, and nothing changes until a reviewer
@@ -585,8 +634,9 @@ entry on 2026-10-09.
 - **Census coverage.** Fewer than half of Epoch's street addresses give an agreeing match (new
   industrial roads often are not in the address ranges yet, and a match on another street is
   refused). The rest have only a postal city, which gives no point without a county a source
-  states: those sites wait in review for a cited override (33 on 2026-10-08), and AI GridWatch's
-  rows for them are imported meanwhile (no Epoch record holds them).
+  states: those sites wait in review for a cited override (33 on 2026-10-08, 2 since the
+  overrides of 2026-10-09), and AI GridWatch's rows for them are imported meanwhile (no Epoch
+  record holds them).
 
 ## Live run, 2026-10-08
 
@@ -599,7 +649,10 @@ responses and the two downloaded Census files in the cache), into an empty store
 validate` over the result: **1,368 records (1,103 OSM, 43 Epoch AI, 222 AI GridWatch; 1,282 in
 scope), 0 issues**. A second run of each: every record `unchanged`, no Census request, no record or
 review file changed. The seed itself, before the third review round's fixes, had 77 + 202 records
-and 89 AI GridWatch review items.
+and 89 AI GridWatch review items. The table predates the 30 overrides of 2026-10-09: with them,
+the same Epoch run gives 73 records (43 placed by an override) and 13 review items (11
+`conflict`; `geocode_failed` only for QTS Richmond 2 and 3), and AI GridWatch on top of it 191
+records, 79 rows held as Epoch's sites and 170 review items (264 records, 0 issues).
 
 | | Epoch AI | AI GridWatch |
 |---|---|---|
