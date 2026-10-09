@@ -80,9 +80,11 @@ def make_context(
     return factory
 
 
-def run(make_context: MakeContext, **ctx: Any) -> ImportResult:
+def run(make_context: MakeContext, *, overrides: Path | None = None, **ctx: Any) -> ImportResult:
     without_epoch = "records" not in ctx
     args = argparse.Namespace(without_epoch=without_epoch)
+    if overrides is not None:
+        args.overrides = overrides
     return IMPORTER.run(make_context(input_path=CHECK2, **ctx), args)
 
 
@@ -390,8 +392,9 @@ def test_an_approval_of_an_incentive_is_no_approval_to_build(check2: ImportResul
     ]
     assert item.data["decided_date"] == "2025-06-24"
     assert "performance agreement" in str(item.data["entry"])
-    # A rezoning approval stays an approval: Red Oak's council "approved the rezoning".
-    assert dates(records(check2)["red-oak-compass-campus"])["approved"] == "2026-05-12"
+    # A rezoning approval stays an approval: Red Oak's council "approved the rezoning" (dated by
+    # the May 11 meeting the row says the vote ended: n37 of the fifth round).
+    assert dates(records(check2)["red-oak-compass-campus"])["approved"] == "2026-05-11"
 
 
 # ---------------------------------------------------------------------------- n37: roles
@@ -404,8 +407,16 @@ def test_the_operator_developer_field_is_the_developer(check2: ImportResult) -> 
     assert not any(r.parties.operator for r in got.values())
 
 
-def test_a_utility_in_the_operator_field_is_not_a_party(check2: ImportResult) -> None:
-    # PSE&G is named only as the utility whose approval was required.
+def test_a_utility_in_the_operator_field_is_not_a_party(
+    make_context: MakeContext, tmp_path: Path
+) -> None:
+    # PSE&G is named only as the utility whose approval was required. The row's only dated
+    # milestone is its denial, so it is held for its first report (n41 of the fifth round);
+    # released here, its parties are the ones under test.
+    released = tmp_path / "aigridwatch.json"
+    release = {"release": ["first_report"], "reason": "test", "reviewed_at": "2026-10-09"}
+    released.write_text(json.dumps({"pseg-100-jersey-ave-nj": release}), encoding="utf-8")
+    check2 = run(make_context, overrides=released)
     pseg = records(check2)["pseg-100-jersey-ave-nj"]
     assert not (pseg.parties.operator or pseg.parties.developer)
     (item,) = items(check2, "pseg-100-jersey-ave-nj", "unit_parse")

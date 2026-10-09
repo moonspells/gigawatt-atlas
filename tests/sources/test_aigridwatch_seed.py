@@ -479,8 +479,16 @@ def test_site_history_in_the_event_log_does_not_date_the_first_report() -> None:
 # ---------------------------------------------------------------------------- n73: withdrawals
 
 
-def test_withdrawn_is_the_developers_only_when_the_row_says_so(seed: ImportResult) -> None:
-    got = records(seed)
+def test_withdrawn_is_the_developers_only_when_the_row_says_so(
+    make_test_context: MakeContext, tmp_path: Path
+) -> None:
+    # Karis' and Riverjump's only dated milestone is the withdrawal, so they are held for their
+    # first report (n41 of the fifth round); released here, the reasons are the ones under test.
+    released = tmp_path / "aigridwatch.json"
+    release = {"release": ["first_report"], "reason": "test", "reviewed_at": "2026-10-09"}
+    pids = ("hoffman-estates-karis-plum-farms", "project-riverjump-marion-in")
+    released.write_text(json.dumps(dict.fromkeys(pids, release)), encoding="utf-8")
+    got = records(run(make_test_context, overrides=released))
     # "Deep Green withdrew its rezoning request".
     assert got["deep-green-lansing-mi"].status_reason == "developer_withdrawal"
     # "Karis notified the village on July 1 that it would withdraw the rezoning request".

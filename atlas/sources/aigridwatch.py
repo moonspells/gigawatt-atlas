@@ -10,20 +10,33 @@ verified project becomes a `project` record at `locality` precision:
 - the county comes from the locality text ("Muncy Township (Lycoming County)", "Caddo Parish");
   with source coordinates, a city or municipality of the text is named only when the point lies
   in it (check_place: the Census place polygons, and for a township its Gazetteer point and area);
+- a city or municipality is never named when the row's note or event log puts the site outside
+  it ("north of Yerington", "near Fredericksburg", "annexation into City of Burgin"): the record
+  names the county and keeps the point at county precision (outside_phrase); a row without
+  coordinates whose locality names no county is placed in the county its note and log state ("in
+  Stafford County"), and a Virginia independent city is its own county;
 - status_history is built from the milestone dates (announced, rezoning filed, a hearing a
   decision on its day or an event of its day says was held, a decision; an approval only when
-  the row names it a land-use approval or a permit), plus a first_reported event from the row's
-  event log when its first report can be told (first_report). A date on the 1st of a month is
+  the row names it a land-use approval or a permit), read as the row explains them: an announced
+  date the row calls an LLC's registration is no announcement and one it calls a filing is the
+  filing; a rezoning_filed date that is an inquiry, a report or the municipality's own act is no
+  filing, and the row's own earlier filing dates the application; a vote around midnight is
+  dated by its meeting. A first_reported event comes from the row's event log when its first
+  report can be told (first_report), before the announced date too; entries citing placeholder
+  links date nothing. A date on the 1st of a month is
   read at month precision, one on January 1 as its year. The derived `stage` goes through the
   status crosswalk (07 §4.7). When the milestones do not roll up to the stage's status, an
   `other` event records the stage as of the row's as_of date, or, for a row with no as_of, as of
   the file's generated date: an observation that sets the status and dates nothing. A row whose
   event log or note reports an approval, a groundbreaking or construction the stage has not
   reached, or leaves no application under review, is held for review, and so is one whose
-  earliest milestone would date its first report later than the row shows;
+  earliest milestone would date its first report later than the row shows, or is a denial, a
+  withdrawal or a pause; so is a row under construction whose log reports an injunction or a
+  halt, and an announced row a ban or moratorium blocks;
 - size_mw keeps its figure in mw_as_stated and becomes it_mw or utility_request_mw only when the
-  row's note states that basis (07 §2.4); a row that is a power supply deal or a generation
-  facility is out of scope (07 §2.2);
+  row's note states that basis (07 §2.4) and no entry of its log gives the campus another figure
+  on that basis; a named campus gets the acreage its log gives it; a row that is a power supply
+  deal or a generation facility is out of scope (07 §2.2);
 - rows marked verified=false are leads, not facts, and become `unverified_upstream` review items;
 - AI GridWatch republishes most of Epoch AI's US sites, and has rows of its own for some of them
   under other names. A row that is the same site as a stored Epoch record becomes a
@@ -44,7 +57,8 @@ verified project becomes a `project` record at `locality` precision:
   id, with the checks released, a reason and the review date);
 - parties hold organizations only (07 §5.3): a person, a capacity figure ("67 MW") or a
   parenthetical note ("(parcels)", "(AWS)") is never stored as a name. The "Operator/developer"
-  field is the developer; an electric utility in it is left out.
+  field is the developer; an electric utility in it is left out, and so is a developer the row
+  says is being replaced.
 
 The per-project event log (events[]) is not imported in M1: only its dates, kinds and the few
 markers above are read.
@@ -55,6 +69,7 @@ Importing this module does no I/O.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import re
 import unicodedata
@@ -192,7 +207,16 @@ _NO_APPLICATION_RE = re.compile(
     r"formally proposed|no (?:projects?|developments?|plans?) (?:have|has) been formally "
     r"(?:proposed|submitted|filed)|not (?:yet )?(?:been )?formally (?:proposed|submitted|filed)|"
     r"no (?:permit )?applications? (?:(?:has|have|was|were) (?:ever |yet )?been "
-    r"(?:filed|submitted|received)|(?:was|were) (?:ever )?(?:filed|submitted)|received|filed))\b",
+    r"(?:filed|submitted|received)|(?:was|were) (?:ever )?(?:filed|submitted)|received|filed)|"
+    # n30, Project Zora: "with no permit applications before January 2027", "no formal
+    # application or site review had been submitted", "will not submit permit applications".
+    r"no (?:formal |official )?(?:permit |zoning |rezoning |site[- ]plan |land[- ]use )?"
+    r"applications?(?: or [\w -]{1,30}?)? (?:has|have|had|was|were) (?:ever |yet )?(?:been )?"
+    r"(?:filed|submitted|received|made)|"
+    r"no (?:formal |official )?(?:permit |zoning |rezoning )?applications? (?:before|until)|"
+    r"(?:will|would) not (?:submit|file) (?:any )?(?:formal |permit |zoning )?applications?|"
+    r"no (?:formal )?site review (?:has|had|have|was) (?:yet )?(?:been )?(?:requested|submitted|"
+    r"filed))\b",
     re.I,
 )
 # A decision with outcome approved is an approval to build only when the row names a land-use
@@ -244,12 +268,29 @@ _REPORT_CONTEXT_RE = re.compile(
     r"text amendment|annex\w*|registered|was formed|interconnection|paused?)\b",
     re.I,
 )
+# An entry about an act out of public view, which reports nothing until it is revealed (Project
+# Camellia: OpenAI "circulated a mutual non-disclosure agreement ... the start of negotiations
+# conducted outside public view").
+_PRIVATE_RE = re.compile(
+    r"\b(?:non-disclosure|NDAs?|confidential\w*|outside (?:of )?public view|behind closed doors|"
+    r"in secret|secretly|privately)\b",
+    re.I,
+)
+# An environmental review of an area, which reports the project planned there when its acreage is
+# the row's (n38: Monticello's "Draft Alternative Urban Areawide Review (AUAR) for a 550-acre
+# industrial area", the row's 547 acres).
+_ENV_REVIEW_RE = re.compile(
+    r"\b(?:AUAR|EAW|EIS|DRI|Alternative Urban Areawide Review|Environmental Assessment Worksheet|"
+    r"Environmental Impact Statement|Development of Regional Impact)\b"
+)
 # Kinds of entries that are the place's acts: with the words above, about its rules.
 _RULE_KINDS = frozenset(
     {"rezoning", "moratorium", "ordinance", "vote", "hearing", "meeting", "ruling", "policy"}
 )
 _REGISTRATION_RE = re.compile(
-    r"\b(?:was registered|registered with|was formed|was incorporated|was organized)\b", re.I
+    r"\b(?:was registered|registered with|was formed|was incorporated|was organized)\b"
+    r"|\b(?:LLC|L\.L\.C\.|Inc\.?|Corp\.?)\s+(?:was\s+)?registered\b",
+    re.I,
 )
 _PROPERTY_RE = re.compile(
     r"\b(?:purchas\w*|acquir\w*|acquisition|buys?|buying|bought|sold|sale of|closed on|"
@@ -350,11 +391,34 @@ _LOG_CHALLENGED_RE = re.compile(
 _LOG_INCOMPLETE_RE = re.compile(r"\bincomplete\b", re.I)
 _LOG_UPHELD_RE = re.compile(r"\buph(?:eld|olds?|olding)\b", re.I)
 _LOG_MORATORIUM_RE = re.compile(
-    r"\b(?:pass(?:ed|es)|adopt(?:ed|s)|approv(?:ed|es)|enact(?:ed|s)|impos(?:ed|es)|"
+    r"\b(?:pass(?:ed|es)?|adopt(?:ed|s)?|approv(?:e|ed|es)|enact(?:ed|s)?|impos(?:e|ed|es|ing)|"
     r"vot(?:ed|es)(?:\s+[\w-]+){0,3}\s+to\s+(?:adopt|approve|pass|enact|impose))"
-    r"(?:\W+[\w'-]+){0,8}?\W+(?:moratori(?:um|a)|bans?|banning)\b"
+    r"(?:\W+[\w'-]+){0,8}?\W+(?:moratori(?:um|a)|bans?|banning|prohibit\w*\s+data cent(?:er|re)s?"
+    r"(?:\s+as\s+a\s+use)?\s+(?:in\s+all\s+zones|(?:township|county|city|town)[- ]?wide))\b"
     r"|\b(?:removing|removed|removes) data cent(?:er|re)s? as (?:a )?permitted use\b",
     re.I,
+)
+# Words close before a moratorium that make it a demand or a draft, not an act ("residents urged
+# the board to impose a moratorium").
+_MORATORIUM_HEDGE_RE = re.compile(
+    r"\b(?:urg\w*|call(?:s|ed|ing)? for|demand\w*|propos\w*|consider\w*|draft\w*|request\w*|"
+    r"push\w* for|petition\w*)\b",
+    re.I,
+)
+# An injunction or a halt of the works (n34: Matrix's judge "issues a temporary injunction freezing
+# new construction/development on the ~5,000-acre site pending trial"), and its end.
+_LOG_HALT_RE = re.compile(
+    r"\b(?:(?:issu|grant|enter|order)\w*\s+(?:a\s+|an\s+)?(?:[\w-]+\s+){0,2}?injunctions?|"
+    r"injunctions?\s+(?:freez|halt|block|stop|bar)\w*|"
+    r"(?:halt|freez|stopp?|suspend)\w*\s+(?:all\s+|new\s+)?(?:[\w/-]+\s+){0,2}?(?:construction|"
+    r"development|work)|(?:construction|work|development)\s+(?:has\s+|had\s+|was\s+|is\s+)?"
+    r"(?:been\s+)?(?:halted|stopped|suspended|frozen|paused)|stop[- ]work orders?)\b",
+    re.I,
+)
+# A halt that was refused, not ordered ("refused to grant an injunction").
+_HALT_DENIED_RE = re.compile(r"\b(?:refus\w*|declin\w*|den(?:y|ies|ied)|reject\w*|without)\b", re.I)
+_LOG_RESUMED_RE = re.compile(
+    r"\b(?:lift\w*|dissolv\w*|overturn\w*|vacat\w*|resum\w*|restart\w*)\b", re.I
 )
 _LOG_EXEMPT_RE = re.compile(
     r"\b(?:exempt\w*|grandfather\w*|not (?:cover\w*|affect\w*|apply|block\w*)|does not (?:cover|"
@@ -692,7 +756,16 @@ def parse_locality(text: str, state: str) -> Locality:
         if names:
             counties.extend(names)
         else:
-            first = inside.split(",", 1)[0]
+            # A compound parenthesis is read part by part, like the text outside it: "(Pittsylvania
+            # County / Danville)" names the county, and the rest is the hint (n42).
+            rest: list[str] = []
+            for part in re.split(r"\s+/\s+", inside):
+                names = _county_names(part, state)
+                if names:
+                    counties.extend(names)
+                elif part:
+                    rest.append(part)
+            first = (" / ".join(rest)).split(",", 1)[0]
             hint = _HINT_NOISE_RE.sub("", _HINT_NOISE_RE.sub("", first)).strip() or None
             nearby = bool(_HINT_NOISE_RE.search(first))
     place = " / ".join(places) or None
@@ -728,6 +801,87 @@ def resolve_county(
         exact = counties.lookup(point[0], point[1])
         inside = [c for c in inside if exact is not None and c.fips == exact.fips]
     return inside[0] if len(inside) == 1 else None
+
+
+# The row's own words putting the site outside a place (n0, n5, n32): "Mason Valley north of
+# Yerington", "a site 11 miles north of Fort Stockton", "outside Socorro", "near Fredericksburg",
+# "sought annexation into City of Burgin". A record never names such a place as its city or
+# municipality, whatever its point says: AI GridWatch's point is often the town's own.
+_DIRECTION = r"(?:north|south|east|west)(?:-?(?:east|west))?(?:ern)?"
+_DISTANCE = (
+    r"(?:(?:about|approximately|roughly|some|nearly|~)\s*)?\d+(?:\.\d+)?\+?\s*-?\s*"
+    r"(?:miles?|mi\.?|km|kilometers?)\s+"
+)
+_TOWN_OF = r"(?:the\s+)?(?:(?:city|town|village|borough)\s+(?:of\s+)?)?"
+# A capitalized word after the name makes it another name: a road, a park, a council or the
+# county of the same name ("south of Tonganoxie Business Park", "outside the Sulphur Springs City
+# Council meeting", "near Liberty Road"); and a building of the place is in it ("a press event
+# outside Lansing town hall").
+_NOT_THE_PLACE = (
+    r"(?!\s+(?-i:[A-Z]))(?!\s+(?:town|city|village|borough|township|county)\s+(?:halls?|"
+    r"council|board|offices?|buildings?|meetings?|chambers?|government|officials?)\b)"
+)
+
+
+def _outside_re(place: str) -> re.Pattern[str]:
+    name = re.escape(place)
+    return re.compile(
+        rf"(?:\b{_DISTANCE})?\b{_DIRECTION}\s+of\s+{_TOWN_OF}{name}\b{_NOT_THE_PLACE}"
+        rf"|\b(?:near|outside(?:\s+of)?|on the outskirts of|in the vicinity of|close to|beyond)"
+        rf"\s+{_TOWN_OF}{name}\b{_NOT_THE_PLACE}"
+        rf"|\b{_DISTANCE}(?:from|outside(?:\s+of)?)\s+(?:downtown\s+)?{_TOWN_OF}{name}\b"
+        rf"{_NOT_THE_PLACE}"
+        rf"|\bannex\w*\b[^.;]{{0,80}}?\b(?:into|to|by)\s+{_TOWN_OF}{name}\b",
+        re.I,
+    )
+
+
+def outside_phrase(project: dict[str, Any], place: str) -> tuple[str, str] | None:
+    """(the phrase, where it is) when the row's note or an event-log entry puts the site outside
+    the place ("north of Yerington", "near Fredericksburg"); None when nothing does."""
+    if not place:
+        return None
+    pattern = _outside_re(place)
+    texts = [("its note", clean_text(project.get("note")))] + [
+        (
+            f"its event-log entry of {clean_text(e.get('date')) or 'no date'}",
+            clean_text(e.get("summary")),
+        )
+        for e in row_events(project)
+    ]
+    for where, text in texts:
+        m = pattern.search(text)
+        if m:
+            return m.group(0), where
+    return None
+
+
+# "on 82 acres in Stafford County": the county a row's note or event log places the site in (n1).
+_STATED_COUNTY_RE = re.compile(
+    r"\bin\s+((?:[A-Z][\w'.-]*\s+){1,3}?)(County|Parish)\b(?!\s+(?:line|lines|border)\b)"
+)
+
+
+def stated_county(project: dict[str, Any], state: str, counties: CountyIndex) -> County | None:
+    """The one county of the state that the row's note and event log place the site in ("on 82
+    acres in Stafford County"), when every county they place it in is that one; None otherwise.
+    A clause about another site of the company (_OTHER_SITE_RE) does not count."""
+    texts = [clean_text(project.get("note"))] + [
+        clean_text(e.get("summary")) for e in row_events(project)
+    ]
+    found: dict[str, County] = {}
+    for clause in (c for text in texts for c in _CLAUSE_RE.split(text)):
+        if _OTHER_SITE_RE.search(clause):
+            continue
+        for m in _STATED_COUNTY_RE.finditer(clause):
+            words = m.group(1).split()
+            # The longest run of words before "County" that names one ("Prince William County").
+            for k in range(len(words)):
+                c = counties.by_name(state, " ".join(words[k:]) + " " + m.group(2))
+                if c is not None:
+                    found.setdefault(c.fips, c)
+                    break
+    return next(iter(found.values())) if len(found) == 1 else None
 
 
 # A township is kept for a point within this many equal-area radii of its Gazetteer point (a
@@ -933,6 +1087,25 @@ def row_events(project: dict[str, Any]) -> list[dict[str, Any]]:
     return [e for e in events if isinstance(e, dict)] if isinstance(events, list) else []
 
 
+# An event-log link that is a placeholder, not a source (n10: Drox Rural Hall's nine
+# ".../article_example.html" links, which return 404).
+_PLACEHOLDER_URL_RE = re.compile(
+    r"/article_example\d*\.html?(?:[?#].*)?$|^https?://(?:www\.)?example\.(?:com|org|net)(?:/|$)",
+    re.I,
+)
+
+
+def placeholder_source(entry: dict[str, Any]) -> bool:
+    """Whether the entry's source is a placeholder link: the entry is then unsourced."""
+    return bool(_PLACEHOLDER_URL_RE.search(clean_text(entry.get("source"))))
+
+
+def dating_events(project: dict[str, Any]) -> list[dict[str, Any]]:
+    """The event-log entries that may date the record (a first report, a filing, a hearing held,
+    a land-use approval): every entry but those whose source is a placeholder link (n10)."""
+    return [e for e in row_events(project) if not placeholder_source(e)]
+
+
 def _clause_of_day(clause: str, day: AgwDate) -> bool:
     """Whether a clause of the note is about that day: it names it ("May 22, 2026", "Aug 12",
     "2025-01-28"), or names no date at all. Botetourt's "Grading permit issued Aug 2026" is not
@@ -967,7 +1140,7 @@ def land_use_approval(project: dict[str, Any]) -> str | None:
     decided = milestone_date(project, "decided_date")
     if decided is None:
         return None
-    for e in row_events(project):
+    for e in dating_events(project):
         day = entry_date(e)
         summary = clean_text(e.get("summary"))
         if day is not None and _same_period(day, decided) and _LAND_USE_APPROVAL_RE.search(summary):
@@ -1010,9 +1183,13 @@ def hearing_held(project: dict[str, Any], hearing: AgwDate) -> bool:
     if hearing.precision != "day":
         return False
     outcome = clean_text(project.get("outcome")).casefold()
-    if outcome in _OUTCOMES and parse_day(project.get("decided_date")) == hearing.start:
+    decided = decision_day(project).day
+    if outcome in _OUTCOMES and (
+        parse_day(project.get("decided_date")) == hearing.start
+        or (decided is not None and decided.precision == "day" and decided.start == hearing.start)
+    ):
         return True
-    for e in row_events(project):
+    for e in dating_events(project):
         if parse_day(e.get("date")) != hearing.start or not clean_text(e.get("source")):
             continue
         summary = clean_text(e.get("summary"))
@@ -1033,29 +1210,332 @@ def unconfirmed_hearing(project: dict[str, Any], today: date) -> AgwDate | None:
     return hearing
 
 
+# ---------------------------------------------------------------------------- milestones the row explains
+#
+# AI GridWatch's milestone fields are checked against the row's own note and event log (fifth fix
+# round): an announced date the row calls an LLC's registration or a filing, a rezoning_filed date
+# that is an inquiry, a report or the municipality's own act, or later than the row's own filing,
+# and a decision taken around midnight at the end of the previous day's meeting.
+
+# The row says only an inquiry was made (n40: Abei Energy "emailed the Starke County Plan
+# Commission asking about rezoning two parcels"; "before Abei's proposal advanced to a rezoning
+# vote").
+_INQUIRY_RE = re.compile(
+    r"\b(?:ask(?:s|ed|ing)?|inquir(?:es|ed|ing)|emailed)\b[^.;]{0,80}?\babout\s+(?:a\s+)?"
+    r"(?:re-?zoning|zoning|permits?|a data cent(?:er|re))\b"
+    r"|\bbefore\b[^.;]{0,60}?\b(?:proposal|application|request|petition)\s+advanced\b",
+    re.I,
+)
+# The municipality's own procedure, not an application (n33: Smithfield Township's Resolution 621,
+# "Curative amendment application filed; 180-day MPC review period begins").
+_MUNICIPAL_ACT_RE = re.compile(
+    r"\bresolution\s+(?:no\.?\s*)?\d+|\b(?:review|cure|comment)\s+period\s+begins\b|"
+    r"\b(?:township|county|city|borough|town|village)\s+initiat\w*\b",
+    re.I,
+)
+# An entry that reports a filing rather than makes it (n33: Site Layer 4's "Rezoning application
+# revealed", the day of the article).
+_REVEALED_RE = re.compile(
+    r"\b(?:applications?|requests?|petitions?|filings?)\b[^.;]{0,40}?\b(?:revealed|reported|"
+    r"disclosed|surfaced|came to light|made public)\b|\b(?:revealed|reported|disclosed)\b"
+    r"[^.;]{0,40}?\b(?:applications?|requests?|petitions?|filings?)\b",
+    re.I,
+)
+# An LLC's registration, which is no report of a project (n31: Andover's "registered Andover HPC
+# Development in December 2025").
+_REGISTERED_RE = re.compile(r"\b(?:registered|incorporated|was formed|was organized)\b", re.I)
+_MIDNIGHT_RE = re.compile(
+    r"\b(?:around|past|after|near(?:ly)?|shortly (?:after|before)|just (?:after|before)|at|"
+    r"until|close to)\s+midnight\b",
+    re.I,
+)
+
+
+def _days_named(text: str, year: int) -> list[date]:
+    """The days a text names ("April 15, 2026", "July 6", "2026-07-06"); a day without its year
+    is in `year`."""
+    out: list[date] = []
+    for m in _DATE_MENTION_RE.finditer(text):
+        if m.group("iso"):
+            if (d := parse_day(m.group("iso"))) is not None:
+                out.append(d)
+            continue
+        if not m.group("day"):
+            continue
+        month = [n[:3] for n in _MONTH_NAMES].index(m.group("mon")[:3].casefold()) + 1
+        try:
+            out.append(date(int(m.group("year") or year), month, int(m.group("day"))))
+        except ValueError:
+            continue
+    return out
+
+
+_DAY_TEXT = (
+    r"(?:(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|"
+    r"Sept?(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2}(?:,?\s+\d{4})?|"
+    r"\d{4}-\d{2}-\d{2})"
+)
+# A day named as a filing's: "filed a zoning permit application on April 15, 2026", "Monticello
+# Tech's July 6 land-use applications".
+_FILING_DAY_RE = re.compile(
+    rf"\b(?:filed|submitted|applied)\b[^.;,]{{0,80}}?\b(?:on|dated)\s+(?P<a>{_DAY_TEXT})"
+    rf"|(?P<b>{_DAY_TEXT})(?:'s)?\s+(?:[\w-]+\s+){{0,2}}?(?:applications?|filings?|submissions?)\b"
+)
+
+
+def _filing_days_named(text: str, year: int) -> list[date]:
+    """The days a text names as a filing's (_FILING_DAY_RE); a day without its year is in
+    `year`."""
+    return [
+        d
+        for m in _FILING_DAY_RE.finditer(text)
+        for d in _days_named(m.group("a") or m.group("b"), year)
+    ]
+
+
+def _names_period(text: str, day: AgwDate) -> bool:
+    """Whether the text names that day (or, for a month, that month and year)."""
+    if day.precision == "day":
+        return day.start in _days_named(text, day.start.year)
+    if day.precision == "month":
+        return _names_month(text, day.start.month, day.start.year, with_year=True)
+    return False
+
+
+def _day_texts(project: dict[str, Any], day: AgwDate) -> tuple[list[str], list[str]]:
+    """(the summaries of the event-log entries of that day, the note's clauses that name it)."""
+    entries = [
+        clean_text(e.get("summary"))
+        for e in dating_events(project)
+        if (d := entry_date(e)) is not None
+        and d.start == day.start
+        and d.precision == day.precision
+    ]
+    clauses = [
+        c for c in _CLAUSE_RE.split(clean_text(project.get("note"))) if _names_period(c, day)
+    ]
+    return entries, clauses
+
+
+def _filing_text(text: str) -> bool:
+    """A text in which an applicant files ("filed a zoning permit application", "submitted its
+    application")."""
+    return bool(_FILED_VERB_RE.search(text) and _APPLICATION_RE.search(text)) or bool(
+        re.search(r"\bapplications?\s+(?:was\s+|were\s+)?(?:filed|submitted)\b", text, re.I)
+    )
+
+
+def _registration_text(project: dict[str, Any], text: str) -> bool:
+    """A text about an LLC's or a company's registration (not a TDLR/TABS building registration,
+    which is a filing): "Andover HPC Development LLC registered at 248 Stickles Pond Road"."""
+    if not _REGISTERED_RE.search(text) or _filing_text(text):
+        return False
+    if re.search(r"\b(?:TDLR|TABS|Department of Licensing)\b", text):
+        return False
+    names = filing_names(clean_text(project.get("filing_llc")))
+    return bool(
+        re.search(r"\b(?:LLC|L\.L\.C\.|Inc|Corp|entity|entities|company)\b", text, re.I)
+        or any(_names_org(text, n) for n in names)
+    )
+
+
+def _own_application(project: dict[str, Any], entry: dict[str, Any]) -> bool:
+    """An own filing entry (own_filing) that names the project or one of the row's organizations,
+    and no electric utility: Plaza 500's "Dominion Energy filed its application ... for the
+    Edsall transmission line" is the utility's."""
+    summary = clean_text(entry.get("summary"))
+    return (
+        own_filing(entry)
+        and not _UTILITY_RE.search(summary)
+        and (
+            names_project(project, summary) is not None
+            or any(_names_org(summary, org) for org in _row_orgs(project))
+        )
+    )
+
+
+@dataclass(frozen=True)
+class Announcement:
+    """AI GridWatch's announced date as the row explains it: the day to import as announced
+    (None when it is not one), or the filing it is, and why it was set aside."""
+
+    day: AgwDate | None
+    filing: AgwDate | None = None
+    doubt: str | None = None
+
+
+def announcement(project: dict[str, Any]) -> Announcement:
+    """The announced milestone, unless the row explains its day as something else (n31): an LLC's
+    registration (Andover: "National Land Developers registered Andover HPC Development in
+    December 2025"), which is no report, or a filing (Muncy: "filed a zoning permit application
+    on April 15, 2026"), which is imported as application_filed. The row's entries of that day,
+    or else the note's clauses that name it, must all say so."""
+    announced = milestone_date(project, "announced")
+    if announced is None:
+        return Announcement(None)
+    entries, clauses = _day_texts(project, announced)
+    texts = entries or clauses
+    if not texts:
+        return Announcement(announced)
+    if all(_registration_text(project, t) for t in texts):
+        return Announcement(
+            None,
+            doubt=f"the row explains it as an LLC's registration ({texts[0][:160]!r}), which is no "
+            "report of the project",
+        )
+    filed = [
+        e
+        for e in dating_events(project)
+        if _own_application(project, e) and entry_date(e) == announced
+    ]
+    if (entries and len(filed) == len(entries)) or (
+        not entries and all(_filing_text(t) for t in clauses)
+    ):
+        return Announcement(
+            None,
+            filing=announced,
+            doubt=f"the row explains it as the day of a filing ({texts[0][:160]!r}): it is "
+            "imported as the application's filing, not as an announcement",
+        )
+    return Announcement(announced)
+
+
+@dataclass(frozen=True)
+class Filing:
+    """AI GridWatch's rezoning_filed date as the row explains it: the application_filed date to
+    import (None when there is none), whether the row shows an application, and why the date is
+    not imported as given."""
+
+    day: AgwDate | None
+    filed: bool
+    doubt: str | None = None
+
+
+def rezoning_filing(project: dict[str, Any]) -> Filing:
+    """rezoning_filed checked against the row's own text (n33, n40). It is no filing when the note
+    says only an inquiry was made (Abei Energy); not the application's day when the entries of
+    that day are the municipality's own procedure (Smithfield's curative amendment resolution and
+    its "review period begins") or only report the application ("Rezoning application revealed":
+    Site Layer 4 had applied before); and when the row's own filing entries, a day they or the
+    note name for a filing, or an announced date the row calls a filing, are earlier (Monticello
+    Tech's "July 6 land-use applications" against 2026-07-07; Muncy's April 15 zoning permit
+    application against its April 28 conditional use application), the earliest of those is the
+    application's day."""
+    stated = milestone_date(project, "rezoning_filed")
+    note = clean_text(project.get("note"))
+    if stated is None:
+        early = announcement(project).filing
+        return Filing(early, early is not None)
+    inquiry = _INQUIRY_RE.search(note)
+    if inquiry is not None and not _filing_text(note):
+        return Filing(
+            None,
+            False,
+            f"the row's note says only an inquiry was made ({inquiry.group(0)!r}), not an "
+            "application",
+        )
+    entries, _ = _day_texts(project, stated)
+    if entries and all(_MUNICIPAL_ACT_RE.search(t) for t in entries):
+        return Filing(
+            None,
+            False,
+            f"its entry of that day is the municipality's own procedure ({entries[0][:160]!r}), "
+            "not the developer's application",
+        )
+    if entries and all(_REVEALED_RE.search(t) and not _FILED_VERB_RE.search(t) for t in entries):
+        return Filing(
+            None,
+            True,
+            f"its entry of that day only reports the application ({entries[0][:160]!r}), which "
+            "was filed earlier on a day the row does not give",
+        )
+    candidates: list[tuple[AgwDate, str]] = []
+    for e in dating_events(project):
+        if not _own_application(project, e) or (d := entry_date(e)) is None:
+            continue
+        candidates.append((d, f"its own filing entry of {d.fuzzy()['value']}"))
+        summary = clean_text(e.get("summary"))
+        candidates.extend(
+            (AgwDate(n, "day"), f"the filing day its entry of {d.fuzzy()['value']} names")
+            for n in _filing_days_named(summary, d.start.year)
+            if n <= d.end
+        )
+    candidates.extend(
+        (AgwDate(n, "day"), "a filing day its note names")
+        for n in _filing_days_named(note, stated.start.year)
+    )
+    early = announcement(project).filing
+    if early is not None:
+        candidates.append((early, "its announced date, which the row explains as a filing"))
+    earlier = [(d, why) for d, why in candidates if d.end < stated.start]
+    if earlier:
+        day, why = min(earlier, key=lambda t: (t[0].start, t[0].precision != "day"))
+        return Filing(
+            day,
+            True,
+            f"{why} ({day.fuzzy()['value']}) is earlier, so the application's filing is dated then",
+        )
+    return Filing(stated, True)
+
+
+@dataclass(frozen=True)
+class Decision:
+    """decided_date as the row explains it: the day to import, and the text that moved it."""
+
+    day: AgwDate | None
+    moved_by: str | None = None
+
+
+def decision_day(project: dict[str, Any]) -> Decision:
+    """decided_date, or the day before it when the row says the vote came around midnight at the
+    end of that day's meeting (n37: Red Oak's council "approved the rezoning 4-1 around midnight
+    following the May 11 meeting", decided_date 2026-05-12): a vote is dated by its meeting."""
+    decided = milestone_date(project, "decided_date")
+    if decided is None or decided.precision != "day":
+        return Decision(decided)
+    before = decided.start - timedelta(days=1)
+    texts = [clean_text(project.get("note"))] + [
+        clean_text(e.get("summary"))
+        for e in dating_events(project)
+        if parse_day(e.get("date")) in (decided.start, before)
+    ]
+    for clause in (c for t in texts for c in _CLAUSE_RE.split(t)):
+        named = _days_named(clause, decided.start.year)
+        if _MIDNIGHT_RE.search(clause) and before in named and decided.start not in named:
+            return Decision(AgwDate(before, "day"), clause[:160])
+    return Decision(decided)
+
+
 def milestone_events(project: dict[str, Any], today: date) -> list[dict[str, Any]]:
     """Events from the milestone dates, in date order; dates after today are planned, a date on
     the 1st of a month is that month (January 1, that year). An announcement dated after a
     later-stage milestone is left out (late_announcement), and so are a past hearing nothing says
     was held (hearing_held) and an approval nothing names a land-use approval or a permit
-    (unnamed_approval)."""
-    found: list[tuple[AgwDate, int, Status, EventType]] = []
-    announced = milestone_date(project, "announced")
+    (unnamed_approval). The announced, rezoning_filed and decided_date fields are read as the row
+    explains them (announcement, rezoning_filing, decision_day)."""
+    found: list[tuple[AgwDate, int, Status, EventType, str | None]] = []
+    announced = announcement(project).day
     if announced and late_announcement(project) is None:
-        found.append((announced, 0, "announced", "announced"))
-    filed = milestone_date(project, "rezoning_filed")
-    if filed:
-        found.append((filed, 1, "proposed", "application_filed"))
+        found.append((announced, 0, "announced", "announced", None))
+    filing = rezoning_filing(project)
+    if filing.day:
+        note = None
+        if filing.day != milestone_date(project, "rezoning_filed"):
+            note = "Dated by the row's own filing, not its rezoning_filed date"
+        found.append((filing.day, 1, "proposed", "application_filed", note))
     hearing = milestone_date(project, "hearing_date")
     if hearing and hearing.start > today:
-        found.append((hearing, 2, "proposed", "hearing_scheduled"))
+        found.append((hearing, 2, "proposed", "hearing_scheduled", None))
     elif hearing and hearing_held(project, hearing):
-        found.append((hearing, 2, "proposed", "hearing_held"))
-    decided = milestone_date(project, "decided_date")
+        found.append((hearing, 2, "proposed", "hearing_held", None))
+    decision = decision_day(project)
     outcome = clean_text(project.get("outcome")).casefold()
-    if decided and outcome in _OUTCOMES and unnamed_approval(project) is None:
+    if decision.day and outcome in _OUTCOMES and unnamed_approval(project) is None:
         status, event = _OUTCOMES[outcome]
-        found.append((decided, 3, status, event))
+        note = None
+        if decision.moved_by is not None:
+            note = "Dated by its meeting: the row says the vote came around midnight at its end"
+        found.append((decision.day, 3, status, event, note))
     found.sort(key=lambda t: (t[0].start, t[1]))
     return [
         {
@@ -1065,8 +1545,9 @@ def milestone_events(project: dict[str, Any], today: date) -> list[dict[str, Any
             "as_of": day.fuzzy(),
             "planned": day.start > today,
             "source_ids": ["s1"],
+            **({"note": note} if note else {}),
         }
-        for i, (day, _, status, event) in enumerate(found)
+        for i, (day, _, status, event, note) in enumerate(found)
     ]
 
 
@@ -1173,6 +1654,13 @@ def source_date(url: object) -> date | None:
 
 
 ReportHow = Literal["name", "site", "acres", "size", "org_place"]
+
+
+def _names_a_place(project: dict[str, Any], text: str) -> bool:
+    """Whether the text names one of the places the row's locality names."""
+    return any(
+        re.search(rf"(?<!\w){re.escape(p)}(?!\w)", text, re.I) for p in _place_names(project)
+    )
 
 
 def names_project(project: dict[str, Any], summary: str) -> ReportHow | None:
@@ -1324,12 +1812,21 @@ def first_report(
             first = seen
         return FirstReport(event, doubt, entry, first)
 
-    if status not in _REPORTED_STATUSES or any(e["event"] == "announced" for e in events):
+    if status not in _REPORTED_STATUSES:
         return result(None)
+    # With an announced milestone, the entries before it are still read (n31): one that reports
+    # the project earlier dates the first report (Andover's township officials discussed it in
+    # August 2025, before its December registration).
+    announced = [
+        period_start(FuzzyDate.model_validate(ev["as_of"]))
+        for ev in events
+        if ev["event"] == "announced" and not ev["planned"]
+    ]
+    bound = min(announced) if announced else None
     entries = sorted(
         (
             (day, i, e)
-            for i, e in enumerate(row_events(project))
+            for i, e in enumerate(dating_events(project))
             if (day := entry_date(e)) is not None and day.start <= today
         ),
         key=lambda t: (t[0].start, t[1]),
@@ -1338,10 +1835,19 @@ def first_report(
     doubt: tuple[str, dict[str, Any]] | None = None
     acres = parse_number(project.get("acres"))
     for day, _, e in entries:
+        if bound is not None and day.end >= bound:
+            break  # the announcement is the first report from here on
         summary = clean_text(e.get("summary"))
         kind = clean_text(e.get("kind")).casefold()
         how = names_project(project, summary)
         stated = _acres_in(summary)
+        if (
+            how is None
+            and acres
+            and _ENV_REVIEW_RE.search(summary)
+            and any(_same_acres(a, acres) for a in stated)
+        ):
+            how = "acres"  # an environmental review of the site (n38: Monticello's AUAR)
         elsewhere = bool(_OTHER_SITE_RE.search(summary)) or bool(
             acres and stated and not any(_same_acres(a, acres) for a in stated)
         )
@@ -1361,12 +1867,18 @@ def first_report(
             continue  # another site of the same company
         if _PROPERTY_RE.search(summary) and not _PLAN_RE.search(summary):
             continue  # a land deal dates the land, not the project
+        if _PRIVATE_RE.search(summary):
+            continue  # an act out of public view, revealed later (OpenAI's NDA to Effingham County)
+        if bound is not None and how == "org_place" and not _names_a_place(project, summary):
+            continue  # before AI GridWatch's announced date, the company alone is not the project
+        published = source_date(e.get("source"))
+        if bound is not None and published is not None and published >= bound:
+            continue  # known only from a report of the announcement or after it
         if how == "org_place" and other_site:
             continue  # the company and the place only: taken as the other site's
         naming = [c for c in _CLAUSE_RE.split(summary) if names_project(project, c)] or [summary]
         if kind in _RULE_KINDS and all(_REPORT_CONTEXT_RE.search(c) for c in naming):
             continue  # about the rule itself (Hanover's ordinance, "before Prime ... submitted")
-        published = source_date(e.get("source"))
         if _SCHEDULED_RE.search(summary) and (published is None or published > day.end):
             reason = (
                 "the earliest entry that names the project is dated by the event it announces, "
@@ -1436,6 +1948,13 @@ def _log_entries(project: dict[str, Any]) -> list[tuple[AgwDate | None, dict[str
     return entries
 
 
+# In the row's own note, the company, the developer or the project is the row's (n39: Nebius
+# Independence's "Council approved Chapter 100 abatement 5-2 and the company has broken ground").
+_NOTE_SUBJECT_RE = re.compile(
+    r"\b(?:the (?:company|developer|applicant|project|owner)|it|they)\b", re.I
+)
+
+
 def _about_the_site(project: dict[str, Any], clause: str) -> bool:
     """Whether a clause is about the data center: it names a data center, a campus, the row's
     name or one of its organizations."""
@@ -1493,7 +2012,10 @@ def log_milestone(project: dict[str, Any], status: Status, today: date) -> LogMi
                 )
             if (
                 not _LOG_ENERGY_RE.search(clause)
-                and _about_the_site(project, clause)
+                and (
+                    _about_the_site(project, clause)
+                    or (day is None and bool(_NOTE_SUBJECT_RE.search(clause)))
+                )
                 and any(
                     _unhedged(clause, m.start(), m.end(), 20)
                     for m in _LOG_GROUNDBREAKING_RE.finditer(clause)
@@ -1510,23 +2032,73 @@ def log_milestone(project: dict[str, Any], status: Status, today: date) -> LogMi
 
 
 def filing_day(project: dict[str, Any]) -> AgwDate | None:
-    """The row's first filing: rezoning_filed, else its first own filing entry (own_filing)."""
-    days = [d for d in [milestone_date(project, "rezoning_filed")] if d is not None] + [
+    """The row's first filing: rezoning_filed (as the row explains it, rezoning_filing), else its
+    first own filing entry (own_filing)."""
+    days = [d for d in [rezoning_filing(project).day] if d is not None] + [
         d for e in row_events(project) if own_filing(e) and (d := entry_date(e)) is not None
     ]
     return min(days, key=lambda d: d.start) if days else None
 
 
-def log_obstacle(project: dict[str, Any], status: Status, today: date) -> LogMilestone | None:
+def _halted(project: dict[str, Any], today: date) -> LogMilestone | None:
+    """An injunction or a halt of the site's works that no later entry says was lifted or ended."""
+    found: LogMilestone | None = None
+    for day, e in sorted(
+        ((d, e) for d, e in _log_entries(project) if d is not None and d.start <= today),
+        key=lambda t: t[0].start,
+    ):
+        summary = clean_text(e.get("summary"))
+        if _LOG_RESUMED_RE.search(summary):
+            found = None  # lifted, dissolved or resumed (after it, or in the same entry)
+            continue
+        for clause in _CLAUSE_RE.split(summary):
+            if (
+                not _LOG_ENERGY_RE.search(clause)
+                and (
+                    _about_the_site(project, clause)
+                    or re.search(r"\b(?:site|property|project)\b", clause, re.I)
+                )
+                and any(
+                    _unhedged(clause, m.start(), m.start())
+                    and not _HALT_DENIED_RE.search(clause[max(0, m.start() - 40) : m.start()])
+                    for m in _LOG_HALT_RE.finditer(clause)
+                )
+            ):
+                what = "an injunction or a halt of its construction"
+                found = LogMilestone(
+                    "paused",
+                    what,
+                    day,
+                    clean_text(e.get("kind")),
+                    clean_text(e.get("source")) or None,
+                )
+                break
+    return found
+
+
+def log_obstacle(
+    project: dict[str, Any], status: Status, today: date, public: date | None = None
+) -> LogMilestone | None:
     """For a row at announced or proposed, an entry (or the note) that leaves no application under
     review although the stage implies one: its application refused as incomplete with the refusal
     upheld (Urbana: the BZA "unanimously denies Thor's appeal, upholding city determination that
     site plan application was incomplete"), or, after its filing, a moratorium or ban on data
     centers adopted that does not exempt it (Urbana's council "passed a 12-month moratorium on new
-    data centers" three weeks after the filing). None otherwise."""
+    data centers" three weeks after the filing). For a row at announced with no filing, a ban or
+    moratorium adopted after the project was public (`public`: the earliest date the row shows;
+    when it shows none, any) holds it too (n34: Andover's Ordinance 2026-13 banning data centers
+    township-wide). For a row under construction, an injunction or a halt of its works that no
+    later entry lifts (n34: Matrix's temporary injunction freezing construction). None
+    otherwise."""
+    if status == "under_construction":
+        return _halted(project, today)
     if status not in ("announced", "proposed"):
         return None
     filed = filing_day(project)
+    since: date | None = filed.end if filed is not None else None
+    after = "after its filing"
+    if filed is None and status == "announced":
+        since, after = public, "after the project was public"
     for day, e in _log_entries(project):
         if day is not None and day.start > today:
             continue
@@ -1536,19 +2108,45 @@ def log_obstacle(project: dict[str, Any], status: Status, today: date) -> LogMil
             if _LOG_INCOMPLETE_RE.search(clause) and _LOG_UPHELD_RE.search(clause):
                 what = "its application refused as incomplete, and the refusal upheld"
                 return LogMilestone(None, what, day, kind, source)
+            # For an announced row without a filing, the note's ban counts too: any ban in force
+            # blocks a project that has not applied.
             if (
-                filed is not None
-                and day is not None
-                and day.start > filed.end
+                (filed is not None or status == "announced")
+                and (day is not None or filed is None)
+                and (since is None or day is None or day.start > since)
                 and not _LOG_EXEMPT_RE.search(clean_text(e.get("summary")))
                 and any(
                     _unhedged(clause, m.start(), m.end())
+                    and not _MORATORIUM_HEDGE_RE.search(clause[max(0, m.start() - 40) : m.start()])
                     for m in _LOG_MORATORIUM_RE.finditer(clause)
                 )
+                and not _moratorium_ended(project, day)
             ):
-                what = "a moratorium or ban on data centers adopted after its filing"
+                what = f"a moratorium or ban on data centers adopted {after}"
                 return LogMilestone("paused", what, day, kind, source)
     return None
+
+
+# A moratorium that ended (Leavenworth County's "Commission votes 3-2 against extending
+# moratorium; moratorium expires").
+_MORATORIUM_ENDED_RE = re.compile(
+    r"\bmoratori(?:um|a)\s+(?:has\s+|had\s+)?(?:expir\w*|ended|ends|lapsed?)\b|\bwhich\s+expired\b|"
+    r"\b(?:lift\w*|repeal\w*|rescind\w*|end\w*)\s+(?:the\s+|its\s+)?(?:[\w-]+\s+){0,2}?"
+    r"(?:moratori(?:um|a)|ban)\b|\bagainst extending\b",
+    re.I,
+)
+
+
+def _moratorium_ended(project: dict[str, Any], day: AgwDate | None) -> bool:
+    """Whether a later entry (or, for the note's ban, the note) says the moratorium ended."""
+    if day is None:
+        return bool(_MORATORIUM_ENDED_RE.search(clean_text(project.get("note"))))
+    return any(
+        (d := entry_date(e)) is not None
+        and d.start > day.start
+        and _MORATORIUM_ENDED_RE.search(clean_text(e.get("summary")))
+        for e in row_events(project)
+    )
 
 
 def withdrawal_reason(project: dict[str, Any]) -> StatusReason | None:
@@ -1594,6 +2192,27 @@ def not_a_data_center(project: dict[str, Any]) -> str | None:
     return None
 
 
+def _figure_basis(clause: str, m: re.Match[str]) -> SizeBasis | None:
+    """The basis the words around a MW figure of a clause give it, if any."""
+    before, after = clause[max(0, m.start() - 30) : m.start()], clause[m.end() : m.end() + 40]
+    if _IT_AFTER_RE.match(after):
+        return "it"
+    if _POWER_AFTER_RE.match(after):
+        return "power_source"
+    if _SUPPLY_BEFORE_RE.search(before):
+        return "utility_request"
+    if _PHASE_BEFORE_RE.search(before) or _PHASE_AFTER_RE.match(after):
+        return "phase"
+    if _SUPPLY_AFTER_RE.match(after):
+        return "utility_request"
+    return None
+
+
+def _figure_mw(m: re.Match[str]) -> float:
+    unit = 1000.0 if m.group(2).casefold().startswith("g") else 1.0
+    return float(m.group(1).replace(",", "")) * unit
+
+
 def size_basis(size: float, note: str) -> SizeBasis | None:
     """What the row's note says size_mw measures: critical IT load ("up to 300MW critical IT"), a
     supply or interconnection ("Talen agreed to supply 960 MW", "3.2 GW contracted"), a power
@@ -1603,55 +2222,155 @@ def size_basis(size: float, note: str) -> SizeBasis | None:
     bases, so the schema text alone is not the basis (07 §2.4)."""
     for clause in _CLAUSE_RE.split(clean_text(note)):
         for m in _FIGURE_RE.finditer(clause):
-            unit = 1000.0 if m.group(2).casefold().startswith("g") else 1.0
-            if abs(float(m.group(1).replace(",", "")) * unit - size) > 0.5:
+            if abs(_figure_mw(m) - size) > 0.5:
                 continue
-            before, after = (
-                clause[max(0, m.start() - 30) : m.start()],
-                clause[m.end() : m.end() + 40],
-            )
-            if _IT_AFTER_RE.match(after):
-                return "it"
-            if _POWER_AFTER_RE.match(after):
-                return "power_source"
-            if _SUPPLY_BEFORE_RE.search(before):
-                return "utility_request"
-            if _PHASE_BEFORE_RE.search(before) or _PHASE_AFTER_RE.match(after):
-                return "phase"
-            if _SUPPLY_AFTER_RE.match(after):
-                return "utility_request"
-            return None
+            return _figure_basis(clause, m)
     return None
+
+
+def campus_acres(project: dict[str, Any]) -> tuple[float, str] | None:
+    """(acres, the words) when the row's note or event log gives the row's named campus one
+    acreage of its own ("the 304-acre BCG Cedar Creek Campus portion"); None when they give it
+    none, or several."""
+    name = _project_name(project)
+    if len(name) < 4:
+        return None
+    pattern = re.compile(
+        rf"(?<![\w.])(\d{{1,3}}(?:,\d{{3}})+|\d+(?:\.\d+)?)[- ]acres?\s+(?:the\s+)?"
+        rf"{re.escape(name)}(?!\w)",
+        re.I,
+    )
+    found: dict[float, str] = {}
+    texts = [clean_text(project.get("note"))] + [
+        clean_text(e.get("summary")) for e in row_events(project)
+    ]
+    for text in texts:
+        for m in pattern.finditer(text):
+            found.setdefault(float(m.group(1).replace(",", "")), m.group(0))
+    if len(found) != 1:
+        return None
+    return next(iter(found.items()))
+
+
+def party_replaced(project: dict[str, Any], name: str) -> str | None:
+    """The words of the row's note or event log that say the organization is being replaced as
+    the developer (n34: Sulphur Springs' mayor "announces a new developer will take over the
+    Matrix Data Center Campus, with original developer MSB Global being phased out"), if any."""
+    bare = clean_text(_ORG_SUFFIX_RE.sub(" ", name)).strip(" ,.")
+    words = bare.split()
+    names = [" ".join(words[:k]) for k in range(len(words), 0, -1)]
+    names = [n for n in names if len(n) >= 6 and (" " in n or n == bare)]
+    if not names:
+        return None
+    org = "(?:" + "|".join(re.escape(n) for n in names) + ")"
+    pattern = re.compile(
+        rf"(?<!\w){org}(?!\w)[^.;]{{0,60}}?\b(?:(?:is|was|being|will be|to be|been|are|were)\s+"
+        rf"(?:phased out|replaced)|phased out|no longer (?:the |its )?(?:developer|involved))\b"
+        rf"|\b(?:replac(?:ed|es|ing)|tak(?:e|es|ing|en)\s+over\s+from|succeed(?:s|ed|ing)?)\s+"
+        rf"(?:the\s+)?(?:original\s+)?(?:developer\s+)?{org}(?!\w)",
+        re.I,
+    )
+    texts = [clean_text(project.get("note"))] + [
+        clean_text(e.get("summary")) for e in row_events(project)
+    ]
+    for text in texts:
+        for clause in _CLAUSE_RE.split(text):
+            if pattern.search(clause):
+                return clause[:200]
+    return None
+
+
+def other_basis_figures(project: dict[str, Any], size: float, basis: SizeBasis) -> list[str]:
+    """Event-log entries that give the campus another MW figure on the same basis as size_mw (n2:
+    DataBank Red Oak's note says "up to 300MW critical IT", its 2024-09-10 entry "240MW of
+    critical IT power" of a 480 MW campus): "{date}: {figure} MW". An entry about another site of
+    the company (_OTHER_SITE_RE) is not the campus's."""
+    out: list[str] = []
+    for e in row_events(project):
+        summary = clean_text(e.get("summary"))
+        if _OTHER_SITE_RE.search(summary):
+            continue
+        for clause in _CLAUSE_RE.split(summary):
+            for m in _FIGURE_RE.finditer(clause):
+                mw = _figure_mw(m)
+                if abs(mw - size) > 0.5 and _figure_basis(clause, m) == basis:
+                    out.append(f"{clean_text(e.get('date')) or 'no date'}: {mw:g} MW")
+    return out
+
+
+# A clause that gives the context of an entry's subject ("..., months after the county amended
+# its zoning ordinance"), and the verbs of an applicant's filing.
+_CONTEXT_CLAUSE_RE = re.compile(
+    r",\s+(?:[\w-]+\s+){0,2}?(?:after|before|since|following|when|while|once|until)\b", re.I
+)
+_FILED_VERB_RE = re.compile(r"\b(?:submit(?:s|ted)?|filed|files|applied|applies)\b", re.I)
 
 
 def own_filing(entry: dict[str, Any]) -> bool:
     """Whether an event-log entry is one of the row's own applications: of kind filing or
-    rezoning, about an application, a petition, a request, a plan or a permit, and not about the
-    place's rules (an ordinance, a moratorium, a text amendment, a resolution, fees, ...), a
-    property deal or someone else's lawsuit, appeal or motion."""
+    rezoning, with a source that is not a placeholder link, about an application, a petition, a
+    request, a plan or a permit, and not about the place's rules (an ordinance, a moratorium, a
+    text amendment, a resolution, fees, ...), a property deal or someone else's lawsuit, appeal
+    or motion. The place's rules may come in as the context of a filing: an entry whose first
+    clause files an application and names no rule is one, whatever a later clause says of an
+    ordinance (n15: Pronghorn "submitted a conditional use permit application in November 2025
+    ..., months after the county amended its zoning ordinance")."""
     summary = clean_text(entry.get("summary"))
+    if (
+        clean_text(entry.get("kind")).casefold() not in _FILING_EVENT_KINDS
+        or placeholder_source(entry)
+        or not _APPLICATION_RE.search(summary)
+        or _NOT_AN_APPLICATION_RE.search(summary)
+    ):
+        return False
+    if not _REPORT_CONTEXT_RE.search(summary):
+        return True
+    subject = _CONTEXT_CLAUSE_RE.split(_CLAUSE_RE.split(summary)[0], maxsplit=1)[0]
     return (
-        clean_text(entry.get("kind")).casefold() in _FILING_EVENT_KINDS
-        and bool(_APPLICATION_RE.search(summary))
-        and not _REPORT_CONTEXT_RE.search(summary)
-        and not _NOT_AN_APPLICATION_RE.search(summary)
+        bool(_FILED_VERB_RE.search(subject))
+        and bool(_APPLICATION_RE.search(subject))
+        and not _REPORT_CONTEXT_RE.search(subject)
     )
 
 
 def has_filing(project: dict[str, Any]) -> bool:
-    """A rezoning_filed date, or an entry that is one of the row's own applications."""
-    if parse_day(project.get("rezoning_filed")):
+    """A rezoning_filed date the row shows is a filing (rezoning_filing), an announced date it
+    explains as a filing, or an entry that is one of the row's own applications."""
+    if rezoning_filing(project).filed:
         return True
     return any(own_filing(e) for e in row_events(project))
 
 
 def no_application(project: dict[str, Any]) -> str | None:
-    """The phrase of the row's note that says nothing has been formally proposed, when no filing
-    is known (has_filing): a stage that implies an application is then announced."""
+    """The phrase of the row's note, or of an event-log entry about its project, that says nothing
+    has been formally proposed, or the note's words that say only an inquiry was made, when no
+    filing is known (has_filing): a stage that implies an application is then announced (n30:
+    Project Zora's "no formal application or site review had been submitted"; n40)."""
     if has_filing(project):
         return None
-    m = _NO_APPLICATION_RE.search(clean_text(project.get("note")))
-    return m.group(0) if m else None
+    texts = [clean_text(project.get("note"))] + [
+        summary
+        for e in dating_events(project)
+        if names_project(project, summary := clean_text(e.get("summary"))) is not None
+    ]
+    for text in texts:
+        m = _NO_APPLICATION_RE.search(text)
+        if m:
+            return m.group(0)
+    inquiry = _INQUIRY_RE.search(clean_text(project.get("note")))
+    return inquiry.group(0) if inquiry and milestone_date(project, "rezoning_filed") else None
+
+
+_TERMINAL_EVENTS = frozenset({"denied", "withdrawn", "cancelled", "paused"})
+
+
+def _terminal_first(events: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The earliest dated event, when it is a denial, a withdrawal, a cancellation or a pause."""
+    actual = [e for e in events if not e["planned"] and e["event"] != "other"]
+    if not actual:
+        return None
+    first = min(actual, key=lambda e: period_start(FuzzyDate.model_validate(e["as_of"])))
+    return first if first["event"] in _TERMINAL_EVENTS else None
 
 
 def _latest_actual(events: list[StatusEvent]) -> StatusEvent | None:
@@ -2175,7 +2894,7 @@ class AIGridWatchImporter:
     match_key = "aigridwatch_id"
     owned_external_keys = ("aigridwatch_id",)
     review_sources = ("aigridwatch",)
-    version = "3"
+    version = "4"
     help = "AI GridWatch project tracker (CC BY 4.0): contested proposals and their milestones"
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
@@ -2470,8 +3189,9 @@ class AIGridWatchImporter:
                 flag(
                     "conflict",
                     pid,
-                    f"AI GridWatch's stage {stage!r} implies an application, but the row's note "
-                    f"says {unproposed!r} and no filing is known: the record is announced, not "
+                    f"AI GridWatch's stage {stage!r} implies an application, but the row (its "
+                    f"note or an entry about its project) says {unproposed!r} and no filing is "
+                    "known: the record is announced, not "
                     "proposed (07 §2.3); a reviewer checks whether an application was filed",
                     stage=stage,
                     note_says=unproposed,
@@ -2703,6 +3423,12 @@ class AIGridWatchImporter:
                 stats["source_coords"] += 1
         else:
             county = resolve_county(loc, state, counties, None)
+            # A locality that names no county ("Fredericksburg", a market name) is placed in the
+            # county the row's note and event log state, when they all state one (n1: Vantage
+            # VA4 is "on 82 acres in Stafford County near Fredericksburg").
+            stated = None
+            if county is None and not loc.county_texts:
+                stated = county = stated_county(project, state, counties)
             # A Census place, or a county subdivision (Bloomfield, CT is a town; the Gazetteer's
             # only place there is Blue Hills CDP), in the named county when there is one.
             locality = next(
@@ -2739,6 +3465,33 @@ class AIGridWatchImporter:
                 # The text's place is no Census place or subdivision ("Globeville-Elyria-Swansea
                 # (Denver)", a neighborhood): the record names the place it is placed at.
                 place_city = place_municipality = None
+            if result.method == "county_centroid":
+                # Placed at the county's point: the text's place is not in that county (or not
+                # known), so the record does not name it.
+                place_city = place_municipality = None
+                if stated is not None and locality is not None:
+                    flag(
+                        "county_mismatch",
+                        pid,
+                        f"the locality names no county, and the row's note and event log place the "
+                        f"site in {stated.name} County, which does not contain {locality}: the "
+                        f"record is placed at the county's point and does not name {locality}",
+                        locality=locality_text,
+                        stated_county=stated.fips,
+                        place=locality,
+                    )
+            elif (
+                result.county_fips is None
+                and result.city
+                and result.lat is not None
+                and result.lon is not None
+            ):
+                # A Virginia independent city is its own county-equivalent (Fredericksburg city,
+                # 51630): its county is then known.
+                at = counties.lookup(result.lat, result.lon)
+                full = gazetteer.county_full_name(at.fips) if at else None
+                if at and full and normalize_name(full) == normalize_name(f"{result.city} city"):
+                    result = dataclasses.replace(result, county_fips=at.fips, county_name=at.name)
         if location is None and result is not None:
             if town:
                 place_city = None  # Bloomfield, CT: the town is the municipality, not a city
@@ -2756,6 +3509,32 @@ class AIGridWatchImporter:
             stats[result.method or "none"] += 1
         if location is None:
             return None
+        # A place the row's own words put the site outside of is never named, whatever the point
+        # says (n0, n5, n32): the point is then that place's, not the site's, and tells only the
+        # county.
+        for key in ("city", "municipality"):
+            named_place = location.get(key)
+            outside = outside_phrase(project, named_place) if named_place else None
+            if outside is None:
+                continue
+            out_phrase, out_where = outside
+            location[key] = None
+            if location.get("county_fips"):
+                location["precision"] = "county"
+            flag(
+                "county_mismatch",
+                pid,
+                f"{out_where} puts the site outside {named_place} ({out_phrase!r}): the record does "
+                f"not name {named_place}"
+                + (
+                    ", and keeps the point only at county precision"
+                    if location.get("county_fips")
+                    else ""
+                ),
+                locality=locality_text,
+                place=named_place,
+                phrase=out_phrase,
+            )
 
         # Parties and aliases ----------------------------------------------------------
         ref = {"source_ids": ["s1"]}
@@ -2787,6 +3566,17 @@ class AIGridWatchImporter:
         # is the one that supplies or approves the site, not its developer: left out, with an item.
         developers = []
         for party in field_names("operator", r"\s+/\s+"):
+            replaced = party_replaced(project, party["name"])
+            if replaced is not None:
+                flag(
+                    "conflict",
+                    pid,
+                    f"AI GridWatch's operator/developer field names {party['name']!r}, but the "
+                    f"row's own text says it is being replaced as the developer ({replaced!r}): it "
+                    "is not imported, and a reviewer names the developer",
+                    operator=party["name"],
+                )
+                continue
             if _UTILITY_RE.search(party["name"]):
                 flag(
                     "unit_parse",
@@ -2845,6 +3635,24 @@ class AIGridWatchImporter:
             # The figure always stays as stated; a basis only when the row's note gives one.
             capacity["mw_as_stated"] = f"AI GridWatch size_mw: {size_mw:g}"
             basis = size_basis(size_mw, clean_text(project.get("note")))
+            others = (
+                other_basis_figures(project, size_mw, basis)
+                if basis in ("it", "utility_request")
+                else []
+            )
+            if others:
+                what = "critical IT load" if basis == "it" else "a supply or interconnection"
+                flag(
+                    "unit_parse",
+                    pid,
+                    f"size_mw {size_mw:g} is {what} by the row's note, but its event log gives the "
+                    f"campus other figures on that basis ({'; '.join(others[:3])}): only "
+                    "mw_as_stated keeps it, and a reviewer sets the figure",
+                    size_mw=f"{size_mw:g}",
+                    basis=basis,
+                    others=others[:5],
+                )
+                basis = None
             if basis == "it":
                 capacity["it_mw"] = size_mw
                 field_meta["/capacity/it_mw"] = imported
@@ -2872,7 +3680,27 @@ class AIGridWatchImporter:
                 size_mw=str(project.get("size_mw")),
             )
         acres = parse_number(project.get("acres"))
-        if acres is not None and 0 < acres <= ACRES_MAX:
+        campus = campus_acres(project)
+        if (
+            acres is not None
+            and 0 < acres <= ACRES_MAX
+            and campus is not None
+            and not _same_acres(campus[0], acres)
+        ):
+            # The row's acres are the whole property's when its own log gives the named campus
+            # another acreage (n36: "the 304-acre BCG Cedar Creek Campus portion of the
+            # 2,842-acre development").
+            site["acreage"] = campus[0]
+            field_meta["/site/acreage"] = imported
+            flag(
+                "unit_parse",
+                pid,
+                f"acres {acres:g} is the whole property's: the row's own text gives the named "
+                f"campus {campus[0]:g} acres ({campus[1]!r}), so the record publishes that",
+                acres=f"{acres:g}",
+                campus_acres=f"{campus[0]:g}",
+            )
+        elif acres is not None and 0 < acres <= ACRES_MAX:
             site["acreage"] = acres
             field_meta["/site/acreage"] = imported
         elif acres is not None or clean_text(project.get("acres")):
@@ -2895,6 +3723,43 @@ class AIGridWatchImporter:
                 announced=late[0].isoformat(),
                 **{late[1]: clean_text(project.get(late[1]))},
             )
+        explained = announcement(project)
+        if explained.doubt is not None:
+            flag(
+                "conflict",
+                pid,
+                f"AI GridWatch's announced date ({clean_text(project.get('announced'))}) is not "
+                f"imported as an announcement: {explained.doubt}",
+                announced=clean_text(project.get("announced")),
+                filing=explained.filing.fuzzy()["value"] if explained.filing else None,
+            )
+        filing = rezoning_filing(project)
+        if filing.doubt is not None:
+            flag(
+                "conflict",
+                pid,
+                f"AI GridWatch's rezoning_filed date ({clean_text(project.get('rezoning_filed'))}) "
+                f"is not imported as the application's filing: {filing.doubt}"
+                + (
+                    ""
+                    if filing.day is not None
+                    else "; no application_filed date is imported, and a reviewer dates the "
+                    "application if there is one"
+                ),
+                rezoning_filed=clean_text(project.get("rezoning_filed")),
+                application_filed=filing.day.fuzzy()["value"] if filing.day else None,
+            )
+        decision = decision_day(project)
+        if decision.moved_by is not None and decision.day is not None:
+            flag(
+                "conflict",
+                pid,
+                f"AI GridWatch's decided_date ({clean_text(project.get('decided_date'))}) is the day "
+                f"after the meeting the row says the vote ended ({decision.moved_by!r}): the "
+                f"decision is dated {decision.day.fuzzy()['value']}, the meeting's day",
+                decided_date=clean_text(project.get("decided_date")),
+                dated=decision.day.fuzzy()["value"],
+            )
         events = milestone_events(project, ctx.today)
         approval = unnamed_approval(project)
         if approval is not None:
@@ -2914,6 +3779,17 @@ class AIGridWatchImporter:
                 decided_date=clean_text(project.get("decided_date")),
                 stage=stage,
                 entry=day_entries[0][:300] if day_entries else None,
+            )
+        placeholders = [e for e in row_events(project) if placeholder_source(e)]
+        if placeholders:
+            flag(
+                "unverified_upstream",
+                pid,
+                f"{len(placeholders)} of the row's {len(row_events(project))} event-log entries "
+                f"cite a placeholder link, not a source "
+                f"({clean_text(placeholders[0].get('source'))}): they date nothing in the record "
+                "(no first report, filing, hearing or approval is taken from them)",
+                entries=[clean_text(e.get("date")) or None for e in placeholders],
             )
         hearing = unconfirmed_hearing(project, ctx.today)
         if hearing is not None:
@@ -2984,6 +3860,30 @@ class AIGridWatchImporter:
                     derived=derived.isoformat(),
                     **doubt_data,
                 )
+        elif first.event is None and (terminal := _terminal_first(events)) is not None:
+            # A denial, a withdrawal or a moratorium comes after the project was public: it never
+            # dates the first report (n41: Project Riverjump's only milestone is the mayor's
+            # withdrawal of 2026-08-27, while its rumors circulated from January).
+            why = (
+                f"the row's earliest dated milestone is its {terminal['event']} event of "
+                f"{terminal['as_of']['value']}, and "
+                + (first.doubt if first.doubt else "its event log gives no earlier report")
+                + f": imported, its first_reported would be that {terminal['event']} event's "
+                "day, but a project is public before it is denied, withdrawn or paused"
+            )
+            if release is not None and "first_report" in free:
+                released(pid, release, "first_report", "conflict", why, **doubt_data)
+            else:
+                holds.append("first_report")
+                flag(
+                    "conflict",
+                    pid,
+                    f"{why}. The row is held for review, not imported: a reviewer dates the first "
+                    "report (first_reported in config/overrides/aigridwatch.json)",
+                    earliest=terminal["as_of"]["value"],
+                    derived=derived.isoformat() if derived else None,
+                    **doubt_data,
+                )
         elif first.doubt is not None:
             entry_day = entry_date(first.entry) if first.entry else None
             if derived is None:
@@ -3003,16 +3903,28 @@ class AIGridWatchImporter:
                     f"reported: {first.doubt}. {tail}",
                     **doubt_data,
                 )
+        # The earliest date the row shows the project public: a dated event, an entry naming it,
+        # or the first entry that mentions a data center there.
+        known = [
+            period_start(FuzzyDate.model_validate(e["as_of"])) for e in events if not e["planned"]
+        ]
+        if first.earliest is not None:
+            known.append(first.earliest.start)
+        if first.entry is not None and (doubt_day := entry_date(first.entry)) is not None:
+            known.append(doubt_day.start)
         log = log_milestone(project, status, ctx.today)
         obstacle = log is None
         if log is None:
-            log = log_obstacle(project, status, ctx.today)
+            log = log_obstacle(project, status, ctx.today, min(known) if known else None)
         if log is not None:
-            behind = (
-                f"implies an application under review, but its own event log reports {log.what}"
-                if obstacle
-                else f"is behind its own event log, which reports {log.what}"
-            )
+            if not obstacle:
+                behind = f"is behind its own event log, which reports {log.what}"
+            elif status == "proposed":
+                behind = (
+                    f"implies an application under review, but its own event log reports {log.what}"
+                )
+            else:
+                behind = f"is contradicted by its own event log, which reports {log.what}"
             why = f"AI GridWatch's stage {stage!r} ({status}) {behind} {log.where()}{log.detail}"
             evidence = {
                 "stage": stage,
