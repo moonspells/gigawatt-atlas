@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     import httpx
 
     from atlas.geo.counties import CountyIndex
+    from atlas.geo.places import PlaceIndex
     from atlas.net import FetchResult
     from atlas.store import RecordStore
 
@@ -139,6 +140,8 @@ class ImportContext:
         new_id: Callable[[], str],
         counties_path: Path | None = None,
         counties: CountyIndex | None = None,
+        places_path: Path | None = None,
+        places: PlaceIndex | None = None,
     ) -> None:
         if now.tzinfo is None:
             raise ValueError("ImportContext.now must be timezone-aware")
@@ -152,6 +155,8 @@ class ImportContext:
         self.new_id = new_id
         self._counties_path = counties_path
         self._counties = counties
+        self._places_path = places_path
+        self._places = places
 
     def counties(self) -> CountyIndex:
         """The county index, loaded once."""
@@ -160,6 +165,16 @@ class ImportContext:
 
             self._counties = CountyIndex.load(self._counties_path or COUNTIES_ZIP)
         return self._counties
+
+    def places(self) -> PlaceIndex:
+        """The Census place polygons (atlas.geo.places), loaded once: places.city_at(lat, lon,
+        state) is the city of a record that has a point and no stated place, and
+        geocode(..., places=ctx.places()) names a Census match's city by it."""
+        if self._places is None:
+            from atlas.geo.places import PLACE_POLYGONS_ZIP, PlaceIndex  # DuckDB on use
+
+            self._places = PlaceIndex.load(self._places_path or PLACE_POLYGONS_ZIP)
+        return self._places
 
     def raw_path(self, source: str, sha256: str, ext: str) -> Path:
         """.cache/atlas/raw/{source}/{sha256}.{ext}"""

@@ -15,6 +15,7 @@ import atlas.sources
 from atlas import __version__
 from atlas.cli import main
 from atlas.commands.importer import discover_importers
+from atlas.geo.places import PlaceIndex
 from atlas.jsonio import record_json
 from atlas.net import fetch
 from atlas.schema.record import PLACEHOLDER_ID, FacilityRecord
@@ -29,6 +30,10 @@ from atlas.sources.base import (
     read_review_queue,
 )
 from atlas.store import RecordStore
+
+PLACES_SAMPLE = (
+    Path(__file__).resolve().parent / "fixtures" / "geocode" / "places" / "places_sample.zip"
+)
 
 MakeRecord = Callable[..., FacilityRecord]
 MakeContext = Callable[..., ImportContext]
@@ -440,3 +445,17 @@ def test_atlas_import_discovers_and_runs_an_importer(
 
     # --now must carry a time zone.
     assert main(["import", "zzdummy", "--now", "2026-10-12T12:00:00", "--offline"]) == 2
+
+
+# ---------------------------------------------------------------------------- places
+
+
+def test_context_gives_the_place_polygons(make_test_context: MakeContext) -> None:
+    sample = PlaceIndex.load(PLACES_SAMPLE, verify_sha256=False)
+    ctx = make_test_context(places=sample)
+    assert ctx.places() is sample
+    assert ctx.places().city_at(41.905594, -91.751082, "IA") == "Cedar Rapids"  # QTS Cedar Rapids
+    sample.close()
+    # A file given by path is checked like the default one: the sample is not the Census file.
+    with pytest.raises(ValueError, match="sha256"):
+        make_test_context(places_path=PLACES_SAMPLE).places()
