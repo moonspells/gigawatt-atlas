@@ -290,6 +290,27 @@ def test_a_pnnl_row_with_another_building_number_is_a_conflict(run: ImportResult
     assert "building VA8 or VA9?" in item.reason
 
 
+def test_one_numbered_name_with_two_statuses_is_an_item(
+    make_test_context: MakeContext, tmp_path: Path
+) -> None:
+    """n13: with the override that gives way 1188691868 its name NTT VA8 back, way 1560827941,
+    under construction, is still called NTT VA8 in OpenStreetMap; Baxtel puts VA9 at another
+    address, so no override renames it, and a reviewer gets an item."""
+    entry = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))["way/1188691868"]
+    path = tmp_path / "osm.json"
+    path.write_text(json.dumps({"way/1188691868": entry}), encoding="utf-8")
+    result = OsmImporter().run(make_test_context(input_path=FIX5), importer_args(PNNL_FIX5, path))
+    ntt = record(result, "way/1188691868")
+    assert [b.name for b in ntt.buildings].count("NTT VA8") == 2
+    (item,) = [
+        i
+        for i in items(result, "unverified_upstream", rep_ref(ntt))
+        if "different statuses" in i.reason
+    ]
+    assert item.data["osm"] == ["way/1188691868", "way/1560827941"]
+    assert not items(result, "conflict", "building@-77.475531,39.020190")  # the names agree
+
+
 # ---------------------------------------------------------------------------- citations
 
 

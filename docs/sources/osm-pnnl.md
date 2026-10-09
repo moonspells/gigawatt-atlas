@@ -623,7 +623,8 @@ Effects on a matched cluster:
   the last code and number of a name, so "Amazon IAD78" and "Amazon IAD-78" agree): PNNL's "NTT
   Ashburn VA8 Data Centre" lies on the way OpenStreetMap renamed "NTT VA9" on 2026-07-24, and
   directories put the operating VA8 at its address; the match still goes by position, and a
-  reviewer decides which building it is (four rows on the 2026-10-09 input).
+  reviewer decides which building it is (four rows on the 2026-10-09 input, with the override
+  that names that way VA8 again, section 9).
 - A `campus` row gives `site.acreage` = sqft / 43,560, one decimal, only when it hit a campus or
   site object, and only when every campus or site member that no larger one covers has such a
   row; a nested campus does not add to its site. A campus row whose polygon the import did not
@@ -660,7 +661,7 @@ warning.
 | `osm.jsonl` | `unit_parse` | an `it_power` or `input:electricity` value that is not a power value |
 | `osm.jsonl` | `missing_location` | an element without a position, or a cluster no Census county contains |
 | `osm.jsonl` | `unknown_status` | a held cluster with no status: a site polygon with no data center object inside, or no member tag the crosswalk knows |
-| `osm.jsonl` | `unverified_upstream` | a `start_date` not used as a date; a position OSM calls approximate; a held cluster planned only in OSM, with no name and no operator; an operator tag that names a general contractor (not used); two operators one letter apart, read as one |
+| `osm.jsonl` | `unverified_upstream` | a `start_date` not used as a date; a position OSM calls approximate; a held cluster planned only in OSM, with no name and no operator; an operator tag that names a general contractor (not used); two operators one letter apart, read as one; buildings of one record with one numbered name and different statuses (way 1560827941, under construction, and the operating way 1188691868 are both "NTT VA8" once the override gives the second its name back; Stack Infrastructure's four "POR03" ways) |
 | `osm.jsonl` | `conflict` | an `opening_date` that has passed while OSM still tags the site as not operating (not used); a held cluster of a site OSM names two ways (section 5) |
 | `osm.jsonl` | `possible_duplicate` | records with the same canonical name chained within 1 km (one item per group); an object inside a campus or site that has no building of its own, or lists its house number, or a node inside a building, whose operator disagrees; an area without an operator that does not hold all its box covers; a held unnamed building drawn over another, or a member drawn over another of its own record (left out of `buildings[]`); a cluster held after building (an area its buildings contradict, the smaller side of a county line, a hall of a development mapped hall by hall; section 5); two records of one operator that a series, a street or a web page links, and a lone building beside another operator's row (section 5) |
 | `osm.jsonl` | `county_mismatch` | a record whose site outline holds members across a county line (they are named; the record has its representative's county) |
@@ -947,7 +948,7 @@ record citing only its representative. The importer was re-run offline on the sa
 | Records with a value its cited element does not state | 326 | 0 |
 | Records named after one of several buildings, renamed | | 97 |
 | In-scope names shared by more than one record | 17 | 15 |
-| Review items (osm / pnnl) | 180 / 27 | 207 / 30 |
+| Review items (osm / pnnl) | 180 / 27 | 209 / 30 |
 | `possible_duplicate` items (osm) | 18 | 46: 15 one-operator splits, 10 lone buildings beside a row, 3 buildings drawn twice in a record |
 | PNNL matched | 1,372 (99.28%) | 1,372 (99.28%) |
 | Overrides applied | 5 | 12 |

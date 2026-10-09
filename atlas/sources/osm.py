@@ -1517,6 +1517,37 @@ def _member_items(cluster: Cluster, review: list[ReviewItem]) -> None:
                 )
 
 
+def _same_number_items(
+    rep: OsmObject, members: Sequence[OsmObject], groups: Sequence[_Group]
+) -> list[ReviewItem]:
+    """unverified_upstream items for buildings of one record that OpenStreetMap gives one
+    numbered name but different statuses, so a phase name or a building may carry another's
+    number: way 1560827941, under construction, and way 1188691868, operating, are both "NTT VA8"
+    once an override gives the second its number back."""
+    status_of = {m.ref: g.status.status for g in groups for m in g.members}
+    by_name: dict[str, list[OsmObject]] = {}
+    for m in members:
+        if m.name and pnnl.site_number(m.name) is not None and m.ref in status_of:
+            by_name.setdefault(normalize_name(m.name), []).append(m)
+    items: list[ReviewItem] = []
+    for same in by_name.values():
+        statuses = {status_of[m.ref] for m in same}
+        if len(statuses) < 2:
+            continue
+        listed = ", ".join(f"{m.ref} ({status_of[m.ref]})" for m in same)
+        items.append(
+            _review(
+                "unverified_upstream",
+                f"{listed} are all called {same[0].name!r} in OpenStreetMap with different "
+                "statuses: one name for several buildings, or a number a rename missed; a "
+                "reviewer decides",
+                external_id=rep.ref,
+                data={"osm": [m.ref for m in same], "name": same[0].name},
+            )
+        )
+    return items
+
+
 def _drawn_twice(cluster: Cluster) -> dict[str, OsmObject]:
     """Members that are the same building mapped twice: an unnamed building without operator
     information (not the representative) whose box shares at least DUPLICATE_OVERLAP of the
@@ -1737,6 +1768,7 @@ def _build_one(
     existing = ctx.existing.get(existing_id) if existing_id else None
     events, phases, phase_of = _events(groups, cluster, ctx, review, cite)
     events = _keep_first_reported(events, existing)
+    review.extend(_same_number_items(rep, members, groups))
 
     join = ctx.pnnl_join
     pnnl_rows = join.matched.get(rep.ref, []) if join is not None else []
