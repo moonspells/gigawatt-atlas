@@ -23,3 +23,26 @@ License: Creative Commons Attribution 4.0 International (CC BY 4.0),
   module (LF line ends).
 - The ZIP's other members (chip quantities, chillers, cooling towers, chip types) are left out,
   because the importer does not read them.
+
+## `cases.zip`
+
+The same license and credit apply. `cases.zip` holds the sites behind the timeline, party and
+campus rules of `tests/sources/test_epoch_cases.py`, taken from the download of 2026-10-08
+(114,113 bytes, ETag `7728e0cff3ce3c556d6c637bff480a5a`, SHA-256
+`5421dbb31f07ae0fad48c390d59ef5f62e84a9121ec2dd46ced65e4b5968a25b`), built the same way: the
+original `README.md`, and the header and only these sites' rows of the two CSVs, with every
+timeline row of each, cell values unchanged.
+
+| Site | Why it is here |
+|---|---|
+| Coreweave Helios | a status note whose link URL contains "Announces"; a former crypto mining site |
+| QTS Richmond 1 | the first row is land "cleared for site expansion" of an older campus |
+| Google Storey County | the first row already counts a building "first operational in 2021" |
+| Google New Albany | the first row already counts an operational building |
+| Google Fort Wayne | a building Epoch leaves out of its count ("not for AI compute") |
+| CoreWeave Dalton 1 & 2 | "rebuilding their existing Dalton 1 (and we're assuming 2) datacenter" |
+| xAI QTS Atlanta | a bond resolution for equipment in a "multi-tenant building" |
+| CoreWeave Lancaster Greenfield site | an announcement, then "Cooling install continues on the roof" |
+| Meta Huntsville | a cited "Announcement of expansion completing in 2026" |
+| Core42 Lake Mariner, Anthropic Lake Mariner | two sites at 7725 Lake Rd, Barker, NY (one campus) |
+| OpenAI Stargate Abilene, Crusoe Abilene Expansion | two sites at 5502 Spinks Rd, Abilene, TX |

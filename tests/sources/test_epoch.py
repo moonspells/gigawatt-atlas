@@ -313,9 +313,10 @@ def test_record_mapping(make_test_context: MakeContext, no_overrides: Path) -> N
     assert rec.money.investment_usd == 35_836_372_000.0
     assert rec.money.investment_basis == "estimate" and rec.money.currency_year == 2025
     assert rec.cooling.water_use_mgd is None
-    assert [o.name for o in rec.parties.owner] == ["SpaceXAI"]  # Epoch's Owner column
-    assert rec.parties.operator == []
-    assert [o.name for o in rec.parties.tenant] == ["Anthropic", "Cursor", "SpaceXAI"]
+    # Epoch's Owner (the owner of the AI hardware) and Users are tenants; Epoch names no
+    # facility owner or operator.
+    assert rec.parties.owner == [] and rec.parties.operator == []
+    assert [o.name for o in rec.parties.tenant] == ["SpaceXAI", "Anthropic", "Cursor"]
     assert rec.external_ids == {"epoch_name": ["Colossus 2"]}
     assert rec.evidence_level == "reported" and rec.purpose == "unknown"
     assert rec.location.precision == "locality" and rec.location.geocode_method == "gazetteer"
@@ -350,12 +351,22 @@ def test_record_mapping(make_test_context: MakeContext, no_overrides: Path) -> N
     madison = by_name(result.candidates)["Amazon Madison Mega Site"]
     assert madison.canonical_name == "Amazon Madison Mega Site (Madison County, MS)"
     assert madison.location.precision == "county" and madison.location.county_fips == "28089"
-    assert madison.parties.tenant == []  # Anthropic #speculative
+    assert [o.name for o in madison.parties.tenant] == ["Amazon"]  # not Anthropic #speculative
     assert madison.aliases == []  # Project Rainier #speculative
 
 
 # The name a quote uses for a city whose Census place name differs (Pryor is Pryor Creek).
 QUOTED_AS = {"Pryor Creek": "Pryor"}
+# Hosts that answered the project's user agent with 403 or a bot challenge (2026-10-08), so an entry
+# citing them must name the Wayback snapshot that was read.
+REFUSING_HOSTS = (
+    "datacenterdynamics.com",
+    "globenewswire.com",
+    "michigan.gov",
+    "oracle.com",
+    "streamdatacenters.com",
+)
+REFUSES_NOTE = "refuses automated clients"
 # "Kansas City, MO — March 20, 2024 — ...": a dateline says where a release was issued.
 DATELINE_RE = re.compile(r"^[A-Z][\w .]*, [A-Z]{2}\.? (?:\u2014|\u2013|-) ")
 
@@ -383,6 +394,15 @@ def test_every_committed_override_is_cited(counties: CountyIndex) -> None:
             county = counties.get(ov.county_fips)
             assert county is not None and county.name in ov.quote, (name, ov.county_fips)
         assert ov.city or ov.county_fips, name
+        # A page that refuses automated clients is cited with the snapshot that was read, and the
+        # note says so (and only then).
+        host = (ov.source_url.host or "").removeprefix("www.")
+        if host.endswith(REFUSING_HOSTS):
+            assert ov.archive_url is not None, (name, host)
+        assert (ov.archive_url is not None) == (REFUSES_NOTE in ov.note), name
+        if ov.archive_url is not None:
+            assert str(ov.archive_url).startswith("https://web.archive.org/web/"), name
+            assert str(ov.archive_url).endswith(str(ov.source_url)), name
 
 
 def test_committed_override_places_meta_hyperion(
@@ -717,7 +737,7 @@ def test_cli_runs_offline_and_a_second_run_changes_no_file(
     by_epoch = {r.external_ids["epoch_name"][0]: r for r in records.values()}
     assert by_epoch["Colossus 2"].location.precision == "address"
     receipt = json.loads((tmp_repo / "data" / "imports" / "epoch.json").read_text("utf-8"))
-    assert receipt["source"] == "epoch" and receipt["importer_version"] == "1"
+    assert receipt["source"] == "epoch" and receipt["importer_version"] == "2"
     assert receipt["inputs"][0]["license"] == "CC-BY-4.0"
     records_before = snapshot(tmp_repo / "data" / "records", tmp_repo / "review")
 
