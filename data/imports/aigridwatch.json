@@ -1,0 +1,56 @@
+{
+  "atlas_version": "0.1.0",
+  "counts": {
+    "candidates": 167,
+    "conflicts": 0,
+    "held": 0,
+    "invalid": 0,
+    "new": 0,
+    "removed_upstream": 0,
+    "review": 271,
+    "unchanged": 167,
+    "updated": 0
+  },
+  "git_commit": "fe6999af68727fad497ded35289a26e4b5cc5c23",
+  "importer_version": "4",
+  "inputs": [
+    {
+      "bytes": 1302329,
+      "etag": null,
+      "last_modified": null,
+      "license": "CC-BY-4.0",
+      "name": "aigridwatch",
+      "retrieved_at": "2026-10-09T09:52:35.702411Z",
+      "sha256": "16330d941c519db1db0747666e3ce319344571b2be0079535f0e5284a4ccab47",
+      "upstream_version": "2026-10-08",
+      "url": "https://aigridwatch.com/data/projects.json"
+    }
+  ],
+  "metrics": {
+    "candidates": 167,
+    "declared_count": 285,
+    "epoch_ambiguous": 7,
+    "epoch_duplicates": 80,
+    "epoch_records_seen": 75,
+    "epoch_stage_conflicts": 35,
+    "first_reported_events": 50,
+    "hearings_unconfirmed": 18,
+    "held_for_review": 36,
+    "located_county_centroid": 13,
+    "located_gazetteer": 33,
+    "located_source_coords": 121,
+    "out_of_scope": 4,
+    "overrides_unused": 0,
+    "overrides_used": 0,
+    "persons_dropped": 2,
+    "planned_events": 0,
+    "projects": 285,
+    "released": 0,
+    "stage_events": 113,
+    "stage_events_undated": 42,
+    "unverified": 1,
+    "upstream_events_unused": 2290
+  },
+  "ran_at": "2026-10-09T09:52:35.702411Z",
+  "source": "aigridwatch"
+}

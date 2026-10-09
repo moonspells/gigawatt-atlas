@@ -1,0 +1,57 @@
+{
+  "atlas_version": "0.1.0",
+  "counts": {
+    "candidates": 971,
+    "conflicts": 0,
+    "held": 0,
+    "invalid": 0,
+    "new": 0,
+    "removed_upstream": 0,
+    "review": 241,
+    "unchanged": 971,
+    "updated": 0
+  },
+  "git_commit": "fe6999af68727fad497ded35289a26e4b5cc5c23",
+  "importer_version": "4",
+  "inputs": [
+    {
+      "bytes": 1158436,
+      "etag": null,
+      "last_modified": null,
+      "license": "ODbL-1.0",
+      "name": "overpass",
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "sha256": "b0fc73d78f3494d8fd1cf56b0ef0b8911578e7e13ccc98f3b5895aac1f40c234",
+      "upstream_version": "2026-10-09T09:47:46Z",
+      "url": "https://overpass-api.de/api/interpreter"
+    },
+    {
+      "bytes": 373790,
+      "etag": null,
+      "last_modified": null,
+      "license": "ODbL-1.0",
+      "name": "pnnl",
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "sha256": "2e7bd7e650fe86fe0d156b4e483ebd331cfa98a0468ce33b932f8c1b6c3245df",
+      "upstream_version": "v2026.02.09",
+      "url": "https://immm-sfa.github.io/datacenter-atlas/im3_datacenter_centroids.geojson"
+    }
+  ],
+  "metrics": {
+    "clusters": 1021,
+    "held": 50,
+    "objects": 2046,
+    "out_of_scope": 84,
+    "overrides": 12,
+    "pnnl_match_rate": 0.9928,
+    "pnnl_matched": 1372,
+    "pnnl_matched_by_id": 0,
+    "pnnl_matched_by_name": 1,
+    "pnnl_on_held": 14,
+    "pnnl_rows": 1382,
+    "skipped": 0,
+    "unit_parse": 0
+  },
+  "ran_at": "2026-10-09T09:50:24.684005Z",
+  "source": "osm"
+}

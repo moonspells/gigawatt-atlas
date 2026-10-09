@@ -1,0 +1,1080 @@
+{
+  "aliases": [],
+  "buildings": [
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600946",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600947",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600948",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600949",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600950",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600951",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600952",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600953",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600954",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600955",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600956",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600957",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600958",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600959",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600960",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600961",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600962",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600963",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600964",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600965",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600966",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600967",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600968",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600969",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600971",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539600972",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539603377",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539603378",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539603379",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539603380",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539603381",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1539603382",
+      "sqft": null
+    }
+  ],
+  "canonical_name": "Data center (Venango County, PA)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:50:24.684005Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "osm": [
+      "way/1539600946",
+      "way/1539600947",
+      "way/1539600948",
+      "way/1539600949",
+      "way/1539600950",
+      "way/1539600951",
+      "way/1539600952",
+      "way/1539600953",
+      "way/1539600954",
+      "way/1539600955",
+      "way/1539600956",
+      "way/1539600957",
+      "way/1539600958",
+      "way/1539600959",
+      "way/1539600960",
+      "way/1539600961",
+      "way/1539600962",
+      "way/1539600963",
+      "way/1539600964",
+      "way/1539600965",
+      "way/1539600966",
+      "way/1539600967",
+      "way/1539600968",
+      "way/1539600969",
+      "way/1539600971",
+      "way/1539600972",
+      "way/1539603377",
+      "way/1539603378",
+      "way/1539603379",
+      "way/1539603380",
+      "way/1539603381",
+      "way/1539603382"
+    ]
+  },
+  "field_meta": {
+    "/location/county_fips": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": []
+    },
+    "/status": {
+      "confidence": 0.6,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11",
+        "s12",
+        "s13",
+        "s14",
+        "s15",
+        "s16",
+        "s17",
+        "s18",
+        "s19",
+        "s20",
+        "s21",
+        "s22",
+        "s23",
+        "s24",
+        "s25",
+        "s26",
+        "s27",
+        "s28",
+        "s29",
+        "s30",
+        "s31",
+        "s32",
+        "s33"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqpq7vbhenp363kg0jd97",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:50:24.684005Z",
+  "location": {
+    "city": null,
+    "county_fips": "42121",
+    "county_name": "Venango",
+    "geocode_method": "osm",
+    "geometry_ref": "osm:way/1539603380",
+    "lat": 41.2715578,
+    "lon": -79.8133987,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "footprint",
+    "state_abbr": "PA",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/location/city",
+        "/location/county_name",
+        "/location/state_abbr",
+        "/buildings/29"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539603380",
+      "url": "https://www.openstreetmap.org/way/1539603380"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/0"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600946",
+      "url": "https://www.openstreetmap.org/way/1539600946"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/1"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600947",
+      "url": "https://www.openstreetmap.org/way/1539600947"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/2"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600948",
+      "url": "https://www.openstreetmap.org/way/1539600948"
+    },
+    {
+      "archive_url": null,
+      "id": "s6",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/3"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600949",
+      "url": "https://www.openstreetmap.org/way/1539600949"
+    },
+    {
+      "archive_url": null,
+      "id": "s7",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/4"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600950",
+      "url": "https://www.openstreetmap.org/way/1539600950"
+    },
+    {
+      "archive_url": null,
+      "id": "s8",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/5"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600951",
+      "url": "https://www.openstreetmap.org/way/1539600951"
+    },
+    {
+      "archive_url": null,
+      "id": "s9",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/6"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600952",
+      "url": "https://www.openstreetmap.org/way/1539600952"
+    },
+    {
+      "archive_url": null,
+      "id": "s10",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/7"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600953",
+      "url": "https://www.openstreetmap.org/way/1539600953"
+    },
+    {
+      "archive_url": null,
+      "id": "s11",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/8"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600954",
+      "url": "https://www.openstreetmap.org/way/1539600954"
+    },
+    {
+      "archive_url": null,
+      "id": "s12",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/9"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600955",
+      "url": "https://www.openstreetmap.org/way/1539600955"
+    },
+    {
+      "archive_url": null,
+      "id": "s13",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/10"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600956",
+      "url": "https://www.openstreetmap.org/way/1539600956"
+    },
+    {
+      "archive_url": null,
+      "id": "s14",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/11"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600957",
+      "url": "https://www.openstreetmap.org/way/1539600957"
+    },
+    {
+      "archive_url": null,
+      "id": "s15",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/12"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600958",
+      "url": "https://www.openstreetmap.org/way/1539600958"
+    },
+    {
+      "archive_url": null,
+      "id": "s16",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/13"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600959",
+      "url": "https://www.openstreetmap.org/way/1539600959"
+    },
+    {
+      "archive_url": null,
+      "id": "s17",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/14"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600960",
+      "url": "https://www.openstreetmap.org/way/1539600960"
+    },
+    {
+      "archive_url": null,
+      "id": "s18",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/15"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600961",
+      "url": "https://www.openstreetmap.org/way/1539600961"
+    },
+    {
+      "archive_url": null,
+      "id": "s19",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/16"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600962",
+      "url": "https://www.openstreetmap.org/way/1539600962"
+    },
+    {
+      "archive_url": null,
+      "id": "s20",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/17"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600963",
+      "url": "https://www.openstreetmap.org/way/1539600963"
+    },
+    {
+      "archive_url": null,
+      "id": "s21",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/18"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600964",
+      "url": "https://www.openstreetmap.org/way/1539600964"
+    },
+    {
+      "archive_url": null,
+      "id": "s22",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/19"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600965",
+      "url": "https://www.openstreetmap.org/way/1539600965"
+    },
+    {
+      "archive_url": null,
+      "id": "s23",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/20"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600966",
+      "url": "https://www.openstreetmap.org/way/1539600966"
+    },
+    {
+      "archive_url": null,
+      "id": "s24",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/21"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600967",
+      "url": "https://www.openstreetmap.org/way/1539600967"
+    },
+    {
+      "archive_url": null,
+      "id": "s25",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/22"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600968",
+      "url": "https://www.openstreetmap.org/way/1539600968"
+    },
+    {
+      "archive_url": null,
+      "id": "s26",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/23"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600969",
+      "url": "https://www.openstreetmap.org/way/1539600969"
+    },
+    {
+      "archive_url": null,
+      "id": "s27",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/24"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600971",
+      "url": "https://www.openstreetmap.org/way/1539600971"
+    },
+    {
+      "archive_url": null,
+      "id": "s28",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/25"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539600972",
+      "url": "https://www.openstreetmap.org/way/1539600972"
+    },
+    {
+      "archive_url": null,
+      "id": "s29",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/26"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539603377",
+      "url": "https://www.openstreetmap.org/way/1539603377"
+    },
+    {
+      "archive_url": null,
+      "id": "s30",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/27"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539603378",
+      "url": "https://www.openstreetmap.org/way/1539603378"
+    },
+    {
+      "archive_url": null,
+      "id": "s31",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/28"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539603379",
+      "url": "https://www.openstreetmap.org/way/1539603379"
+    },
+    {
+      "archive_url": null,
+      "id": "s32",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/30"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539603381",
+      "url": "https://www.openstreetmap.org/way/1539603381"
+    },
+    {
+      "archive_url": null,
+      "id": "s33",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/31"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1539603382",
+      "url": "https://www.openstreetmap.org/way/1539603382"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-09"
+      },
+      "event": "other",
+      "note": "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot date, not the date it began",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11",
+        "s12",
+        "s13",
+        "s14",
+        "s15",
+        "s16",
+        "s17",
+        "s18",
+        "s19",
+        "s20",
+        "s21",
+        "s22",
+        "s23",
+        "s24",
+        "s25",
+        "s26",
+        "s27",
+        "s28",
+        "s29",
+        "s30",
+        "s31",
+        "s32",
+        "s33"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:50:24.684005Z"
+}
