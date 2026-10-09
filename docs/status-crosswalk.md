@@ -12,11 +12,11 @@ upstream said.
 
 | Atlas status | AI GridWatch stage | Epoch timeline row | OSM tag | Agenda or permit outcome (M2+) |
 |---|---|---|---|---|
-| `announced` | Proposed with no known filing; Rumored (with `evidence_level: "rumor"`) | pre-construction text only | n/a | press or company announcement |
-| `proposed` | Proposed with a filing, In review, Hearing scheduled, Awaiting decision | n/a | `proposed:telecom=data_center`, `proposed:building=*`, `proposed=*` | application filed, TABS registration, DRI submitted |
+| `announced` | Proposed with no known filing; Rumored (with `evidence_level: "rumor"`) | pre-construction text only | `proposed:telecom=data_center`, `proposed:building=*`, `proposed=*` (no OSM tag is a filing) | press or company announcement |
+| `proposed` | Proposed with a filing, In review, Hearing scheduled, Awaiting decision | n/a | n/a | application filed, TABS registration, DRI submitted |
 | `permitted` | Approved | n/a | n/a | rezoning approved, permit issued |
 | `under_construction` | Under construction | construction text, or anything not clearly pre-construction, with 0 buildings operational | `construction:telecom=data_center`, `construction=data_center`, `construction:building=*`, `building=construction`, `landuse=construction` | building permits plus construction reports |
-| `operating` | Operating | buildings operational > 0 (IT power > 0 when the count is empty) | `telecom=data_center` or `building=data_center` with no lifecycle tag (assumed) | n/a |
+| `operating` | Operating | buildings operational > 0 (IT power > 0 when the count is empty) | `telecom=data_center`, `building=data_center`, or `industrial=data_centre` on an object with a building tag, with no lifecycle tag (assumed) | n/a |
 | `paused` | Blocked by ban | n/a | n/a | moratorium, regulatory pause |
 | `denied` | Denied | n/a | n/a | application denied |
 | `cancelled` | Withdrawn | n/a | n/a | withdrawal |
@@ -25,21 +25,30 @@ PA DEP and EPA ECHO status values are mapped at M4, when those importers land.
 
 ## OpenStreetMap (`from_osm_tags`)
 
-Confidence 0.60. OSM events are `first_reported` at the snapshot date, except `energized` at a
-valid `start_date` (1990 or later) for operating objects; `opening_date` on a non-operating group
-adds a planned `energized` event (`atlas/sources/osm.py`).
+Confidence 0.60. Every OSM status is an `other` event: the OSM importer (`atlas/sources/osm.py`)
+writes it at the snapshot date, and it sets the status and dates nothing, because OSM says what a
+feature is, not when its status began (07 §2.3; `derive_dates` skips `other` events). A
+`start_date` becomes an `unverified_upstream` review item, not an `energized` date. `opening_date`
+on a non-operating group adds a planned `energized` event unless its period has passed, in which
+case it is a `conflict` item. The proposed rules 1 to 3 below read as `announced`, because no OSM
+tag is a filing (07 §2.3): `proposed=yes` on an anonymous lot in Manchester Township, NJ (way
+1549253250) was published as `proposed` before the third review round.
 
 An object is a data center when `telecom`, `building`, `construction:telecom`, `proposed:telecom`,
-`construction`, `construction:building` or `proposed:building` is `data_center`; anything else has
-no mapping (`None`). Lifecycle tags are read before `telecom=data_center`, so a site OSM tags as
+`construction`, `construction:building` or `proposed:building` is `data_center`, or when it has a
+building tag (`building`, `proposed:building` or `construction:building`, other than `no`) and
+`industrial=data_centre` (or `data_center`): "IBM Quantum Data Center", way 195803647, is tagged
+only `building=industrial` and `industrial=data_center`. Anything else has no mapping (`None`); a
+site polygon tagged `industrial=data_centre` without a building tag is a campus container OSM does
+not say is built, so it has no status and the importer holds it for review. Lifecycle tags are read before `telecom=data_center`, so a site OSM tags as
 planned or being built is never shown as operating. The first matching rule wins; `*` is any value
 except `no`:
 
 | Order | Tags | Status | Label |
 |---|---|---|---|
-| 1 | `proposed:telecom=data_center` | `proposed` | the tag, for example `proposed:telecom=data_center` |
-| 2 | `proposed:building=*` | `proposed` | `proposed:building=industrial` |
-| 3 | `proposed=*` | `proposed` | `proposed=yes` |
+| 1 | `proposed:telecom=data_center` | `announced` | the tag, for example `proposed:telecom=data_center` |
+| 2 | `proposed:building=*` | `announced` | `proposed:building=industrial` |
+| 3 | `proposed=*` | `announced` | `proposed=yes` |
 | 4 | `construction:telecom=data_center` | `under_construction` | `construction:telecom=data_center` |
 | 5 | `construction=data_center` (usually with `building=construction`) | `under_construction` | `construction=data_center` |
 | 6 | `construction:building=*` | `under_construction` | `construction:building=yes` |
@@ -47,8 +56,9 @@ except `no`:
 | 8 | `landuse=construction` | `under_construction` | `landuse=construction` |
 | 9 | `telecom=data_center` | `operating` (assumed) | `telecom=data_center` |
 | 10 | `building=data_center` | `operating` (assumed) | `building=data_center` |
+| 11 | `industrial=data_centre` or `industrial=data_center`, with a building tag | `operating` (assumed) | `industrial=data_centre` |
 
-When an object carries both a proposed and a construction tag, it is proposed: the less advanced
+When an object carries both a proposed and a construction tag, it is announced: the less advanced
 status, so the map never overstates progress. Before review round 1 only rules 1, 4, 5, 9 and 10
 existed, and 24 records of a full OSM import on 2026-10-07 were operating although OSM tagged every
 member `building=construction` (14), `landuse=construction` (1), `proposed:building=*` (7) or
@@ -76,6 +86,14 @@ project has a `rezoning_filed` date or an event of kind `filing` or `rezoning`.
 
 Any other stage raises `UnknownStatus`; the importer turns it into an `unknown_status` review item.
 
+The event above is what the stage means when the row's milestone dates reach it. When they do not
+(no milestone, or one with another status), the importer records the stage as an `other` event
+with the stage's status instead, dated with the row's `as_of`, or, for a row without `as_of`, with
+the file's `generated` date (owner decision of 2026-10-09). Like an OSM tag, it is an observation:
+it sets the status and dates nothing (`derive_dates` skips `other` events). A row whose own event
+log reports a milestone the stage has not reached stays held for review with a `conflict` item
+([epoch-aigridwatch.md](sources/epoch-aigridwatch.md#status-history)).
+
 "Withdrawn" does not say who withdrew. On 2026-10-08, 13 rows read Withdrawn: in some the developer
 withdrew ("Deep Green withdrew its rezoning request"), in others a mayor dropped his support, a host
 agreement lapsed or a court voided the rezoning. The crosswalk gives no `status_reason`, and the AI
@@ -101,9 +119,10 @@ count and its "IT power (MW)".
 Both patterns are case-insensitive and match whole words:
 
 ```text
-EPOCH_CONSTRUCTION     \b(land clearing|clearing|grading|civil works|construction|foundation|
-                       groundbreaking|ground broken|site work|excavat\w*|steel|roof|built|
-                       conversion|retrofit\w*|installed|complete[d]?)\b
+EPOCH_CONSTRUCTION     \b(land clearing|land cleared|clearing|cleared|grading|civil works|
+                       construction|foundation|groundbreaking|ground broken|site work|
+                       excavat\w*|steel|roof|built|conversion|retrofit\w*|installed|
+                       complete[d]?)\b
 EPOCH_PRE_CONSTRUCTION \b(announc\w*|planned|proposed|permit application|rezoning|acquired|
                        purchased)\b
 ```
@@ -111,6 +130,12 @@ EPOCH_PRE_CONSTRUCTION \b(announc\w*|planned|proposed|permit application|rezonin
 So "Announced in January; grading has begun" is under construction (construction wins), and text
 that matches neither pattern also defaults to under construction: an Epoch row with no operational
 building describes a site where work is visible.
+
+The Epoch importer passes the text with its markdown links reduced to their text, so a URL never
+decides the status, and keeps `construction_start` only for a row whose note says construction
+starts; other rows observe work under way (`first_reported` or `other`, see
+[epoch-aigridwatch.md](sources/epoch-aigridwatch.md#status-timeline)). On the 548 rows of
+2026-10-08 the regex change alters no record.
 
 ## How events become the current status
 

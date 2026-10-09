@@ -194,13 +194,14 @@ record (07 §2.1: records are never deleted; a cluster that disappears upstream 
 | Field | Value |
 |---|---|
 | `record_type` / `scope` | `campus`; `in_scope`, or `out_of_scope` outside the 50 states and DC, for a telecom site, or for an object the scope screen doubts (the record is kept, 07 §2.2; see below) |
-| `canonical_name` | base = the representative's `name`, else the most common member name, else "{operator} data center", else "Data center". The operator is prefixed unless the base already starts with the operator, an `operator:short` of a member with that operator, or the operator's first word ("Lumen Ashburn" for Lumen Technologies stays as is; "CyrusOne NVA14" operated by PowerHouse becomes "PowerHouse CyrusOne NVA14"). Then " ({county}, {ST})" with the county's full Census name from the Gazetteer ("Loudoun County", "Manassas city", "Orleans Parish"). The county contains the point; `addr:city` is the postal city of the address, which need not (Flexential Atlanta - Norcross, `addr:city=Norcross`, lies in Peachtree Corners; "Sterling" and "Dulles" are postal names for points in Ashburn). A bare county name also reads as a city: Taylor County, TX is Abilene, while the city of Taylor, TX is 300 km away. |
+| `canonical_name` | base = the representative's `name`, else the most common member name, else "{operator} data center", else "Data center". The operator is prefixed unless the base already starts with the operator, an `operator:short` of a member with that operator, or the operator's first word ("Lumen Ashburn" for Lumen Technologies stays as is; "CyrusOne NVA14" operated by PowerHouse becomes "PowerHouse CyrusOne NVA14"). Then " ({city}, {ST})" with `location.city`, the Census place that contains the point (below), else " ({county}, {ST})" with the county's full Census name from the Gazetteer ("Loudoun County", "Manassas city", "Orleans Parish"). The county contains the point; `addr:city` is the postal city of the address, which need not (Flexential Atlanta - Norcross, `addr:city=Norcross`, lies in Peachtree Corners; "Sterling" and "Dulles" are postal names for points in Ashburn), so it never names the record. A bare county name also reads as a city: Taylor County, TX is Abilene, while the city of Taylor, TX is 300 km away. |
 | `aliases[]` | the other distinct member names (`osm_name`, source s1) |
 | `parties.operator` / `owner` | the most common `operator` / `owner` tag (source s1) |
 | `location.lat`, `lon` | the campus or site object's bounding-box center, else the mean of the member centers, unless that mean point lies in another county than the representative: then the representative's center; 7 decimals |
 | `location.precision` | `footprint` if any member is a way or relation, else `site`; `site` also when a member's `note`, `fixme` or `description` says its position is approximate ("location is approximate", "Location approximated from Sentinel 2 low resolution imagery"), with an `unverified_upstream` item |
 | `location.geocode_method` / `geometry_ref` | `osm` / `osm:{representative}` |
-| `location.street`, `city`, `postcode` | "{addr:housenumber} {addr:street}", `addr:city`, `addr:postcode`: the representative's value, else the value every member that has one agrees on, else null. A value only some members share would put the representative's name at another building's address (QTS Manassas DC5 was published at DC1's 9400 Godwin Drive). `city` is the address's postal city. |
+| `location.street`, `postcode` | "{addr:housenumber} {addr:street}", `addr:postcode`: the representative's value, else the value every member that has one agrees on, else null. A value only some members share would put the representative's name at another building's address (QTS Manassas DC5 was published at DC1's 9400 Godwin Drive). |
+| `location.city` | The Census place that contains the record's point, more than 0.001° (about 100 m) inside its line, in the record's state (`ctx.places()`: the place polygons `cb_2025_us_place_500k`, downloaded on first use, see reference/README.md; one batch query per import), else null. Never `addr:city`, the postal city of the address: where the two agree, `addr:city` is that place; elsewhere it is only the post office's town (QTS Manassas DC5, mailed to Manassas, lies in Innovation CDP). 831 of the 1,103 records of the 2026-10-08 input have one. |
 | `location.county_fips`, `county_name`, `state_abbr` | the representative's county, point-in-polygon against the Census 2025 counties (every member's county, section 4); `field_meta["/location/county_fips"]` = 0.90, `derived` |
 | `buildings[]` | one per building or point member: `ref` "osm:{ref}", `name`, `phase_id` when the cluster has phases. `sqft` stays null: PNNL's sqft is the footprint's area, not a floor area (section 7) |
 | `capacity` | see below |
@@ -303,10 +304,13 @@ OSM input:electricity: …". `field_meta["/capacity/it_mw"]` and `["/capacity/fa
 
 ### Status, events and phases
 
-Each member's tags go through `crosswalk.from_osm_tags` (proposed, then construction, then
-operating), and the importer reads a proposed tag as `announced` (`osm.osm_status`): 07 §2.3's
-`proposed` needs a formal application or filing, and no OSM tag is one. Members are grouped by the
-resulting status.
+Each member's tags go through `crosswalk.from_osm_tags` (planned, then construction, then
+operating), which reads a proposed tag as `announced`, because 07 §2.3's `proposed` needs a formal
+application or filing and no OSM tag is one, and writes every status as an `other` observation. A
+building tagged `industrial=data_centre` (or `data_center`), with no `data_center` value elsewhere,
+counts like `building=data_center` ("IBM Quantum Data Center", way 195803647, is tagged only
+`building=industrial` and `industrial=data_center`), lifecycle tags first; a site polygon without
+a building tag gets no status. Members are grouped by the resulting status.
 
 - **One status (almost every cluster).** One event: seq 1, the status, event `other`, `as_of` =
   the snapshot date (the date of `timestamp_osm_base`, day precision), source s1, note "Tagged
@@ -504,7 +508,8 @@ for review, with no record), `out_of_scope`, `unit_parse`, `skipped`, and with P
   example "Data center (Taylor County, TX)"; 50 names are shared by more than one record on the
   2026-10-08 seed input (28 with the site polygons). Operator tags are copied as written; a few
   name a person or a non-data-center business, which the seed review should catch. The place is
-  the county, not the postal city: a containing place (Census places) would need place polygons.
+  the Census place that contains the point, else the county, never the postal city; a point within
+  about 100 m of a place's line names the county.
 - **Doubly mapped buildings.** An unnamed way drawn on another building's footprint is held
   (section 5); a named one, or one with its own operator, stays a record, and a node inside
   another operator's building is a `possible_duplicate` item: CoreSite LA2 is a tenant of the USPO

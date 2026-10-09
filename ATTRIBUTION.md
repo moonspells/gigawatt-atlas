@@ -85,9 +85,12 @@ Used for: frontier AI sites, dated construction timelines, IT and facility power
 
 Changes made (the data is adapted, not copied): US sites only; mapped to the Atlas record schema
 and status crosswalk; timeline rows kept only where the status changes, with rows dated after the
-import kept as planned events; addresses geocoded with the Census Geocoder and Gazetteer, or placed
-from a cited source where Epoch gives none; party names split and Epoch's confidence tags removed;
-status notes shortened. Details:
+import kept as planned events; a timeline that covers only buildings added to an older facility
+kept as a phase of it, and sites at one street address combined into one campus; addresses
+geocoded with the Census Geocoder and Gazetteer, or placed from a cited source where Epoch gives
+none or only a postal city; party names split, Epoch's confidence tags removed and the owner of the
+AI hardware (Epoch's `Owner` column, "not necessarily the owner or operator of the facility")
+listed as a tenant, never as the facility's owner or operator; status notes shortened. Details:
 <https://github.com/moonspells/gigawatt-atlas/blob/main/docs/sources/epoch-aigridwatch.md>.
 
 ### AI GridWatch
@@ -98,19 +101,23 @@ Commons Attribution 4.0 International (CC BY 4.0), <https://creativecommons.org/
 Used for: proposed and contested projects, hearing and decision dates, filing entities.
 
 Changes made (the data is adapted, not copied): verified rows only, and rows that are Epoch AI
-sites are left to the Epoch record; stages and milestone dates mapped to Atlas statuses and events;
-rows without coordinates placed at their Census place or county; organizations only, with personal
+sites are left to the Epoch record; stages and milestone dates mapped to Atlas statuses and events,
+a stage the milestones do not reach recorded as seen on the row's as_of date or the file's date;
+rows without coordinates placed at their Census place, town or county; organizations only, with personal
 names left out; capacity and acreage outside plausible ranges left out. Details:
 <https://github.com/moonspells/gigawatt-atlas/blob/main/docs/sources/epoch-aigridwatch.md>.
 
 ### U.S. Census Bureau
 
 U.S. Census Bureau, 2025 Cartographic Boundary Files (`cb_2025_us_county_500k` for county checks,
-`cb_2025_us_county_5m` for map display), 2025 Gazetteer Files, and the Census Geocoder. Public
-domain. Details and checksums:
+`cb_2025_us_county_5m` for map display, `cb_2025_us_place_500k` for the place a point lies in),
+2025 Gazetteer Files (places, counties and county subdivisions), and the Census Geocoder. Public
+domain. The place polygons and the county subdivisions are downloaded from census.gov on first use
+rather than committed. Details and checksums:
 <https://github.com/moonspells/gigawatt-atlas/blob/main/reference/README.md>.
 
-Used for: county point-in-polygon checks, county and place centroids, address geocoding.
+Used for: county point-in-polygon checks, the city a record names, county, place and town
+centroids, address geocoding.
 
 ## Basemap (a Produced Work)
 
