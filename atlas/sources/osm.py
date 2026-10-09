@@ -19,7 +19,9 @@ with PNNL IM3 (07 §4.1, §4.2, §5.1, §6.5 step 1). docs/sources/osm-pnnl.md d
    describe one site). OSM dates no status (`other` events), and the scope screen keeps what may
    not be a data center out of scope for a reviewer (scope_doubt). The record's city is the
    Census place that contains its point (atlas.geo.places, ImportContext.places()), never
-   addr:city, the postal city.
+   addr:city, the postal city. A campus of several named buildings goes by its site polygon's
+   name or their common name (campus_name), and every member whose tags give a value is a source
+   of its own, so each value cites the element that states it (_build_one).
 
 Data is © OpenStreetMap contributors, ODbL 1.0; PNNL IM3 is ODbL 1.0 (07 §5.1).
 """
@@ -54,6 +56,8 @@ from atlas.dissolve import (
     AREA_KINDS,
     CONTAINER_LANDUSE,
     DEFAULT_RADIUS_M,
+    DUPLICATE_OVERLAP,
+    GENERIC_NAME_WORDS,
     LARGE_HALL_M2,
     Bounds,
     Cluster,
@@ -61,10 +65,13 @@ from atlas.dissolve import (
     ObjectKind,
     OsmObject,
     Polyline,
+    box_overlap,
     dissolve_with_notes,
     one_edit,
     operator_conflicts,
+    operator_words,
     ref_key,
+    specific_name,
 )
 from atlas.geo.fips import IN_SCOPE
 from atlas.net import FetchError, FetchResult, fetch
@@ -110,7 +117,6 @@ if TYPE_CHECKING:
 __all__ = [
     "IMPORTER",
     "MIN_ELEMENTS",
-    "OSM_SUPPORTS",
     "OVERPASS_ENDPOINTS",
     "OVERPASS_QUERY",
     "BuildResult",
@@ -184,16 +190,8 @@ OVERPASS_MAX_BYTES = 50_000_000
 OVERPASS_RETRIES = 1  # per endpoint; then the next endpoint is tried
 OSM_LICENSE = "ODbL-1.0"
 OSM_PUBLISHER = "OpenStreetMap contributors"
-OSM_SUPPORTS = (
-    "/canonical_name",
-    "/aliases",
-    "/parties",
-    "/location",
-    "/buildings",
-    "/capacity",
-    "/status_history/0",
-)
 OSM_SOURCE_ID = "s1"
+OSM_HOST = "www.openstreetmap.org"
 PNNL_SOURCE_ID = "s2"
 STATUS_CONFIDENCE = 0.60
 CAPACITY_CONFIDENCE = 0.70
@@ -231,6 +229,10 @@ _ROOM_RE = re.compile(
     r"|\bcomputer labs?\b|\bdata labs?\b|\bclassrooms?\b"
     r"|\bsomewhere (?:on|in) this (?:floor|building)\b"
     r"|\btape vaults?\b|\bvital records\b|\brecords (?:center|centre|management|storage|vault)s?\b"
+    # A genealogy research room that a church or library opens to the public ("Family History
+    # Center" of the Church of Jesus Christ of Latter-day Saints, Montpelier, ID, 2026-10-09).
+    r"|\bfamily history (?:center|centre|library)s?\b|\bfamily ?search (?:center|centre)s?\b"
+    r"|\bgenealog\w*"
     # A lab in another building ("Brandaleone Lab for Data and Visualization", in a library); not
     # "Labs", a common company name, nor a national laboratory's computing center.
     r"|\blab\b|\bworkstations?\b",
@@ -268,7 +270,6 @@ _TELEPHONE_BRANDS = frozenset(
     }
 )
 _GOVERNMENT_RE = re.compile(r"^(?:city|county|town|village|borough|township) of\b", re.IGNORECASE)
-DUPLICATE_OVERLAP = 0.5  # share of the smaller box: an unnamed way drawn over another building
 DUPLICATE_NAME_GAP_M = 1_000.0  # two records with the same canonical name this close: review
 
 
@@ -661,29 +662,36 @@ def _street(m: OsmObject) -> str | None:
     return f"{number} {street}" if number and ";" not in number else street
 
 
-def _owner(ordered: Sequence[OsmObject]) -> str | None:
-    """The owner tag of the largest campus or site member that has one; else the owner every
-    building and point member names, when each has one and they agree (normalize_org). One
-    building's owner is not the campus's (Digital Realty on Equinix DC10, one of six). A member
-    tagged with another primary use (OsmObject.other_use) does not count."""
+def _owner(ordered: Sequence[OsmObject]) -> tuple[str | None, list[OsmObject]]:
+    """(owner, the members whose owner tag gives it): the owner tag of the largest campus or site
+    member that has one; else the owner every building and point member names, when each has one
+    and they agree (normalize_org). One building's owner is not the campus's (Digital Realty on
+    Equinix DC10, one of six). A member tagged with another primary use (OsmObject.other_use)
+    does not count."""
     areas = [m for m in ordered if m.kind in AREA_KINDS and m.other_use is None]
     tagged = [m for m in areas if m.tags.get("owner")]
     if tagged:
-        return min(tagged, key=lambda m: (-m.area_m2(), ref_key(m.ref))).tags["owner"]
+        largest = min(tagged, key=lambda m: (-m.area_m2(), ref_key(m.ref)))
+        return largest.tags["owner"], [largest]
     members = [m for m in ordered if m.kind not in AREA_KINDS and m.other_use is None]
     owners = [m.tags.get("owner") or "" for m in members]
     if members and all(owners) and len({normalize_org(o) for o in owners}) == 1:
-        return owners[0]
-    return None
+        return owners[0], members
+    return None, []
 
 
 def _pick(
     rep: OsmObject, ordered: Sequence[OsmObject], get: Callable[[OsmObject], str | None]
-) -> str | None:
-    """The representative's value, else the value every member that has one agrees on. A value
-    that only some members share would put the representative's name at another building's
-    address (QTS Manassas DC5 at DC1's 9400 Godwin Drive, 2026-10-08)."""
-    return get(rep) or _only(get(m) for m in ordered)
+) -> tuple[str | None, list[OsmObject]]:
+    """(value, the members that give it): the representative's value, else the value every
+    member that has one agrees on. A value that only some members share would put the
+    representative's name at another building's address (QTS Manassas DC5 at DC1's 9400 Godwin
+    Drive, 2026-10-08)."""
+    own = get(rep)
+    if own:
+        return own, [rep]
+    value = _only(get(m) for m in ordered)
+    return value, [m for m in ordered if value and get(m) == value]
 
 
 def osm_status(tags: Mapping[str, str]) -> Crosswalked | None:
@@ -769,12 +777,26 @@ def _status_groups(ordered: Sequence[OsmObject]) -> list[_Group]:
     return [_Group(items[0][0], tuple(m for _, m in items)) for items in ordered_groups]
 
 
+@dataclass(frozen=True)
+class _CapacityFrom:
+    """Capacity and the members whose tags give it: by field (it_mw, facility_mw) and for
+    mw_as_stated (every member with a power tag)."""
+
+    capacity: Capacity
+    pointers: list[str]
+    summed: dict[str, list[OsmObject]]
+    stated: list[OsmObject]
+
+
 def _capacity(
     cluster: Cluster, ordered: Sequence[OsmObject], review: list[ReviewItem]
-) -> tuple[Capacity, list[str]]:
-    """Capacity from it_power and input:electricity, and the field_meta pointers it sets."""
+) -> _CapacityFrom:
+    """Capacity from it_power and input:electricity, the field_meta pointers it sets and the
+    members it reads. ordered holds the members the record reads (not a building drawn twice)."""
     values: dict[str, float | None] = {}
     stated: list[str] = []
+    summed: dict[str, list[OsmObject]] = {}
+    stated_members: dict[str, OsmObject] = {}
     for tag, field_name in POWER_TAGS:
         raw: list[str] = []
         parsed: dict[str, float] = {}
@@ -783,6 +805,7 @@ def _capacity(
             if not value:
                 continue
             raw.append(f"{m.name or m.ref} {value}")
+            stated_members.setdefault(m.ref, m)
             mw = parse_mw(value)
             if mw is None:
                 review.append(
@@ -801,13 +824,15 @@ def _capacity(
                 parsed[m.ref] = mw
         if raw:
             stated.append(f"OSM {tag}: " + "; ".join(raw))
-        campuses = [m for m in cluster.members if m.kind == "campus"]
-        buildings = [m for m in cluster.members if m.kind not in AREA_KINDS]
+        campuses = [m for m in ordered if m.kind == "campus"]
+        buildings = [m for m in ordered if m.kind not in AREA_KINDS]
         total: float | None = None
         if campuses and all(m.ref in parsed for m in campuses):
             total = sum(parsed[m.ref] for m in campuses)  # a campus-level value covers the site
+            summed[field_name] = campuses
         elif buildings and all(m.ref in parsed for m in buildings):
             total = sum(parsed[m.ref] for m in buildings)
+            summed[field_name] = buildings
         values[field_name] = round(total, 3) if total is not None and total <= _MAX_MW else None
     capacity = Capacity(
         it_mw=values["it_mw"],
@@ -815,7 +840,7 @@ def _capacity(
         mw_as_stated=" | ".join(stated) or None,
     )
     pointers = [f"/capacity/{f}" for _, f in POWER_TAGS if values[f] is not None]
-    return capacity, pointers
+    return _CapacityFrom(capacity, pointers, summed, list(stated_members.values()))
 
 
 def _start_date(group: _Group, rep: OsmObject, ctx: _Context) -> tuple[FuzzyDate, str] | None:
@@ -848,7 +873,11 @@ def _phase_name(group: _Group) -> str:
 
 
 def _events(
-    groups: Sequence[_Group], cluster: Cluster, ctx: _Context, review: list[ReviewItem]
+    groups: Sequence[_Group],
+    cluster: Cluster,
+    ctx: _Context,
+    review: list[ReviewItem],
+    cite: Callable[[Sequence[OsmObject]], list[str]] | None = None,
 ) -> tuple[list[StatusEvent], list[Phase], dict[str, str]]:
     """Status events, phases and each member's phase_id.
 
@@ -862,8 +891,13 @@ def _events(
     disagree, each group becomes a phase ("osm-{status}"), so an operating campus with a building
     under construction stays operating and is expanding (07 §2.3). A non-operating group with an
     opening_date adds a planned energized event, unless that date has passed (a `conflict` item).
+    cite gives the source ids of the members whose tags decide a group's status (default s1).
     """
     rep = cluster.representative
+
+    def sources_of(members: Sequence[OsmObject]) -> list[str]:
+        return (cite(members) if cite is not None else []) or [OSM_SOURCE_ID]
+
     phased = len(groups) > 1
     events: list[StatusEvent] = []
     phases: list[Phase] = []
@@ -875,7 +909,11 @@ def _events(
         phase_ids.append(phase_id)
         if phase_id is not None:
             phases.append(
-                Phase(phase_id=phase_id, name=_phase_name(group), source_ids=[OSM_SOURCE_ID])
+                Phase(
+                    phase_id=phase_id,
+                    name=_phase_name(group),
+                    source_ids=sources_of(group.members),
+                )
             )
             phase_of.update(dict.fromkeys((m.ref for m in group.members), phase_id))
         # The note names no date: as_of is the first snapshot that saw the status, and a note
@@ -905,14 +943,14 @@ def _events(
                 event="other",
                 as_of=ctx.as_of,
                 phase_id=phase_id,
-                source_ids=[OSM_SOURCE_ID],
+                source_ids=sources_of(group.members),
                 note=note,
             )
         )
     for group, phase_id in zip(groups, phase_ids, strict=True):
         if group.status.status == "operating":
             continue
-        raw = _pick(group.members[0], group.members, lambda m: m.tags.get("opening_date"))
+        raw, dated = _pick(group.members[0], group.members, lambda m: m.tags.get("opening_date"))
         opening = osm_date(raw, latest=ctx.latest_date)
         if opening is None:
             continue
@@ -935,7 +973,7 @@ def _events(
                 as_of=opening,
                 phase_id=phase_id,
                 planned=True,
-                source_ids=[OSM_SOURCE_ID],
+                source_ids=sources_of(dated),
                 note=f"opening_date={opening.value} in OpenStreetMap",
             )
         )
@@ -949,24 +987,26 @@ def _keep_first_reported(
     events: list[StatusEvent], existing: FacilityRecord | None
 ) -> list[StatusEvent]:
     """Keep the earliest stored as_of of an observation (an `other` event, or the
-    `first_reported` event that earlier versions wrote) with the same status and sources, so
-    weekly runs never move it forward.
+    `first_reported` event that earlier versions wrote) with the same status that OpenStreetMap
+    gave (every source it cites is an OpenStreetMap element), so weekly runs never move it
+    forward.
 
-    The phase is not compared: when a cluster gains or loses a status group, its events move
-    between phase_id None and "osm-{status}", but the status itself has not changed.
+    Neither the phase nor the source ids are compared: when a cluster gains or loses a status
+    group, its events move between phase_id None and "osm-{status}", and when it gains or loses a
+    member, the members its event cites change, but the status itself has not changed.
     """
     if existing is None:
         return events
-    stored: dict[tuple[str, tuple[str, ...]], FuzzyDate] = {}
+    osm_ids = {s.id for s in existing.sources if s.url.host == OSM_HOST}
+    stored: dict[str, FuzzyDate] = {}
     for e in existing.status_history:
-        if e.planned or e.event not in _OBSERVATIONS:
+        if e.planned or e.event not in _OBSERVATIONS or not set(e.source_ids) <= osm_ids:
             continue
-        key = (e.status, tuple(e.source_ids))
-        if key not in stored or period_start(e.as_of) < period_start(stored[key]):
-            stored[key] = e.as_of
+        if e.status not in stored or period_start(e.as_of) < period_start(stored[e.status]):
+            stored[e.status] = e.as_of
     out: list[StatusEvent] = []
     for e in events:
-        old = stored.get((e.status, tuple(e.source_ids)))
+        old = stored.get(e.status)
         if (
             e.event in _OBSERVATIONS
             and not e.planned
@@ -995,25 +1035,31 @@ def _location(
     lon: float,
     approximate: bool,
     city: str | None = None,
-) -> Location:
+) -> tuple[Location, dict[str, list[OsmObject]]]:
+    """The location and, for /location/street and /location/postcode, the members that give
+    the value."""
     rep = cluster.representative
     shaped = any(m.osm_type in ("way", "relation") for m in cluster.members)
-    return Location(
+    street, on_street = _pick(rep, ordered, _street)
+    postcode, at_postcode = _pick(rep, ordered, lambda m: m.tags.get("addr:postcode"))
+    location = Location(
         lat=lat,
         lon=lon,
         precision="footprint" if shaped and not approximate else "site",
         geometry_ref=f"osm:{rep.ref}",
-        street=_pick(rep, ordered, _street),
+        street=street,
         # The Census place that contains the point (07 §6.5), never addr:city: that is the postal
         # city of the address, which need not contain the point (Norcross for a site in Peachtree
         # Corners). Where the two agree, addr:city is that place.
         city=city,
-        postcode=_pick(rep, ordered, lambda m: m.tags.get("addr:postcode")),
+        postcode=postcode,
         county_name=county.name,
         county_fips=county.fips,
         state_abbr=county.state_abbr,
         geocode_method="osm",
     )
+    given = {"/location/street": on_street, "/location/postcode": at_postcode}
+    return location, {k: v for k, v in given.items() if v}
 
 
 def _starts_with_operator(base: str, operator: str, short: str | None) -> bool:
@@ -1029,25 +1075,176 @@ def _starts_with_operator(base: str, operator: str, short: str | None) -> bool:
     return bool(first) and bool(words) and (words[:1] == first or one_edit(words[0], first[0]))
 
 
-def _canonical_name(
-    rep: OsmObject, ordered: Sequence[OsmObject], operator: str | None, place: str, st: str
-) -> tuple[str, str | None]:
-    """(canonical_name, the member name used as its base). A representative tagged with another
-    primary use (the USPO Terminal Annex) gives its name only when no data center member has
-    one ("CoreSite - LA2")."""
+_LETTER_SUFFIX_RE = re.compile(r"^(.*\d)-([A-Za-z])$")  # "IAD1-A": campus IAD1, building A
+_CODENAME_RE = re.compile(r"\bproject\b", re.IGNORECASE)  # "Project Cardinal", "LCO 3 Project"
+_SERIES_SUFFIX_RE = re.compile(r"^([A-Za-z]*)-?(\d+)$")  # "IAD-124", "DC10", "LC4", "3"
+_LISTED = 4  # a series of more names shows the first three and "and N more"
+
+
+def _name_tokens(name: str) -> list[str]:
+    """The words of a name, a final building letter split off its campus code ("IAD1-A" gives
+    "IAD1" and "-A")."""
+    out: list[str] = []
+    for token in name.split():
+        found = _LETTER_SUFFIX_RE.match(token)
+        out += [found.group(1), "-" + found.group(2)] if found else [token]
+    return out
+
+
+def _filler(token: str) -> bool:
+    """True for a word that says nothing at the end of a common name: punctuation or a generic
+    word ("Building", "Data Center", "DC"). A number stays: "QTS Ashburn 1" is a campus of its
+    own, apart from Ashburn 2."""
+    key = normalize_name(token)
+    return not key or all(w in GENERIC_NAME_WORDS for w in key.split())
+
+
+def _beyond_operator(stem: Sequence[str], operators: frozenset[str]) -> str:
+    """The stem without the words it shares at its start with an operator named in the input
+    ("H5" of "H5 Data Centers", "Digital Realty" of "Digital Realty Dallas")."""
+    words = normalize_name(" ".join(stem)).split()
+    shared = 0
+    for op in operators:
+        tokens = op.split()
+        n = 0
+        while n < min(len(tokens), len(words)) and tokens[n] == words[n]:
+            n += 1
+        shared = max(shared, n)
+    return " ".join(words[shared:])
+
+
+def campus_name(
+    names: Sequence[str], words: frozenset[str], operators: frozenset[str] = frozenset()
+) -> str | None:
+    """The name a campus of several named buildings goes by, from their names (07 §2.1: one
+    campus, not one of its buildings), or None:
+
+    - the words they all begin with, without trailing numbers and generic words, when they say
+      more than the operator ("PowerHouse Pacific" for Buildings 1 to 3, "QTS NAL1" for DC1 and
+      DC2, "Intergate Seattle" for East Building 1 and West Building A);
+    - else, when each name ends its common beginning with one code and number of one series, the
+      series: "Amazon IAD-124 to IAD-127" (numbers without a gap), "NTT VA1 and VA2", "Digital
+      Realty IAD39, IAD40, IAD41 and IAD73", "CloudHQ LC4, LC5, LC8 and 3 more";
+    - else None (the names are not siblings: "Tech Park at Brambleton" and "BlackChamber Tech
+      Park at Brambleton").
+
+    words are the words of the campus's operators (dissolve.operator_words), for specific_name;
+    the stem must also say something beyond the start of any operator in the input (operators,
+    normalize_org), so "H5" (H5 Data Centers) names no campus of its own."""
+    distinct = list(dict.fromkeys(names))
+    if len(distinct) < 2:
+        return None
+    tokens = [_name_tokens(n) for n in distinct]
+    common = 0
+    while (
+        all(len(t) > common for t in tokens)
+        and len({normalize_name(t[common]) for t in tokens}) == 1
+    ):
+        common += 1
+    head = tokens[0][:common]
+    stem = list(head)
+    while stem and _filler(stem[-1]):
+        stem.pop()
+    rest = _beyond_operator(stem, operators)
+    if stem and rest and specific_name(rest, words) is not None:
+        return " ".join(stem)
+    rests = [t[common:] for t in tokens]
+    parts = [_SERIES_SUFFIX_RE.match(r[0]) if len(r) == 1 else None for r in rests]
+    if any(p is None for p in parts):
+        return None
+    codes = {p.group(1).casefold() for p in parts if p is not None}
+    if len(codes) != 1:
+        return None
+    numbered = sorted(
+        ((int(p.group(2)), r[0]) for p, r in zip(parts, rests, strict=True) if p is not None)
+    )
+    numbers = [n for n, _ in numbered]
+    if len(set(numbers)) != len(numbers):
+        return None
+    lead = list(head)
+    while lead and not normalize_name(lead[-1]):
+        lead.pop()  # a dash before the code ("EdgeConneX - DEN01")
+    prefix = " ".join(lead) + " " if lead else ""
+    labels = [label for _, label in numbered]
+    if len(labels) == 2:
+        series = f"{labels[0]} and {labels[1]}"
+    elif numbers[-1] - numbers[0] + 1 == len(numbers):
+        series = f"{labels[0]} to {labels[-1]}"
+    elif len(labels) <= _LISTED:
+        series = ", ".join(labels[:-1]) + f" and {labels[-1]}"
+    else:
+        series = ", ".join(labels[:3]) + f" and {len(labels) - 3} more"
+    return prefix + series
+
+
+def _base_name(
+    rep: OsmObject,
+    ordered: Sequence[OsmObject],
+    words: frozenset[str],
+    operators: frozenset[str] = frozenset(),
+) -> tuple[str | None, list[OsmObject]]:
+    """(the name a record is called by before its operator and place, the members it comes from).
+
+    - A named campus or site member names the campus: of several (a campus and its expansion
+      site), one whose name is not a development's codename ("Project ..."), then one that is
+      not planned, then the largest (Meta New Albany Data Center, not Meta LCO 3 Project; Google
+      Lenoir Data Center, not Google Project Cardinal). A container's name comes last.
+    - Else, several named buildings name the campus by campus_name ("PowerHouse Pacific").
+    - Else the representative's name (unless it is tagged with another primary use, the USPO
+      Terminal Annex: then the most common name of a member without one, "CoreSite - LA2"), else
+      the most common member name.
+    """
     own = [m for m in ordered if m.other_use is None]
-    base_name = (
+    areas = [m for m in own if m.kind in AREA_KINDS and m.name]
+    if areas:
+        area = min(
+            areas,
+            key=lambda m: (
+                m.container,
+                _CODENAME_RE.search(m.name or "") is not None,
+                m.planned,
+                -m.area_m2(),
+                ref_key(m.ref),
+            ),
+        )
+        return area.name, [area]
+    buildings = [m for m in own if m.kind == "building" and m.name and specific_name(m.name, words)]
+    by_key = {normalize_name(m.name or ""): m for m in buildings}
+    if len(by_key) >= 2:
+        named = sorted(by_key.values(), key=lambda m: ref_key(m.ref))
+        found = campus_name([m.name or "" for m in named], words, operators)
+        if found is not None:
+            return found, [m for m in buildings if normalize_name(m.name or "") in by_key]
+    base = (
         (rep.name if rep.other_use is None else None)
         or _most_common(m.name for m in own)
         or _most_common(m.name for m in ordered)
     )
+    return base, [m for m in ordered if base and m.name == base]
+
+
+def _canonical_name(
+    rep: OsmObject,
+    ordered: Sequence[OsmObject],
+    operator: str | None,
+    place: str,
+    st: str,
+    operators: frozenset[str] = frozenset(),
+) -> tuple[str, str | None, list[OsmObject], bool]:
+    """(canonical_name, the base name, the members it comes from, whether the operator was
+    prefixed). See _base_name (with the words of the cluster's own operators, so that a word
+    another operator of the input happens to use still names a site: "Pacific" in "PowerHouse
+    Pacific"); then "{operator} data center" or "Data center", the operator prefixed unless the
+    base already names it, and " ({place}, {ST})"."""
+    base_name, named = _base_name(rep, ordered, operator_words(ordered), operators)
     base = base_name or (f"{operator} data center" if operator else "Data center")
     short = rep.tags.get("operator:short") or _most_common(
         m.tags.get("operator:short") for m in ordered if m.operator == operator
     )
-    if operator and not _starts_with_operator(base, operator, short):
+    prefixed = bool(operator) and not _starts_with_operator(base, operator or "", short)
+    if prefixed:
         base = f"{operator} {base}"
-    return f"{base} ({place}, {st})", base_name
+    return f"{base} ({place}, {st})", base_name, named, prefixed
 
 
 def telecom_site(cluster: Cluster) -> str | None:
@@ -1096,8 +1293,9 @@ def scope_doubt(cluster: Cluster, operators: frozenset[str]) -> str | None:
       in scope;
     - a room or a non-compute use (every member with text): a computer or server room, a lab
       (the word "lab", not "Labs" or "Laboratory") or classroom, workstations, a node "somewhere
-      in this building", a records or tape vault ("SDSU Computer Room", "Vital Records",
-      "Brandaleone Lab for Data and Visualization" in a library);
+      in this building", a records or tape vault, a genealogy research room ("SDSU Computer
+      Room", "Vital Records", "Brandaleone Lab for Data and Visualization" in a library, a
+      "Family History Center");
     - an outbuilding: every member a shed, hut, cabin, kiosk or container, or tagged
       utility=telecom (a 5 m x 5 m telecom shed on a school campus);
 
@@ -1260,22 +1458,10 @@ def _duplicate_footprints(clusters: Sequence[Cluster]) -> dict[str, OsmObject]:
         for other in buildings:
             if cluster_of[other.ref] == cluster_of[m.ref] or other.bounds is None:
                 continue
-            if _overlap(m.bounds, other.bounds) >= DUPLICATE_OVERLAP:
+            if box_overlap(m.bounds, other.bounds) >= DUPLICATE_OVERLAP:
                 found[m.ref] = other
                 break
     return found
-
-
-def _overlap(a: Bounds, b: Bounds) -> float:
-    """The share of the smaller box that the two boxes have in common."""
-    dlat = min(a.maxlat, b.maxlat) - max(a.minlat, b.minlat)
-    dlon = min(a.maxlon, b.maxlon) - max(a.minlon, b.minlon)
-    if dlat <= 0 or dlon <= 0:
-        return 0.0
-    smaller = min(
-        (a.maxlat - a.minlat) * (a.maxlon - a.minlon), (b.maxlat - b.minlat) * (b.maxlon - b.minlon)
-    )
-    return dlat * dlon / smaller if smaller > 0 else 0.0
 
 
 def _override_source(sid: str, ov: ElementOverride, supports: list[str]) -> Source:
@@ -1331,6 +1517,39 @@ def _member_items(cluster: Cluster, review: list[ReviewItem]) -> None:
                 )
 
 
+def _drawn_twice(cluster: Cluster) -> dict[str, OsmObject]:
+    """Members that are the same building mapped twice: an unnamed building without operator
+    information (not the representative) whose box shares at least DUPLICATE_OVERLAP of the
+    smaller box with another building member that has a name or an operator, or with a larger
+    unnamed one (way 567575425 on the Apple Data Center, way 300974499, in its Mesa site): ref ->
+    that member. The record lists it in external_ids only and reads none of its tags."""
+    buildings = sorted(
+        (m for m in cluster.members if m.kind == "building" and m.bounds is not None),
+        key=lambda m: (-m.area_m2(), ref_key(m.ref)),
+    )
+    found: dict[str, OsmObject] = {}
+    for i, m in enumerate(buildings):
+        if m.ref == cluster.representative.ref or m.name or m.has_operator or m.bounds is None:
+            continue
+        for j, other in enumerate(buildings):
+            if other.ref == m.ref or other.ref in found or other.bounds is None:
+                continue
+            labelled = bool(other.name or other.has_operator)
+            if (labelled or j < i) and box_overlap(m.bounds, other.bounds) >= DUPLICATE_OVERLAP:
+                found[m.ref] = other
+                break
+    return found
+
+
+def _sid_number(sid: str) -> int:
+    return int(sid[1:])
+
+
+_POINT_POINTERS = ("/location/lat", "/location/lon")
+# Census names of the point's place and county, cited to the representative as before.
+_PLACE_POINTERS = ("/location/city", "/location/county_name", "/location/state_abbr")
+
+
 def _build_one(
     cluster: Cluster,
     point: tuple[float, float],
@@ -1339,8 +1558,16 @@ def _build_one(
     review: list[ReviewItem],
     city: str | None = None,
 ) -> Candidate | None:
+    """The campus candidate of a cluster, and its review items in review.
+
+    Each member whose tags give a published value is cited: s1 is the representative, s2 PNNL
+    (when a row matched), s3... the config/overrides/osm.json entries applied, and then one
+    source per other member that gives a value (its name as the record's name or an alias, the
+    operator, owner, street, postcode or a power tag, its building entry, or the status of its
+    group), so a reviewer can find each value on the element that states it."""
     rep = cluster.representative
-    ordered = [rep] + [m for m in cluster.members if m.ref != rep.ref]
+    twins = _drawn_twice(cluster)
+    ordered = [rep] + [m for m in cluster.members if m.ref != rep.ref and m.ref not in twins]
     existing_id = _existing_id(cluster, ctx)
     if county is None:
         review.append(
@@ -1352,7 +1579,9 @@ def _build_one(
             )
         )
         return None
-    groups = _status_groups(ordered)
+    groups = _status_groups(ordered) or _status_groups(
+        [rep] + [m for m in cluster.members if m.ref != rep.ref]
+    )
     dropped = ctx.overrides.get(rep.ref) if rep.ref in ctx.dropped else None
 
     st = county.state_abbr
@@ -1375,12 +1604,31 @@ def _build_one(
                 data={"osm": m.ref},
             )
         )
+    for ref, other in sorted(twins.items(), key=lambda kv: ref_key(kv[0])):
+        review.append(
+            _review(
+                "possible_duplicate",
+                f"{ref}, an unnamed building without an operator, is drawn over {other.ref} "
+                f"({other.name or 'unnamed'}) of the same record: most likely the same "
+                "building mapped twice; it is left out of buildings[] and none of its tags is "
+                "read",
+                external_id=rep.ref,
+                data={"osm": ref, "other": other.ref},
+            )
+        )
     _member_items(cluster, review)
-    location = _location(cluster, ordered, county, *point, approximate is not None, city)
+    location, location_from = _location(
+        cluster, ordered, county, *point, approximate is not None, city
+    )
     operator = _most_common(m.operator for m in ordered)
-    owner = _owner(ordered)
+    owner, owned_by = _owner(ordered)
     place = city or ctx.gazetteer.county_full_name(county.fips) or county.name
-    name, base_name = _canonical_name(rep, ordered, operator, place, st)
+    name, base_name, named_from, prefixed = _canonical_name(
+        rep, ordered, operator, place, st, ctx.operators
+    )
+    capacity_from = _capacity(cluster, ordered, review)
+    members = [m for m in ordered if m.kind not in AREA_KINDS]
+    members.sort(key=lambda m: ref_key(m.ref))
 
     # Values a config/overrides/osm.json entry gave, and the source each one cites (s3, ...).
     applied = {m.ref: ov for m in ordered if (ov := ctx.overrides.get(m.ref)) is not None}
@@ -1393,86 +1641,128 @@ def _build_one(
     def run_by(ref: str) -> bool:
         return ref in applied and "operator" in applied[ref].model_fields_set
 
-    def name_sources(value: str | None) -> list[str]:
-        """The sources of a member name: s1 when an OSM tag gives it, an override's when an entry
-        does."""
+    # The members each value comes from; every one of them gets a source of its own (s1 for
+    # the representative), numbered after the overrides' in ref order.
+    def with_name(value: str | None) -> list[OsmObject]:
         key = normalize_name(value) if value else ""
-        sids = []
-        if any(normalize_name(m.name or "") == key and not named_by(m.ref) for m in ordered):
-            sids.append(OSM_SOURCE_ID)
-        sids += [
-            override_sid[m.ref]
-            for m in ordered
-            if named_by(m.ref) and normalize_name(m.name or "") == key
-        ]
-        return sids or [OSM_SOURCE_ID]
+        return [m for m in ordered if key and normalize_name(m.name or "") == key]
 
-    operator_sids: list[str] = []
-    if operator:
-        if any(m.operator == operator and not run_by(m.ref) for m in ordered):
-            operator_sids.append(OSM_SOURCE_ID)
-        operator_sids += [
-            override_sid[m.ref] for m in ordered if run_by(m.ref) and m.operator == operator
-        ]
-    s1_supports = [*OSM_SUPPORTS, "/purpose"] if telecom is not None else list(OSM_SUPPORTS)
-    if operator and OSM_SOURCE_ID not in operator_sids and not owner:
-        s1_supports.remove("/parties")  # the only party is an override's (its own source_ids)
-    if base_name is not None:
-        name_sids = name_sources(base_name)
-    elif operator:
-        name_sids = operator_sids  # "{operator} data center"
-    else:
-        name_sids = [OSM_SOURCE_ID]
-    if OSM_SOURCE_ID not in name_sids:
-        s1_supports.remove("/canonical_name")
-    for sid_ref, sid in override_sid.items():
-        if sid in name_sids:
-            override_supports[sid_ref].append("/canonical_name")
-
-    aliases: list[Alias] = []
+    operated = [m for m in ordered if operator and m.operator == operator]
+    alias_names = []
     seen_names = {normalize_name(base_name)} if base_name else set()
     for m in ordered:
         key = normalize_name(m.name) if m.name else ""
         if key and key not in seen_names:
             seen_names.add(key)
-            aliases.append(
-                Alias(name=m.name or "", kind="osm_name", source_ids=name_sources(m.name))
-            )
+            alias_names.append(m.name or "")
+    if base_name is not None:
+        name_members = list(named_from)
+        if prefixed:
+            name_members += operated
+    else:
+        name_members = operated  # "{operator} data center", or "Data center" (s1)
+    group_members = [m for g in groups for m in g.members]
+    suppliers = {
+        m.ref
+        for m in [
+            *name_members,
+            *(m for a in alias_names for m in with_name(a)),
+            *operated,
+            *owned_by,
+            *(m for given in location_from.values() for m in given),
+            *(m for given in capacity_from.summed.values() for m in given),
+            *capacity_from.stated,
+            *members,
+            *group_members,
+        ]
+    }
+    next_id = 3 + len(applied)
+    member_sid = {rep.ref: OSM_SOURCE_ID}
+    for ref in sorted(suppliers - {rep.ref}, key=ref_key):
+        member_sid[ref] = f"s{next_id}"
+        next_id += 1
+    supports: dict[str, list[str]] = {ref: [] for ref in member_sid}
 
-    capacity, capacity_pointers = _capacity(cluster, ordered, review)
+    def cite(found: Iterable[OsmObject], *, name: bool = False, op: bool = False) -> list[str]:
+        """The source ids of the members: an override's where its entry gives the name (name)
+        or the operator (op), else the member's own."""
+        sids: set[str] = set()
+        for m in found:
+            if (name and named_by(m.ref)) or (op and run_by(m.ref)):
+                sids.add(override_sid[m.ref])
+            elif m.ref in member_sid:
+                sids.add(member_sid[m.ref])
+        return sorted(sids, key=_sid_number)
+
+    def support(found: Iterable[OsmObject], pointer: str, *, name: bool = False) -> None:
+        for m in found:
+            if name and named_by(m.ref):
+                override_supports[m.ref].append(pointer)
+            elif m.ref in member_sid and pointer not in supports[m.ref]:
+                supports[m.ref].append(pointer)
+
+    operator_sids = cite(operated, op=True)
+    if base_name is not None:
+        support(named_from, "/canonical_name", name=True)
+        name_sids = cite(named_from, name=True)
+    else:
+        name_sids = []
+    if prefixed or base_name is None:
+        for m in operated:
+            if run_by(m.ref):
+                override_supports[m.ref].append("/canonical_name")
+            else:
+                support([m], "/canonical_name")
+        name_sids += operator_sids
+    if not name_sids:
+        supports[rep.ref].append("/canonical_name")  # "Data center"
+    for ref in override_supports:
+        override_supports[ref] = list(dict.fromkeys(override_supports[ref]))
+
+    aliases = [
+        Alias(name=a, kind="osm_name", source_ids=cite(with_name(a), name=True))
+        for a in alias_names
+    ]
+    point_from = [rep] if rep.kind in AREA_KINDS else ordered  # its box center, or their mean
+    for pointer in _POINT_POINTERS:
+        support(point_from, pointer)
+    for pointer in _PLACE_POINTERS:
+        support([rep], pointer)
+    for pointer, given in location_from.items():
+        support(given, pointer)
+    support(capacity_from.stated, "/capacity/mw_as_stated")
+    if telecom is not None:
+        supports[rep.ref].append("/purpose")
+
     existing = ctx.existing.get(existing_id) if existing_id else None
-    events, phases, phase_of = _events(groups, cluster, ctx, review)
+    events, phases, phase_of = _events(groups, cluster, ctx, review, cite)
     events = _keep_first_reported(events, existing)
 
     join = ctx.pnnl_join
     pnnl_rows = join.matched.get(rep.ref, []) if join is not None else []
     site = pnnl.site_values(cluster, pnnl_rows, join.members if join is not None else {})
     review.extend(site.review)
-    members = [m for m in cluster.members if m.kind not in AREA_KINDS]
     buildings = [
         Building(ref=f"osm:{m.ref}", name=m.name, phase_id=phase_of.get(m.ref)) for m in members
     ]
-    if any(named_by(m.ref) for m in members):
-        # A building named by an override: s1 supports the other buildings one by one.
-        s1_supports.remove("/buildings")
-        for i, m in enumerate(members):
-            if named_by(m.ref):
-                override_supports[m.ref].append(f"/buildings/{i}")
-            else:
-                s1_supports.append(f"/buildings/{i}")
+    for i, m in enumerate(members):
+        support([m], f"/buildings/{i}", name=True)
+        if named_by(m.ref):
+            supports[m.ref].append(f"/buildings/{i}")  # the ref is OSM's; the name the entry's
 
-    sources = [
-        Source(
-            id=OSM_SOURCE_ID,
-            url=HttpUrl(f"https://www.openstreetmap.org/{rep.ref}"),
+    def osm_source(ref: str, sid: str) -> Source:
+        return Source(
+            id=sid,
+            url=HttpUrl(f"https://{OSM_HOST}/{ref}"),
             publisher=OSM_PUBLISHER,
-            title=f"OpenStreetMap {rep.ref}",
+            title=f"OpenStreetMap {ref}",
             source_type="open_dataset",
             license=OSM_LICENSE,
             retrieved_at=ctx.osm_retrieved_at,
-            supports=s1_supports,
+            supports=supports[ref],
         )
-    ]
+
+    sources = [osm_source(rep.ref, OSM_SOURCE_ID)]
     external_ids: dict[str, list[str]] = {"osm": sorted(cluster.refs, key=ref_key)}
     if pnnl_rows and ctx.pnnl_snapshot is not None:
         sources.append(pnnl.pnnl_source(ctx.pnnl_snapshot, PNNL_SOURCE_ID))
@@ -1494,16 +1784,25 @@ def _build_one(
         _override_source(override_sid[ref], applied[ref], override_supports[ref])
         for ref in sorted(applied, key=ref_key)
     ]
+    sources += [
+        osm_source(ref, sid)
+        for ref, sid in sorted(member_sid.items(), key=lambda kv: _sid_number(kv[1]))
+        if ref != rep.ref
+    ]
 
     field_meta = {
         "/location/county_fips": FieldMeta(confidence=COUNTY_CONFIDENCE, method="derived"),
         "/status": FieldMeta(
-            confidence=STATUS_CONFIDENCE, method="imported", source_ids=[OSM_SOURCE_ID]
+            confidence=STATUS_CONFIDENCE,
+            method="imported",
+            source_ids=(cite(groups[0].members) if groups else []) or [OSM_SOURCE_ID],
         ),
     }
-    for pointer in capacity_pointers:
+    for pointer in capacity_from.pointers:
         field_meta[pointer] = FieldMeta(
-            confidence=CAPACITY_CONFIDENCE, method="imported", source_ids=[OSM_SOURCE_ID]
+            confidence=CAPACITY_CONFIDENCE,
+            method="imported",
+            source_ids=cite(capacity_from.summed[pointer.rsplit("/", 1)[1]]),
         )
 
     try:
@@ -1515,14 +1814,14 @@ def _build_one(
             aliases=aliases,
             parties=Parties(
                 operator=[OrgRef(name=operator, source_ids=operator_sids)] if operator else [],
-                owner=[OrgRef(name=owner, source_ids=[OSM_SOURCE_ID])] if owner else [],
+                owner=[OrgRef(name=owner, source_ids=cite(owned_by))] if owner else [],
             ),
             purpose="telecom" if telecom is not None else "unknown",
             status=groups[0].status.status,
             evidence_level="reported",
             status_history=events,
             location=location,
-            capacity=capacity,
+            capacity=capacity_from.capacity,
             phases=phases,
             buildings=buildings,
             site=Site(acreage=site.acreage),
@@ -1693,6 +1992,61 @@ def _large_unnamed_halls(cluster: Cluster) -> bool:
     )
 
 
+def _nearby_items(
+    built: Sequence[tuple[Cluster, Candidate]],
+    notes: Sequence[DissolveNote],
+    held: Mapping[str, ReviewItem],
+) -> list[ReviewItem]:
+    """possible_duplicate items for the dissolve's same_operator_nearby and tenant_building
+    notes whose two clusters both make in-scope records (one item per pair of records; records
+    of one name have the same-name item instead)."""
+    cluster_of = {m.ref: c for c, _ in built for m in c.members}
+    record_of = {c.representative.ref: cand.record for c, cand in built}
+    items: list[ReviewItem] = []
+    seen: set[frozenset[str]] = set()
+    for note in sorted(notes, key=lambda n: (n.kind, ref_key(n.refs[0]), ref_key(n.refs[1]))):
+        if note.kind not in ("same_operator_nearby", "tenant_building"):
+            continue
+        a, b = (cluster_of.get(r) for r in note.refs)
+        if a is None or b is None or a is b:
+            continue
+        reps = (a.representative.ref, b.representative.ref)
+        if any(r in held or record_of[r].scope != "in_scope" for r in reps):
+            continue
+        pair = frozenset(reps)
+        if pair in seen:
+            continue
+        seen.add(pair)
+        ra, rb = record_of[reps[0]], record_of[reps[1]]
+        if note.kind == "tenant_building":
+            reason = (
+                f"{note.why}: it may be a building of that campus whose operator tag names a "
+                f"tenant, or a neighbour; {ra.canonical_name!r} and {rb.canonical_name!r} stand "
+                "until a reviewer decides"
+            )
+            subject, other = reps
+        else:
+            if ra.canonical_name == rb.canonical_name:
+                continue
+            reason = (
+                f"{note.why}: one operator's buildings that no dissolve rule joined, so "
+                f"{ra.canonical_name!r} and {rb.canonical_name!r} may be one campus; both stand "
+                "until a reviewer decides"
+            )
+            subject, other = (
+                (reps[1], reps[0]) if _size_key(a) < _size_key(b) else (reps[0], reps[1])
+            )
+        items.append(
+            _review(
+                "possible_duplicate",
+                reason,
+                external_id=subject,
+                data={"osm": list(note.refs), "other": other, "rule": note.rule or None},
+            )
+        )
+    return items
+
+
 def _hold_after_build(
     built: Sequence[tuple[Cluster, Candidate]],
     notes: Sequence[DissolveNote],
@@ -1847,6 +2201,7 @@ def _hold_after_build(
                 data={"osm": inside, "county_fips": line_fips},
             )
         )
+    items += _nearby_items(built, notes, held)
     mixed: dict[str, list[str]] = {}
     for note in notes:
         area = cluster_of.get(note.refs[1])

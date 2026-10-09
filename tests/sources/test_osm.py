@@ -31,7 +31,6 @@ from atlas.sources.base import (
 from atlas.sources.osm import (
     IMPORTER,
     MIN_ELEMENTS,
-    OSM_SUPPORTS,
     OVERPASS_ENDPOINTS,
     OVERPASS_QUERY,
     BuildResult,
@@ -362,8 +361,24 @@ def test_campus_record(built: BuildResult) -> None:
         "Amazon IAD-60",
         "Amazon IAD-80",
     ]
-    assert all(a.kind == "osm_name" and a.source_ids == ["s1"] for a in r.aliases)
-    assert [(o.name, o.source_ids) for o in r.parties.operator] == [("Amazon Web Services", ["s1"])]
+    # Each value cites the element that gives it (fix round 5, n6, n11, n12): s1 is the
+    # representative, s2 PNNL, s3 to s9 the other members in ref order.
+    member_sid = {ref: f"s{i}" for i, ref in enumerate(AWS_REFS[:1] + AWS_REFS[2:], start=3)}
+    member_sid["way/460053030"] = "s1"
+    by_name = {
+        "Amazon Web Services Datacenter Complex": "way/460053028",
+        "Amazon IAD-78": "way/463571875",
+        "Amazon IAD-79": "way/463571876",
+        "Amazon IAD-71": "way/556599693",
+        "Amazon IAD-50": "way/556599694",
+        "Amazon IAD-60": "way/556599695",
+        "Amazon IAD-80": "way/596690174",
+    }
+    for a in r.aliases:
+        assert a.kind == "osm_name" and a.source_ids == [member_sid[by_name[a.name]]], a
+    ((operator, operator_sids),) = [(o.name, o.source_ids) for o in r.parties.operator]
+    assert operator == "Amazon Web Services"
+    assert operator_sids == sorted(member_sid.values(), key=lambda s: int(s[1:]))
     assert r.parties.owner == []
 
     rep = next(o for o in parse_overpass(fixture_doc())[0] if o.ref == "way/460053030")
@@ -403,7 +418,7 @@ def test_campus_record(built: BuildResult) -> None:
     (event,) = r.status_history
     assert (event.seq, event.status, event.event, event.planned) == (1, "operating", "other", False)
     assert (event.as_of.value, event.as_of.precision) == ("2026-10-07", "day")
-    assert event.source_ids == ["s1"]
+    assert event.source_ids == sorted(member_sid.values(), key=lambda s: int(s[1:]))
     assert event.note == (
         "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot "
         "date, not the date it began; start_date=2015 on way/556599694 is not read as the start "
@@ -427,7 +442,12 @@ def test_campus_record(built: BuildResult) -> None:
             "building@-77.457503,39.027908",
         ],
     }
-    s1, s2 = r.sources
+    s1, s2, *members = r.sources
+    assert [(m.id, str(m.url)) for m in members] == [
+        (sid, f"https://www.openstreetmap.org/{ref}")
+        for ref, sid in sorted(member_sid.items(), key=lambda kv: int(kv[1][1:]))
+        if sid != "s1"
+    ]
     assert (s1.id, str(s1.url), s1.publisher) == (
         "s1",
         "https://www.openstreetmap.org/way/460053030",
@@ -438,7 +458,20 @@ def test_campus_record(built: BuildResult) -> None:
         "open_dataset",
         "ODbL-1.0",
     )
-    assert s1.supports == list(OSM_SUPPORTS) and s1.retrieved_at == RETRIEVED
+    # s1, the campus polygon, gives the name and the point; the buildings give their entries,
+    # the power tags and the postcode they all list.
+    assert s1.supports == [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/location/city",
+        "/location/county_name",
+        "/location/state_abbr",
+    ]
+    assert s1.retrieved_at == RETRIEVED
+    iad78 = next(m for m in members if str(m.url).endswith("way/463571875"))
+    assert iad78.supports == ["/location/postcode", "/capacity/mw_as_stated", "/buildings/0"]
+    assert iad78.title == "OpenStreetMap way/463571875" and iad78.license == "ODbL-1.0"
     # The 17-feature sample is not a web-map file whose version is established: s2 cites the file.
     assert (s2.id, str(s2.url), s2.license) == ("s2", pnnl.PNNL_GEOJSON_URL, "ODbL-1.0")
     assert s2.title == (
@@ -448,11 +481,12 @@ def test_campus_record(built: BuildResult) -> None:
     assert s2.supports == ["/site"]
 
     meta = {k: (v.confidence, v.method, v.source_ids) for k, v in r.field_meta.items()}
+    buildings_sids = [member_sid[ref] for ref in AWS_REFS[2:]]
     assert meta == {
-        "/capacity/facility_mw": (0.7, "imported", ["s1"]),
-        "/capacity/it_mw": (0.7, "imported", ["s1"]),
+        "/capacity/facility_mw": (0.7, "imported", buildings_sids),
+        "/capacity/it_mw": (0.7, "imported", buildings_sids),
         "/location/county_fips": (0.9, "derived", []),
-        "/status": (0.6, "imported", ["s1"]),
+        "/status": (0.6, "imported", sorted(member_sid.values(), key=lambda s: int(s[1:]))),
     }
     assert r.review.state == "machine"
     assert r.created_at == r.updated_at == r.last_verified_at == NOW
@@ -488,8 +522,10 @@ def test_names(built: BuildResult) -> None:
     assert names["way/1188715508"] == "PowerHouse CyrusOne NVA14 (Loudoun County, VA)"
     assert names["node/11721960464"] == "QTS Data Center - Hillsboro 3 (Washington County, OR)"
     assert names["node/13154826379"] == "NTT VA11 (Prince William County, VA)"
+    # A campus of several named buildings goes by their series, not by its largest building
+    # (fix round 5, n16).
     equinix = candidate(built, "node/14156477686").record
-    assert equinix.canonical_name == "Equinix DC10 (Loudoun County, VA)"
+    assert equinix.canonical_name == "Equinix DC10, DC12, DC15 and 2 more (Loudoun County, VA)"
     assert "Equinix Ashburn DC18" in [a.name for a in equinix.aliases]
     assert equinix.location.precision == "footprint"
 
@@ -512,11 +548,13 @@ def test_status_mapping(built: BuildResult) -> None:
 
 def test_mixed_statuses_become_phases(built: BuildResult) -> None:
     r = candidate(built, "way/1560827027").record  # Cologix ASH1 (operating) + ASH2 (construction)
-    assert r.canonical_name == "Cologix ASH1 (Loudoun County, VA)"
+    assert r.canonical_name == "Cologix ASH1 and ASH2 (Loudoun County, VA)"
+    # Each phase cites the building whose tags give its status: ASH1 is s1, the representative.
     assert [(p.phase_id, p.name, p.source_ids) for p in r.phases] == [
         ("osm-operating", "Operating in OpenStreetMap: Cologix ASH1", ["s1"]),
-        ("osm-under_construction", "Under construction in OpenStreetMap: Cologix ASH2", ["s1"]),
+        ("osm-under_construction", "Under construction in OpenStreetMap: Cologix ASH2", ["s3"]),
     ]
+    assert str(next(s for s in r.sources if s.id == "s3").url).endswith("way/1560827027")
     assert [(e.seq, e.status, e.phase_id) for e in r.status_history] == [
         (1, "operating", "osm-operating"),
         (2, "under_construction", "osm-under_construction"),
@@ -555,7 +593,7 @@ def test_telecom_sites_are_out_of_scope(counties: CountyIndex) -> None:
     coop = candidate(result, "way/1365213539").record  # "PTC", a telephone cooperative's office
     for r in (cls, coop):
         assert (r.scope, r.purpose) == ("out_of_scope", "telecom")
-        assert r.sources[0].supports == [*OSM_SUPPORTS, "/purpose"]
+        assert "/purpose" in r.sources[0].supports
         assert validate_record(r, counties=counties, today=TODAY) == []
     items = {i.external_id: i.reason for i in result.review if i.kind == "out_of_scope"}
     assert items == {
@@ -627,7 +665,7 @@ def test_every_candidate_validates(built: BuildResult, counties: CountyIndex) ->
 def test_without_pnnl(counties: CountyIndex) -> None:
     result = build(counties, with_pnnl=False)
     r = candidate(result, "way/460053028").record
-    assert [s.id for s in r.sources] == ["s1"]
+    assert [s.id for s in r.sources] == ["s1", *(f"s{i}" for i in range(3, 10))]  # no s2
     assert "pnnl_im3" not in r.external_ids
     assert [b.sqft for b in r.buildings] == [None] * 6
     assert r.site.building_sqft is None
@@ -1021,13 +1059,13 @@ def test_cli_import_drops_control_characters(
         FacilityRecord.model_validate_json(f.read_text(encoding="utf-8"))
         for f in sorted((repo / "records").glob("*.json"))
     ]
-    for ref, name, operator in (
-        ("node/10014176940", "Microsoft", "Microsoft"),
-        ("way/1188715510", "Cologix ASH1", "Cologix"),
+    for ref, name, building, operator in (
+        ("node/10014176940", "Microsoft", "Microsoft", "Microsoft"),
+        ("way/1188715510", "Cologix ASH1 and ASH2", "Cologix ASH1", "Cologix"),
     ):
         (record,) = [r for r in records if ref in r.external_ids["osm"]]
         assert record.canonical_name.startswith(f"{name} (")
-        assert name in [b.name for b in record.buildings]
+        assert building in [b.name for b in record.buildings]
         assert [p.name for p in record.parties.operator] == [operator]
 
     def comparable(root: Path) -> list[dict[str, Any]]:

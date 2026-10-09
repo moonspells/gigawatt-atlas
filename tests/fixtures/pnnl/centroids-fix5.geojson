@@ -1,0 +1,84 @@
+{
+ "type": "FeatureCollection",
+ "name": "im3_datacenter_centroids",
+ "crs": {
+  "type": "name",
+  "properties": {
+   "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+  }
+ },
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "state_abb": "AZ",
+    "county": "Maricopa County",
+    "operator": "Apple Inc.",
+    "name": "Apple Data Center",
+    "sqft": 1338261.0,
+    "type": "building"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -111.6040562341984,
+     33.34701916598116
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "state_abb": "AZ",
+    "county": "Maricopa County",
+    "operator": null,
+    "name": null,
+    "sqft": 1263277.0,
+    "type": "building"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -111.60413892768399,
+     33.34702102896662
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "state_abb": "VA",
+    "county": "Loudoun County",
+    "operator": "NTT",
+    "name": "NTT Ashburn VA8 Data Centre",
+    "sqft": 111241.0,
+    "type": "building"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -77.4755312625733,
+     39.02019007620964
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "state_abb": "NC",
+    "county": "Caldwell County",
+    "operator": "Google",
+    "name": "Google Data Center",
+    "sqft": 3407194.0,
+    "type": "campus"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.54651452859923,
+     35.89473777653521
+    ]
+   }
+  }
+ ]
+}

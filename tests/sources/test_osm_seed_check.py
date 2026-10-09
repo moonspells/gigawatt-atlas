@@ -325,8 +325,9 @@ def test_the_street_is_the_representatives(run: ImportResult) -> None:
     """n6: QTS Manassas DC5 (no address) was published at DC1's 9400 Godwin Drive, the most common
     member street. A member's street is used only when every member that has one agrees."""
     r = record(run, "way/1090837713")
-    # Manassas is the postal city (addr:city); the point lies in Innovation CDP (07 §6.5).
-    assert r.canonical_name == "QTS Manassas DC5 (Innovation, VA)"
+    # Manassas is the postal city (addr:city); the point lies in Innovation CDP (07 §6.5). The
+    # campus goes by its buildings' common name, not DC5's (fix round 5, n16).
+    assert r.canonical_name == "QTS Manassas (Innovation, VA)"
     assert (r.location.street, r.location.city) == (None, "Innovation")
     flexential = record(run, "way/392324240")
     assert flexential.location.street == "2775 Northwoods Parkway"
@@ -402,7 +403,19 @@ def test_the_pnnl_rows_go_by_position_and_name(run: ImportResult) -> None:
         "building@-77.513111,38.752517",
         "building@-77.517447,38.754693",
     ]
-    assert not [i for i in run.review if i.source == "pnnl" and i.kind != "unmatched"]
+    # The rows still go by position; that PNNL's name gives another building number than the
+    # polygon's is a conflict for a reviewer (fix round 5, n13): OSM numbers the buildings
+    # otherwise than PNNL's older names.
+    numbers = {
+        i.external_id: i.reason for i in run.review if i.source == "pnnl" and i.kind != "unmatched"
+    }
+    assert {k: v.split(":")[0] for k, v in numbers.items()} == {
+        "building@-77.510797,38.753195": "PNNL names way/1287260558 'QTS Manassas DC2', "
+        "OpenStreetMap 'QTS Manassas DC3'",
+        "building@-77.512523,38.752551": "PNNL names way/1464257784 'QTS Manassas DC1', "
+        "OpenStreetMap 'QTS Manassas DC2'",
+    }
+    assert all(i.kind == "conflict" for i in run.review if i.external_id in numbers)
     assert record(run, "node/13311012216").external_ids["pnnl_im3"] == [
         "point@-115.139883,36.065941"
     ]

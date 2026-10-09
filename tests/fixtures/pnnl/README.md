@@ -118,3 +118,15 @@ and "Meta Cheyenne Data Center" (11,352,010 sq ft, 260.6 acres). They go with
 `tests/fixtures/osm/overpass-fix4.json`: the first measures another polygon than the 113.7-acre
 outline OSM has now, and OSM calls the second's boundary "very approximate", so neither gives an
 acreage (`tests/sources/test_osm_fix4.py`).
+
+## `centroids-fix5.geojson`
+
+4 features of the same web-map file (same SHA-256 as above, as the fourth seed import read it),
+verbatim under its header: the original file's features 344, 577, 1040 and 1333 (0-based). They go
+with `tests/fixtures/osm/overpass-fix5.json`:
+
+- 344 and 577: the two building rows on the Apple Data Center in Mesa (as in
+  `centroids-cases.geojson`);
+- 1040: "NTT Ashburn VA8 Data Centre", on the way OpenStreetMap renamed "NTT VA9" (a `conflict`
+  item);
+- 1333: "Google Data Center", the 78.2-acre campus row that spans Google's two Lenoir outers.

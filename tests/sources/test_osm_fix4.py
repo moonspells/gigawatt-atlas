@@ -351,9 +351,11 @@ def test_the_committed_overrides_correct_stale_tags(run: ImportResult) -> None:
     # Intergate Building 4 is Sabey's: it joins the Sabey campus.
     sabey = record(run, "way/293211687")
     assert "way/293211686" in sabey.external_ids["osm"]
-    assert [(o.name, o.source_ids) for o in sabey.parties.operator] == [
-        ("Sabey Data Centers", ["s1", "s3"])
-    ]
+    ((sabey_name, sabey_sids),) = [(o.name, o.source_ids) for o in sabey.parties.operator]
+    # The entry's source for Building 4, the members' own elements for the others (n12).
+    assert sabey_name == "Sabey Data Centers" and sabey_sids[:2] == ["s1", "s3"]
+    osm_ids = {s.id for s in sabey.sources if s.url.host == "www.openstreetmap.org"}
+    assert set(sabey_sids) - {"s3"} <= osm_ids
     # A tenant that left: the name is removed, not replaced.
     vita = record(run, "way/439365340")
     assert vita.canonical_name == "Data center (Chesterfield County, VA)"
