@@ -46,3 +46,25 @@ timeline row of each, cell values unchanged.
 | Meta Huntsville | a cited "Announcement of expansion completing in 2026" |
 | Core42 Lake Mariner, Anthropic Lake Mariner | two sites at 7725 Lake Rd, Barker, NY (one campus) |
 | OpenAI Stargate Abilene, Crusoe Abilene Expansion | two sites at 5502 Spinks Rd, Abilene, TX |
+
+## `cases-2026-10-09.zip`
+
+The same license and credit apply. `cases-2026-10-09.zip` holds the sites behind the rules of
+`tests/sources/test_epoch_seed2.py` (the second seed check), taken from the download of 2026-10-09
+(114,113 bytes, ETag `"c60c32c049b88983f8d7efd4da9912c8"`, SHA-256
+`0ce2b5e45705a7d2044e885a49d6030353b9336945c09e9ba0c6b598f2932043`), built the same way: the
+original `README.md`, and the header and only these sites' rows of the two CSVs, with every
+timeline row of each, cell values unchanged.
+
+| Site | Why it is here |
+|---|---|
+| Google Kansas City East | dates on the 1st of a month, among them the estimated 2026-08-01 "Building 1 operational" |
+| Google Council Bluffs (East) | a name that names part of a site; "Land clearing begins for east buildings" |
+| CoreWeave Marble NC | a bitcoin site's conversion: "100 MW of owned infrastructure. Site modifications" |
+| Meta Sarpy | a new building on an operating campus, with a cited `timeline` entry |
+| Google Arcola | the same, its `timeline` entry citing its location source |
+| Meta Rosemount | a cited `first_report` (Meta's announcement) earlier than Epoch's first row |
+| Google The Dalles | a cited `first_report` that is one of Epoch's Selected Sources |
+| AWS New Albany | "we're only including roughly 44% of all the New Albany campuses IT Power" |
+| Microsoft SAT40 | a link title: "includes the first building we believe is for AI" |
+| Anthropic Barber Lake | a bitcoin miner's site (Owner: Cipher Mining) |

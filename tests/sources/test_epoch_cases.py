@@ -56,9 +56,10 @@ def site(name: str, *, sources: str = "") -> Site:
 
 
 # The sites whose address places only through the Census, which these offline runs skip: a
-# postal city gives no point without a stated county (07 §6.5). Each gets a test entry at its
-# county (made-up citation text); a shared campus needs one for its first site. OpenAI Stargate
-# Abilene, Google New Albany and QTS Richmond 1 have committed entries, which place them here.
+# postal city gives no point without a stated county (07 §6.5). Each gets a test location at its
+# county (made-up citation text) beside any committed entry it has (Google Fort Wayne's cited
+# facility_status); a shared campus needs one for its first site. OpenAI Stargate Abilene, Google
+# New Albany and QTS Richmond 1 have committed locations, which place them here.
 TEST_COUNTIES = {
     "Coreweave Helios": ("TX", "Dickens"),
     "Core42 Lake Mariner": ("NY", "Niagara"),
@@ -69,25 +70,41 @@ TEST_COUNTIES = {
 }
 
 
-@pytest.fixture
-def overrides(tmp_path: Path, counties: CountyIndex) -> Path:
-    """The committed overrides plus a county entry for each site in TEST_COUNTIES."""
+def write_overrides(
+    tmp_path: Path,
+    counties: CountyIndex,
+    test_counties: dict[str, tuple[str, str]],
+    *,
+    drop: tuple[tuple[str, str], ...] = (),
+) -> Path:
+    """The committed overrides, without the (site, key) parts in drop, plus a test county location
+    for each site in test_counties."""
     entries = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
-    for name, (state, county_name) in TEST_COUNTIES.items():
+    for name, key in drop:
+        del entries[name][key]
+    for name, (state, county_name) in test_counties.items():
         county = counties.by_name(state, county_name)
-        assert county is not None and name not in entries
-        entries[name] = {
-            "county_fips": county.fips,
-            "note": "Test entry.",
-            "precision": "county",
-            "quote": f"The site is in {county.name} County.",
-            "retrieved_at": "2026-10-08T05:00:00Z",
-            "source_url": "https://example.org/site",
-            "state_abbr": state,
-        }
+        assert county is not None and "state_abbr" not in entries.get(name, {})
+        entries.setdefault(name, {}).update(
+            {
+                "county_fips": county.fips,
+                "note": "Test entry.",
+                "precision": "county",
+                "quote": f"The site is in {county.name} County.",
+                "retrieved_at": "2026-10-08T05:00:00Z",
+                "source_url": "https://example.org/site",
+                "state_abbr": state,
+            }
+        )
     path = tmp_path / "overrides.json"
     path.write_text(json.dumps(entries), encoding="utf-8")
     return path
+
+
+@pytest.fixture
+def overrides(tmp_path: Path, counties: CountyIndex) -> Path:
+    """The committed overrides plus a county location for each site in TEST_COUNTIES."""
+    return write_overrides(tmp_path, counties, TEST_COUNTIES)
 
 
 @pytest.fixture
@@ -189,7 +206,7 @@ def test_a_later_row_of_work_under_way_is_not_a_start(cases: ImportResult) -> No
     assert got == [
         ("2025-07-15", "announced", "announced", False),
         ("2026-07-13", "under_construction", "other", False),
-        ("2027-06-30", "operating", "energized", True),
+        ("2027-06", "operating", "energized", True),  # an estimate on the last day: the month
     ]
     assert rec.status == "under_construction"
     assert dates(rec) == {"announced": "2025-07-15", "first_reported": "2025-07-15"}
@@ -372,16 +389,44 @@ def test_a_partial_timeline_is_a_phase_and_dates_nothing(cases: ImportResult) ->
     assert cases.metrics["timelines_partial"] == 8
 
 
-def test_a_partial_timeline_behind_the_facility_is_held_for_review(cases: ImportResult) -> None:
-    # Google said on 2025-12-11 that the Fort Wayne data center is operational; Epoch's count
-    # leaves Building 1 out as probably not for AI compute, so its status stays under construction.
-    rec = records(cases)["Google Fort Wayne"]
-    assert rec.status == "under_construction" and dates(rec) == {}
-    (item,) = [i for i in cases.review if i.external_id == "Google Fort Wayne"]
-    assert item.kind == "conflict" and "further along than the under_construction" in item.reason
+def test_a_partial_timeline_behind_the_facility_is_held_for_review(
+    make_test_context: MakeContext, tmp_path: Path, counties: CountyIndex
+) -> None:
+    # Epoch's count leaves Google Fort Wayne's Building 1 out as probably not for AI compute, and
+    # its tracked buildings are under construction; Google said on 2025-12-11 that the data center
+    # is operational. Without a cited facility status the tracked buildings' status is not the
+    # facility's, so there is no record: a conflict item says why.
+    path = write_overrides(
+        tmp_path, counties, TEST_COUNTIES, drop=(("Google Fort Wayne", "facility_status"),)
+    )
+    ctx = make_test_context(input_path=CASES_ZIP)
+    result = IMPORTER.run(ctx, argparse.Namespace(overrides=path, no_geocode=True))
+    assert "Google Fort Wayne" not in records(result)
+    (item,) = [i for i in result.review if i.external_id == "Google Fort Wayne"]
+    assert item.kind == "conflict" and "its status is unknown: no record" in item.reason
     assert "not for AI compute" in str(item.data["evidence"])
+    assert item.data["status"] == "under_construction"
+    assert result.metrics["timelines_status_unknown"] == 1
     # Partial timelines whose tracked buildings operate need no item.
-    assert not [i for i in cases.review if i.external_id == "QTS Richmond 1"]
+    assert not [i for i in result.review if i.external_id == "QTS Richmond 1"]
+
+
+def test_a_cited_facility_status_is_the_facility_s(cases: ImportResult) -> None:
+    # The committed entry cites WPTA's report of Google's announcement; it goes on a phase of the
+    # buildings Epoch does not track, as an observation that dates nothing.
+    rec = records(cases)["Google Fort Wayne"]
+    assert rec.status == "operating" and rec.record_type == "campus" and is_expanding(rec)
+    assert dates(rec) == {} and rec.capacity.it_mw is None
+    assert [p.phase_id for p in rec.phases] == ["google-fort-wayne", "google-fort-wayne-untracked"]
+    assert rec.phases[1].name == "Google Fort Wayne (buildings Epoch AI does not track)"
+    (cited,) = [e for e in rec.status_history if e.phase_id == "google-fort-wayne-untracked"]
+    assert (cited.as_of.value, cited.status, cited.event) == ("2025-12-11", "operating", "other")
+    source = next(s for s in rec.sources if s.id == cited.source_ids[0])
+    assert source.quote is not None and "Fort Wayne data center is operational" in source.quote
+    assert source.supports == ["/status_history"] and rec.phases[1].source_ids == [source.id]
+    tracked = {e.status for e in rec.status_history if e.phase_id == "google-fort-wayne"}
+    assert tracked == {"under_construction", "operating"}  # the planned Building 2
+    assert not [i for i in cases.review if i.external_id == "Google Fort Wayne"]
 
 
 def test_a_cited_expansion_is_held_for_review(cases: ImportResult) -> None:

@@ -2,8 +2,8 @@
   "AWS Berwick": {
     "county_fips": "42079",
     "municipality": "Salem Township",
-    "note": "Epoch's address is in Berwick, only its postal city. Epoch's SRBC source covers Amazon's application under Docket No. 20240901; the Commission's Federal Register notice of its approval places that campus in Salem Township, Luzerne County.",
-    "precision": "county",
+    "note": "Epoch's address is in Berwick, only its postal city. Epoch's SRBC source covers Amazon's application under Docket No. 20240901; the Commission's Federal Register notice of its approval places that campus in Salem Township, Luzerne County (Salem township's Gazetteer point).",
+    "precision": "locality",
     "publisher": "Susquehanna River Basin Commission",
     "quote": "Project Sponsor: Amazon Data Services, Inc. Project Facility: PHL100 Data Center Campus, Salem Township, Luzerne County, Pa.",
     "retrieved_at": "2026-10-09T07:15:17Z",
@@ -60,6 +60,7 @@
   "Colossus 1": {
     "city": "Memphis",
     "note": "Epoch's address is in Memphis, only its postal city, and its readable sources give no citable sentence naming the site's city. A letter to EPA from the Senate Environment and Public Works Committee's ranking member places Colossus 1 in South Memphis. No county is named.",
+    "place_check": "OSM's xAI Colossus (relation 16356926) lies inside Memphis city's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "U.S. Senate Committee on Environment and Public Works",
     "quote": "In April 2025, thermal imagery revealed more than 30 unpermitted gas turbines at the company’s Colossus 1 data center in South Memphis, Tennessee",
@@ -71,6 +72,7 @@
   "CoreWeave Denton TX": {
     "city": "Denton",
     "note": "Epoch's address is in Denton, only its postal city. Core Scientific's page for this site (8171 Jim Christal Rd), one of Epoch's Selected Sources, places the data center in Denton, Texas. No county is named.",
+    "place_check": "Jim Christal Road, the street of Epoch's address, lies inside Denton city's place polygon along its whole length (OSM ways 9963473 to 1550240248); checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "Core Scientific",
     "quote": "Core Scientific’s north Dallas data center in Denton, Texas, is near one of the fastest-growing data center markets in North America.",
@@ -111,11 +113,21 @@
     "retrieved_at": "2026-10-09T07:21:06Z",
     "source_type": "trade_press",
     "source_url": "https://www.bisnow.com/national/news/data-center/google-investing-1b-to-improve-northern-virginia-data-centers-124025",
-    "state_abbr": "VA"
+    "state_abbr": "VA",
+    "timeline": {
+      "coverage": "partial",
+      "note": "Bisnow (2024-04-29), Epoch's only Selected Source, reports Google operating a data center in Arcola before Epoch's Building 1 foundation (2024-10-01); Epoch's site adjoins that campus (OSM way 714622339).",
+      "publisher": "Bisnow",
+      "quote": "The company operates a 400K SF data center in Arcola, with plans to develop a second facility closer to Dulles International Airport, according to Baxtel.",
+      "retrieved_at": "2026-10-09T13:20:18Z",
+      "source_type": "trade_press",
+      "source_url": "https://www.bisnow.com/national/news/data-center/google-investing-1b-to-improve-northern-virginia-data-centers-124025"
+    }
   },
   "Google Columbus": {
     "city": "Columbus",
     "note": "Epoch's address, 5076 S High St, has only its postal city. Google's Ohio location page names Columbus as one of its three Ohio data center communities; AEP's notice, an Epoch Selected Source, does not name Google. No county is named.",
+    "place_check": "OSM's Google data center buildings on S High St (ways 1252196814 and 1281982556) lie inside Columbus city's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "Google",
     "quote": "At home in the Buckeye State, our data center communities in New Albany, Lancaster, and Columbus are hubs of digital transformation for the Midwest.",
@@ -123,6 +135,18 @@
     "source_type": "company_release",
     "source_url": "https://datacenters.google/locations/ohio/",
     "state_abbr": "OH"
+  },
+  "Google Fort Wayne": {
+    "facility_status": {
+      "as_of": "2025-12-11",
+      "note": "Epoch tracks Buildings 2 and later, still under construction, and leaves Building 1 out of its count; WPTA reported on 2025-12-11 Google's announcement that its Fort Wayne data center is operational.",
+      "publisher": "21Alive (WPTA)",
+      "quote": "Ahead of a community forum prompted by concerns from residents about its new facility, Google announced Thursday that its Fort Wayne data center is operational.",
+      "retrieved_at": "2026-10-09T13:21:35Z",
+      "source_type": "news",
+      "source_url": "https://www.21alivenews.com/2025/12/11/google-announces-fort-wayne-data-center-is-operational-ahead-thursday-night-community-forum/",
+      "status": "operating"
+    }
   },
   "Google Kansas City East": {
     "archive_url": "https://web.archive.org/web/20260312015900/https://www.datacenterdynamics.com/en/news/google-files-project-plan-for-data-center-in-kansas-city-missouri/",
@@ -139,6 +163,7 @@
   "Google Lincoln": {
     "city": "Lincoln",
     "note": "Epoch's address, 5475 Cloud Ct, has only its postal city. Epoch's City Council minutes name only Agate, LLC; Google's Nebraska location page places its new data center in Lincoln, Nebraska. No county is named.",
+    "place_check": "OSM's Google Lincoln Data Center (relation 15360619) lies inside Lincoln city's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "Google",
     "quote": "Since the Papillion, Nebraska data center was built in 2019, the Omaha, Nebraska data center was built in 2022, and the development of a new data center in Lincoln, Nebraska was announced in 2023, Google has invested more than $15 billion in the state.",
@@ -163,17 +188,28 @@
     "city": "Midlothian",
     "county_fips": "48139",
     "note": "Epoch's address, 3250 Railport Parkway, has only its postal city. Epoch's City of Midlothian ordinance zones the Sharka data center lot but does not name Google; Google's Texas location page places its data center in Midlothian, Ellis County.",
+    "place_check": "OSM's Google data center buildings inside Epoch's site (ways 844386860, 844386861 and 1458626323) lie inside Midlothian city's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "Google",
     "quote": "The Lone Star State is home to two of our data center locations in Midlothian and Red Oak in Ellis County, Texas.",
     "retrieved_at": "2026-10-09T07:17:23Z",
     "source_type": "company_release",
     "source_url": "https://datacenters.google/locations/texas/",
-    "state_abbr": "TX"
+    "state_abbr": "TX",
+    "timeline": {
+      "coverage": "partial",
+      "note": "Epoch's timeline starts with land clearing for Building 1 on 2023-11-28; Google's Texas page dates its Midlothian data center to 2019 (its PUE table lists Midlothian from 2021 Q4), so the timeline is a new building's.",
+      "publisher": "Google",
+      "quote": "2019 Google invests in our first Texas data center in Midlothian.",
+      "retrieved_at": "2026-10-09T13:20:41Z",
+      "source_type": "company_release",
+      "source_url": "https://datacenters.google/locations/texas/"
+    }
   },
   "Google New Albany": {
     "city": "New Albany",
     "note": "Epoch's Selected Sources do not state it: one is a Nebraska permit fact sheet, the other a table in Google's report. The City of New Albany's economic development news places Google's Beech Road data center in New Albany. No county is named.",
+    "place_check": "OSM's Google NBY-1 to NBY-7 buildings on Beech Rd (ways 844391358, 1222007663 and others) lie inside New Albany city's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "City of New Albany",
     "quote": "Google Plans $600 Million Data Center in New Albany",
@@ -186,6 +222,7 @@
     "city": "Papillion",
     "county_fips": "31153",
     "note": "Epoch's first Selected Source, the state's air permit fact sheet for Fireball Group, LLC (the Google entity behind the Papillion campus), places the facility in Papillion, Sarpy County, Nebraska.",
+    "place_check": "OSM's Google Papillion Data Center (way 844394359) and the Google buildings beside it lie inside Papillion city's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "Nebraska Department of Water, Energy, and Environment",
     "quote": "The Fireball facility is located in Papillion, Nebraska in Sarpy County.",
@@ -195,14 +232,14 @@
     "state_abbr": "NE"
   },
   "Google Pryor (North)": {
-    "city": "Pryor Creek",
-    "note": "Epoch's address, 4581 Webb St, Pryor, OK, does not geocode. Google's post, Epoch's first Selected Source, places the facility in Pryor, whose Census place name is Pryor Creek.",
-    "precision": "locality",
+    "county_fips": "40097",
+    "note": "Epoch's address, 4581 Webb St, Pryor, has only its postal city: Google's Mayes County campus in MidAmerica Industrial Park (OSM relation 11581698) lies outside the Pryor Creek place polygon. Google's Oklahoma location page places its operating site in Mayes County.",
+    "precision": "county",
     "publisher": "Google",
-    "quote": "This investment supports the development of a new data center campus in Stillwater and the expansion of our existing facility in Pryor, as well as expanded education and workforce development programs.",
-    "retrieved_at": "2026-10-08T05:15:01Z",
+    "quote": "With an operating site in Pryor, Mayes County and three new locations in development in Tulsa County, Muskogee County and Stillwater",
+    "retrieved_at": "2026-10-09T13:10:19Z",
     "source_type": "company_release",
-    "source_url": "https://blog.google/inside-google/company-announcements/google-american-innovation-oklahoma/",
+    "source_url": "https://datacenters.google/locations/oklahoma/",
     "state_abbr": "OK"
   },
   "Google Storey County": {
@@ -218,7 +255,18 @@
   },
   "Google The Dalles": {
     "city": "The Dalles",
+    "first_report": {
+      "note": "Epoch's Selected Source, the City's notice of administrative decision SPR 512-22 (decision date October 31, 2022), approves the data center at 3500 River Road; Epoch's first row is 2023-05-21.",
+      "published_at": "2022-10-31",
+      "publisher": "City of The Dalles",
+      "quote": "DECISION: Based on the findings of fact and conclusions in the staff report of SPR 512-22, the request by Whiting-Turner, is hereby approved with the following conditions:",
+      "retrieved_at": "2026-10-09T13:19:06Z",
+      "source_type": "government_record",
+      "source_url": "https://static1.squarespace.com/static/5e9a1686f716835e61268f2a/t/63659cb153e00407c9cd0bc9/1667603634454/SPR%2B512-22%2C%2BNOD%2C%2B10-31-22%2B%281%29.pdf",
+      "status": "permitted"
+    },
     "note": "Epoch's first Selected Source, the City of The Dalles' 2022 decision on 3500 River Road, names no city in its location line. Columbia Community Connection, which hosts that decision, reports on it and places the River Road data center in The Dalles.",
+    "place_check": "OSM's Google buildings by River Road (ways 1443567519, 1510517630 and 1443567507) lie inside The Dalles city's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "Columbia Community Connection",
     "quote": "It will be the fourth such data center for Google in The Dalles, and its construction has been estimated to cost as much as $600 million to develop.",
@@ -241,6 +289,7 @@
   "Meta Cheyenne": {
     "city": "Cheyenne",
     "note": "Epoch's address has only the postal city and ZIP. Its first Selected Source, Meta's announcement, places the data center in Cheyenne, Wyoming.",
+    "place_check": "OSM's Meta Cheyenne Data Center (way 1455907959) lies inside Cheyenne city's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "Meta",
     "quote": "Cheyenne, Wyoming, will be home to our newest Meta data center — our 21st data center in the U.S. and 25th in the world.",
@@ -253,6 +302,7 @@
     "city": "Eagle Mountain",
     "county_fips": "49049",
     "note": "Epoch's Selected Sources are a Facebook post and an air permit for a nearby power plant. Meta's post on the data center going online places it in Eagle Mountain and Utah County.",
+    "place_check": "OSM's Meta Eagle Mountain Data Center buildings (ways 1035123482, 1024051963 and others) lie inside Eagle Mountain city's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "Meta",
     "quote": "Eagle Mountain and Utah County have been a great location for our newest data center.",
@@ -264,6 +314,7 @@
   "Meta Gallatin": {
     "city": "Gallatin",
     "note": "Epoch's address does not geocode, its Meta fact sheet link is dead, and its Gallatin EDA article places the site only indirectly (the city's planning approval). Tennessee's economic development department, announcing the campus for Facebook (now Meta), places it in Gallatin.",
+    "place_check": "OSM's Meta Gallatin Data Center (ways 1294595615, 1312795639 and 1312795640) lies inside Gallatin city's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "Tennessee Department of Economic and Community Development",
     "quote": "Facebook (NASDAQ: FB) officials announced today that the global technology company will invest $800 million to build a new state-of-the-art data center in Gallatin.",
@@ -296,7 +347,18 @@
   },
   "Meta Jeffersonville": {
     "city": "Jeffersonville",
+    "first_report": {
+      "note": "Turner's release of January 25, 2024 (the day the campus was announced); Epoch's first row (land clearing) is February 2024.",
+      "published_at": "2024-01-25T14:28:41-05:00",
+      "publisher": "Turner Construction Company",
+      "quote": "Turner Construction Company is pleased to announce that it was selected to build a hyperscale data center campus for Meta in Jeffersonville, Indiana.",
+      "retrieved_at": "2026-10-09T13:18:47Z",
+      "source_type": "company_release",
+      "source_url": "https://www.turnerconstruction.com/insights/turner-construction-company-to-build-hyperscale-data-center-for-meta-in-indiana",
+      "status": "announced"
+    },
     "note": "Epoch's address matches only 500 E 8th St; the IDEM air permit it cites gives 300 International Drive, Jeffersonville, Clark County. Its Selected Source from Turner, the site contractor, places the campus in Jeffersonville, Indiana; the quote names no county.",
+    "place_check": "International Drive, the street of the IDEM permit's 300 International Drive, lies inside Jeffersonville city's place polygon (OSM ways 1075626787, 799562088, 592203181) except its south end, 91 m outside; the site itself is not in OSM; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "Turner Construction Company",
     "quote": "Turner Construction Company is pleased to announce that it was selected to build a hyperscale data center campus for Meta in Jeffersonville, Indiana.",
@@ -308,6 +370,7 @@
   "Meta Los Lunas": {
     "city": "Los Lunas",
     "note": "Epoch's address does not geocode, its Meta fact sheet link is dead, and its contractor page gives Los Lunas only as a label. A 2017 New Mexico House memorial places the data center of Facebook (now Meta) in the village of Los Lunas.",
+    "place_check": "OSM's Meta Los Lunas Data Center (way 578412815) and its buildings lie inside Los Lunas village's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "New Mexico Legislature",
     "quote": "WHEREAS, Facebook, a social networking service that connects approximately one billion eight hundred million users globally, announced in September 2016 that it chose the village of Los Lunas as the location of its newest data center; and",
@@ -317,19 +380,20 @@
     "state_abbr": "NM"
   },
   "Meta Montgomery": {
-    "city": "Montgomery",
-    "note": "Epoch's address, Co Rd 42, Montgomery, does not geocode. Meta's announcement, Epoch's first Selected Source, places the data center in Montgomery, Alabama. No county is named.",
-    "precision": "locality",
-    "publisher": "Meta",
-    "quote": "Montgomery, Alabama, will be home to our newest Meta owned and operated data center — our 20th data center in the United States and 24th in the world.",
-    "retrieved_at": "2026-10-09T07:40:02Z",
-    "source_type": "company_release",
-    "source_url": "https://datacenters.atmeta.com/2024/05/hello-montgomery/",
+    "county_fips": "01101",
+    "note": "Epoch's address, Co Rd 42, Montgomery, has only its postal city: OSM's Meta Montgomery Data Center (way 1443960771) lies about 750 m outside Montgomery city's place polygon. Meta's posts name only Montgomery; Baxtel's campus page places the data center in Montgomery County.",
+    "precision": "county",
+    "publisher": "Baxtel",
+    "quote": "Meta, formerly known as Facebook is building a $1.5 billion data center in Montgomery County.",
+    "retrieved_at": "2026-10-09T13:46:35Z",
+    "source_type": "trade_press",
+    "source_url": "https://baxtel.com/campus/meta-montgomery-campus",
     "state_abbr": "AL"
   },
   "Meta Prometheus": {
     "city": "New Albany",
     "note": "Epoch's address does not geocode; its Meta engineering post names no place. Meta's nuclear release places Prometheus in New Albany, Ohio. Epoch's Power Siting Board report puts the campus's power plant in Licking County, but New Albany's Gazetteer point is in Franklin County, so no county is given.",
+    "place_check": "OSM's Meta buildings at New Albany (NAO and LCO, ways 671301768, 1386016634 and others) lie inside New Albany city's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "Meta",
     "quote": "The projects we’re announcing today will deliver power to the grids that support our operations, including our Prometheus supercluster in New Albany, Ohio.",
@@ -340,7 +404,18 @@
   },
   "Meta Rosemount": {
     "city": "Rosemount",
+    "first_report": {
+      "note": "Meta's announcement of the data center, dated March 14, 2024; Epoch's first row ('Land is cleared') is 2024-05-30.",
+      "published_at": "2024-03-14T15:22:17Z",
+      "publisher": "Meta",
+      "quote": "Rosemount, Minnesota, will be home to our newest Meta data center — our 19th data center in the U.S. and 23rd in the world.",
+      "retrieved_at": "2026-10-09T13:18:55Z",
+      "source_type": "company_release",
+      "source_url": "https://datacenters.atmeta.com/2024/03/hello-rosemount/",
+      "status": "announced"
+    },
     "note": "Epoch's address, a 145th St range, matches both 145th St E and 145th St W. Meta's announcement, Epoch's first Selected Source, places the data center in Rosemount, Minnesota. No county is named.",
+    "place_check": "OSM's Meta Rosemount Data Center (way 1333289545) lies inside Rosemount city's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "Meta",
     "quote": "Rosemount, Minnesota, will be home to our newest Meta data center — our 19th data center in the U.S. and 23rd in the world.",
@@ -349,9 +424,31 @@
     "source_url": "https://datacenters.atmeta.com/2024/03/hello-rosemount/",
     "state_abbr": "MN"
   },
+  "Meta Sarpy": {
+    "timeline": {
+      "coverage": "partial",
+      "note": "Epoch's timeline starts with Building 1 grading in 2024; Meta's Sarpy fact sheet, Epoch's own Selected Source, dates the Sarpy Data Center's groundbreaking to 2017, so the timeline is a new building's.",
+      "publisher": "Meta",
+      "quote": "2017 Broke ground on the Sarpy Data Center",
+      "retrieved_at": "2026-10-09T13:20:29Z",
+      "source_type": "company_release",
+      "source_url": "https://datacenters.atmeta.com/asset/sarpy-data-center-info-sheet/"
+    }
+  },
   "Meta Temple": {
     "city": "Temple",
+    "first_report": {
+      "note": "The Temple Economic Development Corporation's release of Meta's announcement, dated March 31, 2022 (the City's copy, the location source, has no date); Epoch's first row is April 2022.",
+      "published_at": "2022-03-31T10:00:45Z",
+      "publisher": "Temple Economic Development Corporation",
+      "quote": "Meta, formerly the Facebook company, announced today that it will invest $800 million in the creation of a Hyperscale Data Center in Temple, Texas.",
+      "retrieved_at": "2026-10-09T13:20:06Z",
+      "source_type": "company_release",
+      "source_url": "https://templeedc.com/meta-data-center-temple-texas/",
+      "status": "announced"
+    },
     "note": "Epoch's address, 2310 Eberhardt Rd, Temple, TX, has only a postal city, and its Selected Sources (JE Dunn's project page, TDLR records giving Bell County) state no municipality in a sentence. The City of Temple's release places the data center in Temple, Texas.",
+    "place_check": "OSM's Meta Temple Data Center (way 1442502541) lies inside Temple city's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "City of Temple",
     "quote": "Meta, formerly the Facebook company, announced today that it will invest $800 million in the creation of a Hyperscale Data Center in Temple, Texas.",
@@ -362,7 +459,18 @@
   },
   "Microsoft Goodyear": {
     "city": "Goodyear",
+    "first_report": {
+      "note": "Microsoft's post announcing the Goodyear campus, dated July 30, 2019; Epoch's first row (land clearing for Building 1) is 2021-06-21.",
+      "published_at": "2019-07-30T18:30:06Z",
+      "publisher": "Microsoft",
+      "quote": "We intend to develop our new datacenter campuses in El Mirage and Goodyear, Arizona to be among the most sustainably designed and operated in the world – powered with 100% renewable energy.",
+      "retrieved_at": "2026-10-09T13:19:41Z",
+      "source_type": "company_release",
+      "source_url": "https://blogs.microsoft.com/on-the-issues/2019/07/30/building-world-class-sustainable-datacenters-and-investing-in-solar-power-in-arizona/",
+      "status": "announced"
+    },
     "note": "Epoch's address, 14250 W Broadway Rd, has only a postal city, and its Selected Sources (a county dust permit form, SemiAnalysis) state no municipality in a sentence. Microsoft's 2019 post announcing the Arizona campuses places the new campus in Goodyear, Arizona; it names no street.",
+    "place_check": "OSM's PHX-10 and PHX-11 (ways 795384117 and 1091128478), the Microsoft buildings of Epoch's dust permit, lie inside Goodyear city's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "Microsoft",
     "quote": "We intend to develop our new datacenter campuses in El Mirage and Goodyear, Arizona to be among the most sustainably designed and operated in the world – powered with 100% renewable energy.",
@@ -394,10 +502,9 @@
     "state_abbr": "TX"
   },
   "OpenAI Stargate Abilene": {
-    "city": "Abilene",
     "county_fips": "48441",
-    "note": "Epoch's address, 5502 Spinks Rd, Abilene, has only a postal city. Its Selected Source, the Title V operating permit application to TCEQ for the campus's Longhorn Data Center (cover letter, PDF page 145), places it in Abilene within Taylor County, Texas.",
-    "precision": "locality",
+    "note": "Epoch's address, 5502 Spinks Rd, Abilene, has only a postal city: the campus (OSM's Lancium Clean Campus, way 1432100334) and Spinks Road lie outside Abilene's place polygon. Its Selected Source, the Title V application to TCEQ (cover letter, PDF page 145), places it within Taylor County.",
+    "precision": "county",
     "publisher": "Abilene DC 1, LLC (Crusoe)",
     "quote": "On behalf of Abilene DC 1, LLC (Abilene DC) dba Crusoe Energy Systems, LLC (Crusoe), Abilene DC is submitting a Title V Federal Operating Permit (FOP) Initial Application for the Longhorn Data Center in Abilene within Taylor County, Texas.",
     "retrieved_at": "2026-10-09T07:53:01Z",
@@ -455,6 +562,7 @@
     "city": "Eagle Mountain",
     "county_fips": "49049",
     "note": "Epoch's address, 652 E Hyperscale Way, Eagle Mountain, has only a postal city. Its Selected Source, the Utah Division of Air Quality approval order for the campus (an image-only PDF; page 3), places the data center in Eagle Mountain, Utah County.",
+    "place_check": "Hyperscale Way, the street of Epoch's address (OSM way 1412596322), lies inside Eagle Mountain city's place polygon; checked against cb_2025_us_place_500k on 2026-10-09",
     "precision": "locality",
     "publisher": "Utah Division of Air Quality",
     "quote": "Quality Technology Services (QTS) has requested to operate a data center in Eagle Mountain, Utah County.",
