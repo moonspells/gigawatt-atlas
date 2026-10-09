@@ -1668,6 +1668,7 @@ class AIGridWatchImporter:
         location: dict[str, Any] | None = None
         result: GeocodeResult | None = None
         nearby = False
+        town = False  # the text's place is a county subdivision (a town), not a Census place
         if lat is not None and lon is not None:
             if not (18 <= lat <= 72 and -180 <= lon <= -64) or not counties.in_state(
                 state, lat, lon
@@ -1765,10 +1766,10 @@ class AIGridWatchImporter:
                     locality=locality_text,
                 )
                 return None
+            town = result.municipality is not None and result.city is None and locality == loc.place
         if location is None and result is not None:
-            if result.municipality is not None and place_city is not None and result.city is None:
-                # The text's place is a county subdivision, not a Census place: a municipality.
-                place_city = None
+            if town:
+                place_city = None  # Bloomfield, CT: the town is the municipality, not a city
             location = {
                 "lat": result.lat,
                 "lon": result.lon,

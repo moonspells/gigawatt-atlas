@@ -36,11 +36,12 @@ small (owner decision of 2026-10-09). Both are U.S. Census Bureau works in the p
 - The place polygons (32,629 incorporated places and census designated places) give a record's
   `location.city`: the Census place that contains its point, when the point lies more than
   0.001° (about 100 m) inside the place's line, never the postal city of its address
-  (`atlas/geo/places.py`, `ImportContext.places()`; used by all three importers).
+  (`atlas/geo/places.py`, `ImportContext.places()`; used by the OpenStreetMap importer, and by the
+  Epoch AI importer for a Census Geocoder match).
 - The county-subdivision Gazetteer (36,427 New England towns, townships and other county
   subdivisions) places a town or township a source names, with its county and `municipality`
-  (`atlas/geocode.py`, `ImportContext.gazetteer()`; on for every import that geocodes, Epoch AI
-  and AI GridWatch).
+  (`atlas/geocode.py`, `ImportContext.gazetteer()`; on for every import that geocodes a place
+  name: AI GridWatch's localities. Epoch AI states no town or township).
 
 An import that needs one uses the copy in `{--cache-dir}/reference/census/` (by default
 `.cache/atlas/reference/census/`, which git ignores). When there is none, it downloads the file

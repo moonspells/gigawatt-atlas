@@ -29,11 +29,12 @@ held for review (`held_for_review`), the first reports and unconfirmed hearings,
 with the file (`stage_events_undated`), the Epoch twins whose stage disagrees with the Epoch record
 (`epoch_stage_conflicts`), the releases and the overrides used and unused.
 
-Both need two Census files that are not committed: the place polygons (`cb_2025_us_place_500k.zip`,
-which give a record's city) and the county-subdivision Gazetteer (`2025_Gaz_cousubs_national.zip`,
-which places New England towns and townships). An import downloads them from census.gov on first
-use into `{--cache-dir}/reference/census/`, checks them against their pinned SHA-256 and reuses
-them; `--offline` without a copy fails with a message naming the file. Both are public domain
+Two Census files they use are not committed: the place polygons (`cb_2025_us_place_500k.zip`, which
+give the city of an Epoch record the Census Geocoder places; the OSM importer uses them too) and the
+county-subdivision Gazetteer (`2025_Gaz_cousubs_national.zip`, which places the New England towns
+and townships AI GridWatch names). An import downloads each from census.gov on first use into
+`{--cache-dir}/reference/census/`, checks it against its pinned SHA-256 and reuses it; `--offline`
+without a copy fails with a message naming the file. Both are public domain
 ([reference/README.md](../../reference/README.md#downloaded-on-first-use)).
 
 ## Epoch AI (`atlas/sources/epoch.py`)

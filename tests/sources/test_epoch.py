@@ -871,6 +871,19 @@ def test_a_refused_census_match_is_shown_to_the_reviewer(
     assert [i for i in again.review if i.external_id == "Colossus 2"] == [item]
 
 
+def test_an_address_whose_city_the_parser_cannot_find(
+    make_test_context: MakeContext, tmp_path: Path, no_overrides: Path
+) -> None:
+    """Amazon Ridgeland: the city is inside the street part ("... Road Ridgeland, Mississippi"),
+    and the only Census match states a directional the address does not."""
+    address = "1626 County Line Road Ridgeland, Mississippi"
+    result = geocoded(make_test_context, with_address(tmp_path, address), no_overrides)
+    (item,) = [i for i in result.review if i.external_id == "Colossus 2"]
+    assert item.kind == "geocode_failed"
+    assert "neither a county it names nor its postal city gives a point" in item.reason
+    assert item.data["census_matches"] == ["1626 E COUNTY LINE RD, RIDGELAND, MS, 39157"]
+
+
 def test_the_city_is_the_census_place_that_contains_the_point(
     make_test_context: MakeContext, tmp_path: Path, no_overrides: Path
 ) -> None:

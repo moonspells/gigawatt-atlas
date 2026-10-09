@@ -956,8 +956,8 @@ class EpochImporter:
                     )
                 else:
                     reason = (
-                        f"the address did not geocode: {matched}, and it names no city and no "
-                        "county the county file knows; a cited entry in "
+                        f"the address did not geocode: {matched}, and neither a county it names "
+                        "nor its postal city gives a point; a cited entry in "
                         "config/overrides/epoch.json places it"
                     )
                 flag("geocode_failed", site.name, reason, **data)
