@@ -853,10 +853,20 @@ entry on 2026-10-09.
 
 ## Fourth fix round, 2026-10-09
 
-The AI GridWatch importer (version 3) on the second seed's saved inputs (`projects.json` of
-2026-10-08, sha256 `16330d94…4ccab47`, the same Census cache), offline, over the second seed's OSM
-and Epoch records (1,107): 181 AI GridWatch records (191 before) and 221 review items (170 before),
-`atlas validate` 0 issues, a second run `unchanged`. Ten rows the second seed published are held
+The fourth fix round's importers, integrated (OSM version 3, Epoch version 4, AI GridWatch version
+3), on the second seed's saved inputs (Epoch's `data_centers.zip` and AI GridWatch's `projects.json`
+of 2026-10-08, sha256 `16330d94…4ccab47`, the same Census cache), offline, into an empty store after
+the OSM import (985 records): `atlas validate` over the store 1,239 records, 0 issues, and a second
+run of each importer `unchanged`.
+
+Epoch AI: 73 records (73 before), 43 placed by an override, 20 timelines that do not date the
+facility and 14 held (14 and 10 before), 5 cited first reports, 1 cited facility status (Google Fort
+Wayne) and 16 review items (14 `conflict`, 2 `geocode_failed`; 13 before). No Census request, and
+no record at county precision names a city or municipality (AWS Berwick did).
+
+AI GridWatch: 181 records (191 before) and 220 review items (170 before). Its Google Fort Wayne
+row is still held as the Epoch record's twin, but its stage no longer disagrees with that record,
+which is now operating, so the stage conflict is gone. Ten rows the second seed published are held
 now: Plaza 500 and Mason County (no first report can be dated, `conflict`), Meta Lebanon, Wolcott,
 Google Haskell County and Stratos (the log or note reports construction, or an approval a lawsuit
 seeks to undo), Urbana, Cave City and Lyon Township's Project Flex (a moratorium after the filing;
@@ -881,7 +891,8 @@ review file changed. The seed itself, before the third review round's fixes, had
 and 89 AI GridWatch review items. The table predates the 30 overrides of 2026-10-09: with them,
 the same Epoch run gives 73 records (43 placed by an override) and 13 review items (11
 `conflict`; `geocode_failed` only for QTS Richmond 2 and 3), and AI GridWatch on top of it 191
-records, 79 rows held as Epoch's sites and 170 review items (264 records, 0 issues).
+records, 79 rows held as Epoch's sites and 170 review items (264 records, 0 issues). The figures
+after the fourth fix round are in [Fourth fix round, 2026-10-09](#fourth-fix-round-2026-10-09).
 
 | | Epoch AI | AI GridWatch |
 |---|---|---|

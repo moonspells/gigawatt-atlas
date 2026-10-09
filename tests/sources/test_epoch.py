@@ -786,7 +786,7 @@ def test_cli_runs_offline_and_a_second_run_changes_no_file(
     assert by_epoch["Colossus 2"].location.precision == "address"
     assert by_epoch["Colossus 2"].location.city == "Memphis"
     receipt = json.loads((tmp_repo / "data" / "imports" / "epoch.json").read_text("utf-8"))
-    assert receipt["source"] == "epoch" and receipt["importer_version"] == "3"
+    assert receipt["source"] == "epoch" and receipt["importer_version"] == "4"  # dates by month
     assert receipt["inputs"][0]["license"] == "CC-BY-4.0"
     records_before = snapshot(tmp_repo / "data" / "records", tmp_repo / "review")
 

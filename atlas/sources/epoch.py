@@ -1227,7 +1227,7 @@ class EpochImporter:
     match_key = "epoch_name"
     owned_external_keys = ("epoch_name",)
     review_sources = ("epoch",)
-    version = "3"
+    version = "4"
     help = "Epoch AI Frontier Data Centers (CC BY 4.0): US sites with dated timelines"
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
