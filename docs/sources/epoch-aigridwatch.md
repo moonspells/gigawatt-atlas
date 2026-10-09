@@ -225,13 +225,13 @@ re-run the import on an empty store.
 |---|---|
 | `record_type` | `project` |
 | `canonical_name` | `{name} ({city, municipality or county}, {ST})` |
-| `location` | `lat`/`lon` as given, `precision: "locality"`, `geocode_method: "source_coords"`. The point must lie in the state (`CountyIndex.in_state`), else `county_mismatch` and no record. Rows without coordinates (52 on 2026-10-07) go through `geocode()` without the Census step: a Gazetteer place from the locality (or from a non-county parenthesis, "Decatur Township (Indianapolis)"), or, when the Census has no place of that name, a county subdivision in the named county (a New England town or a township: "Bloomfield", CT is placed at the town's point, in the Capitol Planning Region, with `municipality`), else the named county's centroid; else `geocode_failed`. A Gazetteer place outside the named county is not used ("Storey County (near Reno)": Reno is in Washoe County), so such a row gets the county's centroid. |
-| county | From the locality: the text in "(X County)" or "(X Parish)", or a locality that is itself a county ("Caddo Parish"; boroughs and census areas only in Alaska, since Pennsylvania boroughs are towns). Several counties are split on "/", "," and "and" ("(Chester / Montgomery County)"). With coordinates, the named county must contain the point; of two that do within the validate tolerance (a point near their border), the one the point lies in. When the point is outside every named county, the locality text is taken over the coordinates: the record is placed like a row without coordinates, at the Gazetteer place when it lies in the named county, else at the county's point (`county` precision), names that county, and gets a `county_mismatch` item; a point known to be in another county is never published (EdgeCore's Louisa County campus had its point in Goochland County, Dickerson's in Frederick County). With several named counties and no place, there is no point: `geocode_failed`. |
-| `city` / `municipality` | The locality outside the parentheses when it is not a county: townships, boroughs and villages go to `municipality`, other places to `city` ("City of" dropped); a name the Gazetteer has only as a county subdivision (Bloomfield, CT) goes to `municipality`, and so does a New York or New England town even where a village shares its name (Lansing, NY). A compound text is split ("North Beaver & Mahoning townships", "Jessup / Olyphant / Throop Boroughs"). A row without coordinates takes the place or subdivision the geocoder placed it at; when it was placed by its parenthesis because the text's place is neither a Census place nor a subdivision ("Globeville-Elyria-Swansea (Denver)", a neighborhood), the record names the parenthesis's place. A row with coordinates names a place only when the point lies in it (`check_place`, with the place polygons, `cb_2025_us_place_500k.zip`): a city or a borough, village or city named as a municipality must be the Census place that contains the point (Ashburn, Lusby, Warrenton and Loxahatchee are not: their points lie in One Loudoun CDP, in no place, or in Wellington village), or, when the text's place is neither a Census place nor a subdivision, its parenthesis may name the one that does ("Martindale-Brightwood (Indianapolis)" is Indianapolis). The files the import uses have no township polygons, so a township or town is named unless the point lies in an incorporated place of Pennsylvania or New Jersey, which is a municipality of its own (Smithfield Township's point lies in East Stroudsburg borough), or more than 1.25 equal-area radii (land and water, from the county-subdivision Gazetteer) from the township's Gazetteer point (Hanover Township's lies 8.8 km from it, in Jefferson Township; a square's corner is 1.25 radii out). Of a compound text only the one place that passes is named. A name left out gets a `county_mismatch` item (`data.place`), and the record keeps the point and names its county. A parenthesis that only says the site is near a place ("near Reno", "Granbury area", "north of …") may give the point, but never the city. |
-| `parties` | AI GridWatch's `operator` ("Operator/developer, or blank if unknown") becomes `developer`, the role its definition guarantees: a real estate firm or a builder is no operator (Avison Young on PA DEP's unnamed Wilkes-Barre project), so no AI GridWatch record has an `operator` until another source or a reviewer says who runs the facility; an electric utility in that field (PSE&G, named for the approval a site needed) is no developer either and is left out with a `unit_parse` item. `operator` and `owner` split on " / ", `tenant` on " / " and ", ", `filing_entities` from `filing_llc` (split on " / " and ";", prose dropped). Records hold organizations only (07 §5.3), so every name goes through one filter: a party AI GridWatch annotates with a personal role and no organization marker ("A Person (developer)") is dropped; a trailing parenthesis is a note, not part of the name, and is removed ("Amazon (AWS)", "(parcels)", "(proposed site)", and a person's name in "Example Ventures (A Person)"); a capacity typed into a party field ("67 MW") becomes a `unit_parse` item. Persons left out are counted in `persons_dropped`. |
+| `location` | `lat`/`lon` as given, `precision: "locality"`, `geocode_method: "source_coords"`. The point must lie in the state (`CountyIndex.in_state`), else `county_mismatch` and no record. Rows without coordinates (52 on 2026-10-07) go through `geocode()` without the Census step: a Gazetteer place from the locality (or from a non-county parenthesis, "Decatur Township (Indianapolis)"), or, when the Census has no place of that name, a county subdivision in the named county (a New England town or a township: "Bloomfield", CT is placed at the town's point, in the Capitol Planning Region, with `municipality`), else the named county's centroid; else `geocode_failed`. A Gazetteer place outside the named county is not used ("Storey County (near Reno)": Reno is in Washoe County), so such a row gets the county's centroid. A locality that names no county is placed in the county the row's note and event log place the site in ("on 82 acres in Stafford County near Fredericksburg"), when every county they place it in ("in X County", not in a clause about another site) is that one: Vantage VA4's "Fredericksburg" is a market name, and Fredericksburg city is not in Stafford County, so the record is placed at Stafford's point (`county` precision), names no city and gets a `county_mismatch` item (`data.stated_county`). A Virginia independent city is its own county-equivalent: a row placed at Fredericksburg's point names Fredericksburg city (51630) as its county. |
+| county | From the locality: the text in "(X County)" or "(X Parish)", or a locality that is itself a county ("Caddo Parish"; boroughs and census areas only in Alaska, since Pennsylvania boroughs are towns). Several counties are split on "/", "," and "and" ("(Chester / Montgomery County)"), and a compound parenthesis is read part by part ("Berry Hill (Pittsylvania County / Danville)" names Pittsylvania County; Danville is the hint). With coordinates, the named county must contain the point; of two that do within the validate tolerance (a point near their border), the one the point lies in. When the point is outside every named county, the locality text is taken over the coordinates: the record is placed like a row without coordinates, at the Gazetteer place when it lies in the named county, else at the county's point (`county` precision), names that county, and gets a `county_mismatch` item; a point known to be in another county is never published (EdgeCore's Louisa County campus had its point in Goochland County, Dickerson's in Frederick County). With several named counties and no place, there is no point: `geocode_failed`. |
+| `city` / `municipality` | The locality outside the parentheses when it is not a county: townships, boroughs and villages go to `municipality`, other places to `city` ("City of" dropped); a name the Gazetteer has only as a county subdivision (Bloomfield, CT) goes to `municipality`, and so does a New York or New England town even where a village shares its name (Lansing, NY). A compound text is split ("North Beaver & Mahoning townships", "Jessup / Olyphant / Throop Boroughs"). A row without coordinates takes the place or subdivision the geocoder placed it at; when it was placed by its parenthesis because the text's place is neither a Census place nor a subdivision ("Globeville-Elyria-Swansea (Denver)", a neighborhood), the record names the parenthesis's place. A row with coordinates names a place only when the point lies in it (`check_place`, with the place polygons, `cb_2025_us_place_500k.zip`): a city or a borough, village or city named as a municipality must be the Census place that contains the point (Ashburn, Lusby, Warrenton and Loxahatchee are not: their points lie in One Loudoun CDP, in no place, or in Wellington village), or, when the text's place is neither a Census place nor a subdivision, its parenthesis may name the one that does ("Martindale-Brightwood (Indianapolis)" is Indianapolis). The files the import uses have no township polygons, so a township or town is named unless the point lies in an incorporated place of Pennsylvania or New Jersey, which is a municipality of its own (Smithfield Township's point lies in East Stroudsburg borough), or more than 1.25 equal-area radii (land and water, from the county-subdivision Gazetteer) from the township's Gazetteer point (Hanover Township's lies 8.8 km from it, in Jefferson Township; a square's corner is 1.25 radii out). Of a compound text only the one place that passes is named. A name left out gets a `county_mismatch` item (`data.place`), and the record keeps the point and names its county. A parenthesis that only says the site is near a place ("near Reno", "Granbury area", "north of …") may give the point, but never the city. Nor is a place named that the row's note or an event-log entry puts the site outside (`outside_phrase`): "Mason Valley north of Yerington", "a site 11 miles north of Fort Stockton", "outside Socorro", "near Walnut Cove", "sought annexation into City of Burgin" (a capitalized word after the name makes it another name: "south of Tonganoxie Business Park", "outside the Sulphur Springs City Council meeting"; so does a building of the place: "outside Lansing town hall"). AI GridWatch's point is then the town's own, not the site's: the record names the county, keeps the point at `county` precision, and gets a `county_mismatch` item (`data.place`, `data.phrase`). |
+| `parties` | AI GridWatch's `operator` ("Operator/developer, or blank if unknown") becomes `developer`, the role its definition guarantees: a real estate firm or a builder is no operator (Avison Young on PA DEP's unnamed Wilkes-Barre project), so no AI GridWatch record has an `operator` until another source or a reviewer says who runs the facility; an electric utility in that field (PSE&G, named for the approval a site needed) is no developer either and is left out with a `unit_parse` item, and so is a developer the row's note or log says is being replaced (Sulphur Springs: "a new developer will take over the Matrix Data Center Campus, with original developer MSB Global being phased out"), with a `conflict` item (`data.operator`). `operator` and `owner` split on " / ", `tenant` on " / " and ", ", `filing_entities` from `filing_llc` (split on " / " and ";", prose dropped). Records hold organizations only (07 §5.3), so every name goes through one filter: a party AI GridWatch annotates with a personal role and no organization marker ("A Person (developer)") is dropped; a trailing parenthesis is a note, not part of the name, and is removed ("Amazon (AWS)", "(parcels)", "(proposed site)", and a person's name in "Example Ventures (A Person)"); a capacity typed into a party field ("67 MW") becomes a `unit_parse` item. Persons left out are counted in `persons_dropped`. |
 | `aliases` | Each filing entity (after the same filter), `kind: "filing_llc"` |
-| `capacity` | `size_mw` when in (0, 10000] (otherwise a `unit_parse` item) is always kept in `mw_as_stated` ("AI GridWatch size_mw: 120"). It becomes `it_mw` or `utility_request_mw` only when the row's note states that basis for the same figure (`size_basis`): critical IT load ("up to 300MW critical IT", "401 MW of critical IT load"), or a supply or interconnection ("Talen Energy agreed to supply 960 MW", "3.2 GW contracted from Georgia Power", "seeking 450 MW"). The schema calls the field "Planned IT/critical load", but its rows carry other bases (07 §2.4 never mixes them): with no stated basis the record has no MW basis at all ("120 MW / $3B campus", "24 MW data center"). A figure the note gives as a power source's ("835MW nuclear output", "450 MW gas-fired power plant") or one phase's ("phase 1 is 800MW") is kept only as stated, with a `unit_parse` item. |
-| `site.acreage` | `acres`, when in (0, 100000]; otherwise `unit_parse` |
+| `capacity` | `size_mw` when in (0, 10000] (otherwise a `unit_parse` item) is always kept in `mw_as_stated` ("AI GridWatch size_mw: 120"). It becomes `it_mw` or `utility_request_mw` only when the row's note states that basis for the same figure (`size_basis`) and no entry of its event log gives the campus another figure on that basis (DataBank Red Oak: the note's "up to 300MW critical IT" against its announcement's "240MW of critical IT power" of a 480 MW campus; the figure then stays only in `mw_as_stated`, with a `unit_parse` item, `data.others`): critical IT load ("up to 300MW critical IT", "401 MW of critical IT load"), or a supply or interconnection ("Talen Energy agreed to supply 960 MW", "3.2 GW contracted from Georgia Power", "seeking 450 MW"). The schema calls the field "Planned IT/critical load", but its rows carry other bases (07 §2.4 never mixes them): with no stated basis the record has no MW basis at all ("120 MW / $3B campus", "24 MW data center"). A figure the note gives as a power source's ("835MW nuclear output", "450 MW gas-fired power plant") or one phase's ("phase 1 is 800MW") is kept only as stated, with a `unit_parse` item. |
+| `site.acreage` | `acres`, when in (0, 100000]; otherwise `unit_parse`. When the row's note or log gives its named campus an acreage of its own ("the 304-acre BCG Cedar Creek Campus portion of the 2,842-acre development"), that one, with a `unit_parse` item saying `acres` is the whole property's (`data.acres`, `campus_acres`) |
 | `evidence_level` | `rumor` for the Rumored stage, else `reported` |
 | `scope` | `out_of_scope` (kept, never published, 07 §2.2) when the row's name or note says it is a power supply deal or a generation facility rather than a data center site: "power purchase agreement", "PPA", "solar farm", "solar project", "power generation facility" or "not a data center" (Microsoft's Three Mile Island PPA, the Baconton power plant, two solar farms on 2026-10-08), with an `out_of_scope` item; else `in_scope` |
 | `status_reason` | from the crosswalk (`moratorium`, `local_denial`); for Withdrawn, `litigation` when the note or a withdrawal entry cites a court ruling, `developer_withdrawal` when it names the developer, the applicant or a party of the row as the one who withdrew, else none ([status-crosswalk.md](../status-crosswalk.md)) |
@@ -271,6 +271,34 @@ grading permit came in August 2026), and on 2026-10-08 the same holds for Nebius
 tax abatement), STACK Berry Hill (a performance agreement), Google Haskell County (no approval
 named) and DC Blox (the commission "voted to approve the ... campus", no application named).
 
+The milestone fields are read as the row's own note and event log explain them (fifth fix round,
+`announcement`, `rezoning_filing`, `decision_day`):
+
+- an `announced` date that the entries of that day (or, without any, the note's clauses that name
+  it) all call an LLC's or a company's registration is no announcement ("National Land Developers
+  registered Andover HPC Development in December 2025"): it is left out with a `conflict` item; one
+  they all call the row's own filing is that filing ("filed a zoning permit application on April
+  15, 2026": Muncy's April 15 is imported as `application_filed`, not `announced`);
+- a `rezoning_filed` date is no filing when the note says only an inquiry was made (Abei Energy
+  "emailed the Starke County Plan Commission asking about rezoning two parcels"; "before Abei's
+  proposal advanced to a rezoning vote"), and is not the application's day when its entries of
+  that day are the municipality's own procedure (Smithfield Township's curative amendment
+  resolution, "180-day MPC review period begins") or only report the application ("Rezoning
+  application revealed": Site Layer 4 had applied before a day the row does not give). Then no
+  `application_filed` event is imported from it, with a `conflict` item (`data.rezoning_filed`,
+  `application_filed`). When the row's own filing entries (naming the project or one of its
+  organizations, and no electric utility), a filing day they or the note name, or an announced
+  date the row calls a filing, are earlier, the earliest dates the application (Monticello Tech's
+  2026-07-20 entry names its "July 6 land-use applications", against `rezoning_filed` 2026-07-07);
+- a `decided_date` the day after the meeting the row says the vote ended around midnight
+  ("approved the rezoning 4-1 around midnight following the May 11 meeting") is dated by that
+  meeting, with a `conflict` item: Red Oak's approval is 2026-05-11, and its May 11 hearing was held.
+
+An event-log entry whose link is a placeholder (Drox Rural Hall's nine
+".../article_example.html" links, which return 404) dates nothing: it is no filing, no hearing
+held, no approval named and no first report, and an `unverified_upstream` item lists them
+(`data.entries`).
+
 `hearing_date` is "the next/decisive public hearing", and AI GridWatch warns that hearings get
 moved: a date that has passed does not show the hearing took place (Dickerson's September hearings
 were continued to November; 900 Conshohocken Road's August 17 session was "procedural matters only,
@@ -281,13 +309,21 @@ a source, says it was held or voted and says nothing of it being scheduled, move
 for a reviewer to check (24 records on 2026-10-08; 4 hearings counted as held).
 
 A row with an `announced` date (AI GridWatch's "date first publicly proposed") is first reported
-then. Otherwise the event log dates a `first_reported` event (`first_report`), read in date order;
+then, unless an entry of its event log before that date reports the project: it then dates a
+`first_reported` event (Meta Lebanon's "Meta proposes ~$800 million data center in Lebanon,
+Indiana" of 2024-11-25, before the expanded campus announced on 2026-02-11; Digital Realty's Astra
+campus, reported by Ingram's on 2026-06-09, the day before). Before the announced date an entry
+counts only when it names the project, a site word, its acreage or one of its organizations with
+its place, when its link does not date it on or after the announcement, and when it is no act out
+of public view (an NDA, "negotiations conducted outside public view"). Otherwise the event log
+dates a `first_reported` event (`first_report`), read in date order;
 before, a row with only a decision or a hearing date was first reported on that date (Deep Green:
 the April 6 withdrawal, though its log starts with the March 4 Planning Commission vote). An entry
 is about the project when it names it (`names_project`): its name; a word of its name that names
 the site ("Starpointe", "Boberg", "Powers Ferry") or its acreage (within 10%), with a data center,
 a campus or a project named and no other use of the land (Hexa's warehouse proposal, a road
-project); its `size_mw` with a data center ("the 24 MW data center"); or one of its organizations
+project), or an environmental review (AUAR, EAW, EIS, DRI) of an area of its acreage (Monticello's
+Draft AUAR "for a 550-acre industrial area" of 2025-11, the row's 547 acres); its `size_mw` with a data center ("the 24 MW data center"); or one of its organizations
 with its place or a data center ("TeraWulf ... the Lansing site", "the Prime Group data center
 project"). Logs often start with the site's history or the place's rules, and the second seed check
 found six of thirteen first reports dated wrongly by the keyword test that ran before, so these are
@@ -325,21 +361,33 @@ public before that milestone (an entry that names it, a stated filing month, an 
 hearing) and no first report can be dated, the import would publish a first report later than the
 row shows: the row is held for review instead, with a `conflict` item (`data.earliest`,
 `data.derived`; Plaza 500, whose substation hearing "serving the Plaza 500 data center" was set in
-November 2024 against its 2026-07-16 filing; Mason County). A reviewer dates the first report from
-the source with `first_reported` in `config/overrides/aigridwatch.json`, or releases the check
-(`first_report`) to accept the milestone.
+November 2024 against its 2026-07-16 filing; Mason County). So is a row whose earliest dated
+milestone is a denial, a withdrawal, a cancellation or a pause and whose first report cannot be
+dated: a project is public before it is denied or withdrawn, so that day is never its first report
+(`conflict`, `data.earliest`; Project Riverjump, whose only milestone is the mayor's withdrawal
+while rumors circulated from January, Douglas County's denial, and seven more on 2026-10-08). A
+reviewer dates the first report from the source with `first_reported` in
+`config/overrides/aigridwatch.json`, or releases the check (`first_report`) to accept the
+milestone.
 
 The stage then goes through `from_aigridwatch_stage(stage, has_filing, no_application)`, where
-`has_filing` is a `rezoning_filed` date or an entry that is one of the row's own applications
-(`own_filing`: of kind `filing` or `rezoning`, about an application, a petition, a request, a plan
-or a permit, and not about the place's rules, a resolution or fees, a property deal or someone
-else's lawsuit, appeal or motion: Posey County's only `rezoning` entry is its Area Plan Commission
-revising its own data center ordinance); so "Proposed" means announced without a filing and proposed
-with one. `no_application` is the note saying nothing has been formally proposed ("despite no
-official proposal", "No formal application", "No formal site plan was ever filed"): then In review,
-Hearing scheduled and Awaiting decision are announced when no filing is known, since proposed needs
-a pending application (07 §2.3), with a `conflict` item (Posey County, Tonganoxie's Project Bluestem
-and Andover Township on 2026-10-08). AI GridWatch derives the stage from data the milestones do
+`has_filing` is a `rezoning_filed` date the row shows is a filing (not an inquiry or the
+municipality's procedure, above), an announced date it explains as a filing, or an entry that is
+one of the row's own applications (`own_filing`: of kind `filing` or `rezoning`, with a source that
+is not a placeholder link, about an application, a petition, a request, a plan or a permit, and not
+about the place's rules, a resolution or fees, a property deal or someone else's lawsuit, appeal or
+motion: Posey County's only `rezoning` entry is its Area Plan Commission revising its own data
+center ordinance; an entry whose first clause files the application and names no rule is one,
+whatever a later clause says of an ordinance: Pronghorn "submitted a conditional use permit
+application in November 2025 ..., months after the county amended its zoning ordinance"); so
+"Proposed" means announced without a filing and proposed with one. `no_application` is the note,
+or an event-log entry about the project, saying nothing has been formally proposed ("despite no
+official proposal", "No formal application", "No formal site plan was ever filed", "no permit
+applications before January 2027", "no formal application or site review had been submitted",
+"will not submit permit applications"), or the note saying only an inquiry was made: then In
+review, Hearing scheduled and Awaiting decision are announced when no filing is known, since
+proposed needs a pending application (07 §2.3), with a `conflict` item (Posey County, Tonganoxie's
+Project Bluestem, Andover Township and Project Zora on 2026-10-08). AI GridWatch derives the stage from data the milestones do
 not always carry. When the events have no non-planned event, or roll up to a different status, an
 `other` event with the stage's status is appended, noted "AI GridWatch stage '{stage}' as of
 {as_of}". It is dated with the row's `as_of`, but never earlier than the latest milestone, so the
@@ -367,14 +415,25 @@ neighbors "sue ... to overturn the rezoning", under Awaiting decision; Stratos),
 or construction under way that is not the power supply's, in a clause about the data center
 (Piketon's March 20 ceremony; Meta Lebanon's note, "groundbreaking construction reported ongoing",
 and its log, construction disruption "during Meta campus build-out", under Proposed; Google Haskell
-County's Journey 2A building under Approved). For a row at announced or proposed it is also held
+County's Journey 2A building under Approved; in the note, "the company", "the developer" or "the
+project" is the row's: Nebius Independence's "Council approved Chapter 100 abatement 5-2 and the
+company has broken ground", under Approved). For a row at announced or proposed it is also held
 when the log or note leaves no application under review: the application refused as incomplete
 and the refusal upheld (Urbana: the BZA "unanimously denies Thor's appeal, upholding city
 determination that site plan application was incomplete"), or, after the row's first filing, a
 moratorium or ban on data centers adopted that the entry does not say exempts the project
 ("exempt", "does not affect", "does not block", "statewide": Urbana's council "passed a 12-month
-moratorium on new data centers" three weeks after the filing; Cave City and Lyon Township too)
-(`log_obstacle`). The kinds alone do not say it (a `vote` goes either way, a
+moratorium on new data centers" three weeks after the filing; Cave City and Lyon Township too;
+present-tense verbs count, "Township supervisors impose nine-month moratorium", and a demand or a
+draft does not, "residents urged the board to impose"). For a row at announced with no filing, a
+ban or moratorium adopted after the project was public (the earliest date the row shows, or any
+when it shows none) holds it the same way, and the note's ban counts too (Andover's "the township
+passed Ordinance 2026-13 banning data centers township-wide"; Project Zora's county moratorium of
+2026-08-11). A moratorium a later entry says ended does not ("Commission votes 3-2 against
+extending moratorium; moratorium expires": Leavenworth County's, for Project Bluestem). A row
+Under construction is held when its log reports an injunction or a halt of its works that no later
+entry lifts (Matrix: the judge "issues a temporary injunction freezing new construction/development
+on the ~5,000-acre site pending trial") (`log_obstacle`). The kinds alone do not say it (a `vote` goes either way, a
 `construction` entry may be another site's), so only these phrases count, and a word close before
 them that defers, conditions or denies them ("recommend", "will", "could", "scheduled", "not")
 voids them (`log_milestone`).
@@ -394,6 +453,28 @@ the Midland Borough row, while the real AWS Center Township row is "…-52"). Im
 would name another project and churn once AI GridWatch fixes the ids, so the row is held for review
 with a `conflict` item (`data.id_of`). PA DEP's own project id would be a stable key; it is not in
 AI GridWatch's file, and comes with the PA DEP importer (M4).
+
+### Fifth fix round, 2026-10-09
+
+AI GridWatch importer version 4, on the fourth seed's saved inputs (`projects.json` of 2026-10-08,
+sha256 `16330d94…4ccab47`, the same Census cache and `--now`), offline, after the OSM and Epoch
+imports into an empty store: 167 AI GridWatch records (163 in scope; 181 and 177 before) and 271
+review items (220 before), `atlas validate` over the store 1,225 records, 0 issues, and a second run
+`unchanged`. Fourteen rows the fourth seed published are held now: nine whose only dated milestone
+is a denial, a withdrawal or a pause (Project Riverjump, Douglas County, Project Tango, 100 Jersey
+Avenue, Dulles Cloud South, Mountain Road Technology Park, Pennhurst, Karis Plum Farms and A1
+Millville), Andover and Project Zora (a ban or moratorium after the project was public), Muncy
+(supervisors "impose" a moratorium after its filing), Matrix (an injunction freezing its
+construction) and Nebius Independence (its note's groundbreaking). 22 `county_mismatch` items name a
+place the row puts the site outside (19 on published records, among them Yerington, Fort Stockton,
+Socorro, Wheatland, Tonganoxie, Burgin, Rural Hall and Walnut Cove); Vantage VA4 is placed in
+Stafford County. Five `rezoning_filed` dates and three announced dates are read as the row explains
+them (Smithfield, Site Layer 4 and Abei Energy publish no application date, Monticello Tech's is
+July 6 and Muncy's April 15; Andover's registration, Muncy's and Amazon Warrenton's filings), Red
+Oak's approval is dated by its May 11 meeting, DataBank Red Oak keeps 300 MW only as stated, BCG
+Cedar Creek's acreage is 304, Drox Rural Hall's nine placeholder links date nothing, and 50
+records carry an event-log first report (49 before), now also before an announced date (Digital
+Realty's Astra campus, reported by Ingram's the day before AI GridWatch's date).
 
 ## Geocoding (`atlas/geocode.py`)
 
@@ -792,10 +873,12 @@ A reviewer who finds that a check holds a row wrongly releases it in
   `stage` (the event log's or note's later milestone, or an obstacle such as a moratorium: the stage
   stands), `id` (the id that starts with another row's name), `scope` (a power supply deal or a
   generation facility) and `first_report` (the row shows the project public before its earliest
-  milestone: the reviewer accepts that milestone as its first report).
+  milestone, or that milestone is a denial, a withdrawal or a pause: the reviewer accepts it as
+  the first report).
 - `first_reported`, optional: the day the reviewer found the project first reported (the source's
   publication day), for a row whose event log does not tell it; it dates a `first_reported` event
-  noted "First report dated by a reviewer", and the row is no longer held for it.
+  noted "First report dated by a reviewer", and the row is no longer held for it (nor for a first
+  report its denial, withdrawal or pause would otherwise date).
 - `as_of`, optional: the day the reviewer confirmed the stage of a row that has no `as_of`; the
   stage's `other` event is then dated that day instead of the file's date, and its note says
   "confirmed by a reviewer on …". Like any `other` event it dates nothing.
