@@ -471,8 +471,10 @@ def test_sites_at_one_street_address_are_one_campus(cases: ImportResult) -> None
 
     abilene = by_names[("OpenAI Stargate Abilene", "Crusoe Abilene Expansion")]
     assert abilene.status == "operating" and is_expanding(abilene)
+    # first_reported: the committed first_report (Trade & Industry Development, 2021-12-22, on
+    # Lancium's campus), earlier than Epoch's first row.
     assert dates(abilene) == {
-        "first_reported": "2024-05-31",
+        "first_reported": "2021-12-22",
         "construction_start": "2024-05-31",
         "operating_since": "2025-09-26",
     }

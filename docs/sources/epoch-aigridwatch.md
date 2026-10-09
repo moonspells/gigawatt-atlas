@@ -55,14 +55,14 @@ without a copy fails with a message naming the file. Both are public domain
 | `canonical_name` | `{Name} ({city or county}, {ST})`; the county is written in full ("Madison County", "Richland Parish"). A shared campus (below) takes the name of its first site in the CSV |
 | `parties.tenant` | `Owner`, then `Users`, split on commas, each name once. Names tagged `#confident` or `#likely` (and untagged names) are kept, `#speculative` and `#unlikely` are dropped, tags are stripped. Epoch defines `Owner` as "Who owns the AI hardware in the data center. This is not necessarily the owner or operator of the facility" (Oracle at Stargate Abilene, where Crusoe builds and runs the campus; CoreWeave at sites that Core Scientific, Applied Digital and Galaxy own), so it is a company the facility houses, like the AI labs of `Users`: **Epoch's `Owner` is published as `tenant`, never as `owner` or `operator`** (owner decision of 2026-10-09). `owner` and `operator` stay empty, because Epoch names neither. (The M1 spec said `operator`; the seed of 2026-10-08 published `Owner` as `owner`.) |
 | `aliases` | `Project`, same tag rule, `kind: "codename"`; a shared campus adds its other sites' names as `kind: "phase_name"` |
-| `capacity.it_mw`, `capacity.facility_mw` | IT power (MW) and Power (MW) of the latest timeline row dated today or earlier, when > 0; a shared campus sums its sites. Left out when the timeline does not date the facility (below): the phase carries it |
+| `capacity.it_mw`, `capacity.facility_mw` | IT power (MW) and Power (MW) of the latest timeline row dated today or earlier, when > 0; a shared campus sums its sites. Left out when the timeline does not date the facility (below): the phase carries it. These columns are Epoch's model (IT power from chip counts, power at its PUE), not a stated figure: a cited `capacity` entry replaces them with what an operator's page states (CoreWeave Ellendale ND: Applied Digital's "175 MW now live" against Epoch's 68 MW IT and 88 MW), keeping Epoch's figures in `field_meta` conflicts; and when the note of the row that set them says the counted buildings reached another figure ("bringing the first building to its expected 100 MW"), they are held back: only that phrase is kept, in `mw_as_stated`, and a `conflict` item asks for a cited capacity. A figure the note hedges (an estimate, "at least", a power plant's nameplate or turbines, a lease or contract, a forecast) does not count |
 | `cooling.water_use_mgd` | Water use (MGD) of the same row, when > 0 (Epoch writes 0.0 for "not estimated"); summed, and left out, like the capacity |
 | `money` | Current total capital cost × 10⁹, `investment_basis: "estimate"`, `currency_year: 2025`; summed, and left out, like the capacity |
 | `phases` | One per site, named `{Name} (buildings tracked by Epoch AI)`, with the site's capacity and `source_ids: ["s1"]`, for a shared campus or a timeline that does not date the facility; none otherwise. A cited `facility_status` adds `{Name} (buildings Epoch AI does not track)`, with no capacity and its source |
 | `purpose`, `evidence_level` | `unknown`, `reported` |
 | `status_history` | the timeline (below) |
-| `field_meta` | `/capacity/*`, `/cooling/water_use_mgd`, `/money/investment_usd`: confidence 0.70, `imported`, `["s1"]`. `/location`: `derived` with the geocoder's confidence, or `stated` for an override: 0.85 (07 §3.4, stated with a verbatim quote) plus the source adjustment (government record or regulator +0.10, utility, ISO or SEC filing +0.07, company release +0.05, press 0). |
-| `sources` | `s1` = the dataset ("Epoch AI", "AI data centers", `open_dataset`, `CC-BY-4.0`) supporting `/canonical_name`, `/aliases`, `/parties`, `/location`, `/capacity`, `/cooling`, `/money`, `/status_history`. An override adds its source supporting `/location` (and `s1` then drops `/location`), with the override's `quote` (`quote_match: "human"`: copied by hand when the entry was written, not matched by the pipeline), `retrieved_at` and `archive_url`. Up to five `Selected Sources` links per site follow with empty `supports`, title = the link text, and `source_type` from `classify_source(url, link text)` (`atlas/sources/base.py`): `sec_filing` for sec.gov, an EDGAR accession number or an investor site's filing page; `government_record` for `.gov`, `.us` and `.mil` hosts and the agenda, code and permit platforms (Legistar, Granicus, CivicPlus, Municode, …); `utility_or_iso_filing` for ISO and RTO hosts; `company_release` for newswires and investor press pages; on an investor site or a document store (Google Drive, Scribd) the link text decides ("SEC 8k Filing", "Air Construction Permit"); else `news`. An override's source takes its `source_type`, else `classify_source` of its URL. |
+| `field_meta` | `/capacity/*`, `/cooling/water_use_mgd`, `/money/investment_usd`: confidence 0.70, `imported`, `["s1"]`; a cited capacity: `stated`, its source and the override confidence, with Epoch's figures in `conflicts` (`/capacity`, or `/phases/{i}/capacity` for a phase). `/location`: `derived` with the geocoder's confidence, or `stated` for an override: 0.85 (07 §3.4, stated with a verbatim quote) plus the source adjustment (government record or regulator +0.10, utility, ISO or SEC filing +0.07, company release +0.05, press 0), with the cited sources the entry rejected in `conflicts` (`value`, `source_ids`, `note`: Microsoft SAT40, TDLR's SAT11-14 record giving Medina County). |
+| `sources` | `s1` = the dataset ("Epoch AI", "AI data centers", `open_dataset`, `CC-BY-4.0`) supporting `/canonical_name`, `/aliases`, `/parties`, `/location`, `/capacity`, `/cooling`, `/money`, `/status_history`. An override adds its source supporting `/location` (and `s1` then drops `/location`), with the override's `quote` (`quote_match: "human"`: copied by hand when the entry was written, not matched by the pipeline), `retrieved_at` and `archive_url`. Up to five `Selected Sources` links per site follow with empty `supports` (and any further link a timeline note links, or names by the publisher its link text leads with or its host's name: Microsoft-Nebius New Jersey's sixth, SemiAnalysis, whose estimate the note gives; Colossus 2's S-1 filing), title = the link text, and `source_type` from `classify_source(url, link text)` (`atlas/sources/base.py`): `sec_filing` for sec.gov, an EDGAR accession number or an investor site's filing page; `government_record` for `.gov`, `.us` and `.mil` hosts and the agenda, code and permit platforms (Legistar, Granicus, CivicPlus, Municode, …); `utility_or_iso_filing` for ISO and RTO hosts; `company_release` for newswires and investor press pages; on an investor site or a document store (Google Drive, Scribd) the link text decides ("SEC 8k Filing", "Air Construction Permit"); else `news`. An override's source takes its `source_type`, else `classify_source` of its URL. |
 
 ### Status timeline
 
@@ -72,8 +72,9 @@ decides the status (the "Announces" in a link made Coreweave Helios's "land clea
 announcement): operating when any building is operational, announced when the text is only about
 plans, under construction otherwise. An event is kept only where the status changes, with
 `seq` in date order, `as_of` (below), `source_ids: ["s1"]` and the construction-status text as the
-note (markdown links reduced to their text, at most 200 characters, dropped if it looks like it
-holds contact details).
+note (markdown links reduced to their text and bare URLs to their host, "Source:
+datacenterdynamics.com", so a note shortened to 200 characters never ends in a cut URL; dropped
+if it looks like it holds contact details).
 
 `as_of` is the row's day, except where Epoch writes an estimate: a date on the 1st of a month is
 read as the month (`2026-08`, precision `month`), as for AI GridWatch, and so is a date on the 15th
@@ -94,18 +95,49 @@ A first row that already counts operational buildings is an `other` event as wel
 tracking a site that was running, so the row dates neither the first report nor the start of
 operation.
 
-Epoch's first row is what its imagery or a filing first shows, not the first public report: Meta
-announced Rosemount on 2024-03-14, Epoch's first row ("Land is cleared") is 2024-05-30. A
-`first_report` in the site's override entry (below) cites a dated report: the page's
-`published_at` (a date, or the time the page gives) and the `status` it reports (`announced`,
-`proposed` or `permitted`). When it is earlier than every event of a timeline that dates the
-facility, and its status is not ahead of the first event's, it becomes a record-level
-`first_reported` event on that day, citing the page (a source the record already has for that URL,
-the location source or a Selected Source, also supports `/status_history` and takes the time as
-`published_at`), and no Epoch row is a first report any more. Otherwise `first_reported` stays
-Epoch's first row (or a construction start, which derive_dates also counts): the date Epoch first
-observed the site, which can be later than its first public report (OpenAI announced its Doña Ana
-County site on 2025-09-23, Epoch's first row is 2025-10-01). On 2026-10-09 five entries cite one.
+Epoch's first row is what its imagery or a filing first shows, not the first public report: MPR
+News reported the utility filing for Meta's Rosemount data center on 2023-09-02, Epoch's first row
+("Land is cleared") is 2024-05-30. So `first_reported` is the earliest dated report among the
+importer's inputs, when it is earlier than every event of a timeline that dates the facility and
+its status is not ahead of the first event's (07 §2.3):
+
+- a `first_report` in the site's override entry (below), which cites a dated report: the report's
+  date as the page gives it (`published_at`: the page's date or time, the date it gives for an
+  earlier public announcement, or a month, `2025-10`, when it gives only that) and the `status` it
+  reports (`announced`, `proposed` or `permitted`). Its page is cited (a source the record already
+  has for that URL, the location source or a Selected Source, also supports `/status_history` and
+  takes the time as `published_at`). The entry's author dates the earliest report among Epoch's
+  Selected Sources (their dates and titles, TDLR registrations' Registration Date), the location
+  source and other pages; an entry that is not earlier records that check, and Epoch's first row
+  stays first_reported (Vantage TX1: TDLR registered TX11 the day of Epoch's first row);
+- an announcement a quote of the entry dates ("In December 2024, Meta announced that we are
+  building our largest data center to date in Richland Parish": `2024-12`, citing the page);
+- an announcement a note of Epoch's timeline dates ("their September 23, 2025 announcement",
+  "announced on {date}", "In {month} {year}, ... announced"), on any row of the site, a
+  projection's too, or on another site's row whose sentence names this site by the words of its
+  name that the row's site does not share (Epoch's Lordstown row names "Lordstown and Milam
+  County", so it dates OpenAI Stargate Milam too); it cites `s1`, with the sentence as the note.
+
+The earliest of these (the more precise on a tie) becomes a record-level `first_reported` event on
+its date, and no Epoch row is a first report any more. Otherwise `first_reported` stays Epoch's
+first row (or a construction start, which derive_dates also counts), and that event's note begins
+"Epoch AI's first observation, not a dated report:". A site without a `first_report` entry whose
+Selected Sources may date an earlier report, a TDLR TABS registration (its Registration Date is
+not in Epoch's CSV) or a date in a link's text or URL path earlier than the observation ("(Jan 23,
+2024)", ".../2024/03/hello-rosemount/"), becomes an `unknown_status` item listing them, for a
+reviewer's entry. A cited report whose status is ahead of the first event (CoreWeave Lancaster: a
+PA DEP application, proposed, before CoreWeave's announcement) dates nothing and is a `conflict`
+item. On 2026-10-09, 23 entries cite a first report.
+
+The row that first shows a building operating dates `energized` with its own date, unless its note
+says operation began earlier: "We estimate Building 1 became operational around early 2026 ...
+SemiAnalysis estimated the full 50 MW was reached around January to February 2026" (Microsoft-Nebius
+New Jersey, 2026-04-15) dates it `2026-Q1`, the most precise period the note states that lies
+within the others ("January to February" inside "early 2026", which alone is the year), with those
+clauses as the note. A period must start on or before the row's day and after the previous event;
+a note that says so in words the importer cannot read, or whose periods disagree, makes the row an
+`other` event (no `operating_since`) and an `unknown_status` item. Forecasts ("expected to be
+operational by") do not count.
 
 Rows dated after today are Epoch's projections (95 of 547 on 2026-10-07, up to 2030-01-01). They
 become `planned: true` events, which never set the status or the derived dates (07 §2.3). A site
@@ -469,13 +501,23 @@ county.
                 "first_report": {"published_at": "2024-03-14T15:22:17Z", "status": "announced",
                                  "source_url": "…", "quote": "…", "…": "…"},
                 "facility_status": {"status": "operating", "as_of": "2025-12-11",
-                                    "source_url": "…", "quote": "…", "…": "…"}}}
+                                    "source_url": "…", "quote": "…", "…": "…"},
+                "capacity": {"it_mw": 175, "facility_mw": null, "mw_as_stated": "175 MW now live",
+                             "as_of": "2026-07-01", "source_url": "…", "quote": "…", "…": "…"},
+                "milestones": [{"event": "energized", "as_of": "2023",
+                                "source_url": "…", "quote": "…", "…": "…"}],
+                "conflicts": [{"value": "Medina County, TX", "source_url": "…", "quote": "…",
+                               "…": "…"}],
+                "states_status": "optional: the status the location source gives as current"}}
 ```
 
-An entry is keyed by Epoch's site name and has a location (the fields at its top level), any of
-the three cited parts, or both. Each part has its own citation (`source_url`, `archive_url`,
-`quote`, `retrieved_at`, `note`, `publisher`, `source_type`), so a site Epoch's address places can
-still carry a `timeline` (Meta Sarpy) or a `facility_status` (Google Fort Wayne).
+An entry is keyed by Epoch's site name and has a location (the fields at its top level, with its
+`conflicts`), any of the other cited parts, or both. Each part has its own citation
+(`source_url`, `archive_url`, `quote`, `retrieved_at`, `note`, `publisher`, `source_type`, and
+`states_status` when the page gives the facility's current status), so a site Epoch's address
+places can still carry a `timeline` (Meta Sarpy), a `facility_status` (Google Fort Wayne), a
+`first_report` (Microsoft SAT14), a `capacity` (CoreWeave Ellendale ND) or `milestones` (Google
+Bristow).
 
 - Each entry cites a `source_url`: one of Epoch's own Selected Sources for the site first, a
   primary source (company, government, regulator) before press. Never from memory.
@@ -509,15 +551,39 @@ still carry a `timeline` (Meta Sarpy) or a `facility_status` (Google Fort Wayne)
 - `timeline`: `coverage: "partial"` where the cited page shows the facility older or larger than
   the buildings Epoch tracks, `"whole"` where a reviewer found that a held timeline is the whole
   facility. Its source supports `/phases` (`/status_history` for `whole`).
-- `first_report`: a dated report earlier than Epoch's first row ([Status timeline](#status-timeline)).
-  Its source supports `/status_history`.
+- `first_report`: the earliest dated report among the site's sources ([Status timeline](#status-timeline)),
+  which dates `first_reported` when it is earlier than Epoch's first row. Its source supports
+  `/status_history`. An entry for a site whose Selected Sources include a TDLR registration, or a
+  link dated before Epoch's first row, is what clears that site's `unknown_status` item.
+- `capacity`: the tracked buildings' capacity as the cited page states it on `as_of`: `it_mw` or
+  `facility_mw` only for the basis the page states, `mw_as_stated` the page's phrase (it must be in
+  the quote). It replaces Epoch's modelled columns for that site (the phase's, or the record's),
+  which stay in `field_meta` conflicts; if Epoch's figures change after `as_of`, a `conflict` item
+  asks a reviewer to check the entry.
+- `milestones`: a `construction_start` or `energized` event a cited page dates earlier than
+  Epoch's row for it, at the page's precision (`as_of`: YYYY, YYYY-Qn, YYYY-MM or YYYY-MM-DD). It
+  becomes a record-level event citing the page, and Epoch's event an observation (`other`). For a
+  timeline that dates the facility and is not shared; a milestone that is not earlier, has no
+  Epoch event to replace or would precede an event of an earlier status is not applied and is a
+  `conflict` item.
+- `conflicts` (in the location): each cited source that places the site elsewhere and that the
+  entry's author rejected, with the place it states as `value`. They go into
+  `field_meta["/location"].conflicts` (the source cited, `supports` empty) and a `conflict` item.
+- `states_status` (on any citation): the facility's status the page gives as current. When it is
+  not the record's status the record gets a `conflict` item, so a source the record cites never
+  contradicts its status unseen. Prefer a source that states none: Meta Montgomery's location
+  source was Baxtel's campus page, which lists the campus as under construction; since 2026-10-09
+  it is Baxtel's news of the announcement (2024-05-09), which names Montgomery County and states no
+  current status.
 - `facility_status`: the facility's status on `as_of`, for a timeline that does not date the
   facility ([Timelines that do not date the facility](#timelines-that-do-not-date-the-facility)).
   Its source supports `/status_history`.
 - Committed (owner decisions of 2026-10-08 and 2026-10-09: the sites the seed cannot place, and
-  those whose only place is their postal city, get cited overrides), 45 entries: 43 locations
+  those whose only place is their postal city, get cited overrides), 56 entries: 43 locations
   (13 read on 2026-10-08 and 30 on 2026-10-09; later on 2026-10-09 three moved to their county
-  and one to its township, below), 3 timelines, 5 first reports and 1 facility status. The first 13 were read on
+  and one to its township, below, and Meta Montgomery's source changed), 1 location conflict, 3
+  timelines, 23 first reports, 1 facility status, 2 capacities and 2 milestones (the fifth fix
+  round's entries, read on 2026-10-09 at 21:44–21:59 UTC, are in the second table below). The first 13 were read on
   2026-10-08 (Google Kansas City East, OpenAI Stargate Michigan and AWS New Albany re-read the same
   day for a quote that states the place):
 
@@ -566,7 +632,7 @@ still carry a `timeline` (Meta Sarpy) or a `facility_status` (Google Fort Wayne)
 | Meta Gallatin | Gallatin, TN (locality) | Tennessee's economic development department |
 | Meta Jeffersonville | Jeffersonville, IN (locality) | Turner Construction's release |
 | Meta Los Lunas | Los Lunas, NM (locality) | a 2017 New Mexico House memorial |
-| Meta Montgomery | Montgomery County, AL (county; locality at Montgomery, its postal city, until 2026-10-09) | Baxtel's campus page (Meta's announcement, cited until then, names only Montgomery) |
+| Meta Montgomery | Montgomery County, AL (county; locality at Montgomery, its postal city, until 2026-10-09) | Baxtel's news of 2024-05-09 (Meta's announcement names only Montgomery; Baxtel's campus page, cited until the fifth fix round, lists the campus as under construction) |
 | Meta Prometheus | New Albany, OH (locality) | Meta's nuclear energy release |
 | Meta Rosemount | Rosemount, MN (locality) | Meta's announcement |
 | Meta Temple | Temple, TX (locality) | the City of Temple's release |
@@ -600,12 +666,47 @@ still carry a `timeline` (Meta Sarpy) or a `facility_status` (Google Fort Wayne)
 | Google Midlothian | timeline partial: "2019 Google invests in our first Texas data center in Midlothian." | Google's Texas location page |
 | Google Arcola | timeline partial: "The company operates a 400K SF data center in Arcola" | Bisnow, 2024-04-29 |
 | Meta Sarpy | timeline partial: "2017 Broke ground on the Sarpy Data Center" | Meta's Sarpy fact sheet (Epoch's Selected Source) |
-| Meta Rosemount | first report 2024-03-14, announced | Meta's "Hello, Rosemount!" (the location source) |
-| Microsoft Goodyear | first report 2019-07-30, announced | Microsoft's post on its Arizona campuses (the location source) |
 | Meta Jeffersonville | first report 2024-01-25, announced | Turner's release (the location source) |
-| Google The Dalles | first report 2022-10-31, permitted | the City's notice of decision SPR 512-22 (Epoch's Selected Source) |
 | Meta Temple | first report 2022-03-31, announced | the Temple Economic Development Corporation's release (the City's copy has no date) |
 | Google Fort Wayne | facility status operating on 2025-12-11 | WPTA (21Alive), on Google's announcement |
+
+  The fifth fix round's parts (2026-10-09), from the second seed check's findings: each is the
+  earliest dated report the checkers and the entry's author found, read live (no Wayback snapshot:
+  web.archive.org reset every connection that evening, so pages that refuse the project's client,
+  DCD and KTAR, are not cited). Meta Rosemount, Microsoft Goodyear and Google The Dalles replace
+  the first reports above.
+
+| Site | Part | Source |
+|---|---|---|
+| Google Mesa | first report 2019-07-01, announced | the City of Mesa's release on the council's development agreement |
+| Google Kansas City East | first report 2019-07-22, proposed | KSHB on Port KC's bond for Google's Northland data center |
+| Google Red Oak | first report 2019-07-18, proposed | The Register (Alamo Mission LLC, State Highway 342) |
+| Microsoft Goodyear | first report 2019-04-19, announced | Rose Law Group's repost of the Phoenix Business Journal, quoting Microsoft |
+| Google Lincoln | first report 2019-09-09, permitted | the City Council minutes adopting Use Permit 19008 (Epoch's Selected Source) |
+| Google The Dalles | first report 2021-10-19, proposed | Columbia Community Connection on the two-data-center proposal |
+| Microsoft SAT14 | first report 2021-07-06, proposed | TDLR TABS2021019142's Registration Date (Epoch's Selected Source) |
+| OpenAI Stargate Abilene | first report 2021-12-22, announced | Trade & Industry Development on the Taylor County and Abilene approval of Lancium's campus |
+| Meta Kuna | first report 2022-02-16, announced | Idaho Power's PUC application, footnote 1 (Epoch's Selected Source) |
+| Microsoft Fairwater Atlanta | first report 2022-08-12, announced | Urbanize Atlanta on QTS's Fayetteville campus |
+| Meta Aiken | first report 2023-03-22, proposed | the Aiken Standard on Project Sabal's incentive ordinance |
+| Meta Rosemount | first report 2023-09-02, proposed | MPR News on the utility filing |
+| Meta Cheyenne | first report 2023-11-07, proposed | the Wyoming Tribune Eagle on Project Cosmo's development agreement |
+| Vantage TX1 | first report 2023-12-15, proposed (not earlier: Epoch's row stays) | TDLR TABS2024007561 (Epoch's Selected Source) |
+| Google Cedar Rapids | first report 2024-03-21, proposed | KCRG on the city's confirmation |
+| Goodnight | first report 2024-11-12, announced | Armstrong County's Phase 1 tax abatement agreement (Epoch's Selected Source, a scan) |
+| QTS Cedar Rapids | first report 2024-12-06, proposed | MISO's new load list, SNA LLC's 616 MW (Epoch's Selected Source) |
+| CoreWeave Lancaster Greenfield site | first report 2025-05-14, proposed (status ahead of Epoch's announcement: a `conflict` item) | AI GridWatch's record of PA DEP's tracker (eFACTS fails TLS verification through the proxy) |
+| OpenAI Stargate New Mexico | first report 2025-07, announced | El Paso Matters on BorderPlex's July presentation of Project Jupiter |
+| OpenAI Stargate Michigan | first report 2025-10, proposed | the Project Mitten air permit narrative (Epoch's Selected Source) |
+| OpenAI Stargate Wisconsin | first report 2025-10-22, announced; milestone construction start 2025-12-17 | Vantage's announcement; The Daily Reporter on the groundbreaking |
+| Google Bristow | milestone energized 2023 | the Prince William Times ("which became operational in 2023") |
+| CoreWeave Ellendale ND | capacity 175 MW IT ("175 MW now live", 2026-07-01) | Applied Digital's release (Epoch's Selected Source) |
+| xAI QTS Atlanta | capacity 20 MW facility ("20 megawatts of total power", 2025-02-20) | Business Insider (Epoch's Selected Source) |
+| Microsoft SAT40 | location conflict: Medina County, TX | TDLR EABPRJB8824650 (SAT11-14, Epoch's Selected Source) |
+
+  Meta Hyperion, OpenAI Stargate Lordstown and OpenAI Stargate Milam need no entry: Meta's page,
+  the location source, dates its announcement to December 2024, and Epoch's Lordstown note dates
+  the two sites' announcement to 2025-09-23.
 
 ## Review items
 
@@ -613,11 +714,11 @@ still carry a `timeline` (Meta Sarpy) or a `facility_status` (Google Fort Wayne)
 |---|---|---|
 | `missing_location` | epoch | no address and no override |
 | `geocode_failed` | both | the chain found no location; Epoch: also an address that names no state, and an address whose only place is its postal city (no county a source states), with the refused Census matches in `data.census_matches`; a cited override places the site |
-| `unknown_status` | both | Epoch: no timeline row dated today or earlier; AGW: a stage the crosswalk does not know (`data.stage`; no record); a past `hearing_date` nothing in the row says was held (`data.hearing_date`; the record has no hearing event); the event log does not tell when the project was first reported (`data.event_date`, `event_kind`, `event_source`: the entry in doubt; the record has no `first_reported` event) |
+| `unknown_status` | both | Epoch: no timeline row dated today or earlier; first_reported is Epoch's first observation and a Selected Source may date an earlier report (a TDLR registration, a date in a link before the observation), with no `first_report` entry (`data.first_observation`, `sources`; the record is kept); a note dates the start of operation in words the importer cannot read (`data.row`, `note`; the row dates nothing); AGW: a stage the crosswalk does not know (`data.stage`; no record); a past `hearing_date` nothing in the row says was held (`data.hearing_date`; the record has no hearing event); the event log does not tell when the project was first reported (`data.event_date`, `event_kind`, `event_source`: the entry in doubt; the record has no `first_reported` event) |
 | `unverified_upstream` | aigridwatch | `verified: false` |
 | `possible_duplicate` | aigridwatch | the row is an Epoch site (`record_id` = the Epoch record, `data.matched_by`), or may be one (`weak_link`, `nearby`, `place`, `several`, and `epoch_source` when a rule finds candidates: `record_id` empty, the candidates in `data.epoch_records`), or is AI GridWatch's copy of an Epoch site that has no record (`epoch_copy`: no record id, no candidates); no record. `data.stored_record` names an AI GridWatch record the store already holds for the row. With `data.released`, a reviewer released the row and it is imported |
 | `county_mismatch` | aigridwatch | the coordinates are not in the stated state (no record), or not in the named county (the record is placed by the locality text instead; `data.lat`/`lon` are the coordinates not used), or not shown to lie in the city or municipality the locality names (`data.place`; the record keeps the point and does not name it) |
-| `conflict` | both | AI GridWatch: the announced date is later than a filing, hearing or decision date (the announcement is left out); the event log or note reports a later milestone than the stage, or leaves no application under review (`data.reported_status`, `event_date`, `event_kind`, `event_source`; held, no record); the row shows the project public before its earliest milestone and no first report can be dated (`data.earliest`, `derived`; held, no record); an outcome `approved` that nothing names a land-use approval or a permit (`data.decided_date`, `entry`; no `approved` event); a stage that implies an application while the note says none was made (`data.stage`, `note_says`; announced); the id starts with another row's name (`data.id_of`; held, no record); a row held as an Epoch record's twin whose stage disagrees with that record's status (`record_id` = the Epoch record, `data.stage`, `as_of`, `epoch_status`, and `support`, the milestone or event-log entry that supports the stage, if any; the stage is not applied and nothing changes). Epoch: Epoch's fields suggest the timeline may not date the facility (a name or cited source mentions an expansion, the name or first row names part of a site, a bitcoin miner owns or hosts the site; the reason says which; its dates and capacity are left out), or a timeline that does not date the facility has tracked buildings that are not operating and no cited facility status (its status is unknown: no record); `data.evidence` quotes the note, title or field, `data.status` is the tracked buildings' status |
+| `conflict` | both | AI GridWatch: the announced date is later than a filing, hearing or decision date (the announcement is left out); the event log or note reports a later milestone than the stage, or leaves no application under review (`data.reported_status`, `event_date`, `event_kind`, `event_source`; held, no record); the row shows the project public before its earliest milestone and no first report can be dated (`data.earliest`, `derived`; held, no record); an outcome `approved` that nothing names a land-use approval or a permit (`data.decided_date`, `entry`; no `approved` event); a stage that implies an application while the note says none was made (`data.stage`, `note_says`; announced); the id starts with another row's name (`data.id_of`; held, no record); a row held as an Epoch record's twin whose stage disagrees with that record's status (`record_id` = the Epoch record, `data.stage`, `as_of`, `epoch_status`, and `support`, the milestone or event-log entry that supports the stage, if any; the stage is not applied and nothing changes). Epoch: Epoch's fields suggest the timeline may not date the facility (a name or cited source mentions an expansion, the name or first row names part of a site, a bitcoin miner owns or hosts the site; the reason says which; its dates and capacity are left out), or a timeline that does not date the facility has tracked buildings that are not operating and no cited facility status (its status is unknown: no record); `data.evidence` quotes the note, title or field, `data.status` is the tracked buildings' status. Also (the record is kept): Epoch's modelled capacity against the MW its note states (`data.epoch`, `stated`; only the phrase is kept), or a cited capacity older than Epoch's latest figures (`data.epoch`, `cited`); the location's cited sources disagree (`data.conflicts`); a cited source states another status than the record's (`data.source_url`, `states_status`, `status`); a cited first report whose status is ahead of the first event (`data.first_report`, `first_report_status`, `first_event`, `first_event_status`; it dates nothing); a cited milestone not applied (`data.problems`) |
 | `unit_parse` | aigridwatch | `size_mw` or `acres` is not a number in range, a party field holds a capacity, the operator/developer field names an electric utility (`data.operator`; not imported), or the note gives `size_mw` as a power source's or one phase's (`data.basis`; the record is kept without it, `size_mw` only in `mw_as_stated`) |
 | `out_of_scope` | aigridwatch | a territory (no record), or a power supply deal or generation facility (`data.phrase`; the record is kept with `scope: "out_of_scope"`) |
 | `invalid` | both | a row that does not map to a valid record |
@@ -835,11 +936,12 @@ entry on 2026-10-09.
 - **AI GridWatch MW.** Most rows state no basis for `size_mw`, so most records carry the figure
   only in `mw_as_stated` and count as "without MW" on the map and in the totals until a source
   states the basis.
-- **Epoch's `first_reported` is its first observation** unless an override cites an earlier dated
-  report: Epoch's first row is what its imagery or a filing first shows (OpenAI Stargate New
-  Mexico: 2025-10, while OpenAI announced the Doña Ana County site on 2025-09-23; Stargate
-  Wisconsin: 2026-01-02, announced 2025-10-22). Epoch's Selected Sources carry no dates, so only a
-  reviewer's `first_report` entry moves it earlier (five on 2026-10-09).
+- **Epoch's `first_reported` can only be as early as the importer's inputs.** Epoch's first row is
+  what its imagery or a filing first shows; the importer reads no Selected Source, so beyond the
+  dates Epoch's own notes and an entry's quotes give, a reviewer's `first_report` entry dates the
+  first report (23 on 2026-10-09), and a site without one keeps Epoch's first observation, which
+  its note says. Only the sites whose sources hint at an earlier date (a TDLR registration, a dated
+  link) are held for review; for the others a reviewer's check is the safeguard.
 - **Epoch projections that do not change the mapped status are dropped.** A projected row whose
   mapped status equals the previous row's adds no event. The crosswalk reads "Buildings
   operational" and, when that cell is empty, "IT power (MW)": OpenAI Stargate Milam's 2028-12-31
@@ -850,6 +952,33 @@ entry on 2026-10-09.
   states: those sites wait in review for a cited override (33 on 2026-10-08, 2 since the
   overrides of 2026-10-09), and AI GridWatch's rows for them are imported meanwhile (no Epoch
   record holds them).
+
+## Fifth fix round, 2026-10-09 (Epoch AI)
+
+Epoch importer version 5, from the second check of the round-4 seed (71 of its 73 Epoch records
+checked; 29 had an error under the cited or the today standard, 23 of them a first report dated by
+Epoch's first observation). On the same saved inputs (`data_centers.zip` of 2026-10-09, sha256
+`0ce2b5e4…4ccab47`, the same Census cache), offline, into an empty store: 73 records (73
+before), `atlas validate` 0 issues, a second run `unchanged`.
+
+- **First reports:** 24 records date `first_reported` from a report (5 before): 22 cite one (21
+  committed `first_report` entries and Meta Hyperion's location quote) and 2 an announcement
+  Epoch's own note dates (OpenAI Stargate Lordstown and Milam, 2025-09-23). 15 keep Epoch's first
+  observation, which their note now says; Vantage TX1's entry records that no cited source is
+  earlier.
+- **Capacity:** 2 cited capacities replace Epoch's model (CoreWeave Ellendale ND 175 MW IT, xAI QTS
+  Atlanta 20 MW facility), with Epoch's figures in `field_meta` conflicts.
+- **Dates:** Microsoft-Nebius New Jersey's operation dates from its note (`2026-Q1`, not
+  `2026-04`); 2 cited milestones (Google Bristow operating since 2023; OpenAI Stargate Wisconsin's
+  groundbreaking 2025-12-17).
+- **Sources and notes:** 3 Selected Sources past the five-link cap are cited because a note links
+  or names them (Colossus 2's S-1 filing, Meta Kuna's third PPA notice, SemiAnalysis for
+  Microsoft-Nebius New Jersey); no note holds a URL (CoreWeave Chester VA and Dalton 1 & 2 ended in
+  a cut one); Meta Montgomery's location source no longer states a contrary status; Microsoft
+  SAT40's location conflict is in `field_meta`.
+- **Review items:** 18 (16 before): a `conflict` for SAT40's location conflict and one for CoreWeave
+  Lancaster Greenfield site, whose cited PA DEP application (proposed, 2025-05-14) is ahead of
+  Epoch's announcement and dates nothing until a reviewer decides.
 
 ## Fourth fix round, 2026-10-09
 

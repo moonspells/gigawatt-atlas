@@ -68,3 +68,27 @@ timeline row of each, cell values unchanged.
 | AWS New Albany | "we're only including roughly 44% of all the New Albany campuses IT Power" |
 | Microsoft SAT40 | a link title: "includes the first building we believe is for AI" |
 | Anthropic Barber Lake | a bitcoin miner's site (Owner: Cipher Mining) |
+
+## `cases-fix5.zip`
+
+The same license and credit apply. `cases-fix5.zip` holds the sites behind the rules of
+`tests/sources/test_epoch_fix5.py` (the fifth fix round, from the second check of the round-4
+seed), taken from the download of 2026-10-09 (the same file as `cases-2026-10-09.zip`'s, SHA-256
+`0ce2b5e45705a7d2044e885a49d6030353b9336945c09e9ba0c6b598f2932043`), built the same way: the
+original `README.md`, and the header and only these sites' rows of the two CSVs, with every
+timeline row of each, cell values unchanged.
+
+| Site | Why it is here |
+|---|---|
+| Google Mesa | a cited first report (the City of Mesa, 2019) four years before Epoch's land clearing |
+| Microsoft SAT14, Vantage TX1 | TDLR registrations among the Selected Sources (one earlier than Epoch's first row, one the same day) |
+| OpenAI Stargate Lordstown, OpenAI Stargate Milam | a projection's note dating "their September 23, 2025 announcement" |
+| Meta Hyperion | a location quote that dates an announcement ("In December 2024, Meta announced") |
+| CoreWeave Lancaster Greenfield site | a cited application (proposed) before Epoch's announcement row |
+| CoreWeave Ellendale ND | Epoch's 68/88 MW columns against its note's "expected 100 MW" and the operator's 175 MW |
+| xAI QTS Atlanta | Epoch's modelled 24 MW against a cited 20 MW of total power |
+| Microsoft-Nebius New Jersey | "became operational around early 2026"; SemiAnalysis, its sixth Selected Source |
+| Microsoft SAT40 | two TDLR records for one address that name different counties |
+| Meta Montgomery | a location source that stated a status other than the record's |
+| CoreWeave Chester VA, CoreWeave Dalton 1 & 2 | notes that end in a bare URL |
+| Google Bristow, OpenAI Stargate Wisconsin | cited milestones (first operation, groundbreaking) earlier than Epoch's rows |

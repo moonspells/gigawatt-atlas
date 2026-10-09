@@ -120,13 +120,17 @@ def test_every_case_record_is_valid(seed2: ImportResult, counties: CountyIndex) 
 def test_a_date_on_the_first_of_a_month_is_the_month(seed2: ImportResult) -> None:
     # Google Kansas City East: "Building 1 operational. Estimated based on present construction
     # progress and typical timelines." on 2026-08-01; the first row is 2024-01-01.
+    # (first_reported is the committed first report: KSHB, 2019-07-22, a day.)
     rec = records(seed2)["Google Kansas City East"]
     assert dates(rec) == {
-        "first_reported": "2024-01",
+        "first_reported": "2019-07-22",
         "construction_start": "2024-01",
         "operating_since": "2026-08",
     }
-    assert {d.precision for d in rec.dates.values()} == {"month"}
+    assert {k: d.precision for k, d in rec.dates.items() if k != "first_reported"} == {
+        "construction_start": "month",
+        "operating_since": "month",
+    }
     operating = next(e for e in rec.status_history if e.status == "operating")
     assert (operating.as_of.value, operating.as_of.precision) == ("2026-08", "month")
 
@@ -160,40 +164,39 @@ def test_epoch_estimates_are_read_as_the_month(day: str, text: str, value: str) 
 
 
 def test_a_cited_earlier_report_dates_first_reported(seed2: ImportResult) -> None:
-    # Meta's "Hello, Rosemount!" (2024-03-14), the entry's location source, announced the data
-    # center 2.5 months before Epoch's first row ("Land is cleared", 2024-05-30).
+    # MPR News (2023-09-02) reported the utility filing for Meta's Rosemount data center six
+    # months before Meta's "Hello, Rosemount!" and nine before Epoch's first row ("Land is
+    # cleared", 2024-05-30); the entry cites it, a page that is not among Epoch's sources.
     rose = records(seed2)["Meta Rosemount"]
-    assert dates(rose) == {"first_reported": "2024-03-14", "operating_since": "2026-06-19"}
+    assert dates(rose) == {"first_reported": "2023-09-02", "operating_since": "2026-06-19"}
     first = rose.status_history[0]
-    assert (first.event, first.status, first.phase_id, first.source_ids) == (
-        "first_reported",
-        "announced",
-        None,
-        ["s2"],
-    )
-    s2 = rose.sources[1]
-    assert s2.supports == ["/location", "/status_history"]
-    assert (
-        s2.published_at is not None and s2.published_at.isoformat() == "2024-03-14T15:22:17+00:00"
-    )
+    assert (first.event, first.status, first.phase_id) == ("first_reported", "proposed", None)
+    mpr = next(s for s in rose.sources if s.id == first.source_ids[0])
+    assert (mpr.publisher, mpr.supports) == ("MPR News", ["/status_history"])
+    assert mpr.published_at is not None
+    assert mpr.published_at.isoformat() == "2023-09-02T16:30:00-05:00"
+    # Meta's page stays the location source only.
+    assert rose.sources[1].supports == ["/location"]
     # Epoch's first row is now an observation; it dates nothing.
     observed = next(e for e in rose.status_history if e.source_ids == ["s1"])
     assert (observed.as_of.value, observed.event) == ("2024-05-30", "other")
-    # Google The Dalles: the City's notice of decision (2022-10-31), one of Epoch's Selected
-    # Sources, approved the data center before Epoch's "First signs of construction".
+    # Google The Dalles: Columbia Community Connection (2021-10-19) reported Google's
+    # two-data-center proposal a year before the City's notice of decision (2022-10-31), one of
+    # Epoch's Selected Sources and the entry's first report until then.
     dalles = records(seed2)["Google The Dalles"]
     assert dates(dalles) == {
-        "first_reported": "2022-10-31",
+        "first_reported": "2021-10-19",
         "construction_start": "2023-05-21",
         "operating_since": "2025-03-07",
     }
     report = dalles.status_history[0]
-    assert (report.event, report.status) == ("first_reported", "permitted")
-    notice = next(s for s in dalles.sources if s.id == report.source_ids[0])
-    assert notice.title == "Permit confirming this is a data center and the internal square footage"
-    assert notice.publisher == "City of The Dalles" and notice.supports == ["/status_history"]
-    assert notice.quote is not None and "hereby approved" in notice.quote
-    assert seed2.metrics["first_reports_cited"] == 2
+    assert (report.event, report.status) == ("first_reported", "proposed")
+    ccc = next(s for s in dalles.sources if s.id == report.source_ids[0])
+    assert ccc.publisher == "Columbia Community Connection" and ccc.supports == ["/status_history"]
+    assert ccc.quote is not None and "two data plants" in ccc.quote
+    notice = next(s for s in dalles.sources if "SPR" in str(s.url))
+    assert notice.supports == []
+    assert seed2.metrics["first_reports_cited"] == 3  # with Google Kansas City East's
 
 
 def test_a_report_that_is_not_earlier_dates_nothing() -> None:
@@ -312,8 +315,10 @@ def test_a_bitcoin_site_conversion_dates_nothing(seed2: ImportResult) -> None:
     # Microsoft SAT40: Epoch's own link title says it counts only the AI building of three.
     sat40 = records(seed2)["Microsoft SAT40"]
     assert dates(sat40) == {} and sat40.capacity.it_mw is None
-    for name in ("CoreWeave Marble NC", "Microsoft SAT40", "AWS New Albany"):
+    for name in ("CoreWeave Marble NC", "AWS New Albany"):
         assert items(seed2, name) == [], name
+    # SAT40's only item is the location conflict its entry records (TDLR's SAT11-14: Medina).
+    assert [kind for kind, _ in items(seed2, "Microsoft SAT40")] == ["conflict"]
 
 
 def test_a_cited_timeline_entry_makes_a_new_building_a_phase(
