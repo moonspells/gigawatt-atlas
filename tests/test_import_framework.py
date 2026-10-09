@@ -17,7 +17,7 @@ from atlas.cli import main
 from atlas.commands.importer import discover_importers
 from atlas.geo.places import PlaceIndex
 from atlas.jsonio import record_json
-from atlas.net import fetch
+from atlas.net import FetchError, fetch
 from atlas.schema.record import PLACEHOLDER_ID, FacilityRecord
 from atlas.sources.base import (
     Candidate,
@@ -540,6 +540,7 @@ def test_context_gives_the_place_polygons(make_test_context: MakeContext) -> Non
     assert ctx.places() is sample
     assert ctx.places().city_at(41.143721, -80.883293, "OH") == "Lordstown"  # mailed to Warren
     sample.close()
-    # A file given by path is checked like the default one: the sample is not the Census file.
-    with pytest.raises(ValueError, match="sha256"):
+    # A file given by path (--places) is checked like a downloaded one: the sample is not the
+    # Census file, so the run fails with a FetchError (exit 1), not a traceback.
+    with pytest.raises(FetchError, match="is not the pinned"):
         make_test_context(places_path=PLACES_SAMPLE).places()

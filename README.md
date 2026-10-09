@@ -21,6 +21,7 @@ installs it if needed). `tippecanoe` 2.79.0 on `PATH` is needed only to build `f
 ```sh
 uv sync --locked                               # exact versions and hashes from uv.lock
 uv run python -m atlas.geo.duck --install      # DuckDB spatial extension, once per machine
+# `atlas import` downloads two Census files on first use (reference/README.md)
 uv run atlas validate                          # 07 §3.6 over data/records and data/orgs.json
 uv run pytest                                  # offline test suite
 ```
@@ -33,7 +34,7 @@ Lint and types: `uv run ruff check .`, `uv run ruff format --check .` and `uv ru
 |---|---|
 | `atlas validate` | Checks every record in `data/records/` (schema, rollup, dates, sources and support, quotes, geography against the Census county polygons, ranges, personal data, orgs, phases, scope). Exit 1 on any issue. `--records`, `--orgs`, `--today`, `--format json`. |
 | `atlas schema export [--check]` | Writes `schema/facility.v1.json` (JSON Schema 2020-12) from `atlas/schema/record.py`; `--check` fails when it is out of date. |
-| `atlas import <source>` | Runs a seed importer (`osm`, `epoch`, `aigridwatch`; run `epoch` before `aigridwatch`, which refuses a store without Epoch records unless given `--without-epoch`), merges its candidates into `data/records/`, and writes `review/queue/{source}.jsonl` and the receipt `data/imports/{source}.json`. `--input FILE`, `--dry-run`, `--offline`, plus per-source options (`atlas import osm --help`). |
+| `atlas import <source>` | Runs a seed importer (`osm`, `epoch`, `aigridwatch`; run `epoch` before `aigridwatch`, which refuses a store without Epoch records unless given `--without-epoch`), merges its candidates into `data/records/`, and writes `review/queue/{source}.jsonl` and the receipt `data/imports/{source}.json`. `--input FILE`, `--dry-run`, `--offline`, `--places PATH`, plus per-source options (`atlas import osm --help`). The Census place polygons and county subdivisions are downloaded into `--cache-dir` on first use and checked against their pinned SHA-256 ([reference/README.md](reference/README.md#downloaded-on-first-use)). |
 | `atlas publish build\|verify\|upload\|put\|fixture\|takedown` | Builds a release directory (`build`), re-checks one against its manifest (`verify`), uploads it to R2 (`upload`, or one file with `put`), rebuilds or checks the committed fixture release (`fixture [--check]`), and removes taken-down records from R2 (`takedown`). See [docs/publishing.md](docs/publishing.md). |
 
 `python -m atlas` is the same entry point.
@@ -53,7 +54,8 @@ atlas/                 the pipeline (Python package)
   geocode.py           Census Geocoder, Gazetteer and county fallbacks
   publish.py r2.py     the release builder and the R2 uploader
   net.py safezip.py    guarded HTTP and ZIP handling for untrusted upstream files
-config/overrides/      cited location overrides (epoch.json)
+config/overrides/      cited location overrides (epoch.json) and reviewer releases of held AI
+                       GridWatch rows (aigridwatch.json)
 data/records/          one canonical JSON file per record ({id}.json)
 data/orgs.json         organizations (gwo- ids)
 data/imports/          import receipts
@@ -61,7 +63,8 @@ review/queue/          review items per source (JSON Lines)
 overlays/out/          overlay layer index (layers.json) for the release manifest
 fixtures/release/      the committed fixture release 20000101-0000 (test data, frozen inputs
                        in fixtures/release-inputs/)
-reference/census/      Census boundary and Gazetteer files (see reference/README.md)
+reference/census/      Census boundary and Gazetteer files (see reference/README.md; the place
+                       polygons and county subdivisions are downloaded on first use instead)
 schema/                the generated JSON Schema
 r2/                    the R2 CORS rules (docs/r2-setup.md)
 docs/                  sources, crosswalk, publishing and R2 runbooks

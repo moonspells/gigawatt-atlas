@@ -33,6 +33,8 @@ if TYPE_CHECKING:
 
     from atlas.geo.counties import CountyIndex
     from atlas.geo.places import PlaceIndex
+    from atlas.geo.reference import ReferenceFile
+    from atlas.geocode import Gazetteer
     from atlas.net import FetchResult
     from atlas.store import RecordStore
 
@@ -235,7 +237,13 @@ class ImportResult:
 
 
 class ImportContext:
-    """What an importer may use. Tests build one with the make_test_context fixture."""
+    """What an importer may use. Tests build one with the make_test_context fixture.
+
+    The Census place polygons and county-subdivision Gazetteer are not committed: places() and
+    gazetteer() find them in cache_dir/reference/census/ or download them there on first use
+    (atlas.geo.reference), unless the caller passes them (tests pass the small samples).
+    offline (`atlas import --offline`) forbids that download.
+    """
 
     def __init__(
         self,
@@ -252,6 +260,8 @@ class ImportContext:
         counties: CountyIndex | None = None,
         places_path: Path | None = None,
         places: PlaceIndex | None = None,
+        gazetteer: Gazetteer | None = None,
+        offline: bool = False,
     ) -> None:
         if now.tzinfo is None:
             raise ValueError("ImportContext.now must be timezone-aware")
@@ -263,10 +273,12 @@ class ImportContext:
         self.input_path = input_path
         self.user_agent = user_agent
         self.new_id = new_id
+        self.offline = offline
         self._counties_path = counties_path
         self._counties = counties
         self._places_path = places_path
         self._places = places
+        self._gazetteer = gazetteer
 
     def counties(self) -> CountyIndex:
         """The county index, loaded once."""
@@ -276,15 +288,41 @@ class ImportContext:
             self._counties = CountyIndex.load(self._counties_path or COUNTIES_ZIP)
         return self._counties
 
+    def reference_file(self, ref: ReferenceFile) -> Path:
+        """A downloaded-on-first-use Census file (atlas.geo.reference.ensure_reference): the
+        checked copy in cache_dir, fetched first when there is none. FetchError when it cannot be
+        had (offline, a failed download, a copy that is not the pinned file)."""
+        from atlas.geo.reference import ensure_reference
+
+        return ensure_reference(ref, cache_dir=self.cache_dir, http=self.http, offline=self.offline)
+
     def places(self) -> PlaceIndex:
         """The Census place polygons (atlas.geo.places), loaded once: places.city_at(lat, lon,
         state) is the city of a record that has a point and no stated place, and
-        geocode(..., places=ctx.places()) names a Census match's city by it."""
+        geocode(..., places=ctx.places()) names a Census match's city by it. From places_path
+        (`--places`, checked against the pin), else from the cache, downloaded on first use."""
         if self._places is None:
-            from atlas.geo.places import PLACE_POLYGONS_ZIP, PlaceIndex  # DuckDB on use
+            from atlas.geo import reference
+            from atlas.geo.places import PlaceIndex  # DuckDB on use
 
-            self._places = PlaceIndex.load(self._places_path or PLACE_POLYGONS_ZIP)
+            if self._places_path is not None:
+                path = reference.verify_reference(reference.PLACE_POLYGONS, self._places_path)
+            else:
+                path = self.reference_file(reference.PLACE_POLYGONS)
+            self._places = PlaceIndex.load(path)
         return self._places
+
+    def gazetteer(self) -> Gazetteer:
+        """The Census Gazetteer with its county subdivisions (New England towns, townships),
+        loaded once, for every import that geocodes: the county-subdivision file comes from the
+        cache, downloaded on first use."""
+        if self._gazetteer is None:
+            from atlas.geo import reference
+            from atlas.geocode import Gazetteer
+
+            cousubs = self.reference_file(reference.COUNTY_SUBDIVISIONS)
+            self._gazetteer = Gazetteer.load(cousub_zip=cousubs)
+        return self._gazetteer
 
     def raw_path(self, source: str, sha256: str, ext: str) -> Path:
         """.cache/atlas/raw/{source}/{sha256}.{ext}"""

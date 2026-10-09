@@ -19,9 +19,10 @@ from atlas.geo.places import (
     PLACE_MARGIN_DEG,
     PLACE_POLYGONS_BYTES,
     PLACE_POLYGONS_SHA256,
-    PLACE_POLYGONS_ZIP,
     PlaceIndex,
 )
+from atlas.geo.reference import PLACE_POLYGONS, cache_path
+from atlas.sources.base import DEFAULT_CACHE_DIR
 
 SAMPLE = (
     Path(__file__).resolve().parents[1] / "fixtures" / "geocode" / "places" / "places_sample.zip"
@@ -127,17 +128,20 @@ def test_load_checks_the_file(tmp_path: Path) -> None:
         PlaceIndex.load(tmp_path / "missing.zip")
 
 
+DOWNLOADED = Path(__file__).resolve().parents[2] / cache_path(PLACE_POLYGONS, DEFAULT_CACHE_DIR)
+
+
 @pytest.mark.skipif(
-    not (Path(__file__).resolve().parents[2] / PLACE_POLYGONS_ZIP).exists(),
-    reason="reference/census/cb_2025_us_place_500k.zip is not committed yet",
+    not DOWNLOADED.exists(),
+    reason="cb_2025_us_place_500k.zip is downloaded on first use; no copy in .cache/atlas",
 )
 def test_the_reference_file_is_the_census_release(repo_root: Path) -> None:
-    path = repo_root / PLACE_POLYGONS_ZIP
+    path = DOWNLOADED
     assert path.stat().st_size == PLACE_POLYGONS_BYTES
     assert hashlib.sha256(path.read_bytes()).hexdigest() == PLACE_POLYGONS_SHA256
     readme = (repo_root / "reference" / "README.md").read_text(encoding="utf-8")
     assert PLACE_POLYGONS_SHA256 in readme
-    index = PlaceIndex.load()
+    index = PlaceIndex.load(path)
     assert len(index) == 32_629
     assert index.city_at(*GOOGLE_CEDAR_RAPIDS, "IA") == "Cedar Rapids"
     assert index.city_at(*STARGATE_LORDSTOWN, "OH") == "Lordstown"

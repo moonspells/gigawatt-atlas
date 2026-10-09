@@ -3,13 +3,21 @@
 Tests are offline: real HTTP transports and urllib raise unless a test is marked `network` and
 ATLAS_NETWORK_TESTS=1 is set. DuckDB's extension download is not affected (CI installs spatial
 before pytest). Tests marked `tippecanoe` are skipped when tippecanoe is not on PATH.
+
+The Census place polygons and county subdivisions are downloaded on first use by real imports
+(atlas.geo.reference); tests never fetch them. make_test_context passes the small samples in
+tests/fixtures/geocode/, and census_reference_cache puts them in a CLI run's cache directory in
+place of the real files.
 """
 
 from __future__ import annotations
 
+import dataclasses
+import hashlib
 import os
 import shutil
 import urllib.request
+import zipfile
 from collections.abc import Callable, Iterator
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -18,7 +26,10 @@ from typing import Any
 import httpx
 import pytest
 
+from atlas.geo import reference
 from atlas.geo.counties import COUNTIES_ZIP, CountyIndex
+from atlas.geo.places import PLACE_POLYGONS_SHP, PlaceIndex
+from atlas.geocode import Gazetteer
 from atlas.ids import deterministic_ids
 from atlas.net import make_client
 from atlas.schema.record import FacilityRecord
@@ -26,6 +37,8 @@ from atlas.sources.base import ImportContext
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = REPO_ROOT / "tests" / "fixtures"
+PLACES_SAMPLE = FIXTURES / "geocode" / "places" / "places_sample.zip"
+COUSUBS_SAMPLE = FIXTURES / "geocode" / "gazetteer" / "2025_Gaz_cousubs_sample.zip"
 FIXED_NOW = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
 TEST_ADDRESS = "93.184.216.34"
 
@@ -68,6 +81,48 @@ def counties() -> Iterator[CountyIndex]:
     index = CountyIndex.load(REPO_ROOT / COUNTIES_ZIP)
     yield index
     index.close()
+
+
+@pytest.fixture(scope="session")
+def sample_places() -> Iterator[PlaceIndex]:
+    """The eight-polygon sample of the Census place file (tests/fixtures/geocode/README.md)."""
+    index = PlaceIndex.load(PLACES_SAMPLE, verify_sha256=False)
+    yield index
+    index.close()
+
+
+@pytest.fixture(scope="session")
+def sample_gazetteer() -> Gazetteer:
+    """The committed Gazetteer with the fifteen-row county-subdivision sample."""
+    return Gazetteer.load(cousub_zip=COUSUBS_SAMPLE, verify_sha256=False)
+
+
+@pytest.fixture
+def census_reference_cache(monkeypatch: pytest.MonkeyPatch) -> Callable[[Path], Path]:
+    """For CLI runs, which build their own ImportContext: install(cache_dir) puts the samples in
+    cache_dir/reference/census/ under the Census file names (the place shapefile renamed inside
+    the zip) and pins atlas.geo.reference to them, so the run finds checked copies and fetches
+    nothing. Returns the directory."""
+
+    def install(cache_dir: Path) -> Path:
+        where = reference.cache_path(reference.PLACE_POLYGONS, cache_dir).parent
+        where.mkdir(parents=True, exist_ok=True)
+        places = where / reference.PLACE_POLYGONS.name
+        stem = Path(PLACE_POLYGONS_SHP).stem
+        with zipfile.ZipFile(PLACES_SAMPLE) as src, zipfile.ZipFile(places, "w") as out:
+            for info in src.infolist():
+                out.writestr(stem + Path(info.filename).suffix, src.read(info))
+        cousubs = where / reference.COUNTY_SUBDIVISIONS.name
+        shutil.copyfile(COUSUBS_SAMPLE, cousubs)
+        for name, path in (("PLACE_POLYGONS", places), ("COUNTY_SUBDIVISIONS", cousubs)):
+            data = path.read_bytes()
+            pinned = dataclasses.replace(
+                getattr(reference, name), sha256=hashlib.sha256(data).hexdigest(), size=len(data)
+            )
+            monkeypatch.setattr(reference, name, pinned)
+        return where
+
+    return install
 
 
 @pytest.fixture
@@ -178,12 +233,16 @@ def make_test_context(
     fixed_now: datetime,
     ids: Callable[[], str],
     counties: CountyIndex,
+    sample_places: PlaceIndex,
+    sample_gazetteer: Gazetteer,
 ) -> Iterator[Callable[..., ImportContext]]:
     """Build an ImportContext for importer tests.
 
     Keyword overrides: any ImportContext argument (now, today, records, http, cache_dir,
-    input_path, user_agent, new_id, counties), plus handler= (an httpx.MockTransport handler; the
-    default answers 404) and resolver= (the default resolves every host to 93.184.216.34).
+    input_path, user_agent, new_id, counties, places, places_path, gazetteer, offline), plus
+    handler= (an httpx.MockTransport handler; the default answers 404) and resolver= (the default
+    resolves every host to 93.184.216.34). places and gazetteer default to the samples (unless
+    places_path is given, or None is passed to load the Census files the way an import does).
     """
     clients: list[httpx.Client] = []
 
@@ -206,7 +265,10 @@ def make_test_context(
             "user_agent": "moonspells-atlas-test/1.0",
             "new_id": ids,
             "counties": counties,
+            "gazetteer": sample_gazetteer,
         }
+        if "places_path" not in overrides:
+            kwargs["places"] = sample_places
         kwargs.update(overrides)
         return ImportContext(**kwargs)
 

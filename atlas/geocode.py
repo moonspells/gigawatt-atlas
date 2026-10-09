@@ -48,6 +48,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import quote, urlencode
 
+from atlas.geo import reference
 from atlas.geo.counties import resolve_reference, sha256_file
 from atlas.geo.fips import STATES, state_by_abbr
 from atlas.safezip import open_zip
@@ -66,10 +67,11 @@ PLACES_SHA256 = "49644173a453469d9bd77fb7a493b027f87567e209edaf2078aac7543ac2ee2
 GAZ_COUNTIES_ZIP = Path("reference/census/2025_Gaz_counties_national.zip")
 GAZ_COUNTIES_SHA256 = "4c90d0f805779923b5958ab13d0c1e9b99fe4932b786bfcf75dd739bb2dcb4ea"
 # County subdivisions (36,427: New England towns, townships, CCDs), for Gazetteer.load(cousub_zip=).
-# https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2025_Gazetteer/2025_Gaz_cousubs_national.zip
-COUSUBS_ZIP = Path("reference/census/2025_Gaz_cousubs_national.zip")
-COUSUBS_SHA256 = "5e498edbf27e2426ec6661415851ea42c6a635f3cc3a2b79eccc2c3c19b2892e"
-COUSUBS_BYTES = 1_478_116
+# Not committed: an import downloads the file on first use and checks it against the pin
+# (atlas.geo.reference.COUNTY_SUBDIVISIONS; ImportContext.gazetteer() loads it for every import
+# that geocodes).
+COUSUBS_SHA256 = reference.COUNTY_SUBDIVISIONS.sha256
+COUSUBS_BYTES = reference.COUNTY_SUBDIVISIONS.size
 
 CENSUS_URL = "https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress"
 CENSUS_PARAMS = {
@@ -500,6 +502,7 @@ class CensusGeocoder:
         self._now = now
         self.requests = 0
         self.cache_hits = 0
+        self._seen: dict[str, list[CensusMatch]] = {}
 
     @staticmethod
     def normalize(address: str) -> str:
@@ -534,6 +537,7 @@ class CensusGeocoder:
                 path.unlink()  # a damaged cache entry is fetched again
             else:
                 self.cache_hits += 1
+                self._seen[text] = cached
                 return cached
         self.requests += 1
         try:
@@ -558,7 +562,14 @@ class CensusGeocoder:
         found = parse_census_matches(doc)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(result.content)
+        self._seen[text] = found
         return found
+
+    def seen(self, address: str) -> list[CensusMatch]:
+        """The matches an earlier matches() call returned for address in this run, without a
+        request or a cache read (none when it was not asked): for a review item that shows a
+        reviewer the matches the chain refused."""
+        return list(self._seen.get(self.normalize(address), []))
 
 
 # ---------------------------------------------------------------------------- Gazetteer
@@ -697,9 +708,10 @@ class Gazetteer:
         cousub_zip: Path | None = None,
         verify_sha256: bool = True,
     ) -> Gazetteer:
-        """Load the files; verify_sha256 checks them against the committed checksums first.
-        cousub_zip (COUSUBS_ZIP) adds the county subdivisions, so that a New England town or a
-        township a source names can be placed.
+        """Load the files; verify_sha256 checks them against the pinned checksums first.
+        cousub_zip (the county-subdivision file, which ImportContext.gazetteer() downloads on
+        first use) adds the county subdivisions, so that a New England town or a township a source
+        names can be placed.
 
         The parsed files are kept for the life of the process (keyed by path, size and mtime), so
         repeated imports and tests parse them once.
@@ -754,7 +766,9 @@ class Gazetteer:
                     lat=round(float(r["INTPTLAT"]), 6),
                     lon=round(float(r["INTPTLONG"]), 6),
                 )
-                for r in _read_gazetteer(cousub_zip, COUSUBS_SHA256 if verify_sha256 else None)
+                for r in _read_gazetteer(
+                    cousub_zip, reference.COUNTY_SUBDIVISIONS.sha256 if verify_sha256 else None
+                )
             ]
             if cousub_zip is not None
             else None

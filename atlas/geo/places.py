@@ -1,8 +1,10 @@
 """The Census place that contains a point (07 §6.5): the city a record names.
 
-reference/census/cb_2025_us_place_500k.zip (1:500,000 cartographic boundary file, 32,629
-incorporated places and census designated places of the states, DC, Puerto Rico and the island
-areas, with GEOID, NAME, NAMELSAD, LSAD and STUSPS in EPSG:4269) gives the place a point lies in.
+cb_2025_us_place_500k.zip (1:500,000 cartographic boundary file, 32,629 incorporated places and
+census designated places of the states, DC, Puerto Rico and the island areas, with GEOID, NAME,
+NAMELSAD, LSAD and STUSPS in EPSG:4269) gives the place a point lies in. It is not committed: an
+import downloads it on first use into its cache directory and checks it against the pin
+(atlas.geo.reference.PLACE_POLYGONS; ImportContext.places()).
 Its GEOIDs are the Gazetteer's. A postal city is not that place: OpenAI's Lordstown site, mailed to
 Warren, lies in Lordstown village, and STACK NVA02, mailed to Manassas, in Innovation CDP. So when
 a record has a point and no source states its place, its city comes from here, or is left out
@@ -25,15 +27,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from atlas.geo import reference
 from atlas.geo.counties import resolve_reference, sha256_file
 from atlas.geo.duck import connect
 
 if TYPE_CHECKING:
     import duckdb
 
-PLACE_POLYGONS_ZIP = Path("reference/census/cb_2025_us_place_500k.zip")
-PLACE_POLYGONS_SHA256 = "ce0e4019ecd4123d03d53aaa936eed0459b82e3e14b89a3dcd4d5e8b3308627d"
-PLACE_POLYGONS_BYTES = 23_057_021
+# The pin lives in atlas.geo.reference (the file is downloaded on first use); these name it.
+PLACE_POLYGONS_SHA256 = reference.PLACE_POLYGONS.sha256
+PLACE_POLYGONS_BYTES = reference.PLACE_POLYGONS.size
 PLACE_POLYGONS_SHP = "cb_2025_us_place_500k.shp"
 # LSAD codes of places that are not municipalities: census designated place, comunidad, zona urbana.
 UNINCORPORATED_LSAD = frozenset({"57", "55", "62"})
@@ -75,16 +78,19 @@ class PlaceIndex:
         self._places = places
 
     @classmethod
-    def load(cls, path: Path = PLACE_POLYGONS_ZIP, *, verify_sha256: bool = True) -> PlaceIndex:
-        """Load a place file: PLACE_POLYGONS_ZIP, checked against PLACE_POLYGONS_SHA256 first, or
-        (verify_sha256=False, for test fixtures) any zip whose shapefile is named after it."""
+    def load(cls, path: Path, *, verify_sha256: bool = True) -> PlaceIndex:
+        """Load a place file: the Census file, checked against its pin
+        (atlas.geo.reference.PLACE_POLYGONS) first, or (verify_sha256=False, for test fixtures)
+        any zip whose shapefile is named after it. ImportContext.places() finds or downloads the
+        Census file."""
         path = resolve_reference(path)
         if not path.exists():
             raise FileNotFoundError(f"place file not found: {path}")
         if verify_sha256:
             actual = sha256_file(path)
-            if actual != PLACE_POLYGONS_SHA256:
-                raise ValueError(f"{path}: sha256 {actual} != expected {PLACE_POLYGONS_SHA256}")
+            expected = reference.PLACE_POLYGONS.sha256
+            if actual != expected:
+                raise ValueError(f"{path}: sha256 {actual} != expected {expected}")
             shp = PLACE_POLYGONS_SHP
         else:
             shp = f"{path.stem}.shp"

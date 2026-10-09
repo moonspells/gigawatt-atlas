@@ -68,6 +68,13 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
         default=COUNTIES_ZIP,
         help="county polygons for county FIPS and the geo rule (default: the 1:500,000 file)",
     )
+    parser.add_argument(
+        "--places",
+        type=Path,
+        default=None,
+        help="the Census place polygons (cb_2025_us_place_500k.zip, checked against its pin); "
+        "default: the copy in --cache-dir, downloaded on first use",
+    )
     parser.add_argument("--now", type=_aware, default=None, help="ISO 8601 with a time zone")
     parser.add_argument("--dry-run", action="store_true", help="write nothing")
     parser.add_argument(
@@ -103,6 +110,8 @@ def _run(args: argparse.Namespace) -> int:
             user_agent=user_agent,
             new_id=new_record_id,
             counties_path=args.counties,
+            places_path=args.places,
+            offline=args.offline,
         )
         try:
             result = importer.run(ctx, args)
