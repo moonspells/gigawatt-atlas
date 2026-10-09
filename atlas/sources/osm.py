@@ -788,6 +788,44 @@ class _CapacityFrom:
     stated: list[OsmObject]
 
 
+def _it_above_input(
+    cluster: Cluster,
+    ordered: Sequence[OsmObject],
+    values: dict[str, float | None],
+    summed: dict[str, list[OsmObject]],
+    parsed: dict[str, dict[str, float]],
+    review: list[ReviewItem],
+) -> None:
+    """An IT load cannot exceed the facility's input: when the summed it_power exceeds the summed
+    input:electricity, or a member's it_power exceeds its own input:electricity, one tag is wrong
+    and neither total is published (a `conflict` item; mw_as_stated keeps both tags)."""
+    it, fac = parsed.get("it_mw", {}), parsed.get("facility_mw", {})
+    wrong = [m for m in ordered if m.ref in it and m.ref in fac and it[m.ref] > fac[m.ref]]
+    it_mw, facility_mw = values.get("it_mw"), values.get("facility_mw")
+    totals_wrong = it_mw is not None and facility_mw is not None and it_mw > facility_mw
+    if totals_wrong:  # the totals disagree: every member with a power tag is in doubt
+        wrong = [m for m in ordered if m.ref in it or m.ref in fac]
+    elif wrong:  # a member's own tags disagree: the figures are those members'
+        it_mw = round(sum(it[m.ref] for m in wrong), 3)
+        facility_mw = round(sum(fac[m.ref] for m in wrong), 3)
+    else:
+        return
+    refs = [m.ref for m in wrong]
+    review.append(
+        _review(
+            "conflict",
+            f"OSM it_power ({it_mw:g} MW) exceeds input:electricity ({facility_mw:g} MW) on "
+            f"{', '.join(refs)}: IT load cannot exceed the facility's input, so one tag is wrong "
+            "and neither is published; mw_as_stated keeps both",
+            external_id=cluster.representative.ref,
+            data={"it_mw": it_mw, "facility_mw": facility_mw, "members": list(refs)},
+        )
+    )
+    for _, field_name in POWER_TAGS:
+        values[field_name] = None
+        summed.pop(field_name, None)
+
+
 def _capacity(
     cluster: Cluster, ordered: Sequence[OsmObject], review: list[ReviewItem]
 ) -> _CapacityFrom:
@@ -797,9 +835,10 @@ def _capacity(
     stated: list[str] = []
     summed: dict[str, list[OsmObject]] = {}
     stated_members: dict[str, OsmObject] = {}
+    parsed_by_field: dict[str, dict[str, float]] = {}
     for tag, field_name in POWER_TAGS:
         raw: list[str] = []
-        parsed: dict[str, float] = {}
+        parsed = parsed_by_field.setdefault(field_name, {})
         for m in ordered:
             value = m.tags.get(tag)
             if not value:
@@ -834,6 +873,7 @@ def _capacity(
             total = sum(parsed[m.ref] for m in buildings)
             summed[field_name] = buildings
         values[field_name] = round(total, 3) if total is not None and total <= _MAX_MW else None
+    _it_above_input(cluster, ordered, values, summed, parsed_by_field, review)
     capacity = Capacity(
         it_mw=values["it_mw"],
         facility_mw=values["facility_mw"],
@@ -2425,7 +2465,7 @@ class OsmImporter:
     match_key = "osm"
     owned_external_keys = ("osm", "pnnl_im3")
     review_sources = ("osm", "pnnl")
-    version = "3"
+    version = "4"
     help = (
         "OpenStreetMap data centers via Overpass, dissolved into campuses, checked against PNNL IM3"
     )

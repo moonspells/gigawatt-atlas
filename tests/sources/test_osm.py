@@ -393,8 +393,10 @@ def test_campus_record(built: BuildResult) -> None:
     # addr:city=Ashburn is the postal city; without the place polygons there is no city.
     assert (loc.street, loc.city, loc.postcode) == (None, None, "20147")
 
-    assert r.capacity.it_mw == 245.0  # 45 + 47 + 28 + 59 + 28 + 38
-    assert r.capacity.facility_mw == 260.0  # 45 + 45 + 32.5 + 65 + 32.5 + 40
+    # IAD-79 is tagged it_power 47 MW on input:electricity 45 MW. An IT load cannot exceed the
+    # facility's input, so one of its tags is wrong and neither total (245 and 260 MW) is
+    # published (fix round 5, n20): a conflict item names it, and mw_as_stated keeps every tag.
+    assert r.capacity.it_mw is None and r.capacity.facility_mw is None
     assert r.capacity.mw_as_stated == (
         "OSM it_power: Amazon IAD-78 45 MW; Amazon IAD-79 47 MW; Amazon IAD-71 28 MW; "
         "Amazon IAD-50 59 MW; Amazon IAD-60 28 MW; Amazon IAD-80 38 MW | "
@@ -481,10 +483,12 @@ def test_campus_record(built: BuildResult) -> None:
     assert s2.supports == ["/site"]
 
     meta = {k: (v.confidence, v.method, v.source_ids) for k, v in r.field_meta.items()}
-    buildings_sids = [member_sid[ref] for ref in AWS_REFS[2:]]
+    (conflict,) = [i for i in built.review if i.kind == "conflict"]
+    assert (conflict.external_id, conflict.data) == (
+        "way/460053030",
+        {"it_mw": 47.0, "facility_mw": 45.0, "members": ["way/463571876"]},
+    )
     assert meta == {
-        "/capacity/facility_mw": (0.7, "imported", buildings_sids),
-        "/capacity/it_mw": (0.7, "imported", buildings_sids),
         "/location/county_fips": (0.9, "derived", []),
         "/status": (0.6, "imported", sorted(member_sid.values(), key=lambda s: int(s[1:]))),
     }
@@ -648,6 +652,7 @@ def test_metrics(built: BuildResult) -> None:
         "pnnl_match_rate": 0.9412,
     }
     assert sorted((i.source, i.kind) for i in built.review) == [
+        ("osm", "conflict"),  # IAD-79: it_power 47 MW above input:electricity 45 MW
         ("osm", "out_of_scope"),
         ("osm", "unverified_upstream"),  # start_date on the AWS campus
         ("osm", "unverified_upstream"),  # start_date=2017 on Equinix DC12
@@ -748,6 +753,74 @@ def test_county_is_the_representatives(counties: CountyIndex) -> None:
     # mean point that no county contains.
     assert (loc.lat, loc.lon) == (round(big.lat, 7), round(big.lon, 7))
     assert loc.county_fips == "51107"
+
+
+def test_it_load_above_the_input_publishes_neither(counties: CountyIndex) -> None:
+    """Fix round 5 n20: ways 701930929 and 701930930 each carry it_power=47 MW and
+    input:electricity=40 MW, and the record published it_mw 94 above facility_mw 80. An IT load
+    cannot exceed the facility's input, so one tag is wrong: neither total is published,
+    mw_as_stated keeps both tags and one conflict item names the members."""
+    a = building(
+        "way/1",
+        0,
+        0,
+        name="Hall A",
+        operator="Example",
+        it_power="47 MW",
+        input__electricity="40 MW",
+    )
+    b = building(
+        "way/2",
+        0,
+        100,
+        name="Hall B",
+        operator="Example",
+        it_power="47 MW",
+        input__electricity="40 MW",
+    )
+    result = build(counties, [a, b], with_pnnl=False)
+    (cand,) = result.candidates
+    cap = cand.record.capacity
+    assert cap.it_mw is None and cap.facility_mw is None
+    assert cap.mw_as_stated == (
+        "OSM it_power: Hall A 47 MW; Hall B 47 MW | OSM input:electricity: Hall A 40 MW; Hall B 40 MW"
+    )
+    assert "/capacity/it_mw" not in cand.record.field_meta
+    assert "/capacity/facility_mw" not in cand.record.field_meta
+    (item,) = [i for i in result.review if i.kind == "conflict"]
+    assert item.data == {"it_mw": 94.0, "facility_mw": 80.0, "members": ["way/1", "way/2"]}
+    assert "IT load cannot exceed the facility's input" in item.reason
+
+    # The totals agree but one building's own tags do not: that building's figures are named.
+    c = building(
+        "way/3",
+        0,
+        100,
+        name="Hall C",
+        operator="Example",
+        it_power="10 MW",
+        input__electricity="100 MW",
+    )
+    result = build(counties, [a, c], with_pnnl=False)
+    (cand,) = result.candidates
+    assert cand.record.capacity.it_mw is None and cand.record.capacity.facility_mw is None
+    (item,) = [i for i in result.review if i.kind == "conflict"]
+    assert item.data == {"it_mw": 47.0, "facility_mw": 40.0, "members": ["way/1"]}
+
+    # Tags that agree publish both totals and file nothing.
+    d = building(
+        "way/4",
+        0,
+        100,
+        name="Hall D",
+        operator="Example",
+        it_power="30 MW",
+        input__electricity="40 MW",
+    )
+    result = build(counties, [c, d], with_pnnl=False)
+    (cand,) = result.candidates
+    assert (cand.record.capacity.it_mw, cand.record.capacity.facility_mw) == (40.0, 140.0)
+    assert [i for i in result.review if i.kind == "conflict"] == []
 
 
 def test_power_units(counties: CountyIndex) -> None:
@@ -916,7 +989,7 @@ def test_importer_is_discovered() -> None:
     assert importer.match_key == "osm"
     assert importer.owned_external_keys == ("osm", "pnnl_im3")
     assert importer.review_sources == ("osm", "pnnl")
-    assert importer.version == "3"  # 3: the second seed check's mapping (2026-10-09)
+    assert importer.version == "4"  # 4: fix round 5 (campus joins, citations, IT above input)
 
 
 def parse_args(*argv: str) -> argparse.Namespace:

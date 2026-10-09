@@ -490,9 +490,12 @@ clusters join a site that names a data center).
 apart). Values are "N MW"; "kW", "GW" and a bare number (read as MW) are accepted. Anything else,
 or a value outside (0, 10000] MW, is a `unit_parse` review item. A value is summed over the building
 and point members only when every one of them has a usable value (a campus-level tag on the campus
-object would be used instead); otherwise the field is null. `mw_as_stated` always lists the raw
-tags, for example "OSM it_power: Amazon IAD-78 45 MW; Amazon IAD-79 47 MW; Amazon IAD-80 38 MW |
-OSM input:electricity: …". `field_meta["/capacity/it_mw"]` and `["/capacity/facility_mw"]` =
+object would be used instead); otherwise the field is null. An IT load cannot exceed the
+facility's input: when the summed `it_power` exceeds the summed `input:electricity`, or one
+member's `it_power` exceeds its own `input:electricity`, one tag is wrong, so neither field is set
+and a `conflict` item names the members (ways 701930929 and 701930930, 47 MW IT on 40 MW input
+each). `mw_as_stated` always lists the raw tags, for example "OSM it_power: Amazon IAD-78 45 MW;
+Amazon IAD-79 47 MW; Amazon IAD-80 38 MW | OSM input:electricity: …". `field_meta["/capacity/it_mw"]` and `["/capacity/facility_mw"]` =
 0.70, `imported`, citing the members whose tags were summed, when set; every member with a power
 tag supports `/capacity/mw_as_stated`. Every value seen in the US data was "N MW".
 
@@ -662,7 +665,7 @@ warning.
 | `osm.jsonl` | `missing_location` | an element without a position, or a cluster no Census county contains |
 | `osm.jsonl` | `unknown_status` | a held cluster with no status: a site polygon with no data center object inside, or no member tag the crosswalk knows |
 | `osm.jsonl` | `unverified_upstream` | a `start_date` not used as a date; a position OSM calls approximate; a held cluster planned only in OSM, with no name and no operator; an operator tag that names a general contractor (not used); two operators one letter apart, read as one; buildings of one record with one numbered name and different statuses (way 1560827941, under construction, and the operating way 1188691868 are both "NTT VA8" once the override gives the second its name back; Stack Infrastructure's four "POR03" ways) |
-| `osm.jsonl` | `conflict` | an `opening_date` that has passed while OSM still tags the site as not operating (not used); a held cluster of a site OSM names two ways (section 5) |
+| `osm.jsonl` | `conflict` | an `opening_date` that has passed while OSM still tags the site as not operating (not used); a held cluster of a site OSM names two ways (section 5); an `it_power` above the `input:electricity` it is drawn from (neither is published; `data.it_mw`, `facility_mw`, `members`) |
 | `osm.jsonl` | `possible_duplicate` | records with the same canonical name chained within 1 km (one item per group); an object inside a campus or site that has no building of its own, or lists its house number, or a node inside a building, whose operator disagrees; an area without an operator that does not hold all its box covers; a held unnamed building drawn over another, or a member drawn over another of its own record (left out of `buildings[]`); a cluster held after building (an area its buildings contradict, the smaller side of a county line, a hall of a development mapped hall by hall; section 5); two records of one operator that a series, a street or a web page links, and a lone building beside another operator's row (section 5) |
 | `osm.jsonl` | `county_mismatch` | a record whose site outline holds members across a county line (they are named; the record has its representative's county) |
 | `osm.jsonl` | `invalid` | a cluster that does not fit the record schema (for example a point in Guam, whose longitude the schema does not accept) |
