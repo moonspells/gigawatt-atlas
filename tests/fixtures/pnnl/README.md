@@ -108,3 +108,13 @@ it), verbatim under its header: the original file's features 91, 191, 971, 1000,
 - 91: Fiberhub LAS1, a point row at the old position of OSM node 13311012216;
 - 191: "Verizon Wireline Network Building", a building row that no data center element of the
   fixture takes (an `unmatched` item).
+
+## `centroids-fix4.geojson`
+
+2 features of the same web-map file (same SHA-256 as above, as the second seed import of
+2026-10-09 read it), verbatim under its header: the original file's features 1356 and 1368
+(0-based), the campus rows "Amazon New Albany: Jug and Beach Road" (1,524,640 sq ft, 35.0 acres)
+and "Meta Cheyenne Data Center" (11,352,010 sq ft, 260.6 acres). They go with
+`tests/fixtures/osm/overpass-fix4.json`: the first measures another polygon than the 113.7-acre
+outline OSM has now, and OSM calls the second's boundary "very approximate", so neither gives an
+acreage (`tests/sources/test_osm_fix4.py`).

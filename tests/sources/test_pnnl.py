@@ -392,7 +392,8 @@ def test_county_mismatch_by_key(counties: CountyIndex) -> None:
 def importer_args(*argv: str) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     OsmImporter().add_arguments(parser)
-    return parser.parse_args(argv)
+    no_overrides = FIXTURES / "osm" / "overrides-empty.json"  # fixtures lack the committed refs
+    return parser.parse_args([*argv, "--overrides", str(no_overrides)])
 
 
 def test_run_reports_match_rate(

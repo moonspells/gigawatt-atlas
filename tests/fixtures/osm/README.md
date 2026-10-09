@@ -1,7 +1,8 @@
 # OpenStreetMap test fixtures
 
-`overpass-sample.json` and `overpass-cases.json` are small extracts of OpenStreetMap data for the
-tests of `atlas/sources/osm.py` and `atlas/dissolve.py`.
+`overpass-sample.json`, `overpass-cases.json`, `overpass-seed-check.json` and
+`overpass-fix4.json` are small extracts of OpenStreetMap data for the tests of
+`atlas/sources/osm.py` and `atlas/dissolve.py`.
 
 **© OpenStreetMap contributors. Available under the Open Database License 1.0
 (<https://www.openstreetmap.org/copyright>).** The elements and their tags are verbatim; only the
@@ -100,3 +101,38 @@ and id; the `version`, `generator` and `osm3s` header is the seed response's.
 | A campus whose representative has no address | QTS Manassas node 14209729093, ways 1090837713, 1134911642, 1287260558, 1464257784 |
 | A node that moved after PNNL took its position | Fiberhub LAS1, node 13311012216 |
 | A postal city that is not the place of the point | Flexential Atlanta - Norcross, way 392324240 |
+
+## `overpass-fix4.json`
+
+176 elements copied verbatim, one per line under the `version`, `generator` and `osm3s` header,
+from the second seed import's Overpass response, which
+`https://maps.mail.ru/osm/tools/overpass/api/interpreter` returned on 2026-10-09 for the query of
+that day (`osm3s.timestamp_osm_base` 2026-10-09T09:47:46Z, 2,062 elements, SHA-256
+`b0fc73d78f3494d8fd1cf56b0ef0b8911578e7e13ccc98f3b5895aac1f40c234`). Elements are sorted by type
+and id; way 521300038 comes twice, as in the response (from the first statement with `out tags
+bb`, and from the second with its geometry). Each group is a case the second seed check found
+(`tests/sources/test_osm_fix4.py`; the finding numbers are in the tests), and every element that
+`config/overrides/osm.json` names is here, so the tests show each entry's effect:
+
+| Case | Elements |
+|---|---|
+| A post office's operator on the building that holds CoreSite LA2 | way 30666790, node 13042311881 |
+| One building's owner on a six-building campus | Equinix DC10, DC12, DC15, DC16, DC17 ways and the DC18 node |
+| Sibling names | KOMO Plaza East and West (ways 417682780, 417682781); PowerHouse Pacific Buildings 1-3 (ways 1534356804, 1534356805, 1544360250); EAT12-EAT14 (ways 1173822721-1173822723) |
+| A polygon whose buildings contradict its operator, and a site OSM names two ways | Microsoft way 897226569 and AWS ways 897226574, 897226575, 1301654223, 1301654224; STACK way 1344901566, node 14189562575, AWS-tagged ways 1344901567, 1344901568 |
+| Lists of house numbers and of streets | Digital Realty PDX10 way 328702750; way 1556736805 (FM56;County Road 3610A) |
+| Unnamed large halls, and a development mapped hall by hall | Stream San Antonio III ways 1432637060-1432637062; Prince William ways 1509985717, 1561790221; QTS Atlanta ways 1566676867, 1566676868; the 40 Abilene halls, ways 1472056705-1472056714 and 1530966366-1530966395 |
+| Names that imply an operator | the eleven Compass Data Center ways at Red Oak (850965775, 1426525212-1426525221) and Compass IAD IE (way 1387391201, operator Compass Datacenters, which makes "compass" an operator's word); Google Leesburg Building 3 way 1460776174 with Google ways 706726088, 710070925, 844374689; CyrusOne San Antonio II-IV ways 509611438, 509611439, 1121592786 |
+| One name and one operator within 500 m | QTS ways 1132632705, 1315636714 (Phoenix) and 1510517635, 1510517636 (Fayette County); the 18 Google Council Bluffs ways 1073720208-1073720221, 1287260560, 1287260561, 1565614265, 1565614266 |
+| A contractor's operator tag, a one-letter typo, a county line | HITT way 1194169753, Digital Realty IAD51 way 1561771300 and IAD53 way 1269259655, AWS ways 996899486, 996899487, 1227612684; CyrysOne way 1556736879 and CyrusOne ways 1556736877, 1556736878, 1556736880 |
+| Containment in an outline across a county line | Microsoft Texas Research Park ways 521300038, 639176155, 639176157, 1010260675-1010260677, 1533350872; Google New Albany site way 844391357 with ways 844391358, 1222007663, 1252196811, 1252196812, 1375443893, 1386016632, 1386016633, 1427613543 |
+| No acreage from an approximate or another boundary | Meta Cheyenne site way 1455907959 and ways 1485867768, 1485867769; Amazon New Albany site way 1281982572 and ways 1386016627, 1386016628 |
+| An area without an operator over two operators | Digital Loudoun Plaza ways 1020953454, 1020953461 with Digital Realty ways 300969614, 300969616, 300969617, 300969619, 597970806, 597970809, 597970811, 597970813 and AWS ways 300969615, 460175672 |
+| The scope screen | Compute North way 1092757323 (`resource=cryptocurrency`); Duke's lab node 10567817971; Myndshift Technologies way 836947535 (`healthcare:speciality`); Old Main way 42000820 (`amenity=university`) |
+| The committed overrides | node 10780794741 (630 3rd Street); way 293211687 with Sabey's Intergate ways 205724881, 205724885, 293211683, 293211686, 337126739, 337126741, 337126742; ways 439365340, 460212563, 635022480 |
+
+## `overrides-empty.json`
+
+An empty overrides file (`{}`): the tests that run the importer on the other fixtures pass it with
+`--overrides`, because the committed `config/overrides/osm.json` names elements those fixtures do
+not have, and an unknown ref stops the import.

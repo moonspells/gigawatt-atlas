@@ -1,0 +1,48 @@
+{
+ "type": "FeatureCollection",
+ "name": "im3_datacenter_centroids",
+ "crs": {
+  "type": "name",
+  "properties": {
+   "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+  }
+ },
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "state_abb": "OH",
+    "county": "Licking County",
+    "operator": null,
+    "name": "Amazon New Albany: Jug and Beach Road",
+    "sqft": 1524640.0,
+    "type": "campus"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -82.75147401619341,
+     40.09907370356526
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "state_abb": "WY",
+    "county": "Laramie County",
+    "operator": "Meta",
+    "name": "Meta Cheyenne Data Center",
+    "sqft": 11352010.0,
+    "type": "campus"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -104.8254975706002,
+     41.07790345548927
+    ]
+   }
+  }
+ ]
+}
