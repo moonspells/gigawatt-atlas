@@ -14,7 +14,9 @@ import httpx
 import pytest
 
 from atlas.geo.counties import CountyIndex
+from atlas.geo.places import PlaceIndex
 from atlas.geocode import (
+    CENSUS_LONG_RANGE,
     CENSUS_MAX_ADDRESS,
     COUNTY_CHECKED_PRECISIONS,
     PLACES_ZIP,
@@ -24,6 +26,7 @@ from atlas.geocode import (
     GeocoderError,
     GeocodeResult,
     clean_address,
+    cousub_base_name,
     geocode,
     house_number,
     normalize_place,
@@ -39,6 +42,11 @@ from atlas.schema.record import FacilityRecord
 from atlas.validate import validate_record
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "census"
+# More recorded responses, from the seed import of 2026-10-08 (tests/fixtures/geocode/README.md).
+GEOCODE_FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "geocode"
+SEED_FIXTURES = GEOCODE_FIXTURES / "census"
+PLACES_SAMPLE = GEOCODE_FIXTURES / "places" / "places_sample.zip"
+COUSUBS_SAMPLE = GEOCODE_FIXTURES / "gazetteer" / "2025_Gaz_cousubs_sample.zip"
 TULANE = "5420 Tulane Rd, Memphis, TN 38109"
 HOLLY_RIDGE = "Holly Ridge, LA 71269"
 ROSEMOUNT = "1772-2396 145th St, Rosemount, MN 55068"
@@ -47,7 +55,8 @@ CENSUS_HOST = "geocoding.geo.census.gov"
 
 def recorded(address: str) -> bytes:
     digest = hashlib.sha256(address.encode("utf-8")).hexdigest()
-    return (FIXTURES / f"{digest}.json").read_bytes()
+    path = FIXTURES / f"{digest}.json"
+    return (path if path.exists() else SEED_FIXTURES / f"{digest}.json").read_bytes()
 
 
 class CensusServer:
@@ -77,6 +86,18 @@ class CensusServer:
 @pytest.fixture(scope="module")
 def gazetteer() -> Gazetteer:
     return Gazetteer.load()
+
+
+@pytest.fixture(scope="module")
+def places() -> Iterator[PlaceIndex]:
+    index = PlaceIndex.load(PLACES_SAMPLE, verify_sha256=False)
+    yield index
+    index.close()
+
+
+@pytest.fixture(scope="module")
+def gazetteer_with_cousubs() -> Gazetteer:
+    return Gazetteer.load(cousub_zip=COUSUBS_SAMPLE, verify_sha256=False)
 
 
 @pytest.fixture
@@ -227,6 +248,41 @@ def test_gazetteer_checks_the_sha256(tmp_path: Path, repo_root: Path) -> None:
         Gazetteer.load(bad)
     with pytest.raises(FileNotFoundError):
         Gazetteer.load(tmp_path / "missing.zip")
+    # The county subdivision file is checked as well: the sample is not the Census file.
+    with pytest.raises(ValueError, match="sha256"):
+        Gazetteer.load(cousub_zip=COUSUBS_SAMPLE)
+
+
+def test_gazetteer_county_subdivisions(gazetteer_with_cousubs: Gazetteer) -> None:
+    g = gazetteer_with_cousubs
+    assert g.cousub_count == 15 and g.place_count == 32_350
+    bloomfield = g.cousub_entry("CT", "Bloomfield")
+    assert bloomfield is not None and (bloomfield.name, bloomfield.county_fips) == (
+        "Bloomfield town",
+        "09110",  # Capitol Planning Region
+    )
+    assert g.cousub_entry("ct", "Bloomfield Town") == bloomfield
+    assert g.cousub_entry("CT", "Hartford") is not None  # a town consolidated with its city (C)
+    # Five Salem townships in Pennsylvania: ambiguous, unless the county says which.
+    assert g.cousub_entry("PA", "Salem Township") is None
+    salem = g.cousub_entry("PA", "Salem Township", "42079")
+    assert salem is not None and salem.base_name == "Salem"
+    # Statistical (CCD), nonfunctioning (precinct) and fictitious (village) entries are not used.
+    assert g.cousub_entry("KY", "Bloomfield") is None
+    assert g.cousub_entry("IL", "Bloomfield") is None
+    assert g.cousub_entry("WI", "Bloomfield") is None  # two Bloomfield towns
+    assert (cousub_base_name("Bloomfield charter township"), cousub_base_name("Gore")) == (
+        "Bloomfield",
+        "Gore",
+    )
+    assert Gazetteer.load().cousub_count == 0  # not loaded unless asked for
+    # has_locality: what an importer may send as GeocodeRequest.locality.
+    assert g.has_locality("CT", "Bloomfield") and not Gazetteer.load().has_locality(
+        "CT", "Bloomfield"
+    )
+    assert g.has_locality("WY", "Cheyenne")  # a place
+    assert not g.has_locality("PA", "Salem Township")  # five of them
+    assert g.has_locality("PA", "Salem Township", "42079")
 
 
 # ---------------------------------------------------------------------------- Census Geocoder
@@ -434,10 +490,56 @@ def test_step2_census_address_precision(
         "Shelby",
     )
     assert (result.lat, result.lon) == (34.999488, -90.042976)
-    assert (result.street, result.city, result.postcode) == ("5420 Tulane Rd", "Memphis", "38109")
+    # The match's MEMPHIS is the USPS city; without the place polygons no city is named.
+    assert (result.street, result.city, result.postcode) == ("5420 Tulane Rd", None, "38109")
     assert result.matched_address == "5420 TULANE RD, MEMPHIS, TN, 38109"
     assert result.confidence == 0.90
     assert_rule5(result, counties)
+
+
+@pytest.mark.parametrize(
+    ("address", "city", "precision"),
+    [
+        ("5420 Tulane Rd, Memphis, TN 38109", "Memphis", "address"),
+        # QTS Cedar Rapids: USPS city FAIRFAX; the point is in Cedar Rapids city, but 5 m from its
+        # generalized line, too close to name it: no city (the record names Linn County).
+        ("6200 76th Ave SW, Fairfax, IA 52228", None, "address"),
+        # OpenAI Stargate Lordstown: USPS city WARREN, the point in Lordstown village.
+        ("2300 Hallock Young Rd, Warren, OH 44481", "Lordstown", "address"),
+        # STACK NVA02: USPS city MANASSAS, the point in Innovation CDP, Prince William County.
+        ("9590 Hornbaker Rd, Manassas, VA 20109", "Innovation", "street"),
+        # Google Omaha: USPS city OMAHA, the point in no place (Union precinct, Douglas County).
+        ("11110 State St, Omaha, NE 68142", None, "address"),
+    ],
+)
+def test_step2_the_city_is_the_census_place_that_contains_the_point(
+    census_factory: Callable[..., Any],
+    gazetteer: Gazetteer,
+    counties: CountyIndex,
+    places: PlaceIndex,
+    address: str,
+    city: str | None,
+    precision: str,
+) -> None:
+    census, _ = census_factory()
+    req = parsed_request(address)
+    match = census.onelineaddress(req.oneline or "")
+    assert match is not None and match.city == (req.city or "").upper()  # the postal city
+    result = geocode(req, census=census, gazetteer=gazetteer, counties=counties, places=places)
+    assert result is not None
+    assert (result.method, result.precision, result.city) == ("census_geocoder", precision, city)
+    assert result.municipality is None
+    assert_rule5(result, counties)
+    bare = geocode(req, census=census, gazetteer=gazetteer, counties=counties)
+    assert (
+        bare is not None
+        and bare.city is None
+        and (bare.lat, bare.lon)
+        == (
+            result.lat,
+            result.lon,
+        )
+    )
 
 
 def parsed_request(text: str, *, county_name: str | None = None) -> GeocodeRequest:
@@ -523,13 +625,7 @@ def test_step2_a_stated_directional_or_qualifier_must_match(
     ("address", "street", "postcode"),
     [
         ("984 County Road 112, Afton, TX 79220", "984 Co Rd 112", "79220"),  # CO RD 112
-        ("500 8th St, Jeffersonville, IN 47130", "500 E 8th St", "47130"),  # E left out
         ("1435 Hwy 54 W, Fayetteville, GA 30214", "1435 State Rte 54", "30214"),  # STATE RTE 54
-        (  # the parser leaves the city in the street part
-            "1626 County Line Road Ridgeland, Mississippi",
-            "1626 E County Line Rd",
-            "39157",
-        ),
     ],
 )
 def test_step2_street_synonyms_and_parts_the_input_leaves_out(
@@ -550,6 +646,76 @@ def test_step2_street_synonyms_and_parts_the_input_leaves_out(
         postcode,
     )
     assert_rule5(result, counties)
+
+
+@pytest.mark.parametrize(
+    ("address", "expected"),
+    [
+        # Meta Jeffersonville: 500 E 8TH ST is downtown, 13 km from the campus (IDEM permit:
+        # 300 International Drive). The Gazetteer place of the request's city is used instead.
+        ("500 8th St, Jeffersonville, IN 47130", ("locality", "gazetteer", "Jeffersonville")),
+        # Amazon Ridgeland: 1626 E COUNTY LINE RD is 6.7 km from the campus on W County Line Rd.
+        # The parser leaves the city in the street part, so no later step applies.
+        ("1626 County Line Road Ridgeland, Mississippi", None),
+    ],
+)
+def test_step2_a_directional_the_input_does_not_state_is_another_street(
+    census_factory: Callable[..., Any],
+    gazetteer: Gazetteer,
+    counties: CountyIndex,
+    address: str,
+    expected: tuple[str, str, str] | None,
+) -> None:
+    census, server = census_factory()
+    req = parsed_request(address)
+    match = census.onelineaddress(req.oneline or "")
+    assert match is not None and match.street_parts[1][0] == "preDirection"
+    assert match.street_parts[1][1] == ("E",)  # the only match adds an E the input lacks
+    result = geocode(req, census=census, gazetteer=gazetteer, counties=counties)
+    assert len(server.calls) == 1
+    if expected is None:
+        assert result is None
+    else:
+        assert result is not None
+        assert (result.precision, result.method, result.city) == expected
+        assert result.street is None
+        assert_rule5(result, counties)
+
+
+def test_step2_a_long_address_range_gives_street_precision(
+    census_factory: Callable[..., Any], gazetteer: Gazetteer, counties: CountyIndex
+) -> None:
+    # Meta Kuna: 601 KUNA MORA RD is interpolated on the edge numbered 1229-1 beside Kuna's town
+    # centre; the campus is 12.2 km east on the same road. The house number agrees, but such a
+    # long edge is not address precision.
+    census, _ = census_factory()
+    req = parsed_request("601 Kuna Mora Rd, Kuna ID 83634")
+    match = census.onelineaddress(req.oneline or "")
+    assert match is not None and (match.range_from, match.range_to, match.range_span) == (
+        1229,
+        1,
+        1228,
+    )
+    assert match.house_number == "601"
+    result = geocode(req, census=census, gazetteer=gazetteer, counties=counties)
+    assert result is not None
+    assert (result.precision, result.method, result.street, result.confidence) == (
+        "street",
+        "census_geocoder",
+        "601 Kuna Mora Rd",
+        0.60,
+    )
+    assert result.county_fips == "16001"  # Ada County, from the point
+    assert_rule5(result, counties)
+    # A range of 1,000 numbers or more is long: 9590 Hornbaker Rd is on 9512-10542.
+    hornbaker = geocode(
+        parsed_request("9590 Hornbaker Rd, Manassas, VA 20109"),
+        census=census,
+        gazetteer=gazetteer,
+        counties=counties,
+    )
+    assert hornbaker is not None and hornbaker.precision == "street"
+    assert CENSUS_LONG_RANGE == 1000
 
 
 def test_street_tokens() -> None:
@@ -580,6 +746,141 @@ def test_step2_needs_a_state(
     assert req.state_abbr is None
     assert geocode(req, census=census, gazetteer=gazetteer, counties=counties) is None
     assert server.calls == []
+
+
+def postal_request(text: str, *, county_name: str | None = None) -> GeocodeRequest:
+    """An address whose city is only its postal city (no source states the place)."""
+    parsed = parse_address(text)
+    return GeocodeRequest(
+        parsed.state_abbr,
+        oneline=parsed.text,
+        street=parsed.street,
+        city=parsed.city,
+        postcode=parsed.postcode,
+        county_name=county_name or parsed.county_name,
+    )
+
+
+@pytest.mark.parametrize(
+    "address",
+    [
+        "1125 Electron Ave, Berwick, PA 18603",  # AWS Berwick: Berwick is in Columbia County
+        "7601 State Hwy 105, Trenton, SC 29847",  # Meta Aiken: Trenton is in Edgefield County
+        "15000 Lambda Drive, San Antonio, TX 78245",  # SAT40: 27 km from San Antonio's point
+    ],
+)
+def test_step3_a_postal_city_alone_gives_no_point(
+    census_factory: Callable[..., Any], gazetteer: Gazetteer, counties: CountyIndex, address: str
+) -> None:
+    census, server = census_factory()
+    req = postal_request(address)
+    assert req.city and req.locality is None and req.county_name is None
+    assert gazetteer.place(req.state_abbr or "", req.city) is not None  # the city is a place
+    assert geocode(req, census=census, gazetteer=gazetteer, counties=counties) is None
+    assert len(server.calls) == 1  # the Census had no match
+
+
+@pytest.mark.parametrize(
+    ("address", "county_name", "expected"),
+    [
+        # The site is in Luzerne County; Berwick's point is in Columbia: the county's point.
+        ("1125 Electron Ave, Berwick, PA 18603", "Luzerne County", ("county", "42079")),
+        # Meta Aiken is in Aiken County; Trenton's point is in Edgefield: the county's point.
+        ("7601 State Hwy 105, Trenton, SC 29847", "Aiken County", ("county", "45003")),
+        # A postal city inside the stated county gives its point, but never the city.
+        ("15000 Lambda Drive, San Antonio, TX 78245", "Bexar County", ("locality", "48029")),
+    ],
+)
+def test_step3_a_postal_city_gives_a_point_only_inside_a_stated_county(
+    census_factory: Callable[..., Any],
+    gazetteer: Gazetteer,
+    counties: CountyIndex,
+    address: str,
+    county_name: str,
+    expected: tuple[str, str],
+) -> None:
+    census, _ = census_factory()
+    req = postal_request(address, county_name=county_name)
+    result = geocode(req, census=census, gazetteer=gazetteer, counties=counties)
+    assert result is not None
+    assert (result.precision, result.county_fips) == expected
+    assert result.city is None and result.municipality is None
+    assert_rule5(result, counties)
+
+
+def test_step3_a_stated_place_still_names_the_city(
+    gazetteer: Gazetteer, counties: CountyIndex
+) -> None:
+    # AI GridWatch's "Trenton (Aiken County)": a place a source states. Trenton's point is in
+    # Edgefield County, so the county's point; a stated place inside the county names the city.
+    req = GeocodeRequest("SC", locality="Trenton", county_name="Aiken County")
+    result = geocode(req, census=None, gazetteer=gazetteer, counties=counties)
+    assert result is not None and (result.precision, result.county_fips) == ("county", "45003")
+    req = GeocodeRequest("SC", locality="Trenton", county_name="Edgefield County")
+    result = geocode(req, census=None, gazetteer=gazetteer, counties=counties)
+    assert result is not None and (result.precision, result.city) == ("locality", "Trenton")
+
+
+@pytest.mark.parametrize(
+    ("req", "expected"),
+    [
+        # Bloomfield, CT is a town: the Gazetteer's only place there is Blue Hills CDP, and the
+        # 2025 county file has planning regions, not Hartford County.
+        (
+            GeocodeRequest("CT", locality="Bloomfield"),
+            ("Bloomfield", "09110", 41.843772, -72.741002),
+        ),
+        (
+            GeocodeRequest("CT", locality="Bloomfield", county_name="Hartford County"),
+            ("Bloomfield", "09110", 41.843772, -72.741002),
+        ),
+        (
+            GeocodeRequest("PA", locality="Salem Township", county_name="Luzerne County"),
+            ("Salem", "42079", 41.105979, -76.183579),
+        ),
+    ],
+)
+def test_step3_a_county_subdivision_the_source_names(
+    gazetteer_with_cousubs: Gazetteer,
+    gazetteer: Gazetteer,
+    counties: CountyIndex,
+    req: GeocodeRequest,
+    expected: tuple[str, str, float, float],
+) -> None:
+    without = geocode(req, census=None, gazetteer=gazetteer, counties=counties)
+    if req.county_name == "Luzerne County":
+        assert without is not None and without.precision == "county"  # the county's point
+    else:
+        assert without is None  # the seed's geocode_failed for atlas-bloomfield-ct
+    result = geocode(req, census=None, gazetteer=gazetteer_with_cousubs, counties=counties)
+    assert result is not None
+    assert (result.precision, result.method, result.city) == ("locality", "gazetteer", None)
+    assert (result.municipality, result.county_fips, result.lat, result.lon) == expected
+    assert_rule5(result, counties)
+
+
+def test_step3_an_ambiguous_or_misplaced_county_subdivision_is_not_used(
+    gazetteer_with_cousubs: Gazetteer, counties: CountyIndex
+) -> None:
+    g = gazetteer_with_cousubs
+    # Five Salem townships and no county: nothing to place.
+    assert (
+        geocode(
+            GeocodeRequest("PA", locality="Salem Township"),
+            census=None,
+            gazetteer=g,
+            counties=counties,
+        )
+        is None
+    )
+    # Salem Township in a county that has none: the county's point.
+    result = geocode(
+        GeocodeRequest("PA", locality="Salem Township", county_name="Columbia County"),
+        census=None,
+        gazetteer=g,
+        counties=counties,
+    )
+    assert result is not None and (result.precision, result.municipality) == ("county", None)
 
 
 def test_step3_gazetteer_after_a_census_miss(

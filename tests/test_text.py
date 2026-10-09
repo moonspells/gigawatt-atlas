@@ -44,6 +44,8 @@ from atlas.text import (
         "Col\u00b7legi 512",
         "PIN 08 - 35 - 302 - 012 - 0000",
         "PIN 08 \u2013 35 \u2013 302 \u2013 012 \u2013 0000",
+        "PIN 08\u201435\u2014302\u2014012\u20140000",  # em dashes, written " - " for matching
+        "PIN 08 \u2014 35 \u2014 302 \u2014 012 \u2014 0000",
     ],
 )
 def test_no_false_positives(text: str) -> None:
@@ -90,6 +92,13 @@ def test_phone_numbers(text: str) -> None:
         "Call 571 \u2013 555 \u2013 0100",  # spaced en dash
         "Call (571) 555 - 0100",
         "Call 57\u03011-555-0100",  # a combining mark on a digit
+        # TO3-2: horizontal lines a reader takes for a dash
+        "Call 571\u2500555\u25000100",  # box drawings light horizontal
+        "Call 571\u2501555\u25010100",  # box drawings heavy horizontal
+        "Call 571\u23af555\u23af0100",  # horizontal line extension
+        "Call 571\u30fc555\u30fc0100",  # katakana prolonged sound mark
+        "Call 571\uff70555\uff700100",  # its halfwidth form
+        "Call 571\u2e3a555\u2e3a0100",  # two-em dash
     ],
 )
 def test_phone_numbers_with_unicode_separators(text: str) -> None:
@@ -101,16 +110,28 @@ def test_phone_numbers_with_unicode_separators(text: str) -> None:
     ("text", "number"),
     [
         ("call the office\u2014571-555-0100\u2014for tours", "571-555-0100"),
-        ("call the office\u2013571\u2013555\u20130100\u2013for tours", "571-555-0100"),
+        ("call the office\u2013571\u2013555\u20130100\u2013for tours", "571 - 555 - 0100"),
         ("Contact - 571-555-0100", "571-555-0100"),
         ("Call 571-555-0100 - 24 hours", "571-555-0100"),
         ("Call 571 \u2013 555 \u2013 0100 \u2013 24 hours", "571 - 555 - 0100"),
         ("Tel.-571-555-0100", "571-555-0100"),
+        # TO3-1: a number set off by a dash from a number before it (a800e95 found these).
+        ("Suite 5 - 571-555-0100", "571-555-0100"),
+        ("Suite 100 - 703-555-0123", "703-555-0123"),
+        ("Open 9-5 - (571) 555-0100", "(571) 555-0100"),
+        ("Unit 4- 571-555-0100", "571-555-0100"),
+        ("ext. 12 - 571.555.0100", "571.555.0100"),
+        ("Hours 24/7 \u2013 571 555 0100", "571 555 0100"),
+        ("Line 2 \u2014 571.555.0100", "571.555.0100"),
+        ("Building 2 \u2014 703-555-0123", "703-555-0123"),
+        ("Building 2\u2014571-555-0100", "571-555-0100"),
+        ("Call 571-555-0100\u20142nd floor", "571-555-0100"),
+        ("Call 571-555-0100\u201324/7", "571-555-0100"),
     ],
 )
 def test_phone_numbers_next_to_dash_punctuation(text: str, number: str) -> None:
-    """A dash between a word and the number is punctuation: folding em and en dashes to "-" must
-    not hide a number that the dash only sets off."""
+    """A dash between a word or a number and the phone number is punctuation: folding em and en
+    dashes must not hide a number that the dash only sets off."""
     assert find_personal_data(text) == [number]
 
 
@@ -127,6 +148,15 @@ def test_phone_numbers_next_to_dash_punctuation(text: str, number: str) -> None:
         "jane.doe@example\uff61com",  # halfwidth ideographic full stop
         "jane\u00b7doe@example.com",
         "jane\u2011doe@example.com",
+        # TO3-2: full stops and dots of other scripts
+        "jane.doe@example\u0589com",  # Armenian full stop
+        "jane.doe@example\u06d4com",  # Arabic full stop
+        "jane.doe@example\u1362com",  # Ethiopic full stop
+        "jane.doe@example\u1803com",  # Mongolian full stop
+        "jane.doe@example\u16ebcom",  # runic single punctuation
+        "jane.doe@example\u1427com",  # Canadian syllabics final middle dot
+        "jane.doe@example\ua78fcom",  # sinological dot
+        "jane.doe@example\u2e3ccom",  # stenographic full stop
     ],
 )
 def test_email_addresses_with_lookalike_characters(text: str) -> None:
@@ -247,6 +277,10 @@ def test_privacy_form() -> None:
     )
     assert privacy_form("plain ascii\ttext") == "plain ascii\ttext"
     assert find_personal_data("571-555\u200b-0100") == ["571-555-0100"]
+    # An em or en dash is written " - ", with a space added only on a side that has none.
+    assert privacy_form("Building 2\u2014571 and 2019\u20132024 \u2013 x\ufe58y") == (
+        "Building 2 - 571 and 2019 - 2024 - x - y"
+    )
 
 
 def test_normalize_name() -> None:

@@ -81,11 +81,32 @@ def test_privacy_sees_through_lookalike_characters(make_record: MakeRecord, note
     assert published == note and find_personal_data(published)
 
 
+@pytest.mark.parametrize(
+    "note",
+    [
+        "Suite 5 - 571-555-0100",
+        "Building 2 \u2014 703-555-0123",
+        "Building 2\u2014571-555-0100",
+        "Call 571-555-0100\u20142nd floor",
+    ],
+)
+def test_privacy_finds_a_number_set_off_from_a_number_by_a_dash(
+    make_record: MakeRecord, note: str
+) -> None:
+    """TO3-1: a dash after a suite or building number is punctuation, so the record does not pass
+    atlas validate (which publish runs) with the phone number in it."""
+    r = with_note(make_record, note)
+    assert issues_of(r) == [("privacy", "/status_history/0/note")]
+    published = public_record(r).status_history[0].note
+    assert published == note and find_personal_data(published)
+
+
 def test_privacy_keeps_unicode_ranges(make_record: MakeRecord) -> None:
     """Dashes in ranges and identifiers are not phone numbers."""
     r = with_note(
         make_record,
-        "Phases 1\u20133, 300\u2013600 MW, 2026\u20132027, PIN 08\u201135\u2011302\u2011012\u20110000",
+        "Phases 1\u20133, 300\u2013600 MW, 2026\u20132027, PIN 08\u201135\u2011302\u2011012\u20110000, "
+        "PIN 08\u201435\u2014302\u2014012\u20140000",
     )
     assert issues_of(r) == []
 

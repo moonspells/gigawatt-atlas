@@ -3,7 +3,8 @@
 An importer reads its upstream files and returns an ImportResult: candidate records (with
 PLACEHOLDER_ID), review items and metrics. apply_import matches candidates to stored records by
 external id, keeps what reviewers own, validates every record it would write, and writes the
-records, the review queue files and the import receipt.
+records, the review queue files and the import receipt. classify_source gives a cited link its
+source_type (07 §3.4) from its host, its path and its link text.
 """
 
 from __future__ import annotations
@@ -18,18 +19,20 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
+from urllib.parse import unquote, urlsplit
 
 from pydantic import AwareDatetime, Field, HttpUrl, JsonValue
 
 from atlas import __version__
 from atlas.jsonio import dumps_compact, dumps_pretty, record_json, write_text
-from atlas.schema.record import PLACEHOLDER_ID, AtlasModel, FacilityRecord
+from atlas.schema.record import PLACEHOLDER_ID, AtlasModel, FacilityRecord, SourceType
 from atlas.validate import validate_record
 
 if TYPE_CHECKING:
     import httpx
 
     from atlas.geo.counties import CountyIndex
+    from atlas.geo.places import PlaceIndex
     from atlas.net import FetchResult
     from atlas.store import RecordStore
 
@@ -62,6 +65,114 @@ COUNT_KEYS = (
 )
 DEFAULT_CACHE_DIR = Path(".cache/atlas")
 _SAFE_SEGMENT_RE = re.compile(r"[^A-Za-z0-9_.-]+")
+
+
+# ---------------------------------------------------------------------------- source types
+# Who published a link says less than what it links to: an SEC filing or a press release on an
+# investor-relations site, a council resolution on a city's document server, a permit stored on
+# Google Drive. classify_source reads, in order: the host, the path, and (on hosts that store other
+# people's documents or a company's investor pages) the link text.
+
+# Platforms that host local governments' agendas, codes, minutes and permit files.
+GOVERNMENT_HOST_MARKERS = (
+    "legistar",
+    "granicus",
+    "civicplus",
+    "civicweb",
+    "municode",
+    "ecode360",
+    "boarddocs",
+    "iqm2",
+    "novusagenda",
+    "primegov",
+    "escribemeetings",
+    "govonlinesaas",  # permit portals (Linn County Public Health's EasyAir)
+    "councildocuments",  # Fort Wayne City Council's document server
+)
+# Independent system operators and regional transmission organizations (07 §4.1).
+ISO_RTO_HOSTS = (
+    "misoenergy.org",
+    "pjm.com",
+    "ercot.com",
+    "caiso.com",
+    "iso-ne.com",
+    "nyiso.com",
+    "spp.org",
+)
+# Wires that publish companies' releases as written.
+NEWSWIRE_HOSTS = (
+    "prnewswire.com",
+    "globenewswire.com",
+    "businesswire.com",
+    "accessnewswire.com",
+    "newsfilecorp.com",
+)
+# Hosts that store documents uploaded by anyone: the link text says what the document is.
+DOCUMENT_HOSTS = (
+    "drive.google.com",
+    "docs.google.com",
+    "scribd.com",
+    "dropbox.com",
+    "dl.dropboxusercontent.com",
+    "static1.squarespace.com",
+)
+# An investor-relations site: ir.example.com, investors.example.com, investor.example.com.
+_IR_HOST_RE = re.compile(r"^(?:ir|investors?)\.")
+# EDGAR accession numbers (0001641172-25-013199) and investor sites' filing pages.
+_SEC_PATH_RE = re.compile(r"\b\d{10}-\d{2}-\d{6}\b|/sec-filings?/|/edgar/", re.I)
+_RELEASE_PATH_RE = re.compile(r"/(?:press-releases?|news-releases?|news-details|press)/", re.I)
+_SEC_TEXT_RE = re.compile(r"\bSEC\b|\b(?i:form\s*)?(?i:8-?K|10-?K|10-?Q|S-1|20-F|6-K|DEF\s?14A)\b")
+_RELEASE_TEXT_RE = re.compile(r"\bpress\s+release\b|\bnews\s+release\b", re.I)
+_GOVERNMENT_TEXT_RE = re.compile(
+    r"\bpermit(?:s|ting)?\b|\bordinance\b|\bresolution\b|\b(?:re)?zoning\b|\bcouncil\b"
+    r"|\bcommission\b|\bboard of (?:supervisors|commissioners)\b|\btax abatement\b",
+    re.I,
+)
+_ISO_TEXT_RE = re.compile(r"\b(?:MISO|PJM|ERCOT|CAISO|NYISO|ISO-NE|SPP)\b")
+
+
+def _host_is(host: str, domains: tuple[str, ...]) -> bool:
+    return any(host == d or host.endswith("." + d) for d in domains)
+
+
+def classify_source(url: str, title: str | None = None) -> SourceType:
+    """The source_type of a cited link (07 §3.4), from the host, the path and the link text.
+
+    - sec.gov, an EDGAR accession number in the path, or an investor site's sec-filings page:
+      sec_filing ("SEC 8k Filing" at ir.applieddigital.com/sec-filings/...).
+    - .gov, .us and .mil hosts, and the platforms in GOVERNMENT_HOST_MARKERS: government_record.
+    - ISO/RTO hosts: utility_or_iso_filing (cdn.misoenergy.org's new-load list).
+    - Newswires, and an investor site's press-release pages: company_release.
+    - On an investor site or a document store (Google Drive, Scribd), the link text decides: SEC
+      form names give sec_filing, "press release" company_release, an ISO name
+      utility_or_iso_filing, and permits, ordinances, resolutions, zoning, councils and
+      commissions government_record ("Air Construction Permit" on drive.google.com).
+    - Anything else is news. A news site's headline is not read: "County approves permit" there
+      is still news.
+    """
+    parts = urlsplit(url)
+    host = (parts.hostname or "").lower().removeprefix("www.")
+    path = unquote(parts.path or "")
+    text = title or ""
+    if _host_is(host, ("sec.gov",)) or _SEC_PATH_RE.search(path):
+        return "sec_filing"
+    if host.endswith((".gov", ".us", ".mil")) or any(m in host for m in GOVERNMENT_HOST_MARKERS):
+        return "government_record"
+    if _host_is(host, ISO_RTO_HOSTS):
+        return "utility_or_iso_filing"
+    investor_site = bool(_IR_HOST_RE.match(host))
+    if _host_is(host, NEWSWIRE_HOSTS) or (investor_site and _RELEASE_PATH_RE.search(path)):
+        return "company_release"
+    if investor_site or _host_is(host, DOCUMENT_HOSTS):
+        if _SEC_TEXT_RE.search(text):
+            return "sec_filing"
+        if _RELEASE_TEXT_RE.search(text) or investor_site:
+            return "company_release"
+        if _ISO_TEXT_RE.search(text):
+            return "utility_or_iso_filing"
+        if _GOVERNMENT_TEXT_RE.search(text):
+            return "government_record"
+    return "news"
 
 
 class InputSnapshot(AtlasModel):
@@ -139,6 +250,8 @@ class ImportContext:
         new_id: Callable[[], str],
         counties_path: Path | None = None,
         counties: CountyIndex | None = None,
+        places_path: Path | None = None,
+        places: PlaceIndex | None = None,
     ) -> None:
         if now.tzinfo is None:
             raise ValueError("ImportContext.now must be timezone-aware")
@@ -152,6 +265,8 @@ class ImportContext:
         self.new_id = new_id
         self._counties_path = counties_path
         self._counties = counties
+        self._places_path = places_path
+        self._places = places
 
     def counties(self) -> CountyIndex:
         """The county index, loaded once."""
@@ -160,6 +275,16 @@ class ImportContext:
 
             self._counties = CountyIndex.load(self._counties_path or COUNTIES_ZIP)
         return self._counties
+
+    def places(self) -> PlaceIndex:
+        """The Census place polygons (atlas.geo.places), loaded once: places.city_at(lat, lon,
+        state) is the city of a record that has a point and no stated place, and
+        geocode(..., places=ctx.places()) names a Census match's city by it."""
+        if self._places is None:
+            from atlas.geo.places import PLACE_POLYGONS_ZIP, PlaceIndex  # DuckDB on use
+
+            self._places = PlaceIndex.load(self._places_path or PLACE_POLYGONS_ZIP)
+        return self._places
 
     def raw_path(self, source: str, sha256: str, ext: str) -> Path:
         """.cache/atlas/raw/{source}/{sha256}.{ext}"""
