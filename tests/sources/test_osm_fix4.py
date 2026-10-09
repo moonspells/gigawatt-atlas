@@ -364,7 +364,7 @@ def test_the_committed_overrides_correct_stale_tags(run: ImportResult) -> None:
     assert burbank.canonical_name == "Centersquare data center (Los Angeles County, CA)"
     gi = record(run, "way/635022480")
     assert gi.canonical_name == "GI Partners data center (Fulton County, GA)"
-    assert run.metrics["overrides"] == 5
+    assert run.metrics["overrides"] == 12  # seven more of fix round 5 (test_osm_fix5.py)
 
 
 def write(tmp_path: Path, entries: Mapping[str, object]) -> Path:
@@ -426,7 +426,7 @@ def test_apply_overrides_replaces_and_removes_tags() -> None:
     entries = load_overrides(REPO_OVERRIDES)
     kept, dropped = apply_overrides(objects, entries)
     by_ref = {o.ref: o for o in kept}
-    assert dropped == []
+    assert [o.ref for o in dropped] == ["way/903642490"]  # the Family History Center
     assert by_ref["way/293211687"].tags["operator"] == "Sabey Data Centers"
     assert "operator:wikidata" not in by_ref["way/293211687"].tags
     assert "name" not in by_ref["way/439365340"].tags

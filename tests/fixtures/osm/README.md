@@ -104,7 +104,7 @@ and id; the `version`, `generator` and `osm3s` header is the seed response's.
 
 ## `overpass-fix4.json`
 
-176 elements copied verbatim, one per line under the `version`, `generator` and `osm3s` header,
+184 elements copied verbatim, one per line under the `version`, `generator` and `osm3s` header,
 from the second seed import's Overpass response, which
 `https://maps.mail.ru/osm/tools/overpass/api/interpreter` returned on 2026-10-09 for the query of
 that day (`osm3s.timestamp_osm_base` 2026-10-09T09:47:46Z, 2,062 elements, SHA-256
@@ -129,7 +129,7 @@ bb`, and from the second with its geometry). Each group is a case the second see
 | No acreage from an approximate or another boundary | Meta Cheyenne site way 1455907959 and ways 1485867768, 1485867769; Amazon New Albany site way 1281982572 and ways 1386016627, 1386016628 |
 | An area without an operator over two operators | Digital Loudoun Plaza ways 1020953454, 1020953461 with Digital Realty ways 300969614, 300969616, 300969617, 300969619, 597970806, 597970809, 597970811, 597970813 and AWS ways 300969615, 460175672 |
 | The scope screen | Compute North way 1092757323 (`resource=cryptocurrency`); Duke's lab node 10567817971; Myndshift Technologies way 836947535 (`healthcare:speciality`); Old Main way 42000820 (`amenity=university`) |
-| The committed overrides | node 10780794741 (630 3rd Street); way 293211687 with Sabey's Intergate ways 205724881, 205724885, 293211683, 293211686, 337126739, 337126741, 337126742; ways 439365340, 460212563, 635022480 |
+| The committed overrides | node 10780794741 (630 3rd Street); way 293211687 with Sabey's Intergate ways 205724881, 205724885, 293211683, 293211686, 337126739, 337126741, 337126742; ways 439365340, 460212563, 635022480; and the entries of fix round 5, added then from the same response: node 3732415309 with the Pittock Block, way 369452572; ways 138643160, 396296733, 440666998, 487170215, 903642490, 1188691868 |
 
 ## `overrides-empty.json`
 

@@ -348,3 +348,35 @@ def test_every_value_cites_the_element_that_states_it(run: ImportResult) -> None
 def test_operator_words_name_no_campus() -> None:
     objects, _ = parse_overpass(json.loads(FIX5.read_text(encoding="utf-8")))
     assert {"iron", "mountain", "cloudhq"} <= operator_words(objects)
+
+
+# ---------------------------------------------------------------------------- overrides
+
+
+def test_the_overrides_of_fix_round_5(run4: ImportResult) -> None:
+    """Record errors whose correction cites a source for a stale OSM name, operator or scope
+    (fix round 5), corrected by cited entries in config/overrides/osm.json."""
+    lynnwood = record(run4, "way/396296733")
+    assert lynnwood.canonical_name.startswith("Csquare Lynnwood SEA3 (")
+    assert [o.name for o in lynnwood.parties.operator] == ["Csquare"]
+    santa_ana = record(run4, "way/440666998")
+    assert santa_ana.canonical_name.startswith("Verizon data center (")
+    assert santa_ana.aliases == []
+    houston = record(run4, "way/487170215")
+    assert houston.canonical_name.startswith("Serverfarm data center (")
+    (op,) = houston.parties.operator
+    (cited,) = [s for s in houston.sources if s.id in op.source_ids]
+    assert cited.publisher == "Baxtel" and cited.quote_match == "human"
+    assert cited.quote is not None and "Serverfarm" in cited.quote
+    fhc = record(run4, "way/903642490")
+    assert fhc.scope == "out_of_scope"
+    (dropped,) = items(run4, "out_of_scope", "way/903642490")
+    assert "dropped from scope" in dropped.reason
+    ntt = record(run4, "way/1188691868")
+    assert [b.name for b in ntt.buildings] == ["NTT VA8"]
+    pittock = record(run4, "node/3732415309")
+    assert [o.name for o in pittock.parties.operator] == ["1547 Critical Systems Realty"]
+    assert pittock.canonical_name.startswith("1547 Critical Systems Realty Pittock Block (")
+    springfield = record(run4, "way/138643160")
+    assert springfield.canonical_name.startswith("5C Data Centers CMH01 (")
+    assert [o.name for o in springfield.parties.operator] == ["5C Data Centers"]
