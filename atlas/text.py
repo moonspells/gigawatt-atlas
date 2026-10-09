@@ -23,24 +23,46 @@ EMAIL_RE = re.compile(r"[\w.%+-]+@[\w.-]+\.[^\W\d_]{2,}")
 # US phone numbers with separators: (512) 555-0142, (571)555-0100, 512-555-0142, +1 512 555 0142,
 # (571) 555 - 0100. Digit runs without separators (TABS2026012091, ZIP 78245, house number 17420)
 # do not match, and neither does a 3-3-4 run inside a longer dashed number such as the Cook County
-# parcel PIN 08-35-302-012-0000 or 08 - 35 - 302 - 012 - 0000 (no digit, or digit and dash, just
-# before; no digit, or dash and digit, just after). A dash between a word and the number is
-# punctuation, so the number in "call the office\u2014571-555-0100\u2014for tours" is found.
-_PHONE_SEP = r"(?:\s?-\s?|[\s.])"
+# parcel PIN 08-35-302-012-0000 or 08 - 35 - 302 - 012 - 0000: never a digit, or a digit and a
+# dash, just before, nor a digit, or a dash and a digit, just after; and a number whose own
+# separators are spaced dashes (the spaced PIN's form) also not after a digit and a spaced dash.
+# So a dash that sets the number off from a word or from another number is punctuation: the
+# numbers in "Suite 5 - 571-555-0100", "Building 2 \u2014 703-555-0123" and "call the
+# office\u2014571-555-0100\u2014for tours" are found (privacy_form writes the em dash " - ").
+
+
+def _phone(sep: str) -> str:
+    return rf"(?:\+?1{sep}?)?(?:\(\d{{3}}\){sep}?|\d{{3}}{sep})\d{{3}}{sep}\d{{4}}"
+
+
 PHONE_RE = re.compile(
-    r"(?<!\d)(?<!\d-)(?<!\d\s-)(?<!\d-\s)(?<!\d\s-\s)"
-    rf"(?:\+?1{_PHONE_SEP}?)?(?:\(\d{{3}}\){_PHONE_SEP}?|\d{{3}}{_PHONE_SEP})"
-    rf"\d{{3}}{_PHONE_SEP}\d{{4}}(?!-?\d)"
+    r"(?<!\d)(?<!\d-)(?:"
+    + _phone(r"[\s.-]")
+    + r"|(?<!\d\s-)(?<!\d-\s)(?<!\d\s-\s)"
+    + _phone(r"(?:\s?-\s?|[\s.])")
+    + r")(?!-?\d)"
 )
 # What privacy_form writes as "-": every dash punctuation character (Unicode category Pd, among
 # them the hyphen U+2010, the non-breaking hyphen U+2011 that pages put in phone numbers so they
-# do not wrap, the figure, en and em dashes and the horizontal bar U+2012-U+2015) and these minus
-# signs and hyphens of other categories (NFKD already folds U+FE63 and U+FF0D to "-", and the
-# superscript and subscript minus to U+2212).
-_HYPHENS = frozenset("\u02d7\u2043\u2212\u2796")
-# What it writes as ".": middle dots, bullets, raised dots and the ideographic full stop (NFKD
-# has already made U+0387, U+FF61 and U+FF65 into U+00B7, U+3002 and U+30FB).
-_DOTS = frozenset("\u00b7\u2022\u2027\u2219\u22c5\u2e31\u2e33\u30fb\u3002")
+# do not wrap and the figure dash U+2012), these minus signs and hyphens of other categories (NFKD
+# already folds U+FE63 and U+FF0D to "-", and the superscript and subscript minus to U+2212), and
+# horizontal lines that read as a dash between digits (box drawing U+2500 and U+2501, U+23AF, and
+# the katakana prolonged sound mark U+30FC, which NFKD also makes of U+FF70).
+_HYPHENS = frozenset("\u02d7\u2043\u2212\u2796\u2500\u2501\u23af\u30fc")
+# Dashes that are punctuation, not hyphens: the en and em dashes, the horizontal bar and the two-
+# and three-em dashes (NFKD makes U+FE58, U+FE31 and U+FE32 into em and en dashes). privacy_form
+# writes them " - ", so "Building 2\u2014571-555-0100" and "571-555-0100\u20142nd floor" read
+# like "Building 2 - 571-555-0100", not like one dashed number, and 571\u2013555\u20130100 reads
+# as 571 - 555 - 0100, which PHONE_RE finds too.
+_SPACED_DASHES = frozenset("\u2013\u2014\u2015\u2e3a\u2e3b")
+# What it writes as ".": middle dots, bullets, raised dots and full stops of other scripts (the
+# ideographic, Armenian, Arabic, Ethiopic, Mongolian and stenographic full stops, the runic
+# single punctuation, the Canadian syllabics final middle dot and the sinological dot); NFKD has
+# already made U+0387, U+FF61 and U+FF65 into U+00B7, U+3002 and U+30FB.
+_DOTS = frozenset(
+    "\u00b7\u2022\u2027\u2219\u22c5\u2e31\u2e33\u30fb\u3002"
+    "\u0589\u06d4\u1362\u1803\u16eb\u1427\ua78f\u2e3c"
+)
 # Control characters (Cc) that are not whitespace: NUL to BS, SO to ESC, DEL, and C1 except NEL.
 _NON_SPACE_CONTROL_RE = re.compile(r"[\x00-\x08\x0e-\x1b\x7f-\x84\x86-\x9f]")
 
@@ -91,18 +113,25 @@ def clean_text(s: str) -> str:
 
 def privacy_form(s: str) -> str:
     """The skeleton rule 7 matches: s without invisible characters, in NFKD with every combining
-    mark dropped, dashes and minus signs written "-" and middle dots, bullets and ideographic full
-    stops written ".". So jane.doe@exam\\u0301ple.com and 571\\u2011555\\u20110100 read as the
-    address and the number a reader sees. Only for matching; stored text is not changed."""
+    mark dropped, hyphens and minus signs written "-", en and em dashes written " - " (a space on
+    a side that has none), and middle dots, bullets and full stops of other scripts written ".".
+    So jane.doe@exam\\u0301ple.com and 571\\u2011555\\u20110100 read as the address and the
+    number a reader sees. Only for matching; stored text is not changed."""
     s = unicodedata.normalize("NFKD", strip_invisible(s))
     if s.isascii():
         return s
-    out = []
-    for ch in s:
+    out: list[str] = []
+    for i, ch in enumerate(s):
         category = unicodedata.category(ch)
         if category[0] == "M":
             continue
-        if category == "Pd" or ch in _HYPHENS:
+        if ch in _SPACED_DASHES:
+            if out and not out[-1].isspace():
+                out.append(" ")
+            out.append("-")
+            if i + 1 < len(s) and not s[i + 1].isspace():
+                out.append(" ")
+        elif category == "Pd" or ch in _HYPHENS:
             out.append("-")
         elif ch in _DOTS:
             out.append(".")
