@@ -313,9 +313,10 @@ def test_record_mapping(make_test_context: MakeContext, no_overrides: Path) -> N
     assert rec.money.investment_usd == 35_836_372_000.0
     assert rec.money.investment_basis == "estimate" and rec.money.currency_year == 2025
     assert rec.cooling.water_use_mgd is None
-    assert [o.name for o in rec.parties.owner] == ["SpaceXAI"]  # Epoch's Owner column
-    assert rec.parties.operator == []
-    assert [o.name for o in rec.parties.tenant] == ["Anthropic", "Cursor", "SpaceXAI"]
+    # Epoch's Owner (the owner of the AI hardware) and Users are tenants; Epoch names no
+    # facility owner or operator.
+    assert rec.parties.owner == [] and rec.parties.operator == []
+    assert [o.name for o in rec.parties.tenant] == ["SpaceXAI", "Anthropic", "Cursor"]
     assert rec.external_ids == {"epoch_name": ["Colossus 2"]}
     assert rec.evidence_level == "reported" and rec.purpose == "unknown"
     assert rec.location.precision == "locality" and rec.location.geocode_method == "gazetteer"
@@ -350,7 +351,7 @@ def test_record_mapping(make_test_context: MakeContext, no_overrides: Path) -> N
     madison = by_name(result.candidates)["Amazon Madison Mega Site"]
     assert madison.canonical_name == "Amazon Madison Mega Site (Madison County, MS)"
     assert madison.location.precision == "county" and madison.location.county_fips == "28089"
-    assert madison.parties.tenant == []  # Anthropic #speculative
+    assert [o.name for o in madison.parties.tenant] == ["Amazon"]  # not Anthropic #speculative
     assert madison.aliases == []  # Project Rainier #speculative
 
 
@@ -736,7 +737,7 @@ def test_cli_runs_offline_and_a_second_run_changes_no_file(
     by_epoch = {r.external_ids["epoch_name"][0]: r for r in records.values()}
     assert by_epoch["Colossus 2"].location.precision == "address"
     receipt = json.loads((tmp_repo / "data" / "imports" / "epoch.json").read_text("utf-8"))
-    assert receipt["source"] == "epoch" and receipt["importer_version"] == "1"
+    assert receipt["source"] == "epoch" and receipt["importer_version"] == "2"
     assert receipt["inputs"][0]["license"] == "CC-BY-4.0"
     records_before = snapshot(tmp_repo / "data" / "records", tmp_repo / "review")
 
