@@ -1,0 +1,985 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.4 2390de5a",
+  "osm3s": {
+    "timestamp_osm_base": "2026-10-08T20:47:34Z",
+    "timestamp_areas_base": "2026-10-08T18:58:48Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+    {
+      "type": "node",
+      "id": 2607827436,
+      "lat": 32.7750252,
+      "lon": -117.070888,
+      "tags": {
+        "name": "SDSU Computer Room",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "node",
+      "id": 7985753364,
+      "lat": 38.9137236,
+      "lon": -77.2258825,
+      "tags": {
+        "addr:housenumber": "8100",
+        "addr:street": "Boone Boulevard",
+        "name": "8100 Boone Boulevard",
+        "operator": "Digital Realty",
+        "operator:wikidata": "Q5275969",
+        "operator:wikipedia": "en:Digital Realty",
+        "owner": "Digital Realty",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "node",
+      "id": 9721703993,
+      "lat": 43.0097937,
+      "lon": -87.9610932,
+      "tags": {
+        "addr:city": "Milwaukee",
+        "addr:housenumber": "3701A",
+        "addr:postcode": "53215",
+        "addr:state": "WI",
+        "addr:street": "West Burnham Street",
+        "check_date": "2026-07-08",
+        "name": "TierPoint Milwaukee",
+        "office": "yes",
+        "telecom": "data_center",
+        "website": "https://tierpoint.com/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 10938672218,
+      "lat": 33.6344843,
+      "lon": -111.8843457,
+      "tags": {
+        "name": "K-Motion Interactive",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11721960464,
+      "lat": 45.5706361,
+      "lon": -122.9206693,
+      "tags": {
+        "name": "QTS Data Center - Hillsboro 3",
+        "proposed:telecom": "data_center",
+        "source": "https://www.hillsboro-oregon.gov/home/showpublisheddocument/30425"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13042311881,
+      "lat": 34.0584789,
+      "lon": -118.2359144,
+      "tags": {
+        "addr:city": "Los Angeles",
+        "addr:housenumber": "900",
+        "addr:postcode": "90012",
+        "addr:state": "CA",
+        "addr:street": "North Alameda Street",
+        "check_date": "2025-08-01",
+        "name": "CoreSite - LA2",
+        "operator": "CoreSite",
+        "operator:wikidata": "Q5170140",
+        "ref": "LA2",
+        "telecom": "data_center",
+        "website": "https://www.coresite.com/data-center/la2-los-angeles-ca"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13311012216,
+      "lat": 36.065929,
+      "lon": -115.13856,
+      "tags": {
+        "addr:city": "Las Vegas",
+        "addr:housenumber": "1110",
+        "addr:postcode": "89119",
+        "addr:state": "NV",
+        "addr:street": "Palms Airport Drive",
+        "addr:unit": "110",
+        "name": "Fiberhub LAS1",
+        "operator": "Fiberhub",
+        "phone": "+1 702-487-3838",
+        "ref": "LAS1",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "node",
+      "id": 14209729093,
+      "lat": 38.749819,
+      "lon": -77.513046,
+      "tags": {
+        "construction:telecom": "data_center",
+        "name": "QTS Manassas DC6",
+        "operator": "Quality Technology Services",
+        "operator:short": "QTS",
+        "operator:wikidata": "Q18392800",
+        "ref": "DC6"
+      }
+    },
+    {
+      "type": "way",
+      "id": 30666790,
+      "bounds": {
+        "minlat": 34.0576277,
+        "minlon": -118.2363145,
+        "maxlat": 34.05858,
+        "maxlon": -118.2344732
+      },
+      "tags": {
+        "addr:city": "Los Angeles",
+        "addr:housenumber": "900",
+        "addr:postcode": "90012",
+        "addr:state": "CA",
+        "addr:street": "Alameda St",
+        "addr:street_direction_prefix": "N",
+        "amenity": "post_office",
+        "building": "commercial",
+        "building:levels": "2",
+        "clli": "LSANCAVJ",
+        "ele": "125.7",
+        "gnis:feature_id": "247727",
+        "height": "39.2",
+        "heritage": "2",
+        "heritage:operator": "nrhp",
+        "heritage:website": "http://focus.nps.gov/AssetDetail/NRIS/85000131",
+        "historic": "building",
+        "image": "https://commons.wikimedia.org/wiki/File:U.S._Post_Office_-_Los_Angeles_Terminal_Annex.JPG",
+        "lacounty:ain": "5409015016",
+        "lacounty:bld_id": "490167843620",
+        "name": "USPO Terminal Annex",
+        "operator": "United States Postal Service",
+        "operator:short": "USPS",
+        "operator:type": "public",
+        "operator:website": "https://www.usps.com",
+        "operator:wikidata": "Q668687",
+        "operator:wikipedia": "en:United States Postal Service",
+        "ref:nrhp": "85000131",
+        "short_name": "USPS",
+        "source": "survey;image;usgs_imagery",
+        "source_ref": "AM909_DSCR0634",
+        "start_date": "1938",
+        "telecom": "data_center",
+        "wikidata": "Q2466390",
+        "wikimedia_commons": "Category:United_States_Post_Office_–_Los_Angeles_Terminal_Annex",
+        "wikipedia": "en:U.S. Post Office-Los Angeles Terminal Annex"
+      }
+    },
+    {
+      "type": "way",
+      "id": 156468497,
+      "bounds": {
+        "minlat": 38.9134459,
+        "minlon": -77.2261159,
+        "maxlat": 38.913958,
+        "maxlon": -77.2255525
+      },
+      "tags": {
+        "addr:housenumber": "8100",
+        "addr:street": "Boone Boulevard",
+        "building": "data_center",
+        "building:levels": "5"
+      }
+    },
+    {
+      "type": "way",
+      "id": 253670255,
+      "bounds": {
+        "minlat": 42.6788697,
+        "minlon": -76.9498088,
+        "maxlat": 42.6798477,
+        "maxlon": -76.9473534
+      },
+      "tags": {
+        "building": "industrial",
+        "building:use": "data_center",
+        "generator:source": "gas",
+        "industrial": "data_centre",
+        "name": "Greenidge Power Plant and Data Center",
+        "operator": "Greenidge Generation Holdings Inc.",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 358455179,
+      "bounds": {
+        "minlat": 37.3601465,
+        "minlon": -121.9451097,
+        "maxlat": 37.3631473,
+        "maxlon": -121.942847
+      },
+      "tags": {
+        "addr:city": "Santa Clara",
+        "addr:housenumber": "2220",
+        "addr:state": "CA",
+        "addr:street": "De La Cruz Boulevard",
+        "addr:unit": "1",
+        "building": "data_center",
+        "name": "Digital Realty Silicon Valley SC1",
+        "operator": "Digital Realty",
+        "operator:wikidata": "Q5275969",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 392324240,
+      "bounds": {
+        "minlat": 33.9544079,
+        "minlon": -84.1989231,
+        "maxlat": 33.9550712,
+        "maxlon": -84.198126
+      },
+      "tags": {
+        "addr:city": "Norcross",
+        "addr:housenumber": "2775",
+        "addr:postcode": "30071",
+        "addr:state": "GA",
+        "addr:street": "Northwoods Parkway",
+        "building": "yes",
+        "name": "Flexential Atlanta - Norcross",
+        "operator": "Flexential",
+        "operator:wikidata": "Q115417504",
+        "telecom": "data_center",
+        "website": "https://www.flexential.com/data-centers/ga/atlanta/norcross-data-center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 465042594,
+      "bounds": {
+        "minlat": 32.8076088,
+        "minlon": -96.8579828,
+        "maxlat": 32.8083548,
+        "maxlon": -96.8567949
+      },
+      "tags": {
+        "addr:city": "Dallas",
+        "addr:housenumber": "3004",
+        "addr:postcode": "75247",
+        "addr:state": "TX",
+        "addr:street": "Irving Boulevard",
+        "building": "commercial",
+        "name": "TierPoint Dallas Data Center",
+        "operator": "TierPoint",
+        "telecom": "data_center",
+        "website": "https://www.tierpoint.com/data-centers/texas/dallas/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 758580536,
+      "bounds": {
+        "minlat": 40.5279455,
+        "minlon": -74.6830523,
+        "maxlat": 40.5281981,
+        "maxlon": -74.6825802
+      },
+      "tags": {
+        "building": "yes",
+        "name": "Vital Records",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 897226569,
+      "bounds": {
+        "minlat": 38.9469812,
+        "minlon": -77.5611763,
+        "maxlat": 38.9520555,
+        "maxlon": -77.5577139
+      },
+      "tags": {
+        "addr:city": "Aldie",
+        "addr:housenumber": "24214;24224;24234;24244;24254;24258",
+        "addr:postcode": "20105",
+        "addr:state": "VA",
+        "addr:street": "Quail Ridge Lane",
+        "name": "Microsoft",
+        "operator": "Microsoft",
+        "operator:wikidata": "Q2283",
+        "source": "https://www.bizjournals.com/washington/news/2020/08/13/microsoft-buys-more-loudoun-data-center-land.html;https://reparcelasmt.loudoun.gov/pt/datalets/datalet.aspx?mode=profileall&UseSearch=no&pin=246200886000&jur=107&taxyr=2020&LMparent=20",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 897226574,
+      "bounds": {
+        "minlat": 38.9473888,
+        "minlon": -77.5609434,
+        "maxlat": 38.9487902,
+        "maxlon": -77.5601464
+      },
+      "tags": {
+        "addr:city": "Aldie",
+        "addr:housenumber": "24224",
+        "addr:postcode": "20105",
+        "addr:state": "VA",
+        "addr:street": "Quail Ridge Lane",
+        "building": "data_center",
+        "name": "Amazon IAD-125",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "ref": "IAD-125",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 897226575,
+      "bounds": {
+        "minlat": 38.9491903,
+        "minlon": -77.5608512,
+        "maxlat": 38.9506006,
+        "maxlon": -77.5600522
+      },
+      "tags": {
+        "addr:city": "Aldie",
+        "addr:housenumber": "24244",
+        "addr:postcode": "20105",
+        "addr:state": "VA",
+        "addr:street": "Quail Ridge Lane",
+        "building": "data_center",
+        "name": "Amazon IAD-124",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "ref": "IAD-124",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 967131562,
+      "bounds": {
+        "minlat": 42.3323925,
+        "minlon": -122.880501,
+        "maxlat": 42.3325277,
+        "maxlon": -122.880351
+      },
+      "tags": {
+        "addr:city": "Medford",
+        "addr:housenumber": "739",
+        "addr:postcode": "97501",
+        "addr:state": "OR",
+        "addr:street": "Welch Drive",
+        "building": "industrial",
+        "name": "Date Center West - Eugene",
+        "operator": "Data Center West, Inc.",
+        "source": "esri/Jackson_County_OR_Buildings",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1013396352,
+      "bounds": {
+        "minlat": 36.1828701,
+        "minlon": -115.0628863,
+        "maxlat": 36.1831254,
+        "maxlon": -115.0624528
+      },
+      "tags": {
+        "building": "yes",
+        "name": "CenturyLink",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1020721870,
+      "bounds": {
+        "minlat": 35.2491364,
+        "minlon": -91.7410387,
+        "maxlat": 35.2492958,
+        "maxlon": -91.7407729
+      },
+      "tags": {
+        "addr:city": "Searcy",
+        "addr:housenumber": "101",
+        "addr:postcode": "72143",
+        "addr:state": "AR",
+        "addr:street": "North Elm Street",
+        "building": "yes",
+        "name": "Searcy Information Technologies",
+        "operator": "City of Searcy",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1075445245,
+      "bounds": {
+        "minlat": 37.3604999,
+        "minlon": -121.9429497,
+        "maxlat": 37.3618083,
+        "maxlon": -121.9417307
+      },
+      "tags": {
+        "addr:city": "Santa Clara",
+        "addr:housenumber": "2220",
+        "addr:state": "CA",
+        "addr:street": "De La Cruz Boulevard",
+        "addr:unit": "2",
+        "building": "yes",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1077131079,
+      "bounds": {
+        "minlat": 34.9926792,
+        "minlon": -90.0364906,
+        "maxlat": 34.9942972,
+        "maxlon": -90.0318496
+      },
+      "tags": {
+        "addr:city": "Memphis",
+        "addr:state": "TN",
+        "addr:street": "Stateline Road West",
+        "building": "yes",
+        "name": "xAI Macrohardrr",
+        "operator": "xAI",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1090837713,
+      "bounds": {
+        "minlat": 38.7539312,
+        "minlon": -77.5188111,
+        "maxlat": 38.7556046,
+        "maxlon": -77.5159641
+      },
+      "tags": {
+        "building": "data_center",
+        "name": "QTS Manassas DC5",
+        "operator": "Quality Technology Services",
+        "operator:short": "QTS",
+        "operator:wikidata": "Q18392800",
+        "ref": "DC5",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1134911642,
+      "bounds": {
+        "minlat": 38.7514845,
+        "minlon": -77.5134116,
+        "maxlat": 38.7536022,
+        "maxlon": -77.5128044
+      },
+      "tags": {
+        "addr:city": "Manassas",
+        "addr:housenumber": "9400",
+        "addr:postcode": "20110",
+        "addr:state": "VA",
+        "addr:street": "Godwin Drive",
+        "building": "data_center",
+        "name": "QTS Manassas DC1",
+        "operator": "Quality Technology Services",
+        "operator:short": "QTS",
+        "operator:wikidata": "Q18392800",
+        "ref": "DC1",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1287260558,
+      "bounds": {
+        "minlat": 38.7521472,
+        "minlon": -77.5113132,
+        "maxlat": 38.7541857,
+        "maxlon": -77.5104517
+      },
+      "tags": {
+        "addr:city": "Manassas",
+        "addr:housenumber": "9450",
+        "addr:postcode": "20110",
+        "addr:state": "VA",
+        "addr:street": "Godwin Drive",
+        "building": "data_center",
+        "name": "QTS Manassas DC3",
+        "operator": "Quality Technology Services",
+        "operator:short": "QTS",
+        "operator:wikidata": "Q18392800",
+        "ref": "DC3",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1301654223,
+      "bounds": {
+        "minlat": 38.9471992,
+        "minlon": -77.5594143,
+        "maxlat": 38.94887,
+        "maxlon": -77.5585541
+      },
+      "tags": {
+        "addr:city": "Aldie",
+        "addr:housenumber": "24214",
+        "addr:postcode": "20105",
+        "addr:state": "VA",
+        "addr:street": "Quail Ridge Lane",
+        "building": "data_center",
+        "name": "Amazon IAD-127",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "ref": "IAD-127",
+        "source": "Piedmont Environmental Council, Virginia Data Centers",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1301654224,
+      "bounds": {
+        "minlat": 38.9492469,
+        "minlon": -77.5592978,
+        "maxlat": 38.9509176,
+        "maxlon": -77.5584376
+      },
+      "tags": {
+        "addr:city": "Aldie",
+        "addr:housenumber": "24234",
+        "addr:postcode": "20105",
+        "addr:state": "VA",
+        "addr:street": "Quail Ridge Lane",
+        "building": "data_center",
+        "name": "Amazon IAD-126",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "ref": "IAD-126",
+        "source": "Piedmont Environmental Council, Virginia Data Centers",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1319699416,
+      "bounds": {
+        "minlat": 38.9350483,
+        "minlon": -77.4262647,
+        "maxlat": 38.9374589,
+        "maxlon": -77.4230865
+      },
+      "tags": {
+        "construction": "data_center",
+        "landuse": "construction",
+        "name": "AWS IAD-500 and IAD-501",
+        "source": "https://www.datacenterdynamics.com/en/news/amazon-named-as-end-customer-for-starwood-data-centers-in-herndon-virginia/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1334234454,
+      "bounds": {
+        "minlat": 41.0824708,
+        "minlon": -76.15268,
+        "maxlat": 41.0827801,
+        "maxlon": -76.1501589
+      },
+      "tags": {
+        "building": "industrial",
+        "name": "Nautilus Cryptomine",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1334234455,
+      "bounds": {
+        "minlat": 41.0831845,
+        "minlon": -76.152693,
+        "maxlat": 41.0834925,
+        "maxlon": -76.1501992
+      },
+      "tags": {
+        "building": "industrial",
+        "name": "Nautilus Cryptomine",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1374729776,
+      "bounds": {
+        "minlat": 33.2073671,
+        "minlon": -87.5264069,
+        "maxlat": 33.2089125,
+        "maxlon": -87.5247941
+      },
+      "tags": {
+        "construction": "university",
+        "construction:telecom": "data_center",
+        "landuse": "construction",
+        "name": "High Performance Computing and Data Center",
+        "opening_date": "2025"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1377227154,
+      "bounds": {
+        "minlat": 41.0640161,
+        "minlon": -104.7879853,
+        "maxlat": 41.0645587,
+        "maxlon": -104.7833024
+      },
+      "tags": {
+        "building": "industrial",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1377227157,
+      "bounds": {
+        "minlat": 41.0587655,
+        "minlon": -104.7930238,
+        "maxlat": 41.0659469,
+        "maxlon": -104.7775099
+      },
+      "geometry": [
+        {
+          "lat": 41.0588312,
+          "lon": -104.7916961
+        },
+        {
+          "lat": 41.0622764,
+          "lon": -104.7916666
+        },
+        {
+          "lat": 41.062414,
+          "lon": -104.7925678
+        },
+        {
+          "lat": 41.0632067,
+          "lon": -104.7925356
+        },
+        {
+          "lat": 41.0640318,
+          "lon": -104.7928253
+        },
+        {
+          "lat": 41.0647336,
+          "lon": -104.7930238
+        },
+        {
+          "lat": 41.0659469,
+          "lon": -104.7930023
+        },
+        {
+          "lat": 41.0659186,
+          "lon": -104.7775099
+        },
+        {
+          "lat": 41.0602813,
+          "lon": -104.7775689
+        },
+        {
+          "lat": 41.0601185,
+          "lon": -104.7779176
+        },
+        {
+          "lat": 41.0601276,
+          "lon": -104.7806185
+        },
+        {
+          "lat": 41.0595391,
+          "lon": -104.780632
+        },
+        {
+          "lat": 41.0595482,
+          "lon": -104.7825041
+        },
+        {
+          "lat": 41.0587655,
+          "lon": -104.7825095
+        },
+        {
+          "lat": 41.0588312,
+          "lon": -104.7916961
+        }
+      ],
+      "tags": {
+        "barrier": "fence",
+        "industrial": "data_centre",
+        "landuse": "industrial",
+        "name": "Microsoft Bison Business Park Data Center",
+        "operator": "Microsoft"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1386926534,
+      "bounds": {
+        "minlat": 34.9956873,
+        "minlon": -90.0358356,
+        "maxlat": 35.0002786,
+        "maxlon": -90.0338988
+      },
+      "tags": {
+        "addr:city": "Memphis",
+        "addr:housenumber": "5420",
+        "addr:state": "TN",
+        "addr:street": "Tulane Road",
+        "building": "yes",
+        "name": "xAI Macrohard Colossus 2",
+        "operator": "xAI",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1426663253,
+      "bounds": {
+        "minlat": 38.9356502,
+        "minlon": -77.4256566,
+        "maxlat": 38.9372785,
+        "maxlon": -77.423704
+      },
+      "tags": {
+        "addr:city": "Herndon",
+        "addr:housenumber": "13850",
+        "addr:postcode": "20171",
+        "addr:state": "VA",
+        "addr:street": "Redskin Drive",
+        "building": "data_center",
+        "name": "Amazon IAD-500",
+        "operator": "Amazon Web Services",
+        "operator:short": "AWS",
+        "operator:wikidata": "Q456157",
+        "ref": "IAD-500",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1464257784,
+      "bounds": {
+        "minlat": 38.7514781,
+        "minlon": -77.5128323,
+        "maxlat": 38.7536126,
+        "maxlon": -77.5120874
+      },
+      "tags": {
+        "addr:city": "Manassas",
+        "addr:housenumber": "9406;9420",
+        "addr:postcode": "20110",
+        "addr:state": "VA",
+        "addr:street": "Godwin Drive",
+        "building": "data_center",
+        "name": "QTS Manassas DC2",
+        "operator": "Quality Technology Services",
+        "operator:short": "QTS",
+        "operator:wikidata": "Q18392800",
+        "ref": "DC2",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1465196735,
+      "bounds": {
+        "minlat": 45.5715576,
+        "minlon": -122.9203058,
+        "maxlat": 45.5722919,
+        "maxlon": -122.9165703
+      },
+      "tags": {
+        "addr:city": "Hillsboro",
+        "addr:postcode": "97124",
+        "addr:state": "OR",
+        "addr:street": "Northeast Pubols Street",
+        "area": "yes",
+        "name": "QTS Data Center - Hillsboro 3",
+        "operator": "Quality Technology Services",
+        "operator:short": "QTS",
+        "operator:wikidata": "Q18392800",
+        "operator:wikipedia": "en:Quality Technology Services",
+        "proposed:building": "industrial",
+        "ref": "North Building",
+        "telecom": "data_center",
+        "website": "https://q.com/data-centers/hillsboro-3/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1465196736,
+      "bounds": {
+        "minlat": 45.5698095,
+        "minlon": -122.9221135,
+        "maxlat": 45.570573,
+        "maxlon": -122.9175531
+      },
+      "tags": {
+        "addr:city": "Hillsboro",
+        "addr:postcode": "97124",
+        "addr:state": "OR",
+        "addr:street": "Northeast Schaaf Street",
+        "area": "yes",
+        "name": "QTS Data Center - Hillsboro 3",
+        "operator": "Quality Technology Services",
+        "operator:short": "QTS",
+        "operator:wikidata": "Q18392800",
+        "operator:wikipedia": "en:Quality Technology Services",
+        "proposed:building": "industrial",
+        "ref": "South Building",
+        "telecom": "data_center",
+        "website": "https://q.com/data-centers/hillsboro-3/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1485867694,
+      "bounds": {
+        "minlat": 41.0617849,
+        "minlon": -104.7825517,
+        "maxlat": 41.0623353,
+        "maxlon": -104.777886
+      },
+      "tags": {
+        "building": "industrial",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1485867695,
+      "bounds": {
+        "minlat": 41.0628546,
+        "minlon": -104.7825246,
+        "maxlat": 41.0634088,
+        "maxlon": -104.7778686
+      },
+      "tags": {
+        "building": "industrial",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1485867696,
+      "bounds": {
+        "minlat": 41.0628787,
+        "minlon": -104.7879354,
+        "maxlat": 41.0634366,
+        "maxlon": -104.7832678
+      },
+      "tags": {
+        "building": "industrial",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1521913706,
+      "bounds": {
+        "minlat": 38.9347634,
+        "minlon": -77.4271568,
+        "maxlat": 38.9364186,
+        "maxlon": -77.4262666
+      },
+      "tags": {
+        "addr:city": "Herndon",
+        "addr:postcode": "20171",
+        "addr:state": "VA",
+        "addr:street": "Redskin Drive",
+        "building": "construction",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1521913707,
+      "bounds": {
+        "minlat": 38.9369513,
+        "minlon": -77.4268859,
+        "maxlat": 38.9380118,
+        "maxlon": -77.4247254
+      },
+      "tags": {
+        "addr:city": "Herndon",
+        "addr:postcode": "20171",
+        "addr:state": "VA",
+        "addr:street": "Redskin Drive",
+        "building": "construction",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1544360250,
+      "bounds": {
+        "minlat": 39.0027601,
+        "minlon": -77.4472736,
+        "maxlat": 39.0044254,
+        "maxlon": -77.4462722
+      },
+      "tags": {
+        "addr:city": "Sterling",
+        "addr:housenumber": "22214",
+        "addr:postcode": "20166",
+        "addr:state": "VA",
+        "addr:street": "Power Player Lane",
+        "building": "construction",
+        "construction": "data_center",
+        "name": "PowerHouse Pacific Building 3",
+        "note": "location is approximate",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1549253250,
+      "bounds": {
+        "minlat": 40.0419208,
+        "minlon": -74.2866782,
+        "maxlat": 40.0506255,
+        "maxlon": -74.2712338
+      },
+      "tags": {
+        "industrial": "yes",
+        "note": "Lote 31",
+        "proposed": "yes",
+        "telecom": "data_center"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1552427895,
+      "bounds": {
+        "minlat": 42.9876049,
+        "minlon": -72.5517856,
+        "maxlat": 42.9876488,
+        "maxlon": -72.5517267
+      },
+      "tags": {
+        "building": "shed",
+        "operator": "The Putney School",
+        "telecom": "data_center",
+        "utility": "telecom"
+      }
+    }
+  ]
+}

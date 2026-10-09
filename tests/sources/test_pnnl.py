@@ -154,7 +154,11 @@ def test_id_join_matches_the_spatial_join() -> None:
     assert names_by_rep(by_id) == names_by_rep(spatial)
     (gone,) = by_id.unmatched
     assert gone.key == "building:234722029"
-    assert "OSM no longer has way/234722029" in pnnl.unmatched_item(gone).reason
+    reason = pnnl.unmatched_item(gone).reason
+    assert reason.startswith(
+        "the PNNL building row's way/234722029 or relation/234722029 is not among the OSM data "
+        "center elements this import read (PNNL v2026.02.09)"
+    )
 
 
 def test_id_join_does_not_fall_back_to_space() -> None:
@@ -218,11 +222,12 @@ def test_effects_on_records(counties: CountyIndex) -> None:
     )
     by_rep = {c.record.location.geometry_ref: c.record for c in built.candidates}
     cologix = by_rep["osm:way/1188715510"]
+    # The row matched, but PNNL's sqft is a footprint area and is not published as floor area.
     assert [(b.ref, b.sqft) for b in cologix.buildings] == [
-        ("osm:way/1188715510", 158127.0),
+        ("osm:way/1188715510", None),
         ("osm:way/1560827027", None),
     ]
-    assert cologix.site.building_sqft == 158127.0
+    assert cologix.site.building_sqft is None
     assert cologix.external_ids["pnnl_im3"] == ["building@-77.459474,39.017948"]
     unmatched = [i for i in built.review if i.kind == "unmatched"]
     assert [(i.source, i.external_id, i.record_id) for i in unmatched] == [
@@ -267,8 +272,6 @@ def test_site_values() -> None:
         )
     }
     values = pnnl.site_values(cluster, rows, members)
-    assert values.building_sqft == {"way/1": 90_000.0, "node/4": 500.0}
-    assert values.site_sqft == 91_500.0
     assert values.acreage == 10.0
     held = sorted((i.kind, i.external_id, i.data["osm"]) for i in values.review)
     assert held == sorted(
@@ -295,10 +298,11 @@ def test_case_fixture_effects(counties: CountyIndex) -> None:
         pnnl_snapshot=snapshot("pnnl"),
     )
     by_ref = {c.match_values[0]: c.record for c in built.candidates}
-    # Apple Data Center: PNNL has the current footprint and an older one; only the named row counts.
+    # Apple Data Center: PNNL has the current footprint and an older one; the named row is the
+    # match. Neither footprint is published as building_sqft.
     apple = by_ref["way/300974499"]
-    assert [b.sqft for b in apple.buildings] == [1_338_261.0]
-    assert apple.site.building_sqft == 1_338_261.0
+    assert [b.sqft for b in apple.buildings] == [None]
+    assert apple.site.building_sqft is None
     # Campus rows whose polygons left OpenStreetMap give no acreage to the buildings they hit.
     assert by_ref["way/844352473"].site.acreage is None  # Google, Douglas County, GA
     assert by_ref["way/1422191468"].site.acreage is None  # Dickey County, ND

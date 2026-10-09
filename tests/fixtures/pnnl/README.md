@@ -96,3 +96,15 @@ the id join can be tested:
   Ashburn DC2, from the 2026-10-07 Overpass snapshot);
 - `state` "Virginia", `state_id` "51" and `county_id` "51107" (Loudoun County) for every row;
 - `ref` is the OSM `ref` tag of that way, where it has one.
+
+## `centroids-seed-check.geojson`
+
+6 features of the same web-map file (same SHA-256 as above, as the seed import of 2026-10-08 read
+it), verbatim under its header: the original file's features 91, 191, 971, 1000, 1153 and 1326
+(0-based). They go with `tests/fixtures/osm/overpass-seed-check.json`:
+
+- 971, 1000, 1153 and 1326: the four QTS Manassas building rows, among them "QTS Manassas DC1"
+  (128,120 sq ft), whose point lies on the polygon OSM now calls DC2;
+- 91: Fiberhub LAS1, a point row at the old position of OSM node 13311012216;
+- 191: "Verizon Wireline Network Building", a building row that no data center element of the
+  fixture takes (an `unmatched` item).

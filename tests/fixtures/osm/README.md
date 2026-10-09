@@ -65,3 +65,38 @@ id. Each group is a case the dissolve and the record mapping got wrong on that s
 | A named building with an operator and an unnamed way on the same footprint | Apple Data Center way 300974499 and way 567575425, Mesa, AZ |
 | A site that PNNL lists in two counties | Digital Realty Atlanta ATL11, way 975064000 |
 | Telecom sites outside the scope of 07 §2.2 | Cable & Wireless Cable Landing Station way 459188725 (Shirley, NY); PTC way 1365213539 (a telephone cooperative, Linn County, OR) |
+
+## `overpass-seed-check.json`
+
+47 elements, each a case the seed check of 2026-10-08 found (`tests/sources/test_osm_seed_check.py`
+and `tests/sources/test_osm.py`; the finding numbers are in the tests). Elements are sorted by type
+and id; the `version`, `generator` and `osm3s` header is the seed response's.
+
+- 46 are copied verbatim from the seed import's Overpass response, which
+  `https://maps.mail.ru/osm/tools/overpass/api/interpreter` returned on 2026-10-08 for the
+  importer's query of that day (the five data center clauses, `out tags bb`;
+  `osm3s.timestamp_osm_base` 2026-10-08T20:47:34Z, 1,888 elements, SHA-256
+  `77651f2a1a481f43c697707f4e6d2f224603d7f1cd6fa7bd554247742831ae43`).
+- 1, the site polygon way 1377227157 ("Microsoft Bison Business Park Data Center",
+  `industrial=data_centre`), is copied verbatim, with its `bounds` and `geometry`, from the
+  response of the same endpoint on 2026-10-09 to the site statement of the current query run on
+  its own (`way` and `relation` with `industrial=data_centre` or `data_center` in the US, `out
+  tags geom`; `osm3s.timestamp_osm_base` 2026-10-09T02:53:01Z, 172 elements).
+
+| Case | Elements |
+|---|---|
+| A site polygon and the four unnamed buildings inside it | way 1377227157; ways 1377227154, 1485867694, 1485867695, 1485867696 (Laramie County, WY) |
+| A construction site (`landuse=construction`, `construction=data_center`) and the halls on it | way 1319699416 "AWS IAD-500 and IAD-501"; Amazon IAD-500 way 1426663253; ways 1521913706, 1521913707 (Herndon, VA) |
+| Same-operator buildings on two sides of a state line | xAI ways 1386926534 (Shelby County, TN) and 1077131079 (DeSoto County, MS) |
+| A node without an operator and two polygons of the same name | QTS Data Center - Hillsboro 3, node 11721960464, ways 1465196735 and 1465196736 |
+| An unnamed way at an operator's address | node 7985753364 and way 156468497 (8100 Boone Boulevard); ways 358455179 and 1075445245 (2220 De La Cruz Boulevard) |
+| A node inside another operator's building | CoreSite - LA2 node 13042311881 in the USPO Terminal Annex, way 30666790 |
+| Buildings inside another operator's polygon that has none of its own | Microsoft way 897226569; Amazon ways 897226574, 897226575, 1301654223, 1301654224 (Quail Ridge Lane) |
+| Objects the scope screen holds | Greenidge way 253670255; Nautilus Cryptomine ways 1334234454, 1334234455; SDSU Computer Room node 2607827436; Vital Records way 758580536; K-Motion Interactive node 10938672218; The Putney School shed way 1552427895; CenturyLink way 1013396352; City of Searcy way 1020721870 |
+| Objects it keeps | Date Center West - Eugene way 967131562 (under 200 m², an operator that says data center); TierPoint Milwaukee node 9721703993 and TierPoint way 465042594 |
+| A proposed lot without a name or an operator | way 1549253250 (Manchester Township, NJ) |
+| An opening_date that has passed | way 1374729776 (Tuscaloosa, AL) |
+| A position OSM calls approximate | PowerHouse Pacific Building 3, way 1544360250 |
+| A campus whose representative has no address | QTS Manassas node 14209729093, ways 1090837713, 1134911642, 1287260558, 1464257784 |
+| A node that moved after PNNL took its position | Fiberhub LAS1, node 13311012216 |
+| A postal city that is not the place of the point | Flexential Atlanta - Norcross, way 392324240 |
