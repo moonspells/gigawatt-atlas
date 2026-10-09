@@ -381,8 +381,11 @@ def test_proposed_splits_on_a_filing(make_test_context: MakeContext, tmp_path: P
 
     rec = records(run_edited(make_test_context, tmp_path, add_filing))[pid]
     assert rec.status == "proposed"
-    # A date on the 1st of a month is AI GridWatch's way of writing the month.
+    # A date on the 1st of a month is AI GridWatch's way of writing the month. The log's entry of
+    # 2024-11-25 ("Meta proposes ~$800 million data center in Lebanon") reports the project before
+    # AI GridWatch's announced date, so it dates the first report (n31).
     assert [(e.event, e.as_of.value, e.as_of.precision) for e in rec.status_history] == [
+        ("first_reported", "2024-11-25", "day"),
         ("announced", "2026-02-11", "day"),
         ("application_filed", "2026-03", "month"),
     ]
@@ -405,17 +408,19 @@ def test_proposed_splits_on_a_filing(make_test_context: MakeContext, tmp_path: P
 def test_milestones_that_agree_with_the_stage_add_no_event(make_test_context: MakeContext) -> None:
     got = records(run(make_test_context))
     red_oak = got["red-oak-compass-campus"]
-    # The May 11 hearing is not imported: nothing in the row says it was held that day (the
-    # decision came on May 12). The first report is the event log's earliest entry about this
-    # project, the 830-acre rezoning's P&Z vote: the 2020 entry is Compass's first Red Oak
-    # campus, 225 acres (n24).
+    # AI GridWatch's decided_date is May 12, but the row says the council voted "around midnight
+    # following the May 11 meeting": the vote is dated by its meeting, so the May 11 hearing was
+    # held that day (n37). The first report is the event log's earliest entry about this project,
+    # the 830-acre rezoning's P&Z vote: the 2020 entry is Compass's first Red Oak campus, 225
+    # acres (n24).
     assert [
         (e.seq, e.event, e.status, e.as_of.value, e.planned) for e in red_oak.status_history
     ] == [
         (1, "first_reported", "announced", "2026-04-27", False),
-        (2, "approved", "permitted", "2026-05-12", False),
+        (2, "hearing_held", "proposed", "2026-05-11", False),
+        (3, "approved", "permitted", "2026-05-11", False),
     ]
-    assert red_oak.dates["approved"].value == "2026-05-12"
+    assert red_oak.dates["approved"].value == "2026-05-11"
     assert red_oak.dates["first_reported"].value == "2026-04-27"
     pw = got["pw-digital-gateway-va"]
     assert [(e.event, e.status) for e in pw.status_history] == [
@@ -433,7 +438,8 @@ def test_a_stage_the_milestones_do_not_reach_adds_an_other_event(
     abei = records(run(make_test_context))["abei-energy-data-center-starke-in"]
     *milestones, other = abei.status_history
     # The 2025-11-12 hearing is not imported: no decision or event of that day says it was held.
-    assert [e.event for e in milestones] == ["announced", "application_filed"]
+    # Nor is rezoning_filed: the note says Abei only asked about rezoning (n40).
+    assert [e.event for e in milestones] == ["announced"]
     assert (other.event, other.status, other.as_of.value) == ("other", "paused", "2026-09-02")
     assert other.note == "AI GridWatch stage 'Blocked by ban' as of 2026-09-02"
     assert abei.status == "paused" and abei.status_reason == "moratorium"
@@ -472,8 +478,7 @@ def test_an_announcement_after_a_filing_is_left_out_and_flagged(
         ("application_filed", "proposed", "2026-01-15"),
     ]
     assert "announced" not in rec.dates and rec.dates["first_reported"].value == "2024-11-25"
-    (item,) = [i for i in result.review if i.kind == "conflict"]
-    assert item.external_id == pid
+    (item,) = [i for i in result.review if i.kind == "conflict" and i.external_id == pid]
     assert item.data == {"announced": "2026-02-11", "rezoning_filed": "2026-01-15"}
 
 
@@ -505,7 +510,11 @@ def test_hearing_planned_before_its_date_and_held_after(
     # Once the date has passed, a hearing is held only when the row says so (see
     # test_a_past_hearing_is_held_only_when_the_row_says_so).
     after = milestone_events(red_oak, date(2026, 10, 12))
-    assert [(e["event"], e["planned"]) for e in after] == [("approved", False)]
+    # The decision is dated by the May 11 meeting the row says it ended (n37), so it is held.
+    assert [(e["event"], e["planned"]) for e in after] == [
+        ("hearing_held", False),
+        ("approved", False),
+    ]
     # Run as of 2026-05-01: the planned events do not set the status; the stage does.
     early = datetime(2026, 5, 1, 12, 0, tzinfo=UTC)
     rec = records(run(make_test_context, now=early, today=early.date()))["red-oak-compass-campus"]
@@ -578,8 +587,11 @@ def test_location_and_county_from_the_locality(
     assert (archbald.county_fips, archbald.county_name) == (lackawanna.fips, "Lackawanna")
     assert (archbald.lat, archbald.lon) == (41.52458, -75.553656)
     stokes = got["stokes-county-project-delta"]
-    assert stokes.canonical_name == "Project Delta (Walnut Cove, NC)"
-    assert stokes.location.city == "Walnut Cove" and stokes.location.county_name == "Stokes"
+    # The row's log puts the 1,800 acres "near Walnut Cove": the town is not named, and its point
+    # tells only the county (n32).
+    assert stokes.canonical_name == "Project Delta (Stokes County, NC)"
+    assert stokes.location.city is None and stokes.location.county_name == "Stokes"
+    assert stokes.location.precision == "county"
     pw = got["pw-digital-gateway-va"]
     assert pw.canonical_name == "PW Digital Gateway (Prince William County, VA)"
     assert pw.location.city is None and pw.location.county_name == "Prince William"
@@ -1529,8 +1541,9 @@ def test_cli_run_is_idempotent(
     assert main(common) == 0
     assert "import aigridwatch: candidates=11 new=11" in capsys.readouterr().out
     receipt = json.loads((tmp_repo / "data" / "imports" / "aigridwatch.json").read_text("utf-8"))
-    # 3: the operator/developer field is the developer; year-only dates; the second seed check
-    assert receipt["importer_version"] == "3"
+    # 4: milestones read as the row explains them, places the row puts the site outside, the
+    # holds of the fifth fix round
+    assert receipt["importer_version"] == "4"
     stored = RecordStore(tmp_repo / "data" / "records").load()
     assert len(stored) == 11  # every verified row
     queue = (tmp_repo / "review" / "queue" / "aigridwatch.jsonl").read_text(encoding="utf-8")
