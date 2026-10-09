@@ -494,8 +494,9 @@ def test_step2_census_address_precision(
     ("address", "city", "precision"),
     [
         ("5420 Tulane Rd, Memphis, TN 38109", "Memphis", "address"),
-        # QTS Cedar Rapids: USPS city FAIRFAX, the point in Cedar Rapids city.
-        ("6200 76th Ave SW, Fairfax, IA 52228", "Cedar Rapids", "address"),
+        # QTS Cedar Rapids: USPS city FAIRFAX; the point is in Cedar Rapids city, but 5 m from its
+        # generalized line, too close to name it: no city (the record names Linn County).
+        ("6200 76th Ave SW, Fairfax, IA 52228", None, "address"),
         # OpenAI Stargate Lordstown: USPS city WARREN, the point in Lordstown village.
         ("2300 Hallock Young Rd, Warren, OH 44481", "Lordstown", "address"),
         # STACK NVA02: USPS city MANASSAS, the point in Innovation CDP, Prince William County.

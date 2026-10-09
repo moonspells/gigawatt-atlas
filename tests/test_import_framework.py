@@ -538,7 +538,7 @@ def test_context_gives_the_place_polygons(make_test_context: MakeContext) -> Non
     sample = PlaceIndex.load(PLACES_SAMPLE, verify_sha256=False)
     ctx = make_test_context(places=sample)
     assert ctx.places() is sample
-    assert ctx.places().city_at(41.905594, -91.751082, "IA") == "Cedar Rapids"  # QTS Cedar Rapids
+    assert ctx.places().city_at(41.143721, -80.883293, "OH") == "Lordstown"  # mailed to Warren
     sample.close()
     # A file given by path is checked like the default one: the sample is not the Census file.
     with pytest.raises(ValueError, match="sha256"):

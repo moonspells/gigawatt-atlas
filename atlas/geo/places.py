@@ -1,16 +1,19 @@
 """The Census place that contains a point (07 §6.5): the city a record names.
 
 reference/census/cb_2025_us_place_500k.zip (1:500,000 cartographic boundary file, 32,629
-incorporated places and census designated places of the states, DC and Puerto Rico, with GEOID,
-NAME, NAMELSAD, LSAD and STUSPS in EPSG:4269) gives the place a point lies in. Its GEOIDs are the
-Gazetteer's. A postal city is not that place: QTS Cedar Rapids has the USPS city Fairfax, but its
-point lies in Cedar Rapids city, and OpenAI's Lordstown site, mailed to Warren, lies in Lordstown
-village. So when a record has a point and no source states its place, its city comes from here,
-or is left out when no place contains the point (Vantage TX1, west of San Antonio city).
+incorporated places and census designated places of the states, DC, Puerto Rico and the island
+areas, with GEOID, NAME, NAMELSAD, LSAD and STUSPS in EPSG:4269) gives the place a point lies in.
+Its GEOIDs are the Gazetteer's. A postal city is not that place: OpenAI's Lordstown site, mailed to
+Warren, lies in Lordstown village, and STACK NVA02, mailed to Manassas, in Innovation CDP. So when
+a record has a point and no source states its place, its city comes from here, or is left out
+when no place contains the point (Vantage TX1, west of San Antonio city).
 
-Places do not overlap, so a point lies in at most one, except on a shared boundary, where the
-place is ambiguous and none is returned. Unlike the county rule, there is no tolerance: a point
-just outside a place is not in it.
+The lines are generalized, and a Census address point lies on a street that is often the line
+itself, so a point counts as inside a place only when it lies more than PLACE_MARGIN_DEG inside
+it: Microsoft Fairwater Atlanta's Census point is 5 m inside Fayetteville city on these lines and
+outside it on the Census Geocoder's own. Near a boundary, and on one two places share, no place is
+returned and the record names its county. Unlike the county rule, there is no tolerance outward:
+a point just outside a place is not in it.
 
 The file is loaded on use (DuckDB), not on import.
 """
@@ -34,6 +37,10 @@ PLACE_POLYGONS_BYTES = 23_057_021
 PLACE_POLYGONS_SHP = "cb_2025_us_place_500k.shp"
 # LSAD codes of places that are not municipalities: census designated place, comunidad, zona urbana.
 UNINCORPORATED_LSAD = frozenset({"57", "55", "62"})
+# How far inside a place's generalized boundary a point must lie to be named by it (about 100 m).
+# A Census address point lies on the street's centre line, which is often the city line: of the
+# seed's 31, seven lie within 15 m of a place line, thirteen 106 m to 6.7 km inside a place.
+PLACE_MARGIN_DEG = 0.001
 
 
 @dataclass(frozen=True)
@@ -109,11 +116,16 @@ class PlaceIndex:
     def get(self, geoid: str) -> CensusPlace | None:
         return self._places.get(geoid)
 
-    def containing(self, lat: float, lon: float) -> CensusPlace | None:
-        """The place the point lies in, or None (no place, or a shared boundary)."""
-        return self.containing_many([(lat, lon)])[0]
+    def containing(
+        self, lat: float, lon: float, *, margin_deg: float = PLACE_MARGIN_DEG
+    ) -> CensusPlace | None:
+        """The place the point lies in, more than margin_deg inside its boundary, or None (no
+        place, a point near a boundary, or one on a boundary two places share)."""
+        return self.containing_many([(lat, lon)], margin_deg=margin_deg)[0]
 
-    def containing_many(self, points: Sequence[tuple[float, float]]) -> list[CensusPlace | None]:
+    def containing_many(
+        self, points: Sequence[tuple[float, float]], *, margin_deg: float = PLACE_MARGIN_DEG
+    ) -> list[CensusPlace | None]:
         """containing() for (lat, lon) points, in one SQL join."""
         if not points:
             return []
@@ -122,15 +134,17 @@ class PlaceIndex:
         rows = self._con.execute(
             "WITH pts AS (SELECT unnest(range(?::BIGINT)) AS i, unnest(?::DOUBLE[]) AS lat,"
             " unnest(?::DOUBLE[]) AS lon)"
-            " SELECT pts.i, min(p.geoid), count(*) FROM pts JOIN places p"
+            " SELECT pts.i, min(p.geoid), count(*),"
+            " min(ST_Distance(ST_Boundary(p.geom), ST_Point(pts.lon, pts.lat)))"
+            " FROM pts JOIN places p"
             " ON pts.lon BETWEEN p.xmin AND p.xmax AND pts.lat BETWEEN p.ymin AND p.ymax"
             " AND ST_Intersects(p.geom, ST_Point(pts.lon, pts.lat))"
             " GROUP BY pts.i",
             [len(points), lats, lons],
         ).fetchall()
         out: list[CensusPlace | None] = [None] * len(points)
-        for i, geoid, n in rows:
-            if n == 1:
+        for i, geoid, n, inside_by in rows:
+            if n == 1 and inside_by > margin_deg:
                 out[int(i)] = self._places[geoid]
         return out
 

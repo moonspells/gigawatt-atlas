@@ -16,6 +16,7 @@ import pytest
 
 from atlas.geo.duck import connect
 from atlas.geo.places import (
+    PLACE_MARGIN_DEG,
     PLACE_POLYGONS_BYTES,
     PLACE_POLYGONS_SHA256,
     PLACE_POLYGONS_ZIP,
@@ -25,7 +26,8 @@ from atlas.geo.places import (
 SAMPLE = (
     Path(__file__).resolve().parents[1] / "fixtures" / "geocode" / "places" / "places_sample.zip"
 )
-QTS_CEDAR_RAPIDS = (41.905594, -91.751082)  # USPS city Fairfax
+QTS_CEDAR_RAPIDS = (41.905594, -91.751082)  # USPS city Fairfax; 5 m inside Cedar Rapids city
+GOOGLE_CEDAR_RAPIDS = (41.921946, -91.71563)  # 621 m inside Cedar Rapids city
 STARGATE_LORDSTOWN = (41.143721, -80.883293)  # USPS city Warren
 STACK_NVA02 = (38.749819, -77.535848)  # USPS city Manassas
 GOOGLE_OMAHA = (41.335728, -96.088471)  # USPS city Omaha, in no place
@@ -42,7 +44,7 @@ def sample() -> Iterator[PlaceIndex]:
 
 def test_the_place_that_contains_a_point(sample: PlaceIndex) -> None:
     assert len(sample) == 8
-    cedar_rapids = sample.containing(*QTS_CEDAR_RAPIDS)
+    cedar_rapids = sample.containing(*GOOGLE_CEDAR_RAPIDS)
     assert cedar_rapids is not None
     assert (cedar_rapids.geoid, cedar_rapids.name, cedar_rapids.lsad_name) == (
         "1912000",
@@ -57,14 +59,23 @@ def test_the_place_that_contains_a_point(sample: PlaceIndex) -> None:
     assert sample.get("3944912") == sample.containing(*STARGATE_LORDSTOWN)
 
 
+def test_a_point_near_a_generalized_boundary_names_no_place(sample: PlaceIndex) -> None:
+    # QTS Cedar Rapids is 5 m inside Cedar Rapids city on the 1:500,000 lines: too close to tell.
+    # (Microsoft Fairwater Atlanta is 5 m inside Fayetteville city on them, but outside it on the
+    # Census Geocoder's lines.)
+    assert sample.containing(*QTS_CEDAR_RAPIDS) is None
+    assert sample.containing(*QTS_CEDAR_RAPIDS, margin_deg=0.0) == sample.get("1912000")
+    assert PLACE_MARGIN_DEG == 0.001
+
+
 def test_city_at_names_the_place_in_the_state(sample: PlaceIndex) -> None:
-    assert sample.city_at(*QTS_CEDAR_RAPIDS) == "Cedar Rapids"
-    assert sample.city_at(*QTS_CEDAR_RAPIDS, "ia") == "Cedar Rapids"
-    assert sample.city_at(*QTS_CEDAR_RAPIDS, "NE") is None
+    assert sample.city_at(*GOOGLE_CEDAR_RAPIDS) == "Cedar Rapids"
+    assert sample.city_at(*GOOGLE_CEDAR_RAPIDS, "ia") == "Cedar Rapids"
+    assert sample.city_at(*GOOGLE_CEDAR_RAPIDS, "NE") is None
     assert sample.city_at(*STARGATE_LORDSTOWN, "OH") == "Lordstown"
     assert sample.city_at(*STACK_NVA02, "VA") == "Innovation"
     assert sample.city_at(*GOOGLE_OMAHA, "NE") is None
-    assert sample.containing_many([QTS_CEDAR_RAPIDS, GOOGLE_OMAHA, STACK_NVA02]) == [
+    assert sample.containing_many([GOOGLE_CEDAR_RAPIDS, GOOGLE_OMAHA, STACK_NVA02]) == [
         sample.get("1912000"),
         None,
         sample.get("5139916"),
@@ -128,8 +139,9 @@ def test_the_reference_file_is_the_census_release(repo_root: Path) -> None:
     assert PLACE_POLYGONS_SHA256 in readme
     index = PlaceIndex.load()
     assert len(index) == 32_629
-    assert index.city_at(*QTS_CEDAR_RAPIDS, "IA") == "Cedar Rapids"
+    assert index.city_at(*GOOGLE_CEDAR_RAPIDS, "IA") == "Cedar Rapids"
     assert index.city_at(*STARGATE_LORDSTOWN, "OH") == "Lordstown"
+    assert index.containing(33.445341, -84.525447) is None  # Fairwater Atlanta, see above
     assert index.city_at(*STACK_NVA02, "VA") == "Innovation"
     for point in (GOOGLE_OMAHA, VANTAGE_TX1, LAKE_MARINER):
         assert index.containing(*point) is None
