@@ -373,7 +373,8 @@ def test_campus_record(built: BuildResult) -> None:
     assert (loc.county_fips, loc.county_name, loc.state_abbr) == ("51107", "Loudoun", "VA")
     # The campus polygon has no address and its buildings have four: no street rather than one
     # building's address under the campus name (seed check n6). City and postcode agree.
-    assert (loc.street, loc.city, loc.postcode) == (None, "Ashburn", "20147")
+    # addr:city=Ashburn is the postal city; without the place polygons there is no city.
+    assert (loc.street, loc.city, loc.postcode) == (None, None, "20147")
 
     assert r.capacity.it_mw == 245.0  # 45 + 47 + 28 + 59 + 28 + 38
     assert r.capacity.facility_mw == 260.0  # 45 + 45 + 32.5 + 65 + 32.5 + 40
@@ -875,7 +876,7 @@ def test_importer_is_discovered() -> None:
     assert importer.match_key == "osm"
     assert importer.owned_external_keys == ("osm", "pnnl_im3")
     assert importer.review_sources == ("osm", "pnnl")
-    assert importer.version == "1"
+    assert importer.version == "2"
 
 
 def parse_args(*argv: str) -> argparse.Namespace:
@@ -927,7 +928,12 @@ def tree(root: Path) -> dict[str, bytes]:
     }
 
 
-def test_cli_import_is_idempotent(tmp_repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_import_is_idempotent(
+    tmp_repo: Path,
+    capsys: pytest.CaptureFixture[str],
+    census_reference_cache: Callable[[Path], Path],
+) -> None:
+    census_reference_cache(tmp_repo / ".cache" / "atlas")  # the place sample, as if downloaded
     argv = [
         "import",
         "osm",
@@ -974,7 +980,9 @@ def test_cli_import_is_idempotent(tmp_repo: Path, capsys: pytest.CaptureFixture[
 
 
 def test_cli_import_drops_control_characters(
-    tmp_path_factory: pytest.TempPathFactory, capsys: pytest.CaptureFixture[str]
+    tmp_path_factory: pytest.TempPathFactory,
+    capsys: pytest.CaptureFixture[str],
+    census_reference_cache: Callable[[Path], Path],
 ) -> None:
     """SV2-3: one DEL in an OSM name used to make the record invalid (the text rule) and the
     import exit 1. The importer now drops control characters from every tag value, so the
@@ -991,6 +999,7 @@ def test_cli_import_drops_control_characters(
 
     def run(overpass: Path) -> tuple[Path, str]:
         repo = tmp_path_factory.mktemp("repo")
+        census_reference_cache(repo / "cache")
         argv = ["import", "osm", "--input", str(overpass), "--no-pnnl"]
         argv += ["--now", "2026-10-12T00:00:00Z", "--offline"]
         argv += ["--records", str(repo / "records"), "--review-dir", str(repo / "review")]
@@ -1027,11 +1036,15 @@ def test_cli_import_drops_control_characters(
 
 
 def test_cli_weekly_rerun_is_unchanged(
-    tmp_repo: Path, tmp_path_factory: pytest.TempPathFactory, capsys: pytest.CaptureFixture[str]
+    tmp_repo: Path,
+    tmp_path_factory: pytest.TempPathFactory,
+    capsys: pytest.CaptureFixture[str],
+    census_reference_cache: Callable[[Path], Path],
 ) -> None:
     """A later run on a newer snapshot of the same data changes no record: the snapshot date and
     every sources[].retrieved_at move, but first_reported keeps its date and retrieved_at is not
     a change (base._comparable)."""
+    census_reference_cache(tmp_repo / ".cache" / "atlas")
 
     def run(overpass: Path, now: str) -> str:
         argv = [

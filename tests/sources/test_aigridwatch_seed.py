@@ -330,23 +330,33 @@ def test_a_stage_behind_the_rows_own_event_log_is_held(seed: ImportResult) -> No
         assert "held for review" in item.reason
 
 
-def test_a_stage_without_as_of_is_not_dated_with_the_file(seed: ImportResult) -> None:
-    # Piketon and TMI have no as_of, and no milestone reaches their stage: before, the stage was
-    # dated 2026-10-08 (the file's date) and published as "as of 2026-10-08". (Person County, also
-    # without as_of, is first reported by its 2026-08-05 rezoning entry, which reaches the stage's
-    # status; its event log holds it all the same.)
+def test_a_stage_without_as_of_is_an_observation_at_the_files_date(seed: ImportResult) -> None:
+    # Piketon and TMI have no as_of, and no milestone reaches their stage. Before the third fix
+    # round the stage was published "as of 2026-10-08" (the file's date), as if AI GridWatch had
+    # read a source that day; then the rows were held. Owner decision of 2026-10-09: the stage is
+    # an `other` observation at the file's date, which sets the status and dates nothing. Piketon
+    # stays held all the same, because its own event log reports a groundbreaking (a conflict).
     for pid in ("softbank-ports-piketon-oh", "microsoft-three-mile-island-pa"):
         assert row(pid)["as_of"] == ""
-        (item,) = [i for i in items(seed, pid, "unknown_status") if "stage" in i.data]
-        assert "no as_of" in item.reason
-        assert pid not in records(seed)
-    # Every stage event that is published is dated by the row's own as_of.
+        assert not [i for i in items(seed, pid, "unknown_status") if "stage" in i.data]
+    assert "softbank-ports-piketon-oh" not in records(seed)
+    assert [
+        i.data["reported_status"] for i in items(seed, "softbank-ports-piketon-oh", "conflict")
+    ] == ["under_construction"]
+    tmi = records(seed)["microsoft-three-mile-island-pa"]
+    assert tmi.status_history[-1].as_of.value == "2026-10-08"
+    assert all(d.value != "2026-10-08" for d in tmi.dates.values())
+    # Every stage event names where its date comes from: the row's as_of, or the file.
+    undated = (
+        "AI GridWatch stage '{}', seen in its file on the file's date: the row has no as_of, so "
+        "this is not the date the stage began"
+    )
     for pid, rec in records(seed).items():
         for e in rec.status_history:
             if e.event == "other":
-                assert (
-                    e.note == f"AI GridWatch stage '{row(pid)['stage']}' as of {row(pid)['as_of']}"
-                )
+                stage, as_of = row(pid)["stage"], row(pid)["as_of"]
+                expected = f"AI GridWatch stage '{stage}' as of {as_of}" if as_of else None
+                assert e.note == (expected or undated.format(stage)), pid
 
 
 def test_a_reviewer_can_date_a_stage_without_as_of(

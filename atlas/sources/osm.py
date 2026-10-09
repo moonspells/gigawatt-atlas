@@ -11,7 +11,9 @@ with PNNL IM3 (07 §4.1, §4.2, §5.1, §6.5 step 1). docs/sources/osm-pnnl.md d
 4. Join PNNL rows to the clusters (atlas.sources.pnnl) unless --no-pnnl.
 5. Build one campus record per cluster, with external_ids["osm"] = every member ref, unless the
    cluster is held for review (_hold). OSM dates no status (`other` events), and the scope screen
-   keeps what may not be a data center out of scope for a reviewer (scope_doubt).
+   keeps what may not be a data center out of scope for a reviewer (scope_doubt). The record's
+   city is the Census place that contains its point (atlas.geo.places, ImportContext.places()),
+   never addr:city, the postal city.
 
 Data is © OpenStreetMap contributors, ODbL 1.0; PNNL IM3 is ODbL 1.0 (07 §5.1).
 """
@@ -81,6 +83,7 @@ from atlas.validate import EARLIEST_DATE, FUTURE_YEARS, add_years
 
 if TYPE_CHECKING:
     from atlas.geo.counties import County, CountyIndex
+    from atlas.geo.places import PlaceIndex
     from atlas.geocode import Gazetteer
 
 __all__ = [
@@ -489,14 +492,9 @@ def _pick(
 
 
 def osm_status(tags: Mapping[str, str]) -> Crosswalked | None:
-    """crosswalk.from_osm_tags, with proposed read as announced. 07 §2.3's proposed needs a formal
-    application or filing; an OSM lifecycle tag is a mapper's note that a site is planned, and no
-    OSM tag is a filing (Manchester Township, NJ, way 1549253250: proposed=yes on an anonymous
-    edit where no application was filed)."""
-    found = from_osm_tags(tags)
-    if found is not None and found.status == "proposed":
-        return dataclasses.replace(found, status="announced")
-    return found
+    """crosswalk.from_osm_tags, which reads OSM's proposed tags as announced (no OSM tag is a
+    filing, 07 §2.3) and writes every status as an `other` observation."""
+    return from_osm_tags(tags)
 
 
 @dataclass
@@ -800,6 +798,7 @@ def _location(
     lat: float,
     lon: float,
     approximate: bool,
+    city: str | None = None,
 ) -> Location:
     rep = cluster.representative
     shaped = any(m.osm_type in ("way", "relation") for m in cluster.members)
@@ -809,10 +808,10 @@ def _location(
         precision="footprint" if shaped and not approximate else "site",
         geometry_ref=f"osm:{rep.ref}",
         street=_pick(rep, ordered, _street),
-        # addr:city is the postal city of the address, which need not contain the point
-        # (Norcross for a site in Peachtree Corners): it is kept with the street and postcode,
-        # and the canonical name gives the county instead.
-        city=_pick(rep, ordered, lambda m: m.tags.get("addr:city")),
+        # The Census place that contains the point (07 §6.5), never addr:city: that is the postal
+        # city of the address, which need not contain the point (Norcross for a site in Peachtree
+        # Corners). Where the two agree, addr:city is that place.
+        city=city,
         postcode=_pick(rep, ordered, lambda m: m.tags.get("addr:postcode")),
         county_name=county.name,
         county_fips=county.fips,
@@ -1062,6 +1061,7 @@ def _build_one(
     county: County | None,
     ctx: _Context,
     review: list[ReviewItem],
+    city: str | None = None,
 ) -> Candidate | None:
     rep = cluster.representative
     ordered = [rep] + [m for m in cluster.members if m.ref != rep.ref]
@@ -1096,10 +1096,10 @@ def _build_one(
                 data={"osm": m.ref},
             )
         )
-    location = _location(cluster, ordered, county, *point, approximate is not None)
+    location = _location(cluster, ordered, county, *point, approximate is not None, city)
     operator = _most_common(m.operator for m in ordered)
     owner = _most_common(m.tags.get("owner") for m in ordered)
-    place = ctx.gazetteer.county_full_name(county.fips) or county.name
+    place = city or ctx.gazetteer.county_full_name(county.fips) or county.name
     name, base_name = _canonical_name(rep, ordered, operator, place, st)
 
     aliases: list[Alias] = []
@@ -1324,10 +1324,13 @@ def build_candidates(
     pnnl_snapshot: InputSnapshot | None = None,
     existing: Mapping[str, FacilityRecord] | None = None,
     gazetteer: Gazetteer | None = None,
+    places: PlaceIndex | None = None,
 ) -> BuildResult:
     """One campus candidate per cluster that is not held for review, the review items, and
-    metrics. gazetteer (default: the committed Census Gazetteer) gives the county's full name for
-    the canonical name."""
+    metrics. places (the Census place polygons) gives the city: the place that contains the
+    record's point, more than about 100 m inside its line; without one, or without places, the
+    record names no city and its canonical name gives the county's full name, from gazetteer
+    (default: the committed Census Gazetteer)."""
     if snapshot.upstream_version is None:
         raise ValueError("the Overpass snapshot has no timestamp_osm_base")
     if gazetteer is None:
@@ -1371,6 +1374,7 @@ def build_candidates(
     built: list[tuple[Cluster, Candidate]] = []
     duplicates = _duplicate_footprints(clusters)
     held: set[str] = set()
+    chosen: list[tuple[Cluster, tuple[float, float], County | None]] = []
     for cluster, point, rep_point, mean_county, rep_county in zip(
         clusters, points, reps, at_point, at_rep, strict=True
     ):
@@ -1392,7 +1396,19 @@ def build_candidates(
         county = rep_county or mean_county
         if county is not None and (mean_county is None or mean_county.fips != county.fips):
             point = rep_point
-        candidate = _build_one(cluster, point, county, ctx, review)
+        chosen.append((cluster, point, county))
+    found = places.containing_many([p for _, p, _ in chosen]) if places is not None else []
+    for (cluster, point, county), place_found in zip(
+        chosen, found or [None] * len(chosen), strict=True
+    ):
+        city = (
+            place_found.base_name
+            if place_found is not None
+            and county is not None
+            and place_found.state_abbr == county.state_abbr
+            else None
+        )
+        candidate = _build_one(cluster, point, county, ctx, review, city)
         if candidate is not None:
             candidates.append(candidate)
             built.append((cluster, candidate))
@@ -1436,7 +1452,7 @@ class OsmImporter:
     match_key = "osm"
     owned_external_keys = ("osm", "pnnl_im3")
     review_sources = ("osm", "pnnl")
-    version = "1"
+    version = "2"
     help = (
         "OpenStreetMap data centers via Overpass, dissolved into campuses, checked against PNNL IM3"
     )
@@ -1510,6 +1526,7 @@ class OsmImporter:
             pnnl_join=join,
             pnnl_snapshot=pnnl_snapshot,
             existing=ctx.records,
+            places=ctx.places(),
         )
         for ref in skipped:
             built.review.append(

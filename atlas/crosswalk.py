@@ -15,9 +15,9 @@ OSM_CONFIDENCE = 0.60
 DATASET_CONFIDENCE = 0.70
 
 EPOCH_CONSTRUCTION = re.compile(
-    r"\b(land clearing|clearing|grading|civil works|construction|foundation|groundbreaking|"
-    r"ground broken|site work|excavat\w*|steel|roof|built|conversion|retrofit\w*|installed|"
-    r"complete[d]?)\b",
+    r"\b(land clearing|land cleared|clearing|cleared|grading|civil works|construction|"
+    r"foundation|groundbreaking|ground broken|site work|excavat\w*|steel|roof|built|conversion|"
+    r"retrofit\w*|installed|complete[d]?)\b",
     re.I,
 )
 EPOCH_PRE_CONSTRUCTION = re.compile(
@@ -40,7 +40,7 @@ class UnknownStatus(ValueError):  # noqa: N818  (name fixed by the interface)
 
 
 # Keys whose value "data_center" makes an OSM object a data center (the Overpass query fetches the
-# first five).
+# first five, and site polygons tagged industrial=data_centre in a second statement).
 _OSM_DATA_CENTER_KEYS = (
     "telecom",
     "building",
@@ -57,6 +57,12 @@ _OSM_PROPOSED_TAGS: tuple[tuple[str, str | None], ...] = (
     ("proposed:building", None),
     ("proposed", None),
 )
+# industrial=data_centre (or data_center) on an object with a building tag is a data center
+# building, like building=data_center ("IBM Quantum Data Center", way 195803647: building=industrial
+# and industrial=data_center). Without a building tag it is a site polygon, which OSM does not
+# say is built: no status, and the importer holds it.
+_OSM_INDUSTRIAL_VALUES = frozenset({"data_centre", "data_center"})
+_OSM_BUILDING_KEYS = ("building", "proposed:building", "construction:building")
 _OSM_CONSTRUCTION_TAGS: tuple[tuple[str, str | None], ...] = (
     ("construction:telecom", "data_center"),
     ("construction", "data_center"),
@@ -76,30 +82,47 @@ def _osm_match(tags: Mapping[str, str], rules: tuple[tuple[str, str | None], ...
     return None
 
 
-def from_osm_tags(tags: Mapping[str, str]) -> Crosswalked | None:
-    """OSM tags of a data center, lifecycle first: proposed, then under construction, then
-    operating (assumed). None for an object no data_center tag marks as a data center.
+def _osm_industrial_building(tags: Mapping[str, str]) -> bool:
+    return tags.get("industrial") in _OSM_INDUSTRIAL_VALUES and any(
+        tags.get(key, "no") != "no" for key in _OSM_BUILDING_KEYS
+    )
 
-    Proposed: proposed:telecom=data_center, proposed:building=* or proposed=*. Under
-    construction: construction:telecom=data_center, construction=data_center,
-    construction:building=*, building=construction or landuse=construction. A lifecycle tag wins
-    over telecom=data_center, so a site OSM tags as planned or being built is never operating.
+
+def from_osm_tags(tags: Mapping[str, str]) -> Crosswalked | None:
+    """OSM tags of a data center, lifecycle first: planned (announced), then under construction,
+    then operating (assumed). None for an object no data_center tag marks as a data center.
+
+    A data center: telecom, building, construction:telecom, proposed:telecom, construction,
+    construction:building or proposed:building = data_center, or industrial=data_centre (or
+    data_center) on an object with a building tag. Announced: proposed:telecom=data_center,
+    proposed:building=* or proposed=*: a mapper's note that a site is planned, and no OSM tag is
+    a filing, so not 07 §2.3's proposed (Manchester Township, NJ, way 1549253250: proposed=yes on
+    an anonymous edit where no application was filed). Under construction:
+    construction:telecom=data_center, construction=data_center, construction:building=*,
+    building=construction or landuse=construction. A lifecycle tag wins over telecom=data_center,
+    so a site OSM tags as planned or being built is never operating.
+
+    The event is always `other`: OSM says what a feature is on the day it was read, not when its
+    status began, so the status is an observation that dates nothing (07 §2.3).
     """
-    if not any(tags.get(key) == "data_center" for key in _OSM_DATA_CENTER_KEYS):
+    industrial = _osm_industrial_building(tags)
+    if not industrial and not any(tags.get(key) == "data_center" for key in _OSM_DATA_CENTER_KEYS):
         return None
     label = _osm_match(tags, _OSM_PROPOSED_TAGS)
     if label is not None:
-        return Crosswalked("proposed", "first_reported", None, None, OSM_CONFIDENCE, label)
+        return Crosswalked("announced", "other", None, None, OSM_CONFIDENCE, label)
     label = _osm_match(tags, _OSM_CONSTRUCTION_TAGS)
     if label is not None:
-        return Crosswalked(
-            "under_construction", "first_reported", None, None, OSM_CONFIDENCE, label
-        )
+        return Crosswalked("under_construction", "other", None, None, OSM_CONFIDENCE, label)
     for key in ("telecom", "building"):
         if tags.get(key) == "data_center":
             return Crosswalked(
-                "operating", "first_reported", None, None, OSM_CONFIDENCE, f"{key}=data_center"
+                "operating", "other", None, None, OSM_CONFIDENCE, f"{key}=data_center"
             )
+    if industrial:
+        return Crosswalked(
+            "operating", "other", None, None, OSM_CONFIDENCE, f"industrial={tags['industrial']}"
+        )
     return None
 
 

@@ -55,22 +55,38 @@ def site(name: str, *, sources: str = "") -> Site:
     return Site(name, "", "", "", "", sources, None)
 
 
+# The sites whose address places only through the Census, which these offline runs skip: a
+# postal city gives no point without a stated county (07 §6.5). Each gets a test entry at its
+# county (made-up citation text); a shared campus needs one for its first site.
+TEST_COUNTIES = {
+    "Coreweave Helios": ("TX", "Dickens"),
+    "OpenAI Stargate Abilene": ("TX", "Taylor"),
+    "Google New Albany": ("OH", "Licking"),
+    "QTS Richmond 1": ("VA", "Henrico"),
+    "Core42 Lake Mariner": ("NY", "Niagara"),
+    "CoreWeave Dalton 1 & 2": ("GA", "Whitfield"),
+    "xAI QTS Atlanta": ("GA", "Fulton"),
+    "CoreWeave Lancaster Greenfield site": ("PA", "Lancaster"),
+    "Google Fort Wayne": ("IN", "Allen"),
+}
+
+
 @pytest.fixture
 def overrides(tmp_path: Path, counties: CountyIndex) -> Path:
-    """The committed overrides plus one for Coreweave Helios, whose address (Afton, TX) places
-    only through the Census, which these offline runs skip. Made-up citation text."""
-    dickens = counties.by_name("TX", "Dickens")
-    assert dickens is not None
+    """The committed overrides plus a county entry for each site in TEST_COUNTIES."""
     entries = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
-    entries["Coreweave Helios"] = {
-        "county_fips": dickens.fips,
-        "note": "Test entry.",
-        "precision": "county",
-        "quote": "The site is in Dickens County, Texas.",
-        "retrieved_at": "2026-10-08T05:00:00Z",
-        "source_url": "https://example.org/helios",
-        "state_abbr": "TX",
-    }
+    for name, (state, county_name) in TEST_COUNTIES.items():
+        county = counties.by_name(state, county_name)
+        assert county is not None and name not in entries
+        entries[name] = {
+            "county_fips": county.fips,
+            "note": "Test entry.",
+            "precision": "county",
+            "quote": f"The site is in {county.name} County.",
+            "retrieved_at": "2026-10-08T05:00:00Z",
+            "source_url": "https://example.org/site",
+            "state_abbr": state,
+        }
     path = tmp_path / "overrides.json"
     path.write_text(json.dumps(entries), encoding="utf-8")
     return path
@@ -403,7 +419,7 @@ def test_sites_at_one_street_address_are_one_campus(cases: ImportResult) -> None
     by_names = {c.match_values: c.record for c in cases.candidates}
     lake = by_names[("Core42 Lake Mariner", "Anthropic Lake Mariner")]
     assert lake.external_ids == {"epoch_name": ["Core42 Lake Mariner", "Anthropic Lake Mariner"]}
-    assert lake.canonical_name == "Core42 Lake Mariner (Barker, NY)"
+    assert lake.canonical_name == "Core42 Lake Mariner (Niagara County, NY)"
     assert [p.phase_id for p in lake.phases] == ["core42-lake-mariner", "anthropic-lake-mariner"]
     assert [(a.name, a.kind) for a in lake.aliases] == [("Anthropic Lake Mariner", "phase_name")]
     # Lake Mariner is a Bitcoin mining campus ("245 MW of Bitcoin-mining capacity"): partial.

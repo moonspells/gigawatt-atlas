@@ -11,6 +11,7 @@ import zipfile
 from collections.abc import Callable
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -29,7 +30,6 @@ from atlas.sources.epoch import (
     TimelineRow,
     check_license,
     event_note,
-    link_source_type,
     load_overrides,
     selected_links,
     site_record,
@@ -44,6 +44,7 @@ from atlas.validate import validate_record
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 EPOCH_ZIP = FIXTURES / "epoch" / "data_centers.zip"
 CENSUS = FIXTURES / "census"
+GEOCODE_CENSUS = FIXTURES / "geocode" / "census"  # the seed check's recorded responses
 REPO_OVERRIDES = Path(__file__).resolve().parents[2] / "config" / "overrides" / "epoch.json"
 MILAM_SOURCE = (
     "https://www.datacenterdynamics.com/en/news/softbanks-sb-energy-to-build-and-operate-"
@@ -60,7 +61,8 @@ MakeContext = Callable[..., ImportContext]
 
 
 def census_handler(calls: list[httpx.Request]) -> Callable[[httpx.Request], httpx.Response]:
-    """Answers the Census Geocoder from tests/fixtures/census; everything else is 404."""
+    """Answers the Census Geocoder from tests/fixtures/census and tests/fixtures/geocode/census;
+    everything else is 404."""
 
     def handler(request: httpx.Request) -> httpx.Response:
         calls.append(request)
@@ -68,6 +70,8 @@ def census_handler(calls: list[httpx.Request]) -> Callable[[httpx.Request], http
             return httpx.Response(404, request=request)
         digest = hashlib.sha256(request.url.params["address"].encode()).hexdigest()
         path = CENSUS / f"{digest}.json"
+        if not path.exists():
+            path = GEOCODE_CENSUS / f"{digest}.json"
         if not path.exists():
             return httpx.Response(500, request=request)
         return httpx.Response(
@@ -133,12 +137,6 @@ def test_event_notes_reduce_links_and_stay_short() -> None:
 
 
 def test_link_sources() -> None:
-    assert link_source_type("https://www.sec.gov/Archives/edgar/data/1/x.htm") == "sec_filing"
-    assert link_source_type("https://www.tdlr.texas.gov/TABS/Search/Project/X") == (
-        "government_record"
-    )
-    assert link_source_type("https://example.us/permit") == "government_record"
-    assert link_source_type("https://www.mlgw.com/x.pdf") == "news"
     md = "- [One](https://a.example/1)\n- [Bad](notaurl)\n- [Again](https://a.example/1)\n- [Two](https://b.example/2)\n"
     assert selected_links(md) == [("One", "https://a.example/1"), ("Two", "https://b.example/2")]
 
@@ -264,12 +262,18 @@ def test_fixture_run_without_geocoding(
     ctx = make_test_context(input_path=EPOCH_ZIP)
     result = IMPORTER.run(ctx, run_args(no_overrides))
     records = by_name(result.candidates)
-    assert sorted(records) == ["Amazon Madison Mega Site", "Colossus 2"]
+    # Without the Census step, Colossus 2's postal city (Memphis) gives no point: the address
+    # states no county (07 §6.5). The Madison Mega Site's address names Madison County.
+    assert sorted(records) == ["Amazon Madison Mega Site"]
     review = {(i.kind, i.external_id) for i in result.review}
     assert review == {
         ("missing_location", "OpenAI Stargate Milam"),
         ("geocode_failed", "Meta Hyperion"),
+        ("geocode_failed", "Colossus 2"),
     }
+    (colossus,) = [i for i in result.review if i.external_id == "Colossus 2"]
+    assert "the address's city (Memphis) is only its postal city" in colossus.reason
+    assert "no Census step" in colossus.reason and "config/overrides/epoch.json" in colossus.reason
     assert result.metrics["us_sites"] == 4 and result.metrics["sites"] == 5
     assert result.metrics["timeline_rows"] == 26
     assert "census_requests" not in result.metrics
@@ -292,8 +296,9 @@ def test_control_characters_in_the_csv_are_dropped(
     def edit(name: str, data: bytes) -> bytes:
         return data.replace(b"Colossus 2", b"Colossus\x1b 2\x7f") if name.endswith(".csv") else data
 
-    ctx = make_test_context(input_path=rezip(tmp_path, edit))
-    result = IMPORTER.run(ctx, run_args(no_overrides))
+    calls: list[httpx.Request] = []
+    ctx = make_test_context(input_path=rezip(tmp_path, edit), handler=census_handler(calls))
+    result = IMPORTER.run(ctx, run_args(no_overrides, no_geocode=False))
     records = by_name(result.candidates)
     assert sorted(records) == ["Amazon Madison Mega Site", "Colossus 2"]
     assert not [i for i in result.review if i.kind == "invalid"]
@@ -304,8 +309,10 @@ def test_control_characters_in_the_csv_are_dropped(
 
 
 def test_record_mapping(make_test_context: MakeContext, no_overrides: Path) -> None:
-    result = IMPORTER.run(make_test_context(input_path=EPOCH_ZIP), run_args(no_overrides))
+    ctx = make_test_context(input_path=EPOCH_ZIP, handler=census_handler([]))
+    result = IMPORTER.run(ctx, run_args(no_overrides, no_geocode=False))
     colossus = by_name(result.candidates)["Colossus 2"]
+    # The Census point lies in Memphis city (the place polygons), so the record names it.
     assert colossus.canonical_name == "Colossus 2 (Memphis, TN)"
     rec = colossus  # the latest row on or before 2026-10-12 is 2026-06-15
     assert rec.record_type == "campus" and rec.status == "operating"
@@ -319,7 +326,8 @@ def test_record_mapping(make_test_context: MakeContext, no_overrides: Path) -> N
     assert [o.name for o in rec.parties.tenant] == ["SpaceXAI", "Anthropic", "Cursor"]
     assert rec.external_ids == {"epoch_name": ["Colossus 2"]}
     assert rec.evidence_level == "reported" and rec.purpose == "unknown"
-    assert rec.location.precision == "locality" and rec.location.geocode_method == "gazetteer"
+    assert rec.location.precision == "address" and rec.location.city == "Memphis"
+    assert rec.location.geocode_method == "census_geocoder"
     s1, *links = rec.sources
     assert (str(s1.url), s1.publisher, s1.source_type, s1.license) == (
         "https://epoch.ai/data/ai-data-centers",
@@ -351,6 +359,7 @@ def test_record_mapping(make_test_context: MakeContext, no_overrides: Path) -> N
     madison = by_name(result.candidates)["Amazon Madison Mega Site"]
     assert madison.canonical_name == "Amazon Madison Mega Site (Madison County, MS)"
     assert madison.location.precision == "county" and madison.location.county_fips == "28089"
+    assert madison.location.city is None  # Canton is only the postal city
     assert [o.name for o in madison.parties.tenant] == ["Amazon"]  # not Anthropic #speculative
     assert madison.aliases == []  # Project Rainier #speculative
 
@@ -668,6 +677,8 @@ def test_census_geocoding_and_idempotent_apply(
         "38109",
     )
     assert colossus.field_meta["/location"].confidence == 0.90
+    # The city is the Census place that contains the point (here the USPS city as well).
+    assert (colossus.canonical_name, loc.city) == ("Colossus 2 (Memphis, TN)", "Memphis")
     # Tulane Rd and Holly Ridge are sent; the Madison Mega Site text is over 100 characters.
     assert sorted(r.url.params["address"] for r in calls) == [
         "5420 Tulane Rd, Memphis, TN 38109",
@@ -702,7 +713,11 @@ def test_census_geocoding_and_idempotent_apply(
 
 
 def test_cli_runs_offline_and_a_second_run_changes_no_file(
-    tmp_repo: Path, repo_root: Path, no_overrides: Path, capsys: pytest.CaptureFixture[str]
+    tmp_repo: Path,
+    repo_root: Path,
+    no_overrides: Path,
+    capsys: pytest.CaptureFixture[str],
+    census_reference_cache: Callable[[Path], Path],
 ) -> None:
     cache = tmp_repo / ".cache"
     (cache / "census").mkdir(parents=True)
@@ -729,6 +744,20 @@ def test_cli_runs_offline_and_a_second_run_changes_no_file(
         "2026-10-12T12:00:00Z",
         "--offline",
     ]
+    # The place polygons are not in the cache, and --offline forbids the download: the run
+    # fails, names the file and says how to get it, and writes nothing.
+    assert main(common) == 1
+    err = capsys.readouterr().err
+    assert "cb_2025_us_place_500k.zip" in err and "without --offline" in err
+    assert not (tmp_repo / "data" / "imports" / "epoch.json").exists()
+    # --places names the file instead; it is checked against the pin like a downloaded one.
+    sample = FIXTURES / "geocode" / "places" / "places_sample.zip"
+    assert main([*common, "--places", str(sample)]) == 1
+    assert "is not the pinned" in capsys.readouterr().err
+    where = census_reference_cache(cache)  # the samples, in place of the downloaded Census files
+    places = where / "cb_2025_us_place_500k.zip"
+    assert main([*common, "--places", str(places), "--dry-run"]) == 0
+    capsys.readouterr()
     assert main(common) == 0
     out = capsys.readouterr().out
     assert "import epoch: candidates=2 new=2" in out
@@ -736,8 +765,9 @@ def test_cli_runs_offline_and_a_second_run_changes_no_file(
     records = RecordStore(tmp_repo / "data" / "records").load()
     by_epoch = {r.external_ids["epoch_name"][0]: r for r in records.values()}
     assert by_epoch["Colossus 2"].location.precision == "address"
+    assert by_epoch["Colossus 2"].location.city == "Memphis"
     receipt = json.loads((tmp_repo / "data" / "imports" / "epoch.json").read_text("utf-8"))
-    assert receipt["source"] == "epoch" and receipt["importer_version"] == "2"
+    assert receipt["source"] == "epoch" and receipt["importer_version"] == "3"
     assert receipt["inputs"][0]["license"] == "CC-BY-4.0"
     records_before = snapshot(tmp_repo / "data" / "records", tmp_repo / "review")
 
@@ -750,7 +780,7 @@ def test_cli_runs_offline_and_a_second_run_changes_no_file(
     capsys.readouterr()
     assert snapshot(tmp_repo / "data", tmp_repo / "review") == everything
 
-    # --no-geocode needs no cache at all.
+    # --no-geocode needs no cache at all: without the Census step no place polygons are read.
     shutil.rmtree(cache)
     assert main([*common, "--no-geocode", "--dry-run"]) == 0
     assert "(dry run)" in capsys.readouterr().out
@@ -780,6 +810,153 @@ def test_fetch_records_the_etag(
     assert snap.upstream_version == '"abc123"' and snap.etag == '"abc123"'
     assert ctx.raw_path("epoch", snap.sha256, "zip").read_bytes() == body
     assert seen == ["https://epoch.ai/robots.txt", ZIP_URL]
+
+
+# ---------------------------------------------------------------------------- postal cities
+
+
+def with_address(tmp_path: Path, address: str) -> Path:
+    """The fixture ZIP with Colossus 2 at another address."""
+
+    def edit(name: str, data: bytes) -> bytes:
+        if name != "data_centers.csv":
+            return data
+        return data.replace(b"5420 Tulane Rd, Memphis, TN 38109", address.encode())
+
+    return rezip(tmp_path, edit)
+
+
+def geocoded(make_test_context: MakeContext, path: Path, no_overrides: Path) -> Any:
+    ctx = make_test_context(input_path=path, handler=census_handler([]))
+    return IMPORTER.run(ctx, run_args(no_overrides, no_geocode=False))
+
+
+def test_a_postal_city_without_a_stated_county_gives_no_point(
+    make_test_context: MakeContext, tmp_path: Path, no_overrides: Path
+) -> None:
+    """n17, n29: AWS Berwick is mailed to Berwick (Columbia County), but the campus is in Salem
+    Township, Luzerne County. The Census has no match, and the postal city's point would put the
+    record in the wrong county, so the site waits in review for a cited override."""
+    address = "1125 Electron Ave, Berwick, PA 18603"
+    result = geocoded(make_test_context, with_address(tmp_path, address), no_overrides)
+    assert "Colossus 2" not in by_name(result.candidates)
+    (item,) = [i for i in result.review if i.external_id == "Colossus 2"]
+    assert item.kind == "geocode_failed"
+    assert item.reason.startswith("no agreeing Census match, and the address's city (Berwick)")
+    assert "config/overrides/epoch.json" in item.reason
+    assert item.data == {"address": address}  # the Census returned no match
+
+
+def test_a_refused_census_match_is_shown_to_the_reviewer(
+    make_test_context: MakeContext, tmp_path: Path, no_overrides: Path
+) -> None:
+    """Anthropic-Amazon New Carlisle: the only match is on Larrison Dr, not Larrison Blvd, so it
+    is refused, and New Carlisle is only the postal city."""
+    address = "55001 Larrison Blvd, New Carlisle, IN 46552"
+    result = geocoded(make_test_context, with_address(tmp_path, address), no_overrides)
+    (item,) = [i for i in result.review if i.external_id == "Colossus 2"]
+    assert item.kind == "geocode_failed" and "(New Carlisle) is only its postal" in item.reason
+    assert item.data["address"] == address
+    matches = item.data["census_matches"]
+    assert isinstance(matches, list) and len(matches) == 1
+    assert "LARRISON DR" in str(matches[0])
+    # Answered from the cache on a second run, the item is the same.
+    calls: list[httpx.Request] = []
+    path = with_address(tmp_path, address)
+    again = IMPORTER.run(
+        make_test_context(input_path=path, handler=census_handler(calls)),
+        run_args(no_overrides, no_geocode=False),
+    )
+    assert calls == [] and again.metrics["census_cache_hits"] == 2
+    assert [i for i in again.review if i.external_id == "Colossus 2"] == [item]
+
+
+def test_the_city_is_the_census_place_that_contains_the_point(
+    make_test_context: MakeContext, tmp_path: Path, no_overrides: Path
+) -> None:
+    """n22, n38: QTS Cedar Rapids is mailed to Fairfax, IA. Its Census point lies 5 m inside Cedar
+    Rapids city on the 1:500,000 lines, too close to tell, so the record names its county, never
+    the postal city."""
+    address = "6200 76th Ave SW, Fairfax, IA 52228"
+    result = geocoded(make_test_context, with_address(tmp_path, address), no_overrides)
+    rec = by_name(result.candidates)["Colossus 2"]
+    assert rec.location.precision == "address" and rec.location.city is None
+    assert rec.canonical_name == "Colossus 2 (Linn County, IA)"
+    # Lordstown: mailed to Warren, the point lies in Lordstown village.
+    lordstown = "2300 Hallock Young Rd, Warren, OH 44481"
+    rec = by_name(
+        geocoded(make_test_context, with_address(tmp_path, lordstown), no_overrides).candidates
+    )["Colossus 2"]
+    assert rec.location.city == "Lordstown" and rec.canonical_name == "Colossus 2 (Lordstown, OH)"
+
+
+def test_a_county_subdivision_result_names_the_municipality() -> None:
+    from atlas.geocode import GeocodeResult
+    from atlas.sources.epoch import _location_from_result
+
+    result = GeocodeResult(
+        lat=41.843772,
+        lon=-72.741002,
+        precision="locality",
+        method="gazetteer",
+        state_abbr="CT",
+        county_fips="09110",
+        county_name="Capitol",
+        city=None,
+        postcode=None,
+        street=None,
+        matched_address="Bloomfield town, CT",
+        confidence=0.60,
+        municipality="Bloomfield",
+    )
+    location = _location_from_result(result)
+    assert (location["municipality"], location["city"]) == ("Bloomfield", None)
+
+
+def test_link_source_types_read_the_path_and_the_link_text(
+    make_test_context: MakeContext, tmp_path: Path, counties: CountyIndex, today: date
+) -> None:
+    """n53 (classify_source): a permit on Google Drive and an SEC filing on an investor site are
+    not news; an override citing an ISO is an ISO filing."""
+    site = Site(
+        "Test site",
+        "",
+        "",
+        "",
+        "",
+        "- [Air Construction Permit](https://drive.google.com/file/d/abc/view)\n"
+        "- [SEC 8k Filing](https://ir.applieddigital.com/financial-information/quarterly-results)\n"
+        "- [Local story](https://www.example-news.com/x)\n",
+        None,
+    )
+    placed = Placed(
+        {"lat": None, "lon": None, "precision": "state", "state_abbr": "TN"},
+        None,
+        0.60,
+        "override",
+        None,
+    )
+    rows = [TimelineRow(date(2025, 1, 1), "Land clearing begins", 0, None, None, None)]
+    rec = site_record(
+        site, rows, placed, ctx=make_test_context(), retrieved_at="2026-10-12T12:00:00+00:00"
+    )
+    assert [s.source_type for s in rec.sources[1:]] == [
+        "government_record",
+        "sec_filing",
+        "news",
+    ]
+    from atlas.sources.epoch import LocationOverride, override_source_type
+
+    ov = LocationOverride.model_validate(
+        {
+            **CITED,
+            "source_url": "https://cdn.misoenergy.org/new-load.pdf",
+            "state_abbr": "IA",
+            "precision": "county",
+            "county_fips": "19153",
+        }
+    )
+    assert override_source_type(ov) == "utility_or_iso_filing"
 
 
 # ---------------------------------------------------------------------------- live

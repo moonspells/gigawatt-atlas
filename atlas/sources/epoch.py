@@ -29,9 +29,12 @@ fields do not say which campus the expansion belongs to. Sites with the same str
 one campus, with a phase per site.
 
 The CSV has an address but no coordinates. A cited entry in config/overrides/epoch.json wins;
-otherwise the address goes through atlas.geocode (Census Geocoder, Gazetteer place, county by
-name). Sites with no address and no override become `missing_location` review items, and sites the
-chain cannot place become `geocode_failed` items; neither becomes a record.
+otherwise the address goes through atlas.geocode (Census Geocoder, then the county by name). The
+address's city is its postal city, so it is sent only as the city a Census match must agree with
+(and the point of the postal city inside a county the address states), never as the place the site
+is in: the record's city is the Census place that contains a Census match's point (07 §6.5). Sites
+with no address and no override become `missing_location` review items, and sites the chain cannot
+place become `geocode_failed` items; neither becomes a record, and a cited override places them.
 
 Importing this module does no I/O.
 """
@@ -62,12 +65,13 @@ from atlas.schema.record import (
     SourceType,
 )
 from atlas.schema.rollup import RollupError, apply_rollup
-from atlas.sources.base import Candidate, ImportResult, ReviewItem, load_input
+from atlas.sources.base import Candidate, ImportResult, ReviewItem, classify_source, load_input
 from atlas.text import clean_text as _clean_text
 from atlas.text import find_personal_data, strip_invisible
 
 if TYPE_CHECKING:
     from atlas.geo.counties import CountyIndex
+    from atlas.geo.places import PlaceIndex
     from atlas.geocode import CensusGeocoder, Gazetteer, GeocodeResult
     from atlas.net import FetchError, FetchResult
     from atlas.sources.base import ImportContext
@@ -298,16 +302,6 @@ def host_of(url: str) -> str:
     return host.removeprefix("www.")
 
 
-def link_source_type(url: str) -> SourceType:
-    """sec.gov is an SEC filing, other .gov and .us hosts are government records, else news."""
-    host = host_of(url)
-    if host == "sec.gov" or host.endswith(".sec.gov"):
-        return "sec_filing"
-    if host.endswith((".gov", ".us")):
-        return "government_record"
-    return "news"
-
-
 def selected_links(markdown: str) -> list[tuple[str, str]]:
     """(text, url) of the "- [text](url)" links, valid URLs only, de-duplicated, in order."""
     out: list[tuple[str, str]] = []
@@ -529,6 +523,7 @@ def _location_from_result(r: GeocodeResult) -> dict[str, Any]:
         "county_name": r.county_name,
         "county_fips": r.county_fips,
         "state_abbr": r.state_abbr,
+        "municipality": r.municipality,
         "geocode_method": r.method,
     }
 
@@ -600,7 +595,7 @@ def place_override(
 
 
 def override_source_type(ov: LocationOverride) -> SourceType:
-    return ov.source_type or link_source_type(str(ov.source_url))
+    return ov.source_type or classify_source(str(ov.source_url))
 
 
 def override_confidence(ov: LocationOverride) -> float:
@@ -714,7 +709,7 @@ def campus_record(
                     "url": url,
                     "publisher": host_of(url),
                     "title": title or None,
-                    "source_type": link_source_type(url),
+                    "source_type": classify_source(url, title),
                     "retrieved_at": retrieved_at,
                     "supports": [],
                 }
@@ -868,7 +863,7 @@ class EpochImporter:
     match_key = "epoch_name"
     owned_external_keys = ("epoch_name",)
     review_sources = ("epoch",)
-    version = "2"
+    version = "3"
     help = "Epoch AI Frontier Data Centers (CC BY 4.0): US sites with dated timelines"
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
@@ -910,6 +905,11 @@ class EpochImporter:
         census = (
             None if getattr(args, "no_geocode", False) else CensusGeocoder(ctx.http, ctx.cache_dir)
         )
+        # The Census place polygons name the city of a Census match (downloaded on first use);
+        # without the Census step nothing needs them. The Gazetteer gives county names, override
+        # places and a postal city's point: Epoch states no town or township, so it needs no
+        # county subdivisions.
+        places = ctx.places() if census is not None else None
         gazetteer = Gazetteer.load()
         counties = ctx.counties()
         retrieved_at = snapshot.retrieved_at.isoformat()
@@ -932,7 +932,8 @@ class EpochImporter:
             )
 
         def unplaced(site: Site) -> None:
-            if site.address and parse_address(site.address).state_abbr is None:
+            parsed = parse_address(site.address) if site.address else None
+            if parsed is not None and parsed.state_abbr is None:
                 flag(
                     "geocode_failed",
                     site.name,
@@ -941,13 +942,25 @@ class EpochImporter:
                     "config/overrides/epoch.json to import it",
                     address=site.address,
                 )
-            elif site.address:
-                flag(
-                    "geocode_failed",
-                    site.name,
-                    "the address did not geocode (Census, Gazetteer, county name)",
-                    address=site.address,
-                )
+            elif parsed is not None:
+                data: dict[str, Any] = {"address": site.address}
+                refused = census.seen(parsed.text) if census is not None else []
+                if refused:
+                    data["census_matches"] = [m.matched_address for m in refused]
+                matched = "no agreeing Census match" if census is not None else "no Census step"
+                if parsed.city and not parsed.county_name:
+                    reason = (
+                        f"{matched}, and the address's city ({parsed.city}) is only its postal "
+                        "city, which gives no point without a county a source states (07 §6.5); "
+                        "a cited entry in config/overrides/epoch.json places it"
+                    )
+                else:
+                    reason = (
+                        f"the address did not geocode: {matched}, and it names no city and no "
+                        "county the county file knows; a cited entry in "
+                        "config/overrides/epoch.json places it"
+                    )
+                flag("geocode_failed", site.name, reason, **data)
             else:
                 flag(
                     "missing_location",
@@ -991,7 +1004,7 @@ class EpochImporter:
         for members in campuses.values():
             site = next((s for s, _ in members if s.name in overrides), members[0][0])
             try:
-                placed = self._place(site, overrides, census, gazetteer, counties)
+                placed = self._place(site, overrides, census, gazetteer, counties, places)
             except GeocoderError as e:
                 raise epoch_error(f"Census Geocoder: {e}") from e
             if placed is None:
@@ -1046,7 +1059,13 @@ class EpochImporter:
         census: CensusGeocoder | None,
         gazetteer: Gazetteer,
         counties: CountyIndex,
+        places: PlaceIndex | None = None,
     ) -> Placed | None:
+        """An override, else the address through geocode(). The address's city is a postal
+        city (Berwick, PA for a campus in Salem Township, Luzerne County; Fairfax, IA for one in
+        Cedar Rapids), so it is the city a Census match must agree with, and it gives its point
+        only inside a county the address states; it is never sent as the locality, which would
+        name it as the place the site is in (07 §6.5)."""
         from atlas.geocode import GeocodeRequest, geocode, parse_address
 
         override = overrides.get(site.name)
@@ -1062,18 +1081,19 @@ class EpochImporter:
                 street=parsed.street,
                 city=parsed.city,
                 postcode=parsed.postcode,
-                locality=parsed.city,
                 county_name=parsed.county_name,
             ),
             census=census,
             gazetteer=gazetteer,
             counties=counties,
+            places=places,
         )
         if result is None:
             return None
         return Placed(
             _location_from_result(result),
             result.city
+            or result.municipality
             or (gazetteer.county_full_name(result.county_fips) if result.county_fips else None),
             result.confidence,
             result.precision,

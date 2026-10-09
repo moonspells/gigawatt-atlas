@@ -5,15 +5,17 @@ verified project becomes a `project` record at `locality` precision:
 
 - the point is AI GridWatch's approximate locality coordinate, checked to lie in the state and in
   the county the locality names; a point outside that county is not used, and the row is placed
-  like a row without coordinates (Gazetteer place in the county, else the county's point);
+  like a row without coordinates (Gazetteer place in the county, else the county's point; a row
+  without coordinates may also name a New England town or a township, a county subdivision);
 - the county comes from the locality text ("Muncy Township (Lycoming County)", "Caddo Parish");
 - status_history is built from the milestone dates (announced, rezoning filed, a hearing a
   decision on its day or an event of its day says was held, decision), plus a first_reported
   event at the earliest dated entry of the row's event log. A date on the 1st of a month is read
   at month precision. The derived `stage` goes through the status crosswalk (07 §4.7). When the
   milestones do not roll up to the stage's status, an `other` event records the stage as of the
-  row's as_of date; a row with no as_of has no date for it and is held for review, and so is a row
-  whose event log reports an approval or a groundbreaking the stage has not reached;
+  row's as_of date, or, for a row with no as_of, as of the file's generated date: an observation
+  that sets the status and dates nothing. A row whose event log reports an approval or a
+  groundbreaking the stage has not reached is held for review;
 - size_mw keeps its figure in mw_as_stated and becomes it_mw or utility_request_mw only when the
   row's note states that basis (07 §2.4); a row that is a power supply deal or a generation
   facility is out of scope (07 §2.2);
@@ -25,8 +27,10 @@ verified project becomes a `project` record at `locality` precision:
   being a link specific to that site or its street address in its name). A row tied only through
   its event log, or whose MW differ from the site's by more than x2, one that cites an Epoch AI
   page, one that only shares an organization with Epoch sites within 5 km, and one the rules tie
-  to several sites are held for review without naming one. The run refuses a store without Epoch
-  records unless --without-epoch is given, since `epoch` must run first;
+  to several sites are held for review without naming one. A row held as an Epoch record whose
+  stage disagrees with that record's status also gets a `conflict` item (the stage is not
+  applied). The run refuses a store without Epoch records unless --without-epoch is given, since
+  `epoch` must run first;
 - a row whose id begins with another row's name (AI GridWatch shifted the ids of a block of PA DEP
   rows) is held for review, since records are matched on that id;
 - a reviewer releases a held row through config/overrides/aigridwatch.json (one entry per row
@@ -64,7 +68,6 @@ from atlas.schema.record import (
     EventType,
     FacilityRecord,
     FuzzyDate,
-    SourceType,
     Status,
     StatusEvent,
     StatusReason,
@@ -77,7 +80,7 @@ from atlas.schema.rollup import (
     mw_display,
     period_start,
 )
-from atlas.sources.base import Candidate, ImportResult, ReviewItem, load_input
+from atlas.sources.base import Candidate, ImportResult, ReviewItem, classify_source, load_input
 from atlas.text import clean_text as _clean_text
 from atlas.text import find_personal_data
 
@@ -105,8 +108,11 @@ S1_SUPPORTS = (
     "/status_history",
 )
 REQUIRED_FIELDS = ("id", "name", "locality", "state", "stage", "verified")
-# Hosts of agenda and code platforms count as government records, like .gov and .us hosts.
-GOVERNMENT_HOST_MARKERS = ("legistar", "granicus", "civicplus", "municode")
+# The note of the `other` event for a stage on a row without as_of (dated with the file).
+UNDATED_STAGE_NOTE = (
+    "AI GridWatch stage '{stage}', seen in its file on the file's date: the row has no as_of, so "
+    "this is not the date the stage began"
+)
 
 _PAREN_RE = re.compile(r"^(?P<outside>.*?)\s*\((?P<inside>[^()]*)\)\s*$")
 _COUNTY_RE = re.compile(r"^(?P<names>.+?)\s+(?P<kind>County|Counties|Parish|Parishes)$", re.I)
@@ -396,13 +402,6 @@ def filing_names(text: str) -> list[str]:
 
 def host_of(url: str) -> str:
     return (urlsplit(url).hostname or "").lower().removeprefix("www.")
-
-
-def row_source_type(url: str) -> SourceType:
-    host = host_of(url)
-    if host.endswith((".gov", ".us")) or any(m in host for m in GOVERNMENT_HOST_MARKERS):
-        return "government_record"
-    return "news"
 
 
 # ---------------------------------------------------------------------------- locality
@@ -1166,6 +1165,29 @@ class EpochSites:
         )
 
 
+def stage_support(project: dict[str, Any], status: Status, today: date) -> dict[str, Any] | None:
+    """The milestone, else the event-log entry, that supports a stage's status, if any: the
+    latest milestone event with that status, or an approval or groundbreaking the event log
+    reports (log_milestone) that is that status."""
+    milestones = [
+        e for e in milestone_events(project, today) if not e["planned"] and e["status"] == status
+    ]
+    if milestones:
+        e = milestones[-1]
+        return {"event": e["event"], "as_of": e["as_of"]["value"]}
+    if status in ACTIVE_ORDER and status != ACTIVE_ORDER[0]:
+        below = ACTIVE_ORDER[ACTIVE_ORDER.index(status) - 1]
+        log = log_milestone(project, below, today)
+        if log is not None and log.status == status:
+            return {
+                "event_log": log.what,
+                "as_of": log.day.fuzzy()["value"],
+                "event_kind": log.kind or None,
+                "event_source": log.source,
+            }
+    return None
+
+
 # ---------------------------------------------------------------------------- reviewer releases
 
 
@@ -1179,8 +1201,9 @@ class RowRelease(AtlasModel):
     release names the checks: "epoch" (the Epoch AI site rules: the reviewer found the row is
     another site), "stage" (the event log's later milestone: the stage is right), "id" (the id
     that starts with another row's name) and "scope" (a power supply deal or generation facility).
-    as_of is the day the reviewer confirmed the stage of a row that has no as_of, so its stage
-    can be dated. reason says what the reviewer read; reviewed_at is when."""
+    as_of is the day the reviewer confirmed the stage of a row that has no as_of (the stage's
+    observation is then noted as confirmed on that day instead of seen in the file).
+    reason says what the reviewer read; reviewed_at is when."""
 
     release: list[ReleaseCheck] = Field(default_factory=list)
     as_of: date | None = None
@@ -1247,8 +1270,6 @@ class AIGridWatchImporter:
         )
 
     def run(self, ctx: ImportContext, args: argparse.Namespace) -> ImportResult:
-        from atlas.geocode import Gazetteer
-
         releases = load_releases(getattr(args, "overrides", OVERRIDES_PATH))
         if not getattr(args, "without_epoch", False) and not any(
             r.external_ids.get("epoch_name") and not r.merged_into for r in ctx.records.values()
@@ -1289,7 +1310,7 @@ class AIGridWatchImporter:
                     f"config/overrides/aigridwatch.json entry {pid!r}: as_of is after today"
                 )
 
-        gazetteer = Gazetteer.load()
+        gazetteer = ctx.gazetteer()  # with the county subdivisions (downloaded on first use)
         counties = ctx.counties()
         epoch_sites = EpochSites.from_records(ctx.records, counties)
         projects: list[Any] = doc["projects"]
@@ -1411,6 +1432,34 @@ class AIGridWatchImporter:
                 source=clean_text(project.get("source")) or None,
                 **extra,
             )
+            epoch = ctx.records.get(twin.record_id) if twin.record_id else None
+            if epoch is not None:
+                stage_conflict(pid, project, epoch)
+
+        def stage_conflict(pid: str, project: dict[str, Any], epoch: FacilityRecord) -> None:
+            """The row is held as this Epoch record's twin; its stage, which is not applied, may
+            disagree with the record's status (Google Fort Wayne: Operating in AI GridWatch,
+            under construction in Epoch's count of AI buildings)."""
+            stage = clean_text(project.get("stage"))
+            try:
+                cw = from_aigridwatch_stage(stage, has_filing=has_filing(project))
+            except UnknownStatus:
+                return
+            if cw.status == epoch.status:
+                return
+            stats["epoch_stage_conflicts"] += 1
+            flag(
+                "conflict",
+                pid,
+                f"AI GridWatch's stage {stage!r} ({cw.status}) disagrees with the status of the "
+                f"Epoch AI record ({epoch.status}); the row is held as that record's twin, so "
+                "its stage is not applied: a reviewer checks which is right",
+                record_id=epoch.id,
+                stage=stage,
+                as_of=clean_text(project.get("as_of")) or None,
+                epoch_status=epoch.status,
+                support=stage_support(project, cw.status, ctx.today),
+            )
 
         def release_epoch(pid: str, release: RowRelease, twin: Twin) -> None:
             ids = [twin.record_id] if twin.record_id else list(twin.candidates)
@@ -1496,6 +1545,7 @@ class AIGridWatchImporter:
                 released=released,
                 release=release,
                 stats=row_stats,
+                existing=ctx.records.get(stored_agw.get(pid, "")),
             )
             if built is None:
                 stats.update(row_stats)
@@ -1530,6 +1580,7 @@ class AIGridWatchImporter:
             "candidates": len(candidates),
             "planned_events": planned,
             "stage_events": stats["stage_events"],
+            "stage_events_undated": stats["stage_events_undated"],
             "first_reported_events": stats["first_reported_events"],
             "hearings_unconfirmed": stats["hearings_unconfirmed"],
             "located_source_coords": stats["source_coords"],
@@ -1539,6 +1590,7 @@ class AIGridWatchImporter:
             "out_of_scope": stats["out_of_scope"],
             "epoch_duplicates": stats["epoch_duplicates"],
             "epoch_ambiguous": stats["epoch_ambiguous"],
+            "epoch_stage_conflicts": stats["epoch_stage_conflicts"],
             "epoch_records_seen": len(epoch_sites.by_name),
             "held_for_review": stats["held_for_review"],
             "overrides_used": sum(1 for pid in releases if pid in row_ids),
@@ -1593,10 +1645,11 @@ class AIGridWatchImporter:
         released: Callable[..., None],
         release: RowRelease | None,
         stats: Counter[str],
+        existing: FacilityRecord | None = None,
     ) -> tuple[FacilityRecord, tuple[str, ...]] | None:
         """The row's record, and the checks that hold it for review ("stage": the event log
-        reports a later milestone; "as_of": the stage has no date). None when no record can be
-        made; the review items say why."""
+        reports a later milestone). None when no record can be made; the review items say why.
+        existing is the stored record for the row, if any."""
         from atlas.geocode import GeocodeRequest, geocode
 
         free = set(release.release) if release else set()
@@ -1681,8 +1734,15 @@ class AIGridWatchImporter:
                 stats["source_coords"] += 1
         else:
             county = resolve_county(loc, state, counties, None)
+            # A Census place, or a county subdivision (Bloomfield, CT is a town; the Gazetteer's
+            # only place there is Blue Hills CDP), in the named county when there is one.
             locality = next(
-                (t for t in (loc.place, loc.hint) if t and gazetteer.place(state, t)), None
+                (
+                    t
+                    for t in (loc.place, loc.hint)
+                    if t and gazetteer.has_locality(state, t, county.fips if county else None)
+                ),
+                None,
             )
             # A nearby place ("Storey County (near Reno)") may give the point, never the city.
             nearby = locality is not None and locality == loc.hint and loc.hint_is_nearby
@@ -1706,13 +1766,16 @@ class AIGridWatchImporter:
                 )
                 return None
         if location is None and result is not None:
+            if result.municipality is not None and place_city is not None and result.city is None:
+                # The text's place is a county subdivision, not a Census place: a municipality.
+                place_city = None
             location = {
                 "lat": result.lat,
                 "lon": result.lon,
                 "precision": result.precision,
                 "geocode_method": result.method,
                 "city": place_city or (None if nearby else result.city),
-                "municipality": place_municipality,
+                "municipality": place_municipality or (None if nearby else result.municipality),
                 "county_name": result.county_name,
                 "county_fips": result.county_fips,
                 "state_abbr": state,
@@ -1899,19 +1962,24 @@ class AIGridWatchImporter:
                     f"{release.as_of.isoformat()} (the row has no as_of)"
                 )
             if observed is None:
-                # The schema has no "status seen, date unknown", and the file's date is not the
-                # day AI GridWatch read a source for the row: the stage cannot be dated.
-                holds.append("as_of")
-                flag(
-                    "unknown_status",
-                    pid,
-                    f"AI GridWatch gives the row no as_of date, and no milestone reaches its "
-                    f"stage {stage!r}: the stage has no date, so the row is held for review, not "
-                    "imported (a reviewer who confirms the stage can date it in "
-                    "config/overrides/aigridwatch.json)",
-                    stage=stage,
-                )
-                observed = AgwDate(generated_day, "day")  # to check the row against Epoch only
+                # Owner decision of 2026-10-09: the stage the row reports is an observation in
+                # the file of its generated date. An `other` event sets the status and dates
+                # nothing (rollup.derive_dates skips it), as for an OSM tag. The first file that
+                # showed the stage keeps its date, so a weekly run does not move it.
+                note = UNDATED_STAGE_NOTE.format(stage=stage)
+                observed = AgwDate(generated_day, "day")
+                seen = [
+                    e.as_of
+                    for e in (existing.status_history if existing is not None else [])
+                    if e.event == "other"
+                    and not e.planned
+                    and e.status == status
+                    and e.note == note
+                    and period_start(e.as_of) < generated_day
+                ]
+                if seen:
+                    observed = AgwDate(period_start(min(seen, key=period_start)), "day")
+                stats["stage_events_undated"] += 1
             if latest is not None and observed.start < period_start(latest.as_of):
                 observed = AgwDate(
                     period_start(latest.as_of),
@@ -1955,7 +2023,7 @@ class AIGridWatchImporter:
                     "id": "s2",
                     "url": row_url,
                     "publisher": host_of(row_url),
-                    "source_type": row_source_type(row_url),
+                    "source_type": classify_source(row_url),
                     "retrieved_at": retrieved_at,
                     "supports": [],
                 }

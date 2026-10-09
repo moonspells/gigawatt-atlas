@@ -34,7 +34,6 @@ from atlas.sources.aigridwatch import (
     parse_locality,
     party_name,
     resolve_county,
-    row_source_type,
 )
 from atlas.sources.base import (
     Candidate,
@@ -73,8 +72,8 @@ EXPECTED = {
 
 
 # Rows of the fixture without as_of (sabey-decatur-township-in, talen-montour-pa): no milestone
-# reaches their stage, so their stage has no date and they are held for review. Tests about other
-# things date them through dated().
+# reaches their stage, so their stage is an observation at the file's generated date (2026-10-07).
+# Tests about other things date them through dated().
 UNDATED = ("sabey-decatur-township-in", "talen-montour-pa")
 
 
@@ -242,9 +241,6 @@ def test_party_helpers() -> None:
     assert filing_names("Archbald I LLC / Archbald II LLC") == ["Archbald I LLC", "Archbald II LLC"]
     assert filing_names("4AM Development, LLC") == ["4AM Development, LLC"]
     assert filing_names("A One LLC; applicant changed to B Two LLC in July 2025") == ["A One LLC"]
-    assert row_source_type("https://gis.dep.pa.gov/DataCenterPermitTracker/") == "government_record"
-    assert row_source_type("https://example.legistar.com/x") == "government_record"
-    assert row_source_type("https://www.wfdd.org/x") == "news"
 
 
 # ---------------------------------------------------------------------------- stages and events
@@ -283,29 +279,70 @@ def test_every_stage_maps_through_the_crosswalk(
     assert result.metrics["projects"] == 12 and result.metrics["upstream_events_unused"] == 30
 
 
-def test_a_stage_without_a_date_is_held_for_review(make_test_context: MakeContext) -> None:
+def test_a_stage_without_a_date_is_an_observation_that_dates_nothing(
+    make_test_context: MakeContext,
+) -> None:
     # Sabey (Approved) and Talen (Denied) have no as_of and no milestone date that reaches their
-    # stage. The file's generated date is not the day AI GridWatch read a source for them, so the
-    # stage cannot be dated, and the rows are held instead of dated with the file (2026-10-08).
+    # stage. Owner decision of 2026-10-09: the stage is published as an `other` observation at the
+    # file's generated date (2026-10-07), which sets the status and dates nothing, as an OSM tag
+    # does; the rows are no longer held.
     result = run(make_test_context)
     got = records(result)
-    assert not set(UNDATED) & set(got) and len(got) == len(EXPECTED) - 2
-    held = {
-        i.external_id: i for i in result.review if i.kind == "unknown_status" and "stage" in i.data
-    }
-    assert set(held) == set(UNDATED)
-    assert held["sabey-decatur-township-in"].data == {"stage": "Approved"}
-    assert (
-        "no as_of" in held["talen-montour-pa"].reason
-        and "held for review" in held["talen-montour-pa"].reason
-    )
-    assert result.metrics["held_for_review"] == 2
-    # Nothing in any record is dated with the file's date for want of an as_of.
+    assert set(UNDATED) <= set(got) and len(got) == len(EXPECTED)
+    assert not [i for i in result.review if i.kind == "unknown_status" and "stage" in i.data]
+    assert result.metrics["held_for_review"] == 0
+    assert result.metrics["stage_events_undated"] == 2
+    for pid in UNDATED:
+        rec = got[pid]
+        assert rec.status == EXPECTED[pid][1]
+        stage = rec.status_history[-1]
+        assert (stage.event, stage.status, stage.as_of.value, stage.planned) == (
+            "other",
+            EXPECTED[pid][1],
+            "2026-10-07",
+            False,
+        )
+        assert stage.note == (
+            f"AI GridWatch stage '{EXPECTED[pid][0]}', seen in its file on the file's date: the "
+            "row has no as_of, so this is not the date the stage began"
+        )
+        # The observation dates nothing (Sabey's and Talen's first report is their earliest
+        # event-log entry); no decision date exists.
+        assert all(d.value != "2026-10-07" for d in rec.dates.values()), pid
+        assert {"approved", "cancelled"}.isdisjoint(rec.dates), pid
+    # A row with an as_of is dated by it, never by the file.
     assert all(
         e.note is None or "as of 2026-10-07" not in e.note
-        for rec in got.values()
+        for pid, rec in got.items()
+        if pid not in UNDATED
         for e in rec.status_history
     )
+
+
+def test_an_undated_stage_keeps_the_date_it_was_first_seen(
+    make_test_context: MakeContext, tmp_path: Path
+) -> None:
+    # A later file (generated 2026-10-14) still shows Sabey's stage: the observation keeps the
+    # date of the file that first showed it, so a weekly run rewrites nothing.
+    first = records(run(make_test_context))["sabey-decatur-township-in"]
+    stored = first.model_copy(update={"id": "gwa-00000001"})
+
+    def later(doc: dict[str, Any]) -> None:
+        doc["generated"] = "2026-10-14"
+
+    again = run_edited(make_test_context, tmp_path, later, records={stored.id: stored})
+    rec = records(again)["sabey-decatur-township-in"]
+    assert rec.status_history[-1].as_of.value == "2026-10-07"
+    assert rec.status_history == first.status_history
+
+    # A stage that changed is a new observation, at the new file's date.
+    def changed(doc: dict[str, Any]) -> None:
+        doc["generated"] = "2026-10-14"
+        project(doc, "sabey-decatur-township-in")["stage"] = "Under construction"
+
+    moved = run_edited(make_test_context, tmp_path, changed, records={stored.id: stored})
+    other = records(moved)["sabey-decatur-township-in"].status_history[-1]
+    assert (other.status, other.as_of.value) == ("under_construction", "2026-10-14")
 
 
 def test_proposed_splits_on_a_filing(make_test_context: MakeContext, tmp_path: Path) -> None:
@@ -482,7 +519,7 @@ def test_unknown_stage_and_bad_rows(make_test_context: MakeContext, tmp_path: Pa
     assert ("unknown_status", "qts-richmond-3") in kinds
     assert ("out_of_scope", "google-bristow") in kinds
     assert ("invalid", None) in kinds
-    assert len(result.candidates) == 7  # 11 verified rows, 3 edited out, Sabey held (no as_of)
+    assert len(result.candidates) == 8  # 11 verified rows, 3 edited out
 
 
 # ---------------------------------------------------------------------------- location and parties
@@ -1242,6 +1279,108 @@ def test_a_row_tied_to_more_than_one_epoch_site_is_held_for_review_not_merged(
     assert not [i for i in result.review if i.kind == "unit_parse"]
 
 
+def test_a_twin_whose_stage_disagrees_with_the_epoch_record_is_flagged(
+    make_test_context: MakeContext, make_record: Callable[..., FacilityRecord]
+) -> None:
+    """n36: Google Fort Wayne is Operating in AI GridWatch and under construction in Epoch's count
+    of AI buildings. The row is held as the Epoch record's twin, so its stage is not applied; a
+    `conflict` item says they disagree, for a reviewer to check (the status is not changed)."""
+    from atlas.schema.rollup import apply_rollup
+
+    def at(rec: FacilityRecord, status: str, event: str) -> FacilityRecord:
+        first = rec.status_history[0].model_copy(update={"status": status, "event": event})
+        return apply_rollup(rec.model_copy(update={"status_history": [first]}))
+
+    bristow = at(
+        epoch_site(make_record, "Google Bristow"), "under_construction", "construction_start"
+    )
+    red_oak = at(
+        epoch_site(
+            make_record,
+            "Compass Datacenters Red Oak campus",
+            state="TX",
+            county=("48139", "Ellis"),
+            point=(32.52, -96.8),
+        ),
+        "permitted",
+        "approved",
+    )
+    pw = at(
+        epoch_site(make_record, "PW Digital Gateway", point=(38.72, -77.55)), "proposed", "other"
+    )
+    result = run(make_test_context, records=stored(bristow, red_oak, pw))
+    assert {"google-bristow", "red-oak-compass-campus", "pw-digital-gateway-va"} <= set(
+        duplicates(result)
+    )
+    conflicts = {
+        i.external_id: i for i in result.review if i.kind == "conflict" and "epoch_status" in i.data
+    }
+    assert set(conflicts) == {"google-bristow", "pw-digital-gateway-va"}  # Red Oak agrees
+    item = conflicts["google-bristow"]
+    assert item.record_id == bristow.id
+    assert item.data == {
+        "stage": "Operating",
+        "as_of": "2026-08-14",
+        "epoch_status": "under_construction",
+        "support": None,
+    }
+    assert "is not applied" in item.reason and "disagrees" in item.reason
+    # Withdrawn on 2026-04-01: the decision supports the stage.
+    assert conflicts["pw-digital-gateway-va"].data["support"] == {
+        "event": "withdrawn",
+        "as_of": "2026-04",
+    }
+    assert result.metrics["epoch_stage_conflicts"] == 2
+    # Nothing is imported for the held rows, and the Epoch records are not changed.
+    assert {"google-bristow", "pw-digital-gateway-va"}.isdisjoint(records(result))
+
+
+def test_a_new_england_town_is_placed_as_a_county_subdivision(
+    make_test_context: MakeContext, tmp_path: Path
+) -> None:
+    """n40: Bloomfield, CT is a town; the Gazetteer's only place there is Blue Hills CDP. With
+    the county subdivisions (on for every import that geocodes) the row is placed at the town's
+    point, in the Capitol Planning Region, with Bloomfield as its municipality."""
+    from atlas.geocode import Gazetteer
+
+    def bloomfield(doc: dict[str, Any]) -> None:
+        row = project(doc, "talen-montour-pa")
+        row["state"], row["locality"], row["name"] = "CT", "Bloomfield", "Example Bloomfield campus"
+
+    result = run_edited(make_test_context, tmp_path, bloomfield)
+    rec = records(result)["talen-montour-pa"]
+    loc = rec.location
+    assert (loc.precision, loc.geocode_method, loc.county_fips) == (
+        "locality",
+        "gazetteer",
+        "09110",
+    )
+    assert (loc.lat, loc.lon) == (41.843772, -72.741002)
+    assert (loc.municipality, loc.city) == ("Bloomfield", None)
+    assert rec.canonical_name == "Example Bloomfield campus (Bloomfield, CT)"
+    # Without the county subdivisions the town cannot be placed.
+    without = run_edited(make_test_context, tmp_path, bloomfield, gazetteer=Gazetteer.load())
+    assert "talen-montour-pa" not in records(without)
+    assert ("geocode_failed", "talen-montour-pa") in {
+        (i.kind, i.external_id) for i in without.review
+    }
+
+
+def test_the_rows_source_type_reads_its_path(
+    make_test_context: MakeContext, tmp_path: Path
+) -> None:
+    """classify_source: an ISO's filing is not news, and a permit portal is a government record."""
+
+    def sources(doc: dict[str, Any]) -> None:
+        project(doc, "qts-richmond-3")["source"] = "https://cdn.misoenergy.org/new-load.pdf"
+        project(doc, "google-bristow")["source"] = "https://example.civicweb.net/document/1"
+
+    got = records(run_edited(make_test_context, tmp_path, sources))
+    assert got["qts-richmond-3"].sources[1].source_type == "utility_or_iso_filing"
+    assert got["google-bristow"].sources[1].source_type == "government_record"
+    assert got["stokes-county-project-delta"].sources[1].source_type == "news"
+
+
 def test_the_run_needs_the_epoch_records(
     make_test_context: MakeContext, make_record: Callable[..., FacilityRecord]
 ) -> None:
@@ -1318,8 +1457,12 @@ def test_license_and_layout_guards(make_test_context: MakeContext, tmp_path: Pat
 
 
 def test_cli_run_is_idempotent(
-    tmp_repo: Path, repo_root: Path, capsys: pytest.CaptureFixture[str]
+    tmp_repo: Path,
+    repo_root: Path,
+    capsys: pytest.CaptureFixture[str],
+    census_reference_cache: Callable[[Path], Path],
 ) -> None:
+    census_reference_cache(tmp_repo / ".cache")  # the county-subdivision sample, as if downloaded
     common = [
         "import",
         "aigridwatch",
@@ -1345,14 +1488,14 @@ def test_cli_run_is_idempotent(
     assert not (tmp_repo / "data" / "imports" / "aigridwatch.json").exists()
     common.append("--without-epoch")
     assert main(common) == 0
-    assert "import aigridwatch: candidates=9 new=9" in capsys.readouterr().out
+    assert "import aigridwatch: candidates=11 new=11" in capsys.readouterr().out
     stored = RecordStore(tmp_repo / "data" / "records").load()
-    assert len(stored) == 9  # 11 verified rows; Sabey and Talen have no as_of
+    assert len(stored) == 11  # every verified row
     queue = (tmp_repo / "review" / "queue" / "aigridwatch.jsonl").read_text(encoding="utf-8")
     assert '"kind":"unverified_upstream"' in queue
     before = snapshot(tmp_repo / "data" / "records", tmp_repo / "review")
     assert main(common) == 0
-    assert "unchanged=9" in capsys.readouterr().out
+    assert "unchanged=11" in capsys.readouterr().out
     assert snapshot(tmp_repo / "data" / "records", tmp_repo / "review") == before
     everything = snapshot(tmp_repo / "data", tmp_repo / "review")
     assert main(common) == 0

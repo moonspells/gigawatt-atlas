@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import json
+import zipfile
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -15,6 +16,8 @@ from pydantic import HttpUrl
 
 from atlas.dissolve import Bounds, OsmObject, dissolve
 from atlas.geo.counties import CountyIndex
+from atlas.geo.duck import connect
+from atlas.geo.places import PlaceIndex
 from atlas.schema.record import FacilityRecord
 from atlas.sources import pnnl
 from atlas.sources.base import ImportContext, ImportResult, InputSnapshot, ReviewItem
@@ -182,6 +185,32 @@ def test_a_site_polygon_alone_is_held(counties: CountyIndex) -> None:
     assert item.data["name"] == "Microsoft Bison Business Park Data Center"
 
 
+def test_an_industrial_data_centre_building_is_a_data_center(counties: CountyIndex) -> None:
+    """Seed check (OSM group): "IBM Quantum Data Center", way 195803647, is tagged only
+    building=industrial + industrial=data_center, so it had no status and made no record. With a
+    building tag, industrial=data_centre counts like building=data_center (lifecycle tags first);
+    its status is an observation that dates nothing."""
+    lat, lon = 41.2105, -73.8045  # Westchester County, NY
+    b = Bounds(lat - 0.0005, lon - 0.0005, lat + 0.0005, lon + 0.0005)
+    tags = {"building": "industrial", "industrial": "data_center", "name": "Example Quantum DC"}
+    ibm = OsmObject("way/195803647", lat, lon, b, tags, classify("way", tags))
+    result = build_candidates(dissolve([ibm]), counties=counties, now=NOW, snapshot=snapshot())
+    (c,) = result.candidates
+    r = c.record
+    assert r.status == "operating" and r.dates == {}
+    (event,) = r.status_history
+    assert (event.event, event.status) == ("other", "operating")
+    assert event.note is not None and "industrial=data_center" in event.note
+    # The same tags under construction, or planned, read the lifecycle tag first.
+    being_built = OsmObject(
+        "way/2", lat, lon, b, {**tags, "building": "construction"}, classify("way", tags)
+    )
+    result = build_candidates(
+        dissolve([being_built]), counties=counties, now=NOW, snapshot=snapshot()
+    )
+    assert [c.record.status for c in result.candidates] == ["under_construction"]
+
+
 def test_a_construction_site_holds_its_halls(run: ImportResult) -> None:
     """n71: "AWS IAD-500 and IAD-501" (landuse=construction, construction=data_center) and the
     operating IAD-500 inside it were separate records with conflicting statuses."""
@@ -289,18 +318,70 @@ def test_the_street_is_the_representatives(run: ImportResult) -> None:
     """n6: QTS Manassas DC5 (no address) was published at DC1's 9400 Godwin Drive, the most common
     member street. A member's street is used only when every member that has one agrees."""
     r = record(run, "way/1090837713")
-    assert r.canonical_name == "QTS Manassas DC5 (Prince William County, VA)"
-    assert (r.location.street, r.location.city) == (None, "Manassas")
+    # Manassas is the postal city (addr:city); the point lies in Innovation CDP (07 §6.5).
+    assert r.canonical_name == "QTS Manassas DC5 (Innovation, VA)"
+    assert (r.location.street, r.location.city) == (None, "Innovation")
     flexential = record(run, "way/392324240")
     assert flexential.location.street == "2775 Northwoods Parkway"
 
 
 def test_the_name_gives_the_county_not_the_postal_city(run: ImportResult) -> None:
-    """n57: addr:city=Norcross is the postal city; the point lies in Peachtree Corners. The name
-    gives the county, which contains the point; location.city keeps the address's city."""
+    """n57: addr:city=Norcross is the postal city; the point lies in Peachtree Corners. Without a
+    Census place that holds the point (the sample has none here), the name gives the county, which
+    contains it, and location.city is empty: addr:city is never published as the city."""
     r = record(run, "way/392324240")
     assert r.canonical_name == "Flexential Atlanta - Norcross (Gwinnett County, GA)"
-    assert r.location.city == "Norcross"
+    assert r.location.city is None
+
+
+def places_around(tmp_path: Path, lat: float, lon: float, name: str, state: str) -> PlaceIndex:
+    """A place file with one square place 0.02 degrees across, centred on the point."""
+    con = connect()
+    con.execute(
+        "CREATE TABLE t (GEOID VARCHAR, NAME VARCHAR, NAMELSAD VARCHAR, LSAD VARCHAR,"
+        " STUSPS VARCHAR, geom GEOMETRY)"
+    )
+    box = (
+        f"POLYGON(({lon - 0.01} {lat - 0.01}, {lon + 0.01} {lat - 0.01}, {lon + 0.01} {lat + 0.01},"
+        f" {lon - 0.01} {lat + 0.01}, {lon - 0.01} {lat - 0.01}))"
+    )
+    con.execute(
+        "INSERT INTO t VALUES ('1399999', ?, ?, '25', ?, ST_GeomFromText(?))",
+        [name, f"{name} city", state, box],
+    )
+    con.execute(f"COPY t TO '{tmp_path / 'one.shp'}' WITH (FORMAT GDAL, DRIVER 'ESRI Shapefile')")
+    con.close()
+    out = tmp_path / "one.zip"
+    with zipfile.ZipFile(out, "w") as z:
+        for ext in ("shp", "shx", "dbf"):
+            z.write(tmp_path / f"one.{ext}", f"one.{ext}")
+    return PlaceIndex.load(out, verify_sha256=False)
+
+
+def test_the_city_is_the_census_place_that_contains_the_point(
+    run: ImportResult, make_test_context: MakeContext, tmp_path: Path
+) -> None:
+    """n57 (with the place polygons): Flexential's point lies in Peachtree Corners, so that is its
+    city and the name gives it; the postal city Norcross is not kept. A place in another state is
+    not the record's."""
+    loc = record(run, "way/392324240").location
+    assert loc.lat is not None and loc.lon is not None
+    parser = argparse.ArgumentParser()
+    OsmImporter().add_arguments(parser)
+    args = parser.parse_args(["--pnnl", str(PNNL_SEED_CHECK)])
+    peachtree = places_around(tmp_path, loc.lat, loc.lon, "Peachtree Corners", "GA")
+    ctx = make_test_context(input_path=SEED_CHECK, places=peachtree)
+    r = record(OsmImporter().run(ctx, args), "way/392324240")
+    assert r.location.city == "Peachtree Corners"
+    assert r.canonical_name == "Flexential Atlanta - Norcross (Peachtree Corners, GA)"
+    (tmp_path / "x").mkdir()
+    elsewhere = places_around(tmp_path / "x", loc.lat, loc.lon, "Somewhere", "AL")
+    ctx = make_test_context(input_path=SEED_CHECK, places=elsewhere)
+    r = record(OsmImporter().run(ctx, args), "way/392324240")
+    assert (r.location.city, r.canonical_name) == (
+        None,
+        "Flexential Atlanta - Norcross (Gwinnett County, GA)",
+    )
 
 
 def test_the_pnnl_rows_go_by_position_and_name(run: ImportResult) -> None:

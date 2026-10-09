@@ -15,7 +15,7 @@ from atlas.crosswalk import (
 @pytest.mark.parametrize(
     ("tags", "status"),
     [
-        ({"proposed:telecom": "data_center"}, "proposed"),
+        ({"proposed:telecom": "data_center"}, "announced"),
         ({"construction:telecom": "data_center"}, "under_construction"),
         ({"building": "construction", "construction": "data_center"}, "under_construction"),
         ({"telecom": "data_center"}, "operating"),
@@ -23,9 +23,11 @@ from atlas.crosswalk import (
     ],
 )
 def test_osm_tags(tags: dict[str, str], status: str) -> None:
+    # Every OSM status is an `other` observation: OSM says what a feature is, not when its status
+    # began, so the event dates nothing.
     got = from_osm_tags(tags)
     assert got is not None
-    assert (got.status, got.event, got.confidence) == (status, "first_reported", 0.60)
+    assert (got.status, got.event, got.confidence) == (status, "other", 0.60)
     assert got.evidence_level is None
 
 
@@ -40,12 +42,67 @@ def test_osm_precedence_construction_beats_telecom() -> None:
 
 def test_osm_precedence_proposed_beats_everything() -> None:
     got = from_osm_tags({"proposed:telecom": "data_center", "telecom": "data_center"})
-    assert got is not None and got.status == "proposed"
+    assert got is not None and got.status == "announced"
 
 
 def test_osm_unrelated_tags() -> None:
     assert from_osm_tags({"building": "warehouse"}) is None
     assert from_osm_tags({"building": "construction"}) is None
+
+
+def test_osm_proposed_tags_are_announced_never_proposed() -> None:
+    """Seed check n80: 07 §2.3's proposed is a pending filing, and no OSM tag is one
+    (Manchester Township, NJ, way 1549253250: proposed=yes on an anonymous lot with no
+    application filed)."""
+    for tags in (
+        {"proposed:telecom": "data_center"},
+        {"proposed:building": "industrial", "telecom": "data_center"},
+        {"proposed": "yes", "telecom": "data_center"},
+        {"proposed:building": "data_center"},
+    ):
+        got = from_osm_tags(tags)
+        assert got is not None and (got.status, got.event) == ("announced", "other"), tags
+
+
+@pytest.mark.parametrize(
+    ("tags", "status", "label"),
+    [
+        # "IBM Quantum Data Center", way 195803647: a building tagged only as industrial.
+        ({"building": "industrial", "industrial": "data_center"}, "operating", None),
+        ({"building": "yes", "industrial": "data_centre"}, "operating", "industrial=data_centre"),
+        # Lifecycle tags first, as for building=data_center.
+        (
+            {"building": "construction", "industrial": "data_centre"},
+            "under_construction",
+            "building=construction",
+        ),
+        (
+            {"proposed:building": "industrial", "industrial": "data_centre"},
+            "announced",
+            "proposed:building=industrial",
+        ),
+        ({"building": "data_center", "industrial": "data_centre"}, "operating", None),
+    ],
+)
+def test_osm_industrial_data_centre_with_a_building_tag(
+    tags: dict[str, str], status: str, label: str | None
+) -> None:
+    got = from_osm_tags(tags)
+    assert got is not None and (got.status, got.event) == (status, "other"), tags
+    if label is not None:
+        assert got.label == label
+
+
+def test_osm_a_site_polygon_without_a_building_has_no_status() -> None:
+    """A site polygon (industrial=data_centre and no building tag) is a campus container that OSM
+    does not say is built: no status, so the importer holds it for review."""
+    for tags in (
+        {"industrial": "data_centre", "landuse": "industrial"},
+        {"industrial": "data_center"},
+        {"industrial": "data_centre", "building": "no"},
+        {"industrial": "data_centre", "construction:building": "no"},
+    ):
+        assert from_osm_tags(tags) is None, tags
 
 
 @pytest.mark.parametrize(
@@ -98,6 +155,13 @@ def test_aigridwatch_unknown_stage() -> None:
         ("Construction ongoing", 0.5, "operating", "energized"),
         ("Project announced by the developer", 0, "announced", "announced"),
         ("Site acquired; rezoning pending", None, "announced", "announced"),
+        # n24: "land cleared" is work under way (Coreweave Helios's first row, links reduced).
+        (
+            "Site acquired; land cleared for additional buildings",
+            0,
+            "under_construction",
+            "construction_start",
+        ),
         (
             "Land clearing visible in satellite imagery",
             0,
@@ -140,13 +204,13 @@ OSM_LIFECYCLE = [
     (
         "way/1501824326",
         {"name": "Percheron DC", "proposed:building": "industrial", "telecom": "data_center"},
-        "proposed",
+        "announced",
         "proposed:building=industrial",
     ),
     (
         "way/1549253249",
         {"industrial": "yes", "proposed": "yes", "telecom": "data_center"},
-        "proposed",
+        "announced",
         "proposed=yes",
     ),
 ]
@@ -158,7 +222,7 @@ def test_osm_lifecycle_tags_beat_telecom(
 ) -> None:
     got = from_osm_tags(tags)
     assert got is not None, ref
-    assert (got.status, got.event, got.label) == (status, "first_reported", label), ref
+    assert (got.status, got.event, got.label) == (status, "other", label), ref
 
 
 @pytest.mark.parametrize(
@@ -170,7 +234,7 @@ def test_osm_lifecycle_tags_beat_telecom(
             "construction:building=yes",
         ),
         ({"building": "data_center", "landuse": "construction"}, "under_construction", None),
-        ({"building": "data_center", "proposed": "yes"}, "proposed", None),
+        ({"building": "data_center", "proposed": "yes"}, "announced", None),
         ({"telecom": "data_center", "proposed": "no"}, "operating", "telecom=data_center"),
         (
             {"telecom": "data_center", "construction:building": "no"},
@@ -183,7 +247,7 @@ def test_osm_lifecycle_tags_beat_telecom(
             "under_construction",
             "construction:building=data_center",
         ),
-        ({"proposed:building": "data_center"}, "proposed", "proposed:building=data_center"),
+        ({"proposed:building": "data_center"}, "announced", "proposed:building=data_center"),
     ],
 )
 def test_osm_lifecycle_variants(tags: dict[str, str], status: str, label: str | None) -> None:
@@ -211,7 +275,7 @@ def test_osm_proposed_beats_construction() -> None:
         {"telecom": "data_center", "proposed": "yes", "building": "construction"},
     ):
         got = from_osm_tags(tags)
-        assert got is not None and got.status == "proposed", tags
+        assert got is not None and got.status == "announced", tags
 
 
 @pytest.mark.parametrize(
