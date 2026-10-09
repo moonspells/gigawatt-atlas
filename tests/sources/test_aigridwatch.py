@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -16,6 +16,8 @@ import pytest
 from atlas.cli import main
 from atlas.crosswalk import from_aigridwatch_stage
 from atlas.geo.counties import CountyIndex
+from atlas.geo.places import PlaceIndex
+from atlas.geocode import Gazetteer
 from atlas.net import FetchError, fetch, make_client
 from atlas.schema.record import FacilityRecord
 from atlas.sources.aigridwatch import (
@@ -48,6 +50,32 @@ from atlas.validate import validate_record
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "aigridwatch" / "projects.json"
 MakeContext = Callable[..., ImportContext]
+SAMPLES = Path(__file__).resolve().parents[1] / "fixtures" / "aigridwatch"
+
+
+@pytest.fixture(scope="module")
+def agw_places() -> Iterator[PlaceIndex]:
+    """The place polygons the AI GridWatch fixtures' points lie in (fixtures/aigridwatch/README)."""
+    index = PlaceIndex.load(SAMPLES / "places" / "agw_places.zip", verify_sha256=False)
+    yield index
+    index.close()
+
+
+@pytest.fixture
+def make_test_context(make_test_context: MakeContext, agw_places: PlaceIndex) -> MakeContext:
+    """The shared factory, with the AI GridWatch samples of the place polygons and the county
+    subdivisions (the shared samples have few of the fixtures' places)."""
+    gazetteer = Gazetteer.load(
+        cousub_zip=SAMPLES / "gazetteer" / "agw_cousubs.zip", verify_sha256=False
+    )
+
+    def factory(**overrides: Any) -> ImportContext:
+        overrides.setdefault("places", agw_places)
+        overrides.setdefault("gazetteer", gazetteer)
+        return make_test_context(**overrides)
+
+    return factory
+
 
 # The fixture's project for each stage, and what the crosswalk makes of it.
 EXPECTED = {
@@ -361,7 +389,12 @@ def test_proposed_splits_on_a_filing(make_test_context: MakeContext, tmp_path: P
 
     def filing_event(doc: dict[str, Any]) -> None:
         project(doc, pid)["events"].append(
-            {"date": "2026-03-01", "kind": "filing", "summary": "x", "source": ""}
+            {
+                "date": "2026-03-01",
+                "kind": "filing",
+                "summary": "The developer filed a rezoning application.",
+                "source": "",
+            }
         )
 
     rec = records(run_edited(make_test_context, tmp_path, filing_event))[pid]
@@ -373,15 +406,17 @@ def test_milestones_that_agree_with_the_stage_add_no_event(make_test_context: Ma
     got = records(run(make_test_context))
     red_oak = got["red-oak-compass-campus"]
     # The May 11 hearing is not imported: nothing in the row says it was held that day (the
-    # decision came on May 12). The event log's earliest entry dates the first report.
+    # decision came on May 12). The first report is the event log's earliest entry about this
+    # project, the 830-acre rezoning's P&Z vote: the 2020 entry is Compass's first Red Oak
+    # campus, 225 acres (n24).
     assert [
         (e.seq, e.event, e.status, e.as_of.value, e.planned) for e in red_oak.status_history
     ] == [
-        (1, "first_reported", "announced", "2020-01-29", False),
+        (1, "first_reported", "announced", "2026-04-27", False),
         (2, "approved", "permitted", "2026-05-12", False),
     ]
     assert red_oak.dates["approved"].value == "2026-05-12"
-    assert red_oak.dates["first_reported"].value == "2020-01-29"
+    assert red_oak.dates["first_reported"].value == "2026-04-27"
     pw = got["pw-digital-gateway-va"]
     assert [(e.event, e.status) for e in pw.status_history] == [
         ("first_reported", "announced"),
@@ -564,10 +599,12 @@ def test_rows_without_coordinates_are_geocoded(
     assert (talen.lat, talen.lon) == counties.centroid(talen.county_fips)
     sabey = got["sabey-decatur-township-in"]
     loc = sabey.location
+    # "Decatur Township (Indianapolis)": a township is no Census place, but a county
+    # subdivision, so the record is at its Gazetteer point and names it (not Indianapolis).
     assert (loc.precision, loc.geocode_method, loc.city, loc.municipality) == (
         "locality",
         "gazetteer",
-        "Indianapolis",  # from the "(Indianapolis)" hint, since a township is not a Census place
+        None,
         "Decatur Township",
     )
     assert sabey.field_meta["/location"].method == "derived"
@@ -597,10 +634,12 @@ def test_parties_aliases_capacity_and_sources(
         ("Archbald I LLC", "filing_llc"),
         ("Archbald II LLC", "filing_llc"),
     ]
-    assert [o.name for o in got["pw-digital-gateway-va"].parties.operator] == [
+    # AI GridWatch's "Operator/developer" field is the developer: no operator is published.
+    assert [o.name for o in got["pw-digital-gateway-va"].parties.developer] == [
         "Compass Datacenters",
         "QTS",
     ]
+    assert not any(r.parties.operator for r in got.values())
     bristow = got["google-bristow"]
     assert [o.name for o in bristow.parties.tenant] == ["Google DeepMind"]
     # "Epoch AI estimates ~279 MW" states no basis: the figure is kept as stated, not as IT MW.
@@ -641,7 +680,7 @@ def test_parties_aliases_capacity_and_sources(
     assert [o.name for o in pw.parties.owner] == ["Example Land Holdings LLC"]
     assert result.metrics["persons_dropped"] == 1
     stokes = records(run(make_test_context))["stokes-county-project-delta"]
-    assert [o.name for o in stokes.parties.operator] == ["Engineered Land Solutions"]  # "(ELS)"
+    assert [o.name for o in stokes.parties.developer] == ["Engineered Land Solutions"]  # "(ELS)"
     assert pw.capacity.it_mw is None and len(pw.sources) == 1
     assert ("unit_parse", "pw-digital-gateway-va") in {
         (i.kind, i.external_id) for i in result.review
@@ -658,7 +697,7 @@ def test_parties_hold_organizations_only(make_test_context: MakeContext, tmp_pat
 
     result = run_edited(make_test_context, tmp_path, edit)
     pw = records(result)["pw-digital-gateway-va"]
-    assert [o.name for o in pw.parties.operator] == ["Example Ventures"]
+    assert [o.name for o in pw.parties.developer] == ["Example Ventures"]
     assert [o.name for o in pw.parties.owner] == ["Example Power Group", "SoftBank"]
     assert [o.name for o in pw.parties.tenant] == ["Amazon"]
     assert [o.name for o in pw.parties.filing_entities] == ["Gateway Example LLC"]
@@ -1490,7 +1529,8 @@ def test_cli_run_is_idempotent(
     assert main(common) == 0
     assert "import aigridwatch: candidates=11 new=11" in capsys.readouterr().out
     receipt = json.loads((tmp_repo / "data" / "imports" / "aigridwatch.json").read_text("utf-8"))
-    assert receipt["importer_version"] == "2"  # undated stages imported, county subdivisions
+    # 3: the operator/developer field is the developer; year-only dates; the second seed check
+    assert receipt["importer_version"] == "3"
     stored = RecordStore(tmp_repo / "data" / "records").load()
     assert len(stored) == 11  # every verified row
     queue = (tmp_repo / "review" / "queue" / "aigridwatch.jsonl").read_text(encoding="utf-8")

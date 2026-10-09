@@ -9,6 +9,7 @@ from atlas.crosswalk import (
     from_aigridwatch_stage,
     from_epoch_row,
     from_osm_tags,
+    is_aigridwatch_application_stage,
 )
 
 
@@ -299,3 +300,20 @@ def test_epoch_empty_building_count_falls_back_to_it_power(
 
 def test_epoch_it_power_is_keyword_only_and_optional() -> None:
     assert from_epoch_row("Grading underway", None).status == "under_construction"
+
+
+@pytest.mark.parametrize("stage", ["In review", "Hearing scheduled", "Awaiting decision"])
+def test_aigridwatch_application_stage_with_no_application_is_announced(stage: str) -> None:
+    # Posey County (n27): "Awaiting decision" while the row says nothing was formally proposed
+    # and no filing is known. proposed needs a pending application (07 §2.3).
+    got = from_aigridwatch_stage(stage, has_filing=False, no_application=True)
+    assert (got.status, got.event, got.label) == ("announced", "announced", stage)
+    assert is_aigridwatch_application_stage(stage)
+    # A filing the row states wins over the note.
+    assert from_aigridwatch_stage(stage, has_filing=True, no_application=True).status == (
+        "proposed"
+    )
+    assert from_aigridwatch_stage("Approved", has_filing=False, no_application=True).status == (
+        "permitted"
+    )
+    assert not is_aigridwatch_application_stage("Proposed")

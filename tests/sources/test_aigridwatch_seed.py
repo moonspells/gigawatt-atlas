@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -16,6 +16,8 @@ from typing import Any
 import pytest
 
 from atlas.geo.counties import CountyIndex
+from atlas.geo.places import PlaceIndex
+from atlas.geocode import Gazetteer
 from atlas.net import FetchError
 from atlas.schema.record import FacilityRecord
 from atlas.sources.aigridwatch import (
@@ -36,6 +38,31 @@ from atlas.validate import validate_record
 
 SEED = Path(__file__).resolve().parents[1] / "fixtures" / "aigridwatch" / "seed-2026-10-08.json"
 MakeContext = Callable[..., ImportContext]
+SAMPLES = Path(__file__).resolve().parents[1] / "fixtures" / "aigridwatch"
+
+
+@pytest.fixture(scope="module")
+def agw_places() -> Iterator[PlaceIndex]:
+    """The place polygons the AI GridWatch fixtures' points lie in (fixtures/aigridwatch/README)."""
+    index = PlaceIndex.load(SAMPLES / "places" / "agw_places.zip", verify_sha256=False)
+    yield index
+    index.close()
+
+
+@pytest.fixture
+def make_test_context(make_test_context: MakeContext, agw_places: PlaceIndex) -> MakeContext:
+    """The shared factory, with the AI GridWatch samples of the place polygons and the county
+    subdivisions (the shared samples have few of the fixtures' places)."""
+    gazetteer = Gazetteer.load(
+        cousub_zip=SAMPLES / "gazetteer" / "agw_cousubs.zip", verify_sha256=False
+    )
+
+    def factory(**overrides: Any) -> ImportContext:
+        overrides.setdefault("places", agw_places)
+        overrides.setdefault("gazetteer", gazetteer)
+        return make_test_context(**overrides)
+
+    return factory
 
 
 def load_seed() -> dict[str, Any]:
@@ -191,9 +218,14 @@ def test_two_named_counties_near_their_border_give_the_one_the_point_is_in(
     result = run(make_test_context, overrides=overrides)
     rec = records(result)["zediker-station-data-center-south-strabane-township-pa"]
     assert rec.location.county_name == "Montgomery"
-    assert not items(
-        result, "zediker-station-data-center-south-strabane-township-pa", "county_mismatch"
-    )
+    # No item about the county (the three townships the text names are checked apart: n26).
+    assert not [
+        i
+        for i in items(
+            result, "zediker-station-data-center-south-strabane-township-pa", "county_mismatch"
+        )
+        if "place" not in i.data
+    ]
 
 
 # ---------------------------------------------------------------------------- n31, n56, n66: MW
@@ -432,16 +464,16 @@ def test_site_history_in_the_event_log_does_not_date_the_first_report() -> None:
             {
                 "date": "2026-03-04",
                 "kind": "vote",
-                "summary": "The board recommended the data center rezoning.",
+                "summary": "The board recommended the Example Campus rezoning.",
             },
         ],
     }
     events = milestone_events(project, today)
-    first = first_report(project, "cancelled", events, today)
+    first = first_report(project, "cancelled", events, today).event
     assert first is not None and first["as_of"] == {"value": "2026-03-04", "precision": "day"}
     assert (first["status"], first["event"]) == ("announced", "first_reported")
     # Built or being built: an early entry may describe the site as it stands.
-    assert first_report(project, "operating", events, today) is None
+    assert first_report(project, "operating", events, today).event is None
 
 
 # ---------------------------------------------------------------------------- n73: withdrawals

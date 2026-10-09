@@ -146,10 +146,26 @@ _AGW_FIXED: dict[str, tuple[Status, EventType, EvidenceLevel | None, StatusReaso
 }
 
 
-def from_aigridwatch_stage(stage: str, *, has_filing: bool) -> Crosswalked:
-    """An AI GridWatch stage. "Proposed" means announced unless a filing is known; "Withdrawn"
-    carries no status_reason, since the stage does not say who withdrew."""
+# Stages that imply an application under review.
+AGW_APPLICATION_STAGES = frozenset({"in review", "hearing scheduled", "awaiting decision"})
+
+
+def is_aigridwatch_application_stage(stage: str) -> bool:
+    """In review, Hearing scheduled or Awaiting decision (case and spacing aside)."""
+    return _key(stage) in AGW_APPLICATION_STAGES
+
+
+def from_aigridwatch_stage(
+    stage: str, *, has_filing: bool, no_application: bool = False
+) -> Crosswalked:
+    """An AI GridWatch stage. "Proposed" means announced unless a filing is known; so do In
+    review, Hearing scheduled and Awaiting decision when no filing is known and the row says
+    nothing has been formally proposed (no_application: Posey County's commissioners signed an
+    NDA "despite no official proposal"), since proposed needs a pending application (07 §2.3).
+    "Withdrawn" carries no status_reason, since the stage does not say who withdrew."""
     key = _key(stage)
+    if key in AGW_APPLICATION_STAGES and no_application and not has_filing:
+        return Crosswalked("announced", "announced", None, None, DATASET_CONFIDENCE, stage)
     if key == "proposed":
         if has_filing:
             return Crosswalked(
