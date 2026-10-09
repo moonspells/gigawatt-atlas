@@ -24,7 +24,7 @@ from atlas.geo.reference import (
     verify_reference,
 )
 from atlas.geocode import COUSUBS_BYTES, COUSUBS_SHA256
-from atlas.net import FetchError, OfflineTransport, make_client
+from atlas.net import FetchError, OfflineTransport, RobotsDisallowed, fetch, make_client
 
 DATA = b"PK\x05\x06" + b"\x00" * 18  # an empty zip archive
 REF = ReferenceFile(
@@ -88,10 +88,44 @@ def test_downloaded_on_first_use_and_reused(tmp_path: Path) -> None:
         path = ensure_reference(REF, cache_dir=tmp_path, http=http, sleep=no_sleep)
         assert path == tmp_path / "reference" / "census" / "sample.zip"
         assert path.read_bytes() == DATA
-        assert requests == ["/robots.txt", "/geo/sample.zip"]  # the crawler policy applies
+        assert requests == ["/geo/sample.zip"]  # robots.txt is not consulted (_ROBOTS)
         assert leftovers(tmp_path) == ["sample.zip"]  # written atomically, no temporary file
         assert ensure_reference(REF, cache_dir=tmp_path, http=http, sleep=no_sleep) == path
-    assert len(requests) == 2  # the copy is reused
+    assert len(requests) == 1  # the copy is reused
+
+
+# www2.census.gov/robots.txt as read on 2026-10-09 with the project's user agent (its first two
+# groups; the rest only name other crawlers). A U.S. Government work, in the public domain.
+CENSUS_ROBOTS = (
+    "User-agent: *\n\nUser-agent: RavenCrawler\nDisallow: /\n\nUser-agent: MegaIndex\n"
+    "Disallow: /\n\nUser-agent: Googlebot\nCrawl-delay: 30\n"
+)
+
+
+def census_host(body: bytes, requests: list[str]) -> Handler:
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request.url.path)
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text=CENSUS_ROBOTS, headers={"content-type": "text/plain"})
+        return httpx.Response(200, content=body, headers={"content-type": "application/zip"})
+
+    return handler
+
+
+def test_the_census_robots_txt_does_not_stop_the_download(tmp_path: Path) -> None:
+    # The seed of 2026-10-09 stopped here: RFC 9309 (and Python's robotparser) join "User-agent: *"
+    # with the RavenCrawler group after the blank line, so the crawler policy refuses every file
+    # on the host. The pinned files are fetched without robots.txt, on a fresh cache.
+    requests: list[str] = []
+    with client(census_host(DATA, requests)) as http:
+        with pytest.raises(RobotsDisallowed, match=r"robots\.txt disallows"):
+            fetch(http, REF.url, sleep=no_sleep)  # what the crawler policy says
+        requests.clear()
+        path = ensure_reference(REF, cache_dir=tmp_path / "fresh", http=http, sleep=no_sleep)
+    assert path.read_bytes() == DATA
+    assert requests == ["/geo/sample.zip"]
+    for ref in reference.DOWNLOADED:  # only the pinned Census files are fetched this way
+        assert ref.url.startswith("https://www2.census.gov/") and len(ref.sha256) == 64
 
 
 def test_a_download_that_is_not_the_pinned_file_leaves_no_file(tmp_path: Path) -> None:
@@ -175,7 +209,6 @@ def test_the_context_downloads_the_county_subdivisions_on_first_use(
     assert gazetteer.cousub_count == 15 and gazetteer.has_locality("CT", "Bloomfield")
     assert ctx.gazetteer() is gazetteer
     assert requests == [
-        "/robots.txt",
         "/geo/docs/maps-data/data/gazetteer/2025_Gazetteer/2025_Gaz_cousubs_national.zip",
     ]
     assert (

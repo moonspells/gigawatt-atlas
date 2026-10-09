@@ -41,14 +41,26 @@ small (owner decision of 2026-10-09). Both are U.S. Census Bureau works in the p
 - The county-subdivision Gazetteer (36,427 New England towns, townships and other county
   subdivisions) places a town or township a source names, with its county and `municipality`
   (`atlas/geocode.py`, `ImportContext.gazetteer()`; on for every import that geocodes a place
-  name: AI GridWatch's localities. Epoch AI states no town or township).
+  name: AI GridWatch's localities, and an Epoch AI override that names a township, such as AWS
+  Berwick's Salem Township).
 
 An import that needs one uses the copy in `{--cache-dir}/reference/census/` (by default
 `.cache/atlas/reference/census/`, which git ignores). When there is none, it downloads the file
-from the URL above through `atlas.net` (the address guard, robots.txt, the byte cap and content
-type of every fetch), checks its size and SHA-256 against the pin in `atlas/geo/reference.py`
-before writing anything, and writes it atomically: a download that is not the pinned file fails the
-run and leaves no file. Later runs reuse the copy, checked again each time; a copy that differs
+from the URL above through `atlas.net` (the address guard, re-checked redirects, the per-host
+delay, the byte cap and content type of every fetch), checks its size and SHA-256 against the pin
+in `atlas/geo/reference.py` before writing anything, and writes it atomically: a download that is
+not the pinned file fails the run and leaves no file.
+
+robots.txt is not consulted for these two downloads (`_ROBOTS` in `atlas/geo/reference.py`). They
+are fixed files, pinned by size and SHA-256 and fetched once per cache, a download the owner
+decided an import makes on first use (07 §6.5), not a crawl; the API calls to the Census Geocoder,
+Overpass and MSD-LIVE skip it for the same reason. `www2.census.gov/robots.txt` (read 2026-10-09)
+begins `User-agent: *`, a blank line, then `User-agent: RavenCrawler` and `Disallow: /`. Under the
+original robots.txt format the blank line ends the `*` record, which is then empty (every other
+crawler may fetch everything); RFC 9309 has no blank-line rule and joins the lines into one group,
+and Python's `urllib.robotparser` (3.13) does the same, so every unnamed crawler would be refused
+the whole host. With the crawler policy the seed of 2026-10-09 stopped on the place polygons
+("robots.txt disallows … for moonspells-atlas") and the files had to be copied in by hand. Later runs reuse the copy, checked again each time; a copy that differs
 fails the run. `atlas import … --offline` with no copy fails with a message naming the file: put
 the file in that directory first (download it, check the SHA-256 above), or run once without
 `--offline`. `--places PATH` reads the place polygons from another path, checked the same way.
