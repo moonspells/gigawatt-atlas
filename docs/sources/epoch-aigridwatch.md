@@ -24,7 +24,9 @@ Both write `data/records/{id}.json`, `review/queue/{epoch,aigridwatch}.jsonl` an
 `data/imports/{epoch,aigridwatch}.json`. A second run with the same inputs rewrites no record. The
 receipt's metrics count the rows read, the records by location method, the planned and stage
 events, the review items, and for Epoch the Census requests and cache hits and the overrides used
-and unused (an unused entry names a site Epoch no longer lists).
+and unused (an unused entry names a site Epoch no longer lists); for AI GridWatch also the rows
+held for review (`held_for_review`), the first reports and unconfirmed hearings, the releases and
+the overrides used and unused.
 
 ## Epoch AI (`atlas/sources/epoch.py`)
 
@@ -84,7 +86,7 @@ item.
 | License guard | The run fails unless `license == "CC BY 4.0"` and `projects` is a list. |
 | Receipt | `InputSnapshot` license `CC-BY-4.0`, `upstream_version` = `generated`. |
 | Rows | Rows with `verified: false` are leads, not facts (the dataset says so), and become `unverified_upstream` items. Matched on `external_ids.aigridwatch_id` = the row `id`. |
-| Arguments | `--without-epoch`: run on a store that holds no Epoch record (only rows whose `source` is an Epoch AI page are held as Epoch's sites). Without it such a run fails. |
+| Arguments | `--without-epoch`: run on a store that holds no Epoch record (only rows whose `source` is an Epoch AI page are held as Epoch's sites). Without it such a run fails. `--overrides PATH`: the reviewer releases (default `config/overrides/aigridwatch.json`; none when that file is absent), see [Releasing a held row](#releasing-a-held-row). |
 
 ### Mapping
 
@@ -93,43 +95,97 @@ item.
 | `record_type` | `project` |
 | `canonical_name` | `{name} ({city, municipality or county}, {ST})` |
 | `location` | `lat`/`lon` as given, `precision: "locality"`, `geocode_method: "source_coords"`. The point must lie in the state (`CountyIndex.in_state`), else `county_mismatch` and no record. Rows without coordinates (52 on 2026-10-07) go through `geocode()` without the Census step: a Gazetteer place from the locality (or from a non-county parenthesis, "Decatur Township (Indianapolis)"), else the named county's centroid; else `geocode_failed`. A Gazetteer place outside the named county is not used ("Storey County (near Reno)": Reno is in Washoe County), so such a row gets the county's centroid. |
-| county | From the locality: the text in "(X County)" or "(X Parish)", or a locality that is itself a county ("Caddo Parish"; boroughs and census areas only in Alaska, since Pennsylvania boroughs are towns). With coordinates, the named county must contain the point (several: the one that does). When none does, the record keeps the point, names no county and gets a `county_mismatch` item (EdgeCore Louisa's point is in Goochland County). |
+| county | From the locality: the text in "(X County)" or "(X Parish)", or a locality that is itself a county ("Caddo Parish"; boroughs and census areas only in Alaska, since Pennsylvania boroughs are towns). Several counties are split on "/", "," and "and" ("(Chester / Montgomery County)"). With coordinates, the named county must contain the point; of two that do within the validate tolerance (a point near their border), the one the point lies in. When the point is outside every named county, the locality text is taken over the coordinates: the record is placed like a row without coordinates, at the Gazetteer place when it lies in the named county, else at the county's point (`county` precision), names that county, and gets a `county_mismatch` item; a point known to be in another county is never published (EdgeCore's Louisa County campus had its point in Goochland County, Dickerson's in Frederick County). With several named counties and no place, there is no point: `geocode_failed`. |
 | `city` / `municipality` | The locality outside the parentheses when it is not a county: townships, boroughs and villages go to `municipality`, other places to `city` ("City of" dropped). A parenthesis that only says the site is near a place ("near Reno", "Granbury area", "north of …") may give the point, but never the city. |
 | `parties` | `operator` and `owner` split on " / ", `tenant` on " / " and ", ", `filing_entities` from `filing_llc` (split on " / " and ";", prose dropped). Records hold organizations only (07 §5.3), so every name goes through one filter: a party AI GridWatch annotates with a personal role and no organization marker ("A Person (developer)") is dropped; a trailing parenthesis is a note, not part of the name, and is removed ("Amazon (AWS)", "(parcels)", "(proposed site)", and a person's name in "Example Ventures (A Person)"); a capacity typed into a party field ("67 MW") becomes a `unit_parse` item. Persons left out are counted in `persons_dropped`. |
 | `aliases` | Each filing entity (after the same filter), `kind: "filing_llc"` |
-| `capacity.it_mw` | `size_mw` (the schema: "Planned IT/critical load in MW"), when in (0, 10000]; otherwise a `unit_parse` item |
+| `capacity` | `size_mw` when in (0, 10000] (otherwise a `unit_parse` item) is always kept in `mw_as_stated` ("AI GridWatch size_mw: 120"). It becomes `it_mw` or `utility_request_mw` only when the row's note states that basis for the same figure (`size_basis`): critical IT load ("up to 300MW critical IT", "401 MW of critical IT load"), or a supply or interconnection ("Talen Energy agreed to supply 960 MW", "3.2 GW contracted from Georgia Power", "seeking 450 MW"). The schema calls the field "Planned IT/critical load", but its rows carry other bases (07 §2.4 never mixes them): with no stated basis the record has no MW basis at all ("120 MW / $3B campus", "24 MW data center"). A figure the note gives as a power source's ("835MW nuclear output", "450 MW gas-fired power plant") or one phase's ("phase 1 is 800MW") is kept only as stated, with a `unit_parse` item. |
 | `site.acreage` | `acres`, when in (0, 100000]; otherwise `unit_parse` |
 | `evidence_level` | `rumor` for the Rumored stage, else `reported` |
-| `status_reason` | from the crosswalk (`moratorium`, `local_denial`, `developer_withdrawal`) |
+| `scope` | `out_of_scope` (kept, never published, 07 §2.2) when the row's name or note says it is a power supply deal or a generation facility rather than a data center site: "power purchase agreement", "PPA", "solar farm", "solar project", "power generation facility" or "not a data center" (Microsoft's Three Mile Island PPA, the Baconton power plant, two solar farms on 2026-10-08), with an `out_of_scope` item; else `in_scope` |
+| `status_reason` | from the crosswalk (`moratorium`, `local_denial`); for Withdrawn, `litigation` when the note or a withdrawal entry cites a court ruling, `developer_withdrawal` when it names the developer, the applicant or a party of the row as the one who withdrew, else none ([status-crosswalk.md](../status-crosswalk.md)) |
 | `sources` | `s1` = the tracker ("AI GridWatch", `open_dataset`, `CC-BY-4.0`) supporting `/canonical_name`, `/aliases`, `/parties`, `/location`, `/capacity`, `/site`, `/status_history`. `s2` = the row's `source` URL: publisher = host; `government_record` for `.gov`/`.us` hosts and Legistar, Granicus, CivicPlus and Municode hosts, else `news`; empty `supports`. |
-| `field_meta` | `/capacity/it_mw`, `/site/acreage`: 0.70 `imported`. `/location`: 0.70 `imported` (source coordinates) or 0.60 `derived` (geocoded). |
+| `field_meta` | `/capacity/it_mw` or `/capacity/utility_request_mw`, `/site/acreage`: 0.70 `imported`. `/location`: 0.70 `imported` (source coordinates) or 0.60 `derived` (geocoded, or placed by the locality text). |
 
 ### Status history
 
-Events come from the milestone dates (all `source_ids: ["s1"]`, day precision; a date after today
-is a planned event):
+Events come from the milestone dates (all `source_ids: ["s1"]`; a date after today is a planned
+event). AI GridWatch writes month-level dates as the 1st of the month (on 2026-10-08, 9 of 37
+announced dates, 5 of 34 filing and 5 of 39 decision dates fall on the 1st, against 0 of 31 hearing
+and 0 of 232 as_of dates), so every AI GridWatch date on the 1st is read at month precision
+("2025-06-01" is June 2025: EdgeCore's release is dated June 25):
 
 | Milestone | Event | Status |
 |---|---|---|
 | `announced` | `announced` | announced |
 | `rezoning_filed` | `application_filed` | proposed |
-| `hearing_date` on or before today | `hearing_held` | proposed |
 | `hearing_date` after today | `hearing_scheduled` (planned) | proposed |
+| `hearing_date` on or before today, when the row says it was held | `hearing_held` | proposed |
 | `decided_date` + outcome `approved` / `denied` / `withdrawn` / `moratorium` | `approved` / `denied` / `withdrawn` / `paused` | permitted / denied / cancelled / paused |
+
+`hearing_date` is "the next/decisive public hearing", and AI GridWatch warns that hearings get
+moved: a date that has passed does not show the hearing took place (Dickerson's September hearings
+were continued to November; 900 Conshohocken Road's August 17 session was "procedural matters only,
+with no witness testimony"). A past hearing is `hearing_held` only when a decision is dated that
+day, or an entry of the row's event log for that day, of kind `hearing`, `meeting` or `vote` and with
+a source, says it was held or voted and says nothing of it being scheduled, moved or continued
+(`hearing_held`). Otherwise there is no hearing event, and an `unknown_status` item gives the date
+for a reviewer to check (24 records on 2026-10-08; 4 hearings counted as held).
+
+The earliest dated entry of the event log that reports on the project dates a `first_reported`
+event, when the row has no `announced` date and the entry is earlier than every milestone (38
+records on 2026-10-08): before, a row with only a decision or a hearing date was first reported on
+that date (Deep Green: the April 6 withdrawal, though its log starts with the March 4 Planning
+Commission vote). Logs often start with the site's history or the place's rules (Louisa County
+bought EdgeCore's business park in 2019; a township's data center ordinance; the applicant LLC's
+registration), so an entry counts only when it names a data center or the row's name and is not
+about an ordinance, a moratorium or other regulations, an annexation, an LLC's registration or an
+interconnection request: a keyword test that errs toward a later first report. A row with an
+`announced` date (AI GridWatch's "date first publicly proposed") is first reported then. The event's
+status is `announced` (`proposed` when the entry is the row's own filing, rezoning or permit), so it
+never sets the current status; there is none when the stage is built or being built (an early entry
+may describe the site as it stands), when the entry is a construction or operation report, or when
+it would move the record backward.
 
 The stage then goes through `from_aigridwatch_stage(stage, has_filing)`, where `has_filing` is a
 `rezoning_filed` date or an event of kind `filing` or `rezoning`; so "Proposed" means announced
 without a filing and proposed with one. AI GridWatch derives the stage from data the milestones do
-not always carry. When the milestones have no non-planned event, or roll up to a different status,
-an `other` event with the stage's status is appended, noted "AI GridWatch stage '{stage}' as of
-{as_of}". It is dated with the row's `as_of` (else `generated`), but never earlier than the latest
-milestone, so the record's status always equals the stage's. On 2026-10-08, 117 of 202 records
-needed one.
+not always carry. When the events have no non-planned event, or roll up to a different status, an
+`other` event with the stage's status is appended, noted "AI GridWatch stage '{stage}' as of
+{as_of}". It is dated with the row's `as_of`, but never earlier than the latest milestone, so the
+record's status always equals the stage's (73 records on 2026-10-08). A row without `as_of` has no
+date for its stage: the file's `generated` date is not the day AI GridWatch read a source for the
+row, so the row is held for review (`unknown_status`, no record) rather than dated with the file (45
+rows on 2026-10-08, most of them the rows without coordinates). A reviewer who confirms the stage
+can date it in `config/overrides/aigridwatch.json`.
+
+A stage behind the row's own event log is not published either. When the log reports a later
+milestone than an active stage, the row is held for review with a `conflict` item naming the entry
+(date, kind, source), not imported: a denial of the project's land-use application with no filing
+after it (Forsyth County "voted 5-2 to deny the rezoning request" while the stage read Awaiting
+decision), an approval of its rezoning, conditional or special use, special exception, site plan,
+development plan or PUD ("Person County commissioners voted to approve the rezoning" under In
+review; Project Taurus's June approval, which AI GridWatch filed as `rezoning_filed`), or a
+groundbreaking that is not the power supply's (Piketon's March 20 ceremony). The kinds alone do not
+say it (a `vote` goes either way, a `construction` entry may be another site's), so only these
+phrases count, and a word close before them that defers, conditions or denies them ("recommend",
+"will", "scheduled", "not") voids them (`log_milestone`; 7 rows on 2026-10-08).
 
 An `announced` date later than a filing, hearing or decision date would move the record backward
 (announced after proposed, which 07 §2.3 flags). That milestone is left out and the row gets a
 `conflict` item naming both dates (2 rows on 2026-10-08, announcements dated 5 days and almost 3
 months after the rezoning filing).
+
+### Ids
+
+Records are matched on the row `id`. A row whose id starts with another row's name in the same
+state, and not with its own (for a generic "Unnamed Data Center", the operator's name and the name),
+has another project's id (`foreign_ids`): on 2026-10-08 a block of six PA DEP rows had each id on
+the next row ("zediker-station-…" held PECO's Limerick project, "amazon-web-services-…-center-township-pa"
+the Midland Borough row, while the real AWS Center Township row is "…-52"). Imported, such a record
+would name another project and churn once AI GridWatch fixes the ids, so the row is held for review
+with a `conflict` item (`data.id_of`). PA DEP's own project id would be a stable key; it is not in
+AI GridWatch's file, and comes with the PA DEP importer (M4).
 
 ## Geocoding (`atlas/geocode.py`)
 
@@ -239,13 +295,13 @@ outside of.
 |---|---|---|
 | `missing_location` | epoch | no address and no override |
 | `geocode_failed` | both | the chain found no location; Epoch: also an address that names no state |
-| `unknown_status` | both | Epoch: no timeline row dated today or earlier; AGW: a stage the crosswalk does not know |
+| `unknown_status` | both | Epoch: no timeline row dated today or earlier; AGW: a stage the crosswalk does not know; a stage no milestone reaches on a row without `as_of` (`data.stage`; held, no record); a past `hearing_date` nothing in the row says was held (`data.hearing_date`; the record has no hearing event) |
 | `unverified_upstream` | aigridwatch | `verified: false` |
-| `possible_duplicate` | aigridwatch | the row is an Epoch site (`record_id` = the Epoch record, `data.matched_by`), or may be one (`nearby`, `several`: `record_id` empty, the candidates in `data.epoch_records`); no record. `data.stored_record` names an AI GridWatch record the store already holds for the row |
-| `county_mismatch` | aigridwatch | the coordinates are not in the stated state (no record), or not in the named county (the record keeps the point and names no county) |
-| `conflict` | aigridwatch | the announced date is later than a filing, hearing or decision date (the announcement is left out) |
-| `unit_parse` | aigridwatch | `size_mw` or `acres` is not a number in range, or a party field holds a capacity (the record is kept without it) |
-| `out_of_scope` | aigridwatch | a territory |
+| `possible_duplicate` | aigridwatch | the row is an Epoch site (`record_id` = the Epoch record, `data.matched_by`), or may be one (`weak_link`, `nearby`, `several`, and `epoch_source` when a rule finds candidates: `record_id` empty, the candidates in `data.epoch_records`); no record. `data.stored_record` names an AI GridWatch record the store already holds for the row. With `data.released`, a reviewer released the row and it is imported |
+| `county_mismatch` | aigridwatch | the coordinates are not in the stated state (no record), or not in the named county (the record is placed by the locality text instead; `data.lat`/`lon` are the coordinates not used) |
+| `conflict` | aigridwatch | the announced date is later than a filing, hearing or decision date (the announcement is left out); the event log reports a later milestone than the stage (`data.reported_status`, `event_date`, `event_kind`, `event_source`; held, no record); the id starts with another row's name (`data.id_of`; held, no record) |
+| `unit_parse` | aigridwatch | `size_mw` or `acres` is not a number in range, a party field holds a capacity, or the note gives `size_mw` as a power source's or one phase's (`data.basis`; the record is kept without it, `size_mw` only in `mw_as_stated`) |
+| `out_of_scope` | aigridwatch | a territory (no record), or a power supply deal or generation facility (`data.phrase`; the record is kept with `scope: "out_of_scope"`) |
 | `invalid` | both | a row that does not map to a valid record |
 
 `apply_import` adds `conflict` (a candidate matches more than one stored record),
@@ -293,9 +349,10 @@ AI GridWatch also has rows of its own, under other names, for some of the Epoch 
 often next to the copy. Rules read once the row is placed, all for a row that lies in the Epoch
 record's county (the stated county, else the one containing the point):
 
-- `link`: the row cites, as `source` or in its event log, a link specific to one Epoch site: the
-  Epoch record cites it, or AI GridWatch's copy of the site (a row held by `name`, `id` or
-  `source`) does, and no other Epoch record or AI GridWatch row cites it. Without the county
+- `link`: the row's own `source` is a link specific to one Epoch site (the Epoch record cites it,
+  or AI GridWatch's copy of the site, a row held by `name`, `id` or `source`, does, and no other
+  Epoch record or AI GridWatch row cites it), or the row cites such a link elsewhere while its own
+  source is one the site or its copy cites; and the two MW agree within x2. Without the county
   condition this would tie Google's Haskell County row to Midlothian and Goodnight, 260 km away,
   through one statewide announcement;
 - `street`: the row's name or id gives the Epoch record's street address, house number and street
@@ -304,13 +361,35 @@ record's county (the stated county, else the one containing the point):
 Weaker evidence holds the row for review without merging it: no record, `record_id` empty, the
 Epoch records it may be in `data.epoch_records`, and a reviewer decides.
 
-- `several`: the rules tie the row to more than one Epoch site, or to one while the row shares an
-  organization with another Epoch site in the same county (AI GridWatch's "AWS Madison County data
-  center campuses" covers Epoch's Amazon Madison Mega Site and Amazon Ridgeland);
-- `nearby`: no rule ties the row, but it shares an organization (owner, operator or tenant) with
-  Epoch sites within 5 km, both points at locality precision or finer. Distance alone would merge
-  neighbours (Compass's Red Oak campus is 1.1 km from Epoch's Google Red Oak), and an organization
-  in the same county alone would merge Microsoft's withdrawn Caledonia site, 14 km from Fairwater.
+- `weak_link`: a link specific to the site ties the row only through its event log, with its own
+  source cited by neither the site nor its copy, or the row's `size_mw` and the site's MW (IT, else
+  facility) differ by more than x2 (07 §6.6, Size). AI GridWatch copies a campus's history into rows
+  about other projects: `aws-new-carlisle-in` is Amazon's $15B plan that "will expand our
+  infrastructure to new sites across Indiana" and "add 2.4 gigawatts", tied to Epoch's
+  Anthropic-Amazon New Carlisle (910 MW IT) only by the New Carlisle stories in its event log;
+- `several`: the rules tie the row to more than one Epoch site, or to one while the row may share
+  an organization with another Epoch site in the same county (AI GridWatch's "AWS Madison County
+  data center campuses" covers Epoch's Amazon Madison Mega Site and Amazon Ridgeland);
+- `nearby`: no rule ties the row, but it may share an organization (owner, operator or tenant) with
+  Epoch sites within 5 km, both points at locality precision or finer (a row at its county's point
+  is not near anything). Distance alone would merge neighbours (Compass's Red Oak campus is 1.1 km
+  from Epoch's Google Red Oak), and an organization in the same county alone would merge
+  Microsoft's withdrawn Caledonia site, 14 km from Fairwater;
+- `epoch_source` lists, for the reviewer, the sites the location rules, an organization in common
+  in the county, or one within 5 km point to (Stargate Abilene: Epoch's OpenAI Stargate Abilene).
+
+"May share an organization" compares names without an alias table (`data/orgs.json` is empty in
+M1): suffixes such as Inc, LLC and Corp and everything but letters and digits are dropped, and a name
+of three or more characters inside another counts (`orgs_overlap`). So xAI and SpaceXAI, Amazon and
+Amazon Web Services count as one; since these rules only hold a row, a near match costs a review,
+never a merge. `xai-colossus-memphis-tn` names xAI and lies at Colossus 1's site, while a link ties
+it to Colossus 2: it is held as `several`, naming both.
+
+The item's reason says what happened to the row. A row held by `name`, `id` or `source` whose note
+quotes "Epoch AI estimates" is AI GridWatch republishing the Epoch site. Every other merged row is
+AI GridWatch's own row for that site: not imported, and nothing from it (its source, phase, approval
+or events) is merged into the Epoch record, which M4's entity resolution does (07 §2.1 makes a newly
+reported expansion a phase).
 
 The Epoch record is kept, since Epoch is the origin and has the dated timeline. The rule needs the
 Epoch records, so `epoch` must run first, and the run refuses a store without them unless
@@ -319,41 +398,79 @@ how many Epoch names were seen). When the store already holds an AI GridWatch re
 that is now held (one stored before its Epoch twin arrived), `merge_import` files the usual
 `removed_upstream` item and keeps it, and the `possible_duplicate` item names it in
 `data.stored_record`: a reviewer sets its `merged_into`. A row whose Epoch twin has no record (an
-Epoch site in review) is imported, so the site still appears once. Merging the AI GridWatch
-milestones into the Epoch record is entity resolution's job (M4), and so is releasing a held row
-that a reviewer finds is another site: M1 has no switch for it.
+Epoch site in review) is imported, so the site still appears once.
 
-On 2026-10-08, 79 rows were held: 69 by `name`, 4 by `link`, 2 by `id`, 1 by `street`, 1 by
-`epoch_source`, and 2 for review (`several`, `nearby`). The nine rows the name rule missed, with
-about 7.1 GW (7,060 MW) that had been counted twice:
+On 2026-10-08 (re-measured offline on the seed's saved inputs), 80 rows were held as Epoch's sites:
+69 by `name`, 2 by `id`, 2 by `street`, and 7 for review (3 `weak_link`, 2 `several`, 1 `nearby`, 1
+`epoch_source`). The eleven rows the name rule missed:
 
 | AI GridWatch row | Epoch site | Rule | Evidence |
 |---|---|---|---|
 | `microsoft-nebius-new-jersey` (300 MW) | Microsoft-Nebius New Jersey | `id` | the id; the Nebius release Epoch cites is also in the event log |
 | `qts-cedar-rapids-ia` | QTS Cedar Rapids | `id` | the id |
-| `openai-stargate-dona-ana-nm` | OpenAI Stargate New Mexico | `link` | the Oracle release Epoch cites, and a Food & Water Watch story the copy cites; Doña Ana County |
-| `vantage-frontier-shackelford-tx` (1,400 MW) | OpenAI Stargate Shackelford | `link` | the groundbreaking story the copy cites; Shackelford County |
-| `aws-new-carlisle-in` (2,400 MW) | Anthropic-Amazon New Carlisle | `link` | five stories the copy cites; St. Joseph County |
-| `xai-colossus-memphis-tn` (2,000 MW) | Colossus 2 | `link` | three stories the Colossus 2 copy cites; Shelby County. The row covers the Colossus complex, Colossus 1 included, but names xAI where Epoch names SpaceXAI |
 | `216-greenfield-road-lancaster-city-pa` | CoreWeave Lancaster Greenfield site | `street` | 216 Greenfield Road in the name; Lancaster County |
+| `lancaster-ai-hub-east-formerly-referred-to-as-216-greenfield-road-chirisa-technology-parks-phase-2-city-of-lancaster-pa` | CoreWeave Lancaster Greenfield site | `street` | the same address; PA DEP's Phase 2 row (as_of 2026-10-08), not a separate Epoch phase |
+| `openai-stargate-dona-ana-nm` | OpenAI Stargate New Mexico (held for review) | `weak_link` | the Oracle release Epoch cites and a Food & Water Watch story the copy cites, both in the event log; its own source is a list of data centers |
+| `vantage-frontier-shackelford-tx` (1,400 MW) | OpenAI Stargate Shackelford (held for review) | `weak_link` | the groundbreaking story the copy cites, in the event log; its own source is Vantage's release |
+| `aws-new-carlisle-in` (2,400 MW) | Anthropic-Amazon New Carlisle (held for review) | `weak_link` | five New Carlisle stories in the event log; the row's source and MW are Amazon's expansion to new Indiana sites, 2,400 MW against 910 MW |
+| `xai-colossus-memphis-tn` (2,000 MW) | Colossus 1 and Colossus 2 (held for review) | `several` | three stories the Colossus 2 copy cites; xAI may be SpaceXAI, which owns both Shelby County sites |
 | `aws-salem-township-pa` (960 MW) | AWS Berwick (held for review) | `nearby` | Amazon, 4.3 km (Epoch's point is Berwick's Census point, in Columbia County; AI GridWatch places the campus in Salem Township, Luzerne County) |
 | `aws-madison-county-ms` | Amazon Madison Mega Site and Amazon Ridgeland (held for review) | `several` | the 2024 announcement the Mega Site copy cites; Amazon owns both Madison County sites |
+| `stargate-abilene-tx` (1,200 MW) | OpenAI Stargate Abilene (held for review) | `epoch_source` | its source is Epoch's Stargate report |
 
-None of the new rules ties another row: `hexa-monroe-township-nj` shares a page with the Nebius
-row, but lies in Gloucester County, not Cumberland.
+Before the rules beyond `name`, ten of these rows (all but Abilene) were imported as records of
+their own. Nine are Epoch sites listed a second time, about 4.7 GW (4,660 MW of `size_mw`) counted
+twice. `aws-new-carlisle-in` is not: its 2,400 MW is Amazon's announced expansion to new sites,
+which AI GridWatch files under New Carlisle; it is held for review rather than merged, and a
+reviewer decides whether to release it as a project of its own. None of the rules ties another row:
+`hexa-monroe-township-nj` shares a page with the Nebius row, but lies in Gloucester County, not
+Cumberland.
+
+## Releasing a held row
+
+A reviewer who finds that a check holds a row wrongly releases it in
+`config/overrides/aigridwatch.json`, one entry per row id, without a code change:
+
+```json
+{"example-row-id": {"release": ["epoch"],
+                    "reason": "what the reviewer read, at most 300 characters",
+                    "reviewed_at": "2026-10-09"}}
+```
+
+- `release` names the checks released: `epoch` (the Epoch AI site rules: the row is another site),
+  `stage` (the event log's later milestone: the stage stands), `id` (the id that starts with another
+  row's name) and `scope` (a power supply deal or a generation facility).
+- `as_of`, optional: the day the reviewer confirmed the stage of a row that has no `as_of`, so its
+  stage can be dated; the `other` event's note then says "confirmed by a reviewer on …".
+- `reason` (at most 300 characters, no contact details) and `reviewed_at` are required; an unknown
+  key, an empty entry or an `as_of` after today fails the run (exit 1, nothing written).
+
+The row is then imported as any other, and while a released check would still hold it, each run
+files an item with `data.released` naming the check and the reason, so the decision stays visible.
+`metrics.overrides_used` and `overrides_unused` count the entries whose row is and is not in the
+file; an unused entry names a row AI GridWatch no longer lists. Other corrections to an imported
+record (its scope, a field) are edits to the record in the review PR (07 §6.7). The file holds no
+entry on 2026-10-09.
 
 ## Limits (M1)
 
 - **No other cross-source de-duplication until M4.** Entity resolution is 07 §6.6. Beyond the
-  Epoch and AI GridWatch rules above, OSM covers several Epoch campuses, and those appear twice.
-  A row the rules hold for review stays out of the store until M4 even if a reviewer finds it is
-  another site.
-- **AI GridWatch `events[]` is not imported** (2,287 events on 2026-10-07). It needs the extraction
-  and verification steps of M2–M3. Only event kinds are read, for `has_filing`.
+  Epoch and AI GridWatch rules above, OSM covers several Epoch campuses, and those appear twice
+  (owner decision: accepted until M4). A row the rules hold for review stays out of the store until
+  a reviewer releases it ([Releasing a held row](#releasing-a-held-row)) or M4 resolves it.
+- **AI GridWatch `events[]` is not imported** (2,290 events on 2026-10-08). It needs the extraction
+  and verification steps of M2–M3. Only dates, kinds and a few phrases are read: for `has_filing`,
+  for a hearing held, for the first report, and for a later milestone than the stage, which holds
+  the row rather than setting a status. The phrases are keyword tests: they can miss a milestone
+  (the stage is then published as before) or hold a row the reviewer releases.
 - **AI GridWatch stage dates.** The schema cannot say "status observed on date X, event date
-  unknown", so the stage's `other` event is dated by `as_of`, the day AI GridWatch read its source.
-  `derive_dates` skips `other` events for `first_reported`, `operating_since` and `cancelled`, so a
-  row whose milestones do not reach the stage has none of those dates.
+  unknown", so the stage's `other` event is dated by `as_of`, the day AI GridWatch read its source,
+  and a row without `as_of` whose milestones do not reach the stage is held. `derive_dates` skips
+  `other` events for `first_reported`, `operating_since` and `cancelled`, so a row whose milestones
+  do not reach the stage has none of those dates.
+- **AI GridWatch MW.** Most rows state no basis for `size_mw`, so most records carry the figure
+  only in `mw_as_stated` and count as "without MW" on the map and in the totals until a source
+  states the basis.
 - **Epoch projections that do not change the mapped status are dropped.** A projected row whose
   mapped status equals the previous row's adds no event. The crosswalk reads "Buildings
   operational" and, when that cell is empty, "IT power (MW)": OpenAI Stargate Milam's 2028-12-31
@@ -364,22 +481,28 @@ row, but lies in Gloucester County, not Cumberland.
 
 ## Live run, 2026-10-08
 
-Full runs (`uv run atlas import epoch`, then `aigridwatch`) into an empty store, then
-`atlas validate` over the result: **279 records, 0 issues** (re-run offline on that day's inputs
-and Census cache once the twin rules landed; 288 before them). A second run of each: every record
-`unchanged`, no Census request (all answered from the cache), no record or review file changed.
+The seed import (`uv run atlas import osm`, `epoch`, then `aigridwatch`, live, at 20:47–20:50 UTC)
+saved its inputs: Epoch's `data_centers.zip`, AI GridWatch's `projects.json` (generated
+2026-10-08, sha256 `16330d94…4ccab47`) and the 61 Census responses. The figures below are this
+importer's run on those inputs, offline (`--input … --offline`, the Census cache from the saved
+responses), into an empty store, then `atlas validate` over the result: **225 records (222 in
+scope), 0 issues**. A second run of each: every record `unchanged`, no Census request, no record or
+review file changed. The seed itself, before the third review round's fixes, had 77 + 202 records
+and 89 AI GridWatch review items.
 
 | | Epoch AI | AI GridWatch |
 |---|---|---|
-| Upstream rows | 93 sites (77 US), 547 timeline rows | 284 projects (283 verified), 2,287 events |
-| Records | 77 (every US site) | 202 |
-| By location | 30 address, 1 street, 31 Gazetteer place, 2 county, 13 override (8 locality, 5 county) | 153 source coordinates, 35 Gazetteer place, 14 county centroid |
-| Review items | none | 79 `possible_duplicate` (Epoch sites: 77 matched, 2 held for review), 3 `county_mismatch` (point outside the named county), 2 `conflict` (late announcements), 2 `geocode_failed` (Bloomfield CT, "Central Ohio"), 1 `unit_parse` ("67 MW" as the operator), 1 `unverified_upstream` |
-| Status events | 17 planned (projections; OpenAI Stargate Milam's 2028-12-31 row is one since Epoch's IT power counts when the building count is blank) | 117 stage (`other`) events, 0 planned (no future hearing dates) |
-| Other | 61 Census requests on the first run (2 duplicate addresses answered from the cache) | 2 personal names left out of the parties |
+| Upstream rows | 93 sites (77 US), 548 timeline rows | 285 projects (284 verified), 2,290 events |
+| Records | 77 (every US site) | 148 (3 out of scope: a power purchase agreement, a power plant, a solar farm); 54 rows held for review without a record, besides the 80 Epoch sites |
+| By location | 30 address, 1 street, 31 Gazetteer place, 2 county, 13 override (8 locality, 5 county) | 143 source coordinates, 3 Gazetteer place, 2 county point (one of them EdgeCore, whose coordinates lie outside Louisa County) |
+| Review items | none | 181: 80 `possible_duplicate` (Epoch sites: 73 matched, 7 held for review), 70 `unknown_status` (45 stages without a date, 25 past hearings nothing says were held), 15 `conflict` (7 event logs ahead of the stage, 6 ids of other rows, 2 late announcements), 7 `unit_parse` (`size_mw` a power source's or one phase's), 4 `out_of_scope`, 2 `county_mismatch`, 2 `geocode_failed` (Bloomfield CT, "Central Ohio"), 1 `unverified_upstream` |
+| Status events | 17 planned (projections; OpenAI Stargate Milam's 2028-12-31 row is one since Epoch's IT power counts when the building count is blank) | 73 stage (`other`) events, 38 `first_reported` from the event log, 4 `hearing_held`, 0 planned |
+| Other | 61 Census requests on the live run (2 duplicate addresses answered from the cache) | 2 personal names left out of the parties |
 
-The store's capacity (IT MW, else facility MW) is 53,284 MW, 11,851 MW of it on Epoch records;
-it was 60,344 MW before the twin rules, the 7,060 MW difference being the AI GridWatch twins.
+The store's capacity (IT MW, else facility MW) is 12,252 MW, 11,851 MW of it on Epoch records; AI
+GridWatch adds 3,650 MW on a utility-request basis (two records). Before the basis rule, AI
+GridWatch's `size_mw` counted as IT MW on 60 records (41,433 MW); 32 records now keep it in
+`mw_as_stated`, and 29 of them state no basis.
 
 Without the overrides the same run leaves 13 Epoch sites unplaced: the 8 without an address, the 3
 addresses the chain cannot place (Meta Hyperion, Google Pryor (North), Meta Huntsville) and the 2

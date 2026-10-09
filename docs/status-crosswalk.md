@@ -72,9 +72,17 @@ project has a `rezoning_filed` date or an event of kind `filing` or `rezoning`.
 | Operating | `operating` | `energized` | | |
 | Blocked by ban | `paused` | `paused` | | `moratorium` |
 | Denied | `denied` | `denied` | | `local_denial` |
-| Withdrawn | `cancelled` | `withdrawn` | | `developer_withdrawal` |
+| Withdrawn | `cancelled` | `withdrawn` | | none (see below) |
 
 Any other stage raises `UnknownStatus`; the importer turns it into an `unknown_status` review item.
+
+"Withdrawn" does not say who withdrew. On 2026-10-08, 13 rows read Withdrawn: in some the developer
+withdrew ("Deep Green withdrew its rezoning request"), in others a mayor dropped his support, a host
+agreement lapsed or a court voided the rezoning. The crosswalk gives no `status_reason`, and the AI
+GridWatch importer sets one from the row's note and its `withdrawal` entries
+(`aigridwatch.withdrawal_reason`): `litigation` when they cite a court ruling ("judicially voided"),
+`developer_withdrawal` when they name the developer, the applicant or one of the row's parties as the
+one who withdrew ("Karis notified the village … that it would withdraw"), else none.
 
 ## Epoch AI (`from_epoch_row`)
 

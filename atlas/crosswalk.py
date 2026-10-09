@@ -117,12 +117,15 @@ _AGW_FIXED: dict[str, tuple[Status, EventType, EvidenceLevel | None, StatusReaso
     "operating": ("operating", "energized", None, None),
     "blocked by ban": ("paused", "paused", None, "moratorium"),
     "denied": ("denied", "denied", None, "local_denial"),
-    "withdrawn": ("cancelled", "withdrawn", None, "developer_withdrawal"),
+    # Who withdrew is not in the stage: a developer, a mayor dropping his support, a lapsed host
+    # agreement or a court ruling all read "Withdrawn". The importer sets the reason from the row.
+    "withdrawn": ("cancelled", "withdrawn", None, None),
 }
 
 
 def from_aigridwatch_stage(stage: str, *, has_filing: bool) -> Crosswalked:
-    """An AI GridWatch stage. "Proposed" means announced unless a filing is known."""
+    """An AI GridWatch stage. "Proposed" means announced unless a filing is known; "Withdrawn"
+    carries no status_reason, since the stage does not say who withdrew."""
     key = _key(stage)
     if key == "proposed":
         if has_filing:
