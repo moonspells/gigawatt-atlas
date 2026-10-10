@@ -1,0 +1,1557 @@
+{
+  "$defs": {
+    "Alias": {
+      "additionalProperties": false,
+      "description": "Another name for the facility.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "codename",
+            "press_name",
+            "permit_name",
+            "filing_llc",
+            "osm_name",
+            "former_name",
+            "phase_name"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "source_ids": {
+          "items": {
+            "pattern": "^s[0-9]+$",
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "source_ids"
+      ],
+      "title": "Alias",
+      "type": "object"
+    },
+    "Building": {
+      "additionalProperties": false,
+      "description": "One building, such as an OSM way or a TDLR TABS registration.",
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "phase_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phase Id"
+        },
+        "ref": {
+          "title": "Ref",
+          "type": "string"
+        },
+        "sqft": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sqft"
+        }
+      },
+      "required": [
+        "ref",
+        "name",
+        "sqft",
+        "phase_id"
+      ],
+      "title": "Building",
+      "type": "object"
+    },
+    "Capacity": {
+      "additionalProperties": false,
+      "description": "Power in MW. The bases are never mixed or converted (07 §2.4).",
+      "properties": {
+        "backup_generation_mw": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Backup Generation Mw"
+        },
+        "facility_mw": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Facility Mw"
+        },
+        "it_mw": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "It Mw"
+        },
+        "mw_as_stated": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mw As Stated"
+        },
+        "utility_request_mw": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Utility Request Mw"
+        }
+      },
+      "required": [
+        "it_mw",
+        "facility_mw",
+        "utility_request_mw",
+        "backup_generation_mw",
+        "mw_as_stated"
+      ],
+      "title": "Capacity",
+      "type": "object"
+    },
+    "Cooling": {
+      "additionalProperties": false,
+      "description": "Cooling type and water.",
+      "properties": {
+        "type": {
+          "default": "unknown",
+          "enum": [
+            "air",
+            "evaporative",
+            "closed_loop_liquid",
+            "direct_to_chip",
+            "immersion",
+            "hybrid",
+            "unknown"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "water_source": {
+          "default": "unknown",
+          "enum": [
+            "municipal",
+            "groundwater",
+            "surface",
+            "reclaimed",
+            "none_claimed",
+            "unknown"
+          ],
+          "title": "Water Source",
+          "type": "string"
+        },
+        "water_use_mgd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Water Use Mgd"
+        }
+      },
+      "required": [
+        "type",
+        "water_source",
+        "water_use_mgd"
+      ],
+      "title": "Cooling",
+      "type": "object"
+    },
+    "Correction": {
+      "additionalProperties": false,
+      "description": "An accepted correction (07 §5.4).",
+      "properties": {
+        "issue_url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Issue Url"
+        },
+        "new": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "old": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "on": {
+          "format": "date",
+          "title": "On",
+          "type": "string"
+        },
+        "pointer": {
+          "title": "Pointer",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 300,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "on",
+        "pointer",
+        "old",
+        "new",
+        "reason",
+        "issue_url"
+      ],
+      "title": "Correction",
+      "type": "object"
+    },
+    "FieldMeta": {
+      "additionalProperties": false,
+      "description": "Confidence and provenance of one field, keyed by JSON Pointer in field_meta (07 §3.4).",
+      "properties": {
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "conflicts": {
+          "items": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "type": "object"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "method": {
+          "enum": [
+            "stated",
+            "inferred",
+            "derived",
+            "imported",
+            "human_entered"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "source_ids": {
+          "items": {
+            "pattern": "^s[0-9]+$",
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "confidence",
+        "method",
+        "source_ids",
+        "conflicts"
+      ],
+      "title": "FieldMeta",
+      "type": "object"
+    },
+    "FuzzyDate": {
+      "additionalProperties": false,
+      "description": "A date known to a year, quarter, month or day: YYYY | YYYY-Qn | YYYY-MM | YYYY-MM-DD.",
+      "properties": {
+        "precision": {
+          "enum": [
+            "day",
+            "month",
+            "quarter",
+            "year"
+          ],
+          "title": "Precision",
+          "type": "string"
+        },
+        "value": {
+          "pattern": "^[0-9]{4}(-Q[1-4]|-(0[1-9]|1[0-2])(-(0[1-9]|[12][0-9]|3[01]))?)?$",
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "precision"
+      ],
+      "title": "FuzzyDate",
+      "type": "object"
+    },
+    "Grid": {
+      "additionalProperties": false,
+      "description": "Utility, ISO/RTO and interconnection queue ids.",
+      "properties": {
+        "balancing_authority": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Balancing Authority"
+        },
+        "iso_rto": {
+          "default": "unknown",
+          "enum": [
+            "ERCOT",
+            "PJM",
+            "MISO",
+            "SPP",
+            "CAISO",
+            "NYISO",
+            "ISO-NE",
+            "non-RTO-West",
+            "non-RTO-Southeast",
+            "unknown"
+          ],
+          "title": "Iso Rto",
+          "type": "string"
+        },
+        "queue_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Queue Ids",
+          "type": "array"
+        },
+        "utility_eia_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Utility Eia Id"
+        },
+        "utility_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Utility Name"
+        }
+      },
+      "required": [
+        "utility_name",
+        "utility_eia_id",
+        "iso_rto",
+        "balancing_authority",
+        "queue_ids"
+      ],
+      "title": "Grid",
+      "type": "object"
+    },
+    "Incentive": {
+      "additionalProperties": false,
+      "description": "A tax or utility incentive tied to the facility.",
+      "properties": {
+        "jurisdiction": {
+          "title": "Jurisdiction",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "sales_tax_exemption",
+            "property_tax_abatement",
+            "pilot",
+            "grant",
+            "utility_rate",
+            "other"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "program": {
+          "title": "Program",
+          "type": "string"
+        },
+        "source_ids": {
+          "items": {
+            "pattern": "^s[0-9]+$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "proposed",
+            "approved",
+            "denied",
+            "unknown"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "term_years": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Term Years"
+        },
+        "value_usd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value Usd"
+        }
+      },
+      "required": [
+        "program",
+        "jurisdiction",
+        "kind",
+        "value_usd",
+        "term_years",
+        "status",
+        "source_ids"
+      ],
+      "title": "Incentive",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "Location": {
+      "additionalProperties": false,
+      "description": "Where the facility is, and how precisely that is known (07 §2.4).",
+      "properties": {
+        "city": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "City"
+        },
+        "county_fips": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{5}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "County Fips"
+        },
+        "county_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "County Name"
+        },
+        "geocode_method": {
+          "anyOf": [
+            {
+              "enum": [
+                "source_coords",
+                "osm",
+                "census_geocoder",
+                "gazetteer",
+                "county_centroid",
+                "manual"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Geocode Method"
+        },
+        "geometry_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Geometry Ref"
+        },
+        "lat": {
+          "anyOf": [
+            {
+              "maximum": 72,
+              "minimum": 18,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lat"
+        },
+        "lon": {
+          "anyOf": [
+            {
+              "maximum": -64,
+              "minimum": -180,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lon"
+        },
+        "municipality": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Municipality"
+        },
+        "parcel_apns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Parcel Apns",
+          "type": "array"
+        },
+        "postcode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Postcode"
+        },
+        "precision": {
+          "enum": [
+            "footprint",
+            "parcel",
+            "site",
+            "address",
+            "street",
+            "locality",
+            "county",
+            "state",
+            "unknown"
+          ],
+          "title": "Precision",
+          "type": "string"
+        },
+        "state_abbr": {
+          "pattern": "^[A-Z]{2}$",
+          "title": "State Abbr",
+          "type": "string"
+        },
+        "street": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Street"
+        }
+      },
+      "required": [
+        "lat",
+        "lon",
+        "precision",
+        "geometry_ref",
+        "street",
+        "city",
+        "postcode",
+        "municipality",
+        "county_name",
+        "county_fips",
+        "state_abbr",
+        "parcel_apns",
+        "geocode_method"
+      ],
+      "title": "Location",
+      "type": "object"
+    },
+    "Money": {
+      "additionalProperties": false,
+      "description": "Investment as stated, with its basis.",
+      "properties": {
+        "currency_year": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Currency Year"
+        },
+        "investment_basis": {
+          "anyOf": [
+            {
+              "enum": [
+                "announced_total",
+                "permit_construction_estimate",
+                "incentive_agreement_minimum",
+                "filing",
+                "estimate"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Investment Basis"
+        },
+        "investment_usd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Investment Usd"
+        }
+      },
+      "required": [
+        "investment_usd",
+        "investment_basis",
+        "currency_year"
+      ],
+      "title": "Money",
+      "type": "object"
+    },
+    "OrgRef": {
+      "additionalProperties": false,
+      "description": "An organization as written in a source, optionally resolved to data/orgs.json.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "org_id": {
+          "anyOf": [
+            {
+              "pattern": "^gwo-[0-9a-hjkmnp-tv-z]{26}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Org Id"
+        },
+        "source_ids": {
+          "items": {
+            "pattern": "^s[0-9]+$",
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "org_id",
+        "source_ids"
+      ],
+      "title": "OrgRef",
+      "type": "object"
+    },
+    "Parties": {
+      "additionalProperties": false,
+      "description": "Operator, owner, developer, tenant and the filing entities (shell LLCs) of a facility.",
+      "properties": {
+        "developer": {
+          "items": {
+            "$ref": "#/$defs/OrgRef"
+          },
+          "title": "Developer",
+          "type": "array"
+        },
+        "filing_entities": {
+          "items": {
+            "$ref": "#/$defs/OrgRef"
+          },
+          "title": "Filing Entities",
+          "type": "array"
+        },
+        "operator": {
+          "items": {
+            "$ref": "#/$defs/OrgRef"
+          },
+          "title": "Operator",
+          "type": "array"
+        },
+        "owner": {
+          "items": {
+            "$ref": "#/$defs/OrgRef"
+          },
+          "title": "Owner",
+          "type": "array"
+        },
+        "tenant": {
+          "items": {
+            "$ref": "#/$defs/OrgRef"
+          },
+          "title": "Tenant",
+          "type": "array"
+        }
+      },
+      "required": [
+        "operator",
+        "owner",
+        "developer",
+        "tenant",
+        "filing_entities"
+      ],
+      "title": "Parties",
+      "type": "object"
+    },
+    "Phase": {
+      "additionalProperties": false,
+      "description": "A phase of a campus or project; events refer to it by phase_id.",
+      "properties": {
+        "building_sqft": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Building Sqft"
+        },
+        "capacity": {
+          "$ref": "#/$defs/Capacity"
+        },
+        "expected_in_service": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FuzzyDate"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "phase_id": {
+          "title": "Phase Id",
+          "type": "string"
+        },
+        "source_ids": {
+          "items": {
+            "pattern": "^s[0-9]+$",
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "phase_id",
+        "name",
+        "capacity",
+        "building_sqft",
+        "expected_in_service",
+        "source_ids"
+      ],
+      "title": "Phase",
+      "type": "object"
+    },
+    "Review": {
+      "additionalProperties": false,
+      "description": "Whether a person has reviewed the record.",
+      "properties": {
+        "pr_url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pr Url"
+        },
+        "reviewed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewed At"
+        },
+        "state": {
+          "enum": [
+            "machine",
+            "human_reviewed",
+            "disputed"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "pr_url",
+        "reviewed_at"
+      ],
+      "title": "Review",
+      "type": "object"
+    },
+    "Site": {
+      "additionalProperties": false,
+      "description": "Land and floor area.",
+      "properties": {
+        "acreage": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Acreage"
+        },
+        "building_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Building Count"
+        },
+        "building_sqft": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Building Sqft"
+        }
+      },
+      "required": [
+        "acreage",
+        "building_sqft",
+        "building_count"
+      ],
+      "title": "Site",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "description": "A cited source. supports lists the JSON Pointers it backs (07 §3.3).",
+      "properties": {
+        "archive_url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Archive Url"
+        },
+        "id": {
+          "pattern": "^s[0-9]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License"
+        },
+        "published_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Published At"
+        },
+        "publisher": {
+          "title": "Publisher",
+          "type": "string"
+        },
+        "quote": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote"
+        },
+        "quote_end": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote End"
+        },
+        "quote_match": {
+          "anyOf": [
+            {
+              "enum": [
+                "exact",
+                "fuzzy",
+                "human"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote Match"
+        },
+        "quote_start": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote Start"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "government_record",
+            "utility_or_iso_filing",
+            "court_or_regulator",
+            "sec_filing",
+            "company_release",
+            "trade_press",
+            "news",
+            "open_dataset",
+            "commercial_aggregator",
+            "community_report"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "supports": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Supports",
+          "type": "array"
+        },
+        "text_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text Sha256"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "url",
+        "archive_url",
+        "publisher",
+        "title",
+        "source_type",
+        "license",
+        "published_at",
+        "retrieved_at",
+        "text_sha256",
+        "quote",
+        "quote_start",
+        "quote_end",
+        "quote_match",
+        "supports"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "StatusEvent": {
+      "additionalProperties": false,
+      "description": "One dated event in status_history. Planned events never change the current status.",
+      "properties": {
+        "as_of": {
+          "$ref": "#/$defs/FuzzyDate"
+        },
+        "event": {
+          "enum": [
+            "first_reported",
+            "announced",
+            "application_filed",
+            "hearing_scheduled",
+            "hearing_held",
+            "approved",
+            "permit_issued",
+            "denied",
+            "construction_start",
+            "energized",
+            "phase_online",
+            "paused",
+            "resumed",
+            "withdrawn",
+            "cancelled",
+            "correction",
+            "other"
+          ],
+          "title": "Event",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "phase_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phase Id"
+        },
+        "planned": {
+          "default": false,
+          "title": "Planned",
+          "type": "boolean"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "source_ids": {
+          "items": {
+            "pattern": "^s[0-9]+$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "announced",
+            "proposed",
+            "permitted",
+            "under_construction",
+            "operating",
+            "paused",
+            "denied",
+            "cancelled"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "status",
+        "event",
+        "as_of",
+        "phase_id",
+        "planned",
+        "source_ids",
+        "note"
+      ],
+      "title": "StatusEvent",
+      "type": "object"
+    }
+  },
+  "$id": "https://moonspells.dev/atlas/schema/facility.v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One campus or project in the Gigawatt Atlas, schema_version 1.0.0. Generated from atlas/schema/record.py by `atlas schema export`. The Atlas database is published under the Open Database License, ODbL 1.0.",
+  "properties": {
+    "aliases": {
+      "items": {
+        "$ref": "#/$defs/Alias"
+      },
+      "title": "Aliases",
+      "type": "array"
+    },
+    "buildings": {
+      "items": {
+        "$ref": "#/$defs/Building"
+      },
+      "title": "Buildings",
+      "type": "array"
+    },
+    "canonical_name": {
+      "title": "Canonical Name",
+      "type": "string"
+    },
+    "capacity": {
+      "$ref": "#/$defs/Capacity"
+    },
+    "cooling": {
+      "$ref": "#/$defs/Cooling"
+    },
+    "corrections": {
+      "items": {
+        "$ref": "#/$defs/Correction"
+      },
+      "title": "Corrections",
+      "type": "array"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "dates": {
+      "additionalProperties": {
+        "$ref": "#/$defs/FuzzyDate"
+      },
+      "title": "Dates",
+      "type": "object"
+    },
+    "evidence_level": {
+      "enum": [
+        "confirmed",
+        "reported",
+        "rumor"
+      ],
+      "title": "Evidence Level",
+      "type": "string"
+    },
+    "external_ids": {
+      "additionalProperties": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "title": "External Ids",
+      "type": "object"
+    },
+    "field_meta": {
+      "additionalProperties": {
+        "$ref": "#/$defs/FieldMeta"
+      },
+      "title": "Field Meta",
+      "type": "object"
+    },
+    "grid": {
+      "$ref": "#/$defs/Grid"
+    },
+    "id": {
+      "pattern": "^gwa-[0-9a-hjkmnp-tv-z]{26}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "incentives": {
+      "items": {
+        "$ref": "#/$defs/Incentive"
+      },
+      "title": "Incentives",
+      "type": "array"
+    },
+    "last_verified_at": {
+      "format": "date-time",
+      "title": "Last Verified At",
+      "type": "string"
+    },
+    "location": {
+      "$ref": "#/$defs/Location"
+    },
+    "merged_into": {
+      "anyOf": [
+        {
+          "pattern": "^gwa-[0-9a-hjkmnp-tv-z]{26}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Merged Into"
+    },
+    "money": {
+      "$ref": "#/$defs/Money"
+    },
+    "parent_id": {
+      "default": null,
+      "title": "Parent Id",
+      "type": "null"
+    },
+    "parties": {
+      "$ref": "#/$defs/Parties"
+    },
+    "phases": {
+      "items": {
+        "$ref": "#/$defs/Phase"
+      },
+      "title": "Phases",
+      "type": "array"
+    },
+    "purpose": {
+      "default": "unknown",
+      "enum": [
+        "ai_training",
+        "ai_inference",
+        "hyperscale_cloud",
+        "colocation",
+        "enterprise",
+        "crypto_hpc",
+        "telecom",
+        "mixed",
+        "unknown"
+      ],
+      "title": "Purpose",
+      "type": "string"
+    },
+    "record_type": {
+      "enum": [
+        "campus",
+        "project"
+      ],
+      "title": "Record Type",
+      "type": "string"
+    },
+    "review": {
+      "$ref": "#/$defs/Review"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "scope": {
+      "default": "in_scope",
+      "enum": [
+        "in_scope",
+        "out_of_scope"
+      ],
+      "title": "Scope",
+      "type": "string"
+    },
+    "site": {
+      "$ref": "#/$defs/Site"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/Source"
+      },
+      "minItems": 1,
+      "title": "Sources",
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "announced",
+        "proposed",
+        "permitted",
+        "under_construction",
+        "operating",
+        "paused",
+        "denied",
+        "cancelled"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "status_history": {
+      "items": {
+        "$ref": "#/$defs/StatusEvent"
+      },
+      "minItems": 1,
+      "title": "Status History",
+      "type": "array"
+    },
+    "status_reason": {
+      "anyOf": [
+        {
+          "enum": [
+            "regulatory_pause",
+            "local_denial",
+            "developer_withdrawal",
+            "moratorium",
+            "litigation",
+            "other"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Status Reason"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "id",
+    "record_type",
+    "parent_id",
+    "merged_into",
+    "scope",
+    "canonical_name",
+    "aliases",
+    "parties",
+    "purpose",
+    "status",
+    "status_reason",
+    "evidence_level",
+    "status_history",
+    "location",
+    "capacity",
+    "phases",
+    "buildings",
+    "site",
+    "money",
+    "dates",
+    "grid",
+    "cooling",
+    "incentives",
+    "external_ids",
+    "sources",
+    "field_meta",
+    "review",
+    "corrections",
+    "created_at",
+    "updated_at",
+    "last_verified_at"
+  ],
+  "title": "Gigawatt Atlas facility record",
+  "type": "object"
+}

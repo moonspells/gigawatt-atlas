@@ -1,0 +1,246 @@
+{
+  "type": "FeatureCollection",
+  "name": "im3_datacenter_centroids",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "AZ",
+        "county": "Maricopa County",
+        "operator": "Apple Inc.",
+        "name": "Apple Data Center",
+        "sqft": 1338261.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.6040562341984,
+          33.34701916598116
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "NY",
+        "county": "Suffolk County",
+        "operator": null,
+        "name": "Cable & Wireless Cable Landing Station",
+        "sqft": 36746.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -72.88334531036512,
+          40.843659924752465
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "AZ",
+        "county": "Maricopa County",
+        "operator": null,
+        "name": null,
+        "sqft": 1263277.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.60413892768399,
+          33.34702102896662
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "OH",
+        "county": "Franklin County",
+        "operator": "Amazon Web Services",
+        "name": "Amazon Web Services",
+        "sqft": 161809.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -83.13517288353515,
+          40.061152149918385
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "OH",
+        "county": "Franklin County",
+        "operator": "Amazon Web Services",
+        "name": "Amazon Web Services",
+        "sqft": 161757.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -83.1349072240717,
+          40.060147182028594
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "GA",
+        "county": "Douglas County",
+        "operator": "Digital Realty",
+        "name": "Digital Realty Atlanta ATL11",
+        "sqft": 313479.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -84.57973805502213,
+          33.74656159000674
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "GA",
+        "county": "Cobb County",
+        "operator": "Digital Realty",
+        "name": "Digital Realty Atlanta ATL11",
+        "sqft": 313479.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -84.57973805502213,
+          33.74656159000674
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "OH",
+        "county": "Franklin County",
+        "operator": "Amazon Web Services",
+        "name": "Amazon Web Services",
+        "sqft": 170922.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -83.13460627149611,
+          40.05932514874339
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "OH",
+        "county": "Franklin County",
+        "operator": "Amazon Web Services",
+        "name": "Amazon Web Services",
+        "sqft": 133709.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -83.13409055693126,
+          40.05830889063114
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "OH",
+        "county": "Franklin County",
+        "operator": "Amazon Web Services",
+        "name": "Amazon Web Services",
+        "sqft": 142297.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -83.13275276607416,
+          40.06077960456687
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "OR",
+        "county": "Linn County",
+        "operator": "Stayton Cooperative Telephone Company",
+        "name": "PTC",
+        "sqft": 2521.0,
+        "type": "building"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.61593123751062,
+          44.775218793371785
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "GA",
+        "county": "Douglas County",
+        "operator": "Google",
+        "name": "Google Datacenter - Douglas County",
+        "sqft": 2608502.0,
+        "type": "campus"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -84.58522347659924,
+          33.750590251568525
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_abb": "ND",
+        "county": "Dickey County",
+        "operator": "Applied Digital",
+        "name": "Applied Digital / Ellendale Data Center",
+        "sqft": 2706037.0,
+        "type": "campus"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.57244089508006,
+          46.01354945716436
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,1243 @@
+from __future__ import annotations
+
+import argparse
+import json
+import urllib.parse
+from collections.abc import Callable, Sequence
+from datetime import UTC, date, datetime
+from pathlib import Path
+from typing import Any, cast
+
+import httpx
+import pytest
+from pydantic import HttpUrl
+
+from atlas.cli import main
+from atlas.commands.importer import discover_importers
+from atlas.dissolve import Bounds, Cluster, OsmObject, dissolve, meters_to_degrees
+from atlas.geo.counties import County, CountyIndex
+from atlas.jsonio import record_json
+from atlas.net import FetchError, make_client
+from atlas.schema.record import PLACEHOLDER_ID, FacilityRecord, FuzzyDate
+from atlas.schema.rollup import is_expanding, phase_statuses
+from atlas.sources import pnnl
+from atlas.sources.base import (
+    Candidate,
+    ImportContext,
+    Importer,
+    InputSnapshot,
+    read_review_queue,
+)
+from atlas.sources.osm import (
+    IMPORTER,
+    MIN_ELEMENTS,
+    OVERPASS_ENDPOINTS,
+    OVERPASS_QUERY,
+    BuildResult,
+    OsmImporter,
+    OverpassError,
+    build_candidates,
+    check_overpass,
+    classify,
+    fetch_overpass,
+    osm_date,
+    parse_mw,
+    parse_overpass,
+    telecom_site,
+)
+from atlas.validate import validate_record
+
+MakeContext = Callable[..., ImportContext]
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
+OVERPASS_FIXTURE = FIXTURES / "osm" / "overpass-sample.json"
+OVERPASS_CASES = FIXTURES / "osm" / "overpass-cases.json"
+SEED_CHECK = FIXTURES / "osm" / "overpass-seed-check.json"
+SEED_CHECK_BASE = "2026-10-08T20:47:34Z"
+PNNL_GEOJSON = FIXTURES / "pnnl" / "centroids-sample.geojson"
+# The committed config/overrides/osm.json names elements a fixture does not have.
+NO_OVERRIDES = FIXTURES / "osm" / "overrides-empty.json"
+OSM_BASE = "2026-10-07T22:19:21Z"
+RETRIEVED = datetime(2026, 10, 8, 6, 0, tzinfo=UTC)
+NOW = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
+TODAY = date(2026, 10, 12)
+ASHBURN = (39.0100, -77.4700)  # Loudoun County, VA
+
+
+def fixture_doc() -> dict[str, Any]:
+    doc: dict[str, Any] = json.loads(OVERPASS_FIXTURE.read_text(encoding="utf-8"))
+    return doc
+
+
+def snapshot(name: str = "overpass", upstream: str | None = OSM_BASE) -> InputSnapshot:
+    url = OVERPASS_ENDPOINTS[1] if name == "overpass" else pnnl.PNNL_GEOJSON_URL
+    return InputSnapshot(
+        name=name,
+        url=HttpUrl(url),
+        retrieved_at=RETRIEVED,
+        sha256="0" * 64,
+        bytes=1,
+        license="ODbL-1.0",
+        upstream_version=upstream,
+    )
+
+
+def build(
+    counties: CountyIndex,
+    objects: list[OsmObject] | None = None,
+    *,
+    with_pnnl: bool = True,
+    existing: dict[str, FacilityRecord] | None = None,
+    osm_base: str = OSM_BASE,
+) -> BuildResult:
+    if objects is None:
+        objects, _ = parse_overpass(fixture_doc())
+    clusters = dissolve(objects)
+    join = pnnl.join(clusters, pnnl.load_pnnl(PNNL_GEOJSON)) if with_pnnl else None
+    return build_candidates(
+        clusters,
+        counties=counties,
+        now=NOW,
+        snapshot=snapshot(upstream=osm_base),
+        pnnl_join=join,
+        pnnl_snapshot=snapshot("pnnl", None) if with_pnnl else None,
+        existing=existing,
+    )
+
+
+def candidate(result: BuildResult, ref: str) -> Candidate:
+    (found,) = [c for c in result.candidates if ref in c.match_values]
+    return found
+
+
+def near(north_m: float, east_m: float) -> tuple[float, float]:
+    dlat, dlon = meters_to_degrees(1.0, ASHBURN[0])
+    return ASHBURN[0] + north_m * dlat, ASHBURN[1] + east_m * dlon
+
+
+def building(
+    ref: str, north_m: float, east_m: float, *, at: tuple[float, float] | None = None, **tags: str
+) -> OsmObject:
+    """A data center building north_m and east_m metres from Ashburn, or at the point at."""
+    lat, lon = at if at is not None else near(north_m, east_m)
+    d = 0.0002
+    tags = {"building": "data_center", "telecom": "data_center"} | {
+        k.replace("__", ":"): v for k, v in tags.items()
+    }
+    bounds = Bounds(lat - d, lon - d, lat + d, lon + d)
+    return OsmObject(ref, lat, lon, bounds, tags, classify(ref.split("/")[0], tags))
+
+
+@pytest.fixture(scope="module")
+def built(counties: CountyIndex) -> BuildResult:
+    return build(counties)
+
+
+# ---------------------------------------------------------------------------- parse
+
+
+def test_parse_fixture() -> None:
+    objects, skipped = parse_overpass(fixture_doc())
+    assert skipped == []
+    assert len(objects) == 30
+    kinds = {o.ref: o.kind for o in objects}
+    assert kinds["way/460053028"] == "campus"
+    assert kinds["way/460053030"] == "campus"
+    assert kinds["node/14156477686"] == "point"
+    assert kinds["way/1560827027"] == "building"  # building=construction
+    assert sorted(k for k in kinds.values()) == ["building"] * 24 + ["campus"] * 2 + ["point"] * 4
+    campus = next(o for o in objects if o.ref == "way/460053028")
+    assert campus.bounds == Bounds(39.0249298, -77.454534, 39.0277324, -77.448729)
+    assert (campus.lat, campus.lon) == campus.bounds.center
+
+
+def test_parse_variants() -> None:
+    doc = {
+        "elements": [
+            {"type": "node", "id": 1, "lat": 39.0, "lon": -77.0, "tags": {"name": "A​ B "}},
+            {"type": "node", "id": 1, "lat": 39.0, "lon": -77.0, "tags": {}},  # duplicate
+            {"type": "way", "id": 2, "center": {"lat": 39.1, "lon": -77.1}, "tags": {}},
+            {"type": "way", "id": 3, "tags": {"telecom": "data_center"}},  # no position
+            {"type": "area", "id": 4},
+            "junk",
+        ]
+    }
+    objects, skipped = parse_overpass(doc)
+    assert [o.ref for o in objects] == ["node/1", "way/2"]
+    assert objects[0].tags == {"name": "A B"}
+    assert objects[1].bounds is None and (objects[1].lat, objects[1].lon) == (39.1, -77.1)
+    assert skipped == ["way/3"]
+
+
+def test_parse_drops_control_characters() -> None:
+    """SV2-3: a stray DEL, ESC or BEL in a tag is removed when the tag is read; a tag that is only
+    control characters is dropped."""
+    tags = {"name": "Micro\x7fsoft\x1b[0m", "operator": "Example\x07 Ops\r\nLLC", "ref": "\x00\x7f"}
+    doc = {"elements": [{"type": "node", "id": 1, "lat": 39.0, "lon": -77.0, "tags": tags}]}
+    (obj,), _ = parse_overpass(doc)
+    assert obj.tags == {"name": "Microsoft[0m", "operator": "Example Ops LLC"}
+
+
+def test_classify() -> None:
+    assert classify("node", {"telecom": "data_center"}) == "point"
+    assert classify("way", {"telecom": "data_center"}) == "campus"
+    assert classify("relation", {"telecom": "data_center", "building": "no"}) == "campus"
+    assert classify("way", {"building": "no", "construction": "data_center"}) == "campus"
+    assert classify("way", {"telecom": "data_center", "building": "yes"}) == "building"
+    assert classify("way", {"building": "data_center"}) == "building"
+    # A building that is not built yet carries its building tag under a lifecycle prefix: one
+    # building of a site, not a campus (the 2026-10-07 duplicates: Percheron DC, QTS Hillsboro 3).
+    assert (
+        classify("way", {"telecom": "data_center", "proposed:building": "industrial"}) == "building"
+    )
+    assert classify("way", {"telecom": "data_center", "construction:building": "yes"}) == "building"
+    assert (
+        classify("relation", {"telecom": "data_center", "proposed:building": "yes"}) == "building"
+    )
+    assert classify("way", {"telecom": "data_center", "construction:building": "no"}) == "campus"
+    assert classify("way", {"building": "no", "proposed:building": "yes"}) == "campus"
+    assert classify("node", {"telecom": "data_center", "proposed:building": "yes"}) == "point"
+
+
+def test_check_overpass() -> None:
+    doc = fixture_doc()
+    assert check_overpass(doc, min_elements=30) == OSM_BASE
+    with pytest.raises(OverpassError, match="fewer than 31"):
+        check_overpass(doc, min_elements=31)
+    with pytest.raises(OverpassError, match="runtime error"):
+        check_overpass(doc | {"remark": "runtime error: Query timed out"}, min_elements=0)
+    with pytest.raises(OverpassError, match="timestamp_osm_base"):
+        check_overpass({"elements": []}, min_elements=0)
+    with pytest.raises(OverpassError, match="JSON object"):
+        check_overpass([], min_elements=0)
+    assert MIN_ELEMENTS == 1000
+
+
+@pytest.mark.parametrize(
+    ("value", "mw"),
+    [
+        ("36 MW", 36.0),
+        ("2.0 MW", 2.0),
+        ("12.6 MW", 12.6),
+        ("36MW", 36.0),
+        ("36 mw", 36.0),
+        ("500 kW", 0.5),
+        ("1.2 GW", 1200.0),
+        ("45", 45.0),
+        ("36 MVA", None),
+        ("about 36 MW", None),
+        ("36 MW;14 MW", None),
+        ("36,5 MW", None),
+        ("0 MW", None),
+        ("20000 MW", None),
+        ("", None),
+    ],
+)
+def test_parse_mw(value: str, mw: float | None) -> None:
+    assert parse_mw(value) == mw
+
+
+def test_osm_date() -> None:
+    latest = date(2026, 10, 7)
+    assert osm_date("2019", latest=latest) is not None
+    d = osm_date("2024-09-01", latest=latest)
+    assert d is not None and (d.value, d.precision) == ("2024-09-01", "day")
+    d = osm_date("2024-09", latest=latest)
+    assert d is not None and d.precision == "month"
+    for bad in ("1938", "2027", "~2019", "2019-13", "2019-02-30", "2019s", None, ""):
+        assert osm_date(bad, latest=latest) is None
+
+
+# ---------------------------------------------------------------------------- fetch
+
+
+def overpass_response(doc: object, status: int = 200) -> httpx.Response:
+    return httpx.Response(
+        status, headers={"content-type": "application/json"}, content=json.dumps(doc).encode()
+    )
+
+
+def test_overpass_failover(make_test_context: MakeContext) -> None:
+    calls: list[str] = []
+    bodies: list[bytes] = []
+    good = fixture_doc()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        calls.append(url)
+        bodies.append(request.content)
+        assert request.method == "POST"
+        if url == OVERPASS_ENDPOINTS[0]:
+            return httpx.Response(500, text="server too busy")
+        if url == OVERPASS_ENDPOINTS[1]:
+            return overpass_response(good | {"remark": "runtime error: Query timed out"})
+        if url == OVERPASS_ENDPOINTS[2]:
+            return overpass_response(good)
+        raise AssertionError(f"unexpected request {url}")
+
+    ctx = make_test_context(handler=handler)
+    slept: list[float] = []
+    result = fetch_overpass(ctx, OVERPASS_ENDPOINTS, min_elements=10, retries=1, sleep=slept.append)
+    # endpoint 1: 500, retried once; endpoint 2: partial answer; endpoint 3: complete
+    assert calls == [OVERPASS_ENDPOINTS[0], OVERPASS_ENDPOINTS[0], *OVERPASS_ENDPOINTS[1:3]]
+    assert slept == [10.0]
+    assert urllib.parse.parse_qs(bodies[-1].decode())["data"] == [OVERPASS_QUERY]
+    assert str(result.snapshot.url) == OVERPASS_ENDPOINTS[2]
+    assert result.snapshot.upstream_version == OSM_BASE
+    assert result.snapshot.license == "ODbL-1.0"
+    assert len(result.doc["elements"]) == 30
+    raw = ctx.raw_path("overpass", result.snapshot.sha256, "json")
+    assert json.loads(raw.read_bytes()) == good
+
+
+def test_overpass_element_guard(make_test_context: MakeContext) -> None:
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        return overpass_response(fixture_doc())
+
+    ctx = make_test_context(handler=handler)
+    with pytest.raises(FetchError, match="every Overpass endpoint failed") as e:
+        fetch_overpass(ctx, OVERPASS_ENDPOINTS, min_elements=31, sleep=lambda s: None)
+    assert "30 elements, fewer than 31" in str(e.value)
+    assert calls == list(OVERPASS_ENDPOINTS)
+    calls.clear()
+    fetch_overpass(ctx, OVERPASS_ENDPOINTS, min_elements=30, sleep=lambda s: None)
+    assert calls == [OVERPASS_ENDPOINTS[0]]
+
+
+def test_overpass_bad_content(make_test_context: MakeContext) -> None:
+    answers = iter(
+        [
+            httpx.Response(200, headers={"content-type": "text/html"}, text="<html>busy</html>"),
+            httpx.Response(200, headers={"content-type": "application/json"}, text="{not json"),
+            overpass_response({"elements": []}),
+            overpass_response(fixture_doc()),
+        ]
+    )
+    ctx = make_test_context(handler=lambda request: next(answers))
+    result = fetch_overpass(ctx, OVERPASS_ENDPOINTS, min_elements=1, sleep=lambda s: None)
+    assert str(result.snapshot.url) == OVERPASS_ENDPOINTS[3]
+
+
+def test_overpass_input_file(make_test_context: MakeContext) -> None:
+    ctx = make_test_context(input_path=OVERPASS_FIXTURE)
+    result = fetch_overpass(ctx, OVERPASS_ENDPOINTS)  # no element minimum for a saved file
+    assert result.snapshot.retrieved_at == ctx.now
+    assert result.snapshot.upstream_version == OSM_BASE
+    assert str(result.snapshot.url) == OVERPASS_ENDPOINTS[0]
+
+
+# ---------------------------------------------------------------------------- records
+
+
+AWS_REFS = (
+    "way/460053028",
+    "way/460053030",
+    "way/463571875",
+    "way/463571876",
+    "way/556599693",
+    "way/556599694",
+    "way/556599695",
+    "way/596690174",
+)
+
+
+def test_campus_record(built: BuildResult) -> None:
+    # The two AWS campus polygons and their six buildings: IAD-80's box lies within 300 m of
+    # IAD-71's, so the campuses form one site. The larger campus, way/460053030, represents it.
+    c = candidate(built, "way/460053028")
+    r = c.record
+    assert c.match_values == AWS_REFS
+    assert r.id == PLACEHOLDER_ID
+    assert r.record_type == "campus" and r.scope == "in_scope"
+    assert r.canonical_name == "Amazon Web Services (Loudoun County, VA)"
+    assert [a.name for a in r.aliases] == [
+        "Amazon Web Services Datacenter Complex",
+        "Amazon IAD-78",
+        "Amazon IAD-79",
+        "Amazon IAD-71",
+        "Amazon IAD-50",
+        "Amazon IAD-60",
+        "Amazon IAD-80",
+    ]
+    # Each value cites the element that gives it (fix round 5, n6, n11, n12): s1 is the
+    # representative, s2 PNNL, s3 to s9 the other members in ref order.
+    member_sid = {ref: f"s{i}" for i, ref in enumerate(AWS_REFS[:1] + AWS_REFS[2:], start=3)}
+    member_sid["way/460053030"] = "s1"
+    by_name = {
+        "Amazon Web Services Datacenter Complex": "way/460053028",
+        "Amazon IAD-78": "way/463571875",
+        "Amazon IAD-79": "way/463571876",
+        "Amazon IAD-71": "way/556599693",
+        "Amazon IAD-50": "way/556599694",
+        "Amazon IAD-60": "way/556599695",
+        "Amazon IAD-80": "way/596690174",
+    }
+    for a in r.aliases:
+        assert a.kind == "osm_name" and a.source_ids == [member_sid[by_name[a.name]]], a
+    ((operator, operator_sids),) = [(o.name, o.source_ids) for o in r.parties.operator]
+    assert operator == "Amazon Web Services"
+    assert operator_sids == sorted(member_sid.values(), key=lambda s: int(s[1:]))
+    assert r.parties.owner == []
+
+    rep = next(o for o in parse_overpass(fixture_doc())[0] if o.ref == "way/460053030")
+    assert rep.bounds is not None
+    loc = r.location
+    assert (loc.lat, loc.lon) == (round(rep.lat, 7), round(rep.lon, 7))
+    assert loc.precision == "footprint" and loc.geocode_method == "osm"
+    assert loc.geometry_ref == "osm:way/460053030"
+    assert (loc.county_fips, loc.county_name, loc.state_abbr) == ("51107", "Loudoun", "VA")
+    # The campus polygon has no address and its buildings have four: no street rather than one
+    # building's address under the campus name (seed check n6). City and postcode agree.
+    # addr:city=Ashburn is the postal city; without the place polygons there is no city.
+    assert (loc.street, loc.city, loc.postcode) == (None, None, "20147")
+
+    # IAD-79 is tagged it_power 47 MW on input:electricity 45 MW. An IT load cannot exceed the
+    # facility's input, so one of its tags is wrong and neither total (245 and 260 MW) is
+    # published (fix round 5, n20): a conflict item names it, and mw_as_stated keeps every tag.
+    assert r.capacity.it_mw is None and r.capacity.facility_mw is None
+    assert r.capacity.mw_as_stated == (
+        "OSM it_power: Amazon IAD-78 45 MW; Amazon IAD-79 47 MW; Amazon IAD-71 28 MW; "
+        "Amazon IAD-50 59 MW; Amazon IAD-60 28 MW; Amazon IAD-80 38 MW | "
+        "OSM input:electricity: Amazon IAD-78 45 MW; Amazon IAD-79 45 MW; "
+        "Amazon IAD-71 32.5 MW; Amazon IAD-50 65 MW; Amazon IAD-60 32.5 MW; Amazon IAD-80 40 MW"
+    )
+    # PNNL's sqft is the footprint's area, not a floor area: matched, but not published.
+    assert [(b.ref, b.name, b.sqft) for b in r.buildings] == [
+        ("osm:way/463571875", "Amazon IAD-78", None),
+        ("osm:way/463571876", "Amazon IAD-79", None),
+        ("osm:way/556599693", "Amazon IAD-71", None),
+        ("osm:way/556599694", "Amazon IAD-50", None),
+        ("osm:way/556599695", "Amazon IAD-60", None),
+        ("osm:way/596690174", "Amazon IAD-80", None),
+    ]
+    assert r.site.building_sqft is None and r.site.acreage is None
+
+    # The campus has no start_date and the earliest building's is 2015 (IAD-50). A start_date is
+    # OSM's date for the feature, not the start of operation: it dates nothing, and a reviewer
+    # gets it as an unverified_upstream item.
+    (event,) = r.status_history
+    assert (event.seq, event.status, event.event, event.planned) == (1, "operating", "other", False)
+    assert (event.as_of.value, event.as_of.precision) == ("2026-10-07", "day")
+    assert event.source_ids == sorted(member_sid.values(), key=lambda s: int(s[1:]))
+    assert event.note == (
+        "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot "
+        "date, not the date it began; start_date=2015 on way/556599694 is not read as the start "
+        "of operation"
+    )
+    assert r.status == "operating" and r.evidence_level == "reported" and r.purpose == "unknown"
+    assert r.dates == {}
+    (item,) = [
+        i
+        for i in built.review
+        if i.kind == "unverified_upstream" and i.external_id == "way/460053030"
+    ]
+    assert item.data["start_date"] == "2015" and item.data["osm"] == "way/556599694"
+
+    assert r.external_ids == {
+        "osm": list(c.match_values),
+        "pnnl_im3": [
+            "building@-77.449520,39.026368",
+            "building@-77.450870,39.026357",
+            "building@-77.452829,39.027109",
+            "building@-77.457503,39.027908",
+        ],
+    }
+    s1, s2, *members = r.sources
+    assert [(m.id, str(m.url)) for m in members] == [
+        (sid, f"https://www.openstreetmap.org/{ref}")
+        for ref, sid in sorted(member_sid.items(), key=lambda kv: int(kv[1][1:]))
+        if sid != "s1"
+    ]
+    assert (s1.id, str(s1.url), s1.publisher) == (
+        "s1",
+        "https://www.openstreetmap.org/way/460053030",
+        "OpenStreetMap contributors",
+    )
+    assert (s1.title, s1.source_type, s1.license) == (
+        "OpenStreetMap way/460053030",
+        "open_dataset",
+        "ODbL-1.0",
+    )
+    # s1, the campus polygon, gives the name and the point; the buildings give their entries,
+    # the power tags and the postcode they all list.
+    assert s1.supports == [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/location/city",
+        "/location/county_name",
+        "/location/state_abbr",
+    ]
+    assert s1.retrieved_at == RETRIEVED
+    iad78 = next(m for m in members if str(m.url).endswith("way/463571875"))
+    assert iad78.supports == ["/location/postcode", "/capacity/mw_as_stated", "/buildings/0"]
+    assert iad78.title == "OpenStreetMap way/463571875" and iad78.license == "ODbL-1.0"
+    # The 17-feature sample is not a web-map file whose version is established: s2 cites the file.
+    assert (s2.id, str(s2.url), s2.license) == ("s2", pnnl.PNNL_GEOJSON_URL, "ODbL-1.0")
+    assert s2.title == (
+        "IM3 Open Source Data Center Atlas, web map file im3_datacenter_centroids.geojson"
+    )
+    assert s2.publisher == "Pacific Northwest National Laboratory (IM3)"
+    assert s2.supports == ["/site"]
+
+    meta = {k: (v.confidence, v.method, v.source_ids) for k, v in r.field_meta.items()}
+    (conflict,) = [i for i in built.review if i.kind == "conflict"]
+    assert (conflict.external_id, conflict.data) == (
+        "way/460053030",
+        {"it_mw": 47.0, "facility_mw": 45.0, "members": ["way/463571876"]},
+    )
+    assert meta == {
+        "/location/county_fips": (0.9, "derived", []),
+        "/status": (0.6, "imported", sorted(member_sid.values(), key=lambda s: int(s[1:]))),
+    }
+    assert r.review.state == "machine"
+    assert r.created_at == r.updated_at == r.last_verified_at == NOW
+
+
+def test_the_snapshot_dates_nothing(built: BuildResult) -> None:
+    """Seed check 2026-10-08 (n0, n7, n47, n51, n59, n65, n74, n77): 1,027 operating OSM records
+    published the snapshot date as operating_since. OSM says what a feature is on the day it was
+    read, not when its status began, so the event is `other`: it sets the status and dates
+    neither operating_since nor first_reported (rollup.derive_dates)."""
+    r = candidate(built, "way/300162689").record  # Lumen Ashburn: no start_date
+    (event,) = r.status_history
+    assert (event.event, event.status, event.as_of.value, event.as_of.precision) == (
+        "other",
+        "operating",
+        "2026-10-07",
+        "day",
+    )
+    assert event.note == (
+        "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot "
+        "date, not the date it began"
+    )
+    assert r.status == "operating" and r.dates == {}
+    for c in built.candidates:
+        assert "operating_since" not in c.record.dates, c.match_values
+        assert "first_reported" not in c.record.dates, c.match_values
+
+
+def test_names(built: BuildResult) -> None:
+    names = {c.match_values[0]: c.record.canonical_name for c in built.candidates}
+    # The place is the county: addr:city is a postal city, which need not contain the point.
+    assert names["way/300162689"] == "Lumen Ashburn (Loudoun County, VA)"  # Lumen Technologies
+    assert names["way/1188715508"] == "PowerHouse CyrusOne NVA14 (Loudoun County, VA)"
+    assert names["node/11721960464"] == "QTS Data Center - Hillsboro 3 (Washington County, OR)"
+    assert names["node/13154826379"] == "NTT VA11 (Prince William County, VA)"
+    # A campus of several named buildings goes by their series, not by its largest building
+    # (fix round 5, n16).
+    equinix = candidate(built, "node/14156477686").record
+    assert equinix.canonical_name == "Equinix DC10, DC12, DC15 and 2 more (Loudoun County, VA)"
+    assert "Equinix Ashburn DC18" in [a.name for a in equinix.aliases]
+    assert equinix.location.precision == "footprint"
+
+
+def test_status_mapping(built: BuildResult) -> None:
+    # OSM proposed:* is not a filing (07 §2.3), so it reads as announced (seed check n80).
+    qts = candidate(built, "node/11721960464").record
+    assert qts.status == "announced" and qts.location.precision == "site"
+    assert qts.status_history[0].note == (
+        "Tagged proposed:telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the "
+        "snapshot date, not the date it began"
+    )
+    ntt = candidate(built, "node/13154826379").record
+    assert ntt.status == "under_construction"
+    assert (
+        ntt.capacity.it_mw == 96.0 and ntt.capacity.mw_as_stated == "OSM it_power: NTT VA11 96 MW"
+    )
+    assert [b.ref for b in ntt.buildings] == ["osm:node/13154826379"]
+
+
+def test_mixed_statuses_become_phases(built: BuildResult) -> None:
+    r = candidate(built, "way/1560827027").record  # Cologix ASH1 (operating) + ASH2 (construction)
+    assert r.canonical_name == "Cologix ASH1 and ASH2 (Loudoun County, VA)"
+    # Each phase cites the building whose tags give its status: ASH1 is s1, the representative.
+    assert [(p.phase_id, p.name, p.source_ids) for p in r.phases] == [
+        ("osm-operating", "Operating in OpenStreetMap: Cologix ASH1", ["s1"]),
+        ("osm-under_construction", "Under construction in OpenStreetMap: Cologix ASH2", ["s3"]),
+    ]
+    assert str(next(s for s in r.sources if s.id == "s3").url).endswith("way/1560827027")
+    assert [(e.seq, e.status, e.phase_id) for e in r.status_history] == [
+        (1, "operating", "osm-operating"),
+        (2, "under_construction", "osm-under_construction"),
+    ]
+    assert r.status_history[1].note == (
+        "Tagged construction=data_center in OpenStreetMap; status per 07 §4.7, seen on the "
+        "snapshot date, not the date it began"
+    )
+    assert [(b.ref, b.phase_id) for b in r.buildings] == [
+        ("osm:way/1188715510", "osm-operating"),
+        ("osm:way/1560827027", "osm-under_construction"),
+    ]
+    assert r.status == "operating"
+    assert phase_statuses(r) == {
+        "osm-operating": "operating",
+        "osm-under_construction": "under_construction",
+    }
+    assert is_expanding(r)
+
+
+def test_out_of_scope(built: BuildResult) -> None:
+    c = candidate(built, "node/10014176940")
+    r = c.record
+    assert r.scope == "out_of_scope"
+    assert r.canonical_name == "Microsoft (Guaynabo Municipio, PR)"
+    assert (r.location.state_abbr, r.location.county_fips) == ("PR", "72061")
+    assert "787" not in json.dumps(record_json(r))  # the phone tag is never copied
+    (item,) = [i for i in built.review if i.kind == "out_of_scope"]
+    assert (item.source, item.external_id) == ("osm", "node/10014176940")
+
+
+def test_telecom_sites_are_out_of_scope(counties: CountyIndex) -> None:
+    objects, _ = parse_overpass(json.loads(OVERPASS_CASES.read_text(encoding="utf-8")))
+    result = build(counties, objects, with_pnnl=False)
+    cls = candidate(result, "way/459188725").record  # Cable & Wireless Cable Landing Station
+    coop = candidate(result, "way/1365213539").record  # "PTC", a telephone cooperative's office
+    for r in (cls, coop):
+        assert (r.scope, r.purpose) == ("out_of_scope", "telecom")
+        assert "/purpose" in r.sources[0].supports
+        assert validate_record(r, counties=counties, today=TODAY) == []
+    items = {i.external_id: i.reason for i in result.review if i.kind == "out_of_scope"}
+    assert items == {
+        "way/459188725": "a telecom site, not a data center: way/459188725 is named as a telecom "
+        "site ('Cable Landing'); kept with scope out_of_scope (07 §2.2)",
+        "way/1365213539": "a telecom site, not a data center: way/1365213539 is named as a telecom "
+        "site ('Cooperative Telephone'); kept with scope out_of_scope (07 §2.2)",
+    }
+    assert result.metrics["out_of_scope"] == 2
+    others = [c.record for c in result.candidates if c.record.scope == "in_scope"]
+    assert len(others) == len(result.candidates) - 2
+    assert {r.purpose for r in others} == {"unknown"}
+
+
+def test_telecom_site_rules() -> None:
+    def site(*members: OsmObject) -> str | None:
+        return telecom_site(Cluster(members=members, representative=members[0]))
+
+    assert site(building("way/1", 0, 0, name="Manasquan Cable Landing Station", operator="Lumen"))
+    assert site(building("way/1", 0, 0, name="Marquette-Adams Telephone Coop"))
+    assert site(building("way/1", 0, 0, name="Tuckerton", alt_name="Tuckerton landing station"))
+    assert site(building("way/1", 0, 0, building="data_center", telecom="exchange"))
+    # A data center building next to a landing station keeps the site in scope.
+    assert not site(
+        building("way/1", 0, 0, name="Example Landing Station", operator="Lumen"),
+        building("way/2", 0, 100, name="Example DC1", operator="Lumen"),
+    )
+    # Unnamed members count neither way; an unnamed site is in scope.
+    assert site(
+        building("way/1", 0, 0, name="Example Landing Station", operator="Lumen"),
+        building("way/2", 0, 100),
+    )
+    assert not site(building("way/1", 0, 0))
+    # "American Telephone & Telegraph" is not a telephone company office by name alone.
+    assert not site(
+        building("way/1", 0, 0, name="AT&T Center", operator="American Telephone & Telegraph")
+    )
+
+
+def test_metrics(built: BuildResult) -> None:
+    assert built.metrics == {
+        "objects": 30,
+        "clusters": 12,
+        "held": 0,
+        "out_of_scope": 1,
+        "unit_parse": 0,
+        "pnnl_rows": 17,
+        "pnnl_matched": 16,
+        "pnnl_matched_by_id": 0,
+        "pnnl_matched_by_name": 0,
+        "pnnl_on_held": 0,
+        "pnnl_match_rate": 0.9412,
+    }
+    assert sorted((i.source, i.kind) for i in built.review) == [
+        ("osm", "conflict"),  # IAD-79: it_power 47 MW above input:electricity 45 MW
+        ("osm", "out_of_scope"),
+        ("osm", "unverified_upstream"),  # start_date on the AWS campus
+        ("osm", "unverified_upstream"),  # start_date=2017 on Equinix DC12
+        ("pnnl", "unmatched"),
+    ]
+
+
+def test_every_candidate_validates(built: BuildResult, counties: CountyIndex) -> None:
+    assert len(built.candidates) == 12
+    for c in built.candidates:
+        assert validate_record(c.record, counties=counties, today=TODAY) == [], c.match_values
+        assert FacilityRecord.model_validate(record_json(c.record)) == c.record
+
+
+def test_without_pnnl(counties: CountyIndex) -> None:
+    result = build(counties, with_pnnl=False)
+    r = candidate(result, "way/460053028").record
+    assert [s.id for s in r.sources] == ["s1", *(f"s{i}" for i in range(3, 10))]  # no s2
+    assert "pnnl_im3" not in r.external_ids
+    assert [b.sqft for b in r.buildings] == [None] * 6
+    assert r.site.building_sqft is None
+    assert "pnnl_rows" not in result.metrics
+
+
+# ---------------------------------------------------------------------------- synthetic clusters
+
+
+def test_unit_parse_and_partial_power(counties: CountyIndex) -> None:
+    a = building("way/1", 0, 0, name="Hall A", operator="Example", it_power="36 MVA")
+    b = building("way/2", 0, 100, name="Hall B", operator="Example", it_power="10 MW")
+    c = building("way/3", 0, 200, name="Hall C", operator="Example", input__electricity="5 MW")
+    result = build(counties, [a, b, c], with_pnnl=False)
+    (cand,) = result.candidates
+    cap = cand.record.capacity
+    assert cap.it_mw is None and cap.facility_mw is None  # not every building has a usable value
+    assert cap.mw_as_stated == (
+        "OSM it_power: Hall A 36 MVA; Hall B 10 MW | OSM input:electricity: Hall C 5 MW"
+    )
+    assert "/capacity/it_mw" not in cand.record.field_meta
+    (item,) = [i for i in result.review if i.kind == "unit_parse"]
+    assert (item.external_id, item.data["value"]) == ("way/1", "36 MVA")
+    assert result.metrics["unit_parse"] == 1
+
+
+def test_campus_level_power_covers_the_site(counties: CountyIndex) -> None:
+    lat, lon = near(0, 0)
+    bounds = Bounds(lat - 0.003, lon - 0.003, lat + 0.003, lon + 0.003)
+    tags = {"telecom": "data_center", "name": "Example Campus", "operator": "Example"}
+    campus = OsmObject("way/9", lat, lon, bounds, tags | {"it_power": "100 MW"}, "campus")
+    a = building("way/1", 0, 0, operator="Example", it_power="30 MW")
+    b = building("way/2", 0, 100, operator="Example", it_power="40 MW")
+    (cand,) = build(counties, [campus, a, b], with_pnnl=False).candidates
+    # The campus object's value covers the site; the buildings' values are not added to it.
+    assert cand.record.capacity.it_mw == 100.0
+    (cand,) = build(
+        counties, [OsmObject("way/9", lat, lon, bounds, tags, "campus"), a, b], with_pnnl=False
+    ).candidates
+    assert cand.record.capacity.it_mw == 70.0  # no campus value: every building has one
+
+
+def test_county_is_the_representatives(counties: CountyIndex) -> None:
+    """Seed check n10: the record's county came from the mean of the member centers, which can lie
+    in another county. It is now the representative's, and the record sits at the representative
+    when the mean point is elsewhere."""
+
+    class OnlyTheRepresentative:
+        """No county contains any point but the representative's."""
+
+        def __init__(self, rep: tuple[float, float]) -> None:
+            self.rep = rep
+
+        def lookup_many(self, points: Sequence[tuple[float, float]]) -> list[County | None]:
+            return [counties.lookup(*p) if p == self.rep else None for p in points]
+
+        def lookup(self, lat: float, lon: float) -> County | None:
+            raise AssertionError("lookup_many answers every point")
+
+    lat, lon = near(0, 0)
+    big = OsmObject(
+        "way/1",
+        lat,
+        lon,
+        Bounds(lat - 0.001, lon - 0.001, lat + 0.001, lon + 0.001),  # larger: the representative
+        {"building": "data_center", "telecom": "data_center", "operator": "Example"},
+        "building",
+    )
+    small = building("way/2", 0, 150, operator="Example")
+    stub = OnlyTheRepresentative((round(big.lat, 7), round(big.lon, 7)))
+    result = build_candidates(
+        dissolve([big, small]),
+        counties=cast(CountyIndex, stub),
+        now=NOW,
+        snapshot=snapshot(),
+    )
+    (cand,) = result.candidates
+    loc = cand.record.location
+    # The record sits at the representative, the point the county was found for, not at the
+    # mean point that no county contains.
+    assert (loc.lat, loc.lon) == (round(big.lat, 7), round(big.lon, 7))
+    assert loc.county_fips == "51107"
+
+
+def test_it_load_above_the_input_publishes_neither(counties: CountyIndex) -> None:
+    """Fix round 5 n20: ways 701930929 and 701930930 each carry it_power=47 MW and
+    input:electricity=40 MW, and the record published it_mw 94 above facility_mw 80. An IT load
+    cannot exceed the facility's input, so one tag is wrong: neither total is published,
+    mw_as_stated keeps both tags and one conflict item names the members."""
+    a = building(
+        "way/1",
+        0,
+        0,
+        name="Hall A",
+        operator="Example",
+        it_power="47 MW",
+        input__electricity="40 MW",
+    )
+    b = building(
+        "way/2",
+        0,
+        100,
+        name="Hall B",
+        operator="Example",
+        it_power="47 MW",
+        input__electricity="40 MW",
+    )
+    result = build(counties, [a, b], with_pnnl=False)
+    (cand,) = result.candidates
+    cap = cand.record.capacity
+    assert cap.it_mw is None and cap.facility_mw is None
+    assert cap.mw_as_stated == (
+        "OSM it_power: Hall A 47 MW; Hall B 47 MW | OSM input:electricity: Hall A 40 MW; Hall B 40 MW"
+    )
+    assert "/capacity/it_mw" not in cand.record.field_meta
+    assert "/capacity/facility_mw" not in cand.record.field_meta
+    (item,) = [i for i in result.review if i.kind == "conflict"]
+    assert item.data == {"it_mw": 94.0, "facility_mw": 80.0, "members": ["way/1", "way/2"]}
+    assert "IT load cannot exceed the facility's input" in item.reason
+
+    # The totals agree but one building's own tags do not: that building's figures are named.
+    c = building(
+        "way/3",
+        0,
+        100,
+        name="Hall C",
+        operator="Example",
+        it_power="10 MW",
+        input__electricity="100 MW",
+    )
+    result = build(counties, [a, c], with_pnnl=False)
+    (cand,) = result.candidates
+    assert cand.record.capacity.it_mw is None and cand.record.capacity.facility_mw is None
+    (item,) = [i for i in result.review if i.kind == "conflict"]
+    assert item.data == {"it_mw": 47.0, "facility_mw": 40.0, "members": ["way/1"]}
+
+    # Tags that agree publish both totals and file nothing.
+    d = building(
+        "way/4",
+        0,
+        100,
+        name="Hall D",
+        operator="Example",
+        it_power="30 MW",
+        input__electricity="40 MW",
+    )
+    result = build(counties, [c, d], with_pnnl=False)
+    (cand,) = result.candidates
+    assert (cand.record.capacity.it_mw, cand.record.capacity.facility_mw) == (40.0, 140.0)
+    assert [i for i in result.review if i.kind == "conflict"] == []
+
+
+def test_power_units(counties: CountyIndex) -> None:
+    a = building("way/1", 0, 0, operator="Example", it_power="500 kW")
+    b = building("way/2", 0, 100, operator="Example", it_power="1.5")
+    (cand,) = build(counties, [a, b], with_pnnl=False).candidates
+    assert cand.record.capacity.it_mw == 2.0
+
+
+def test_start_date_rules(counties: CountyIndex) -> None:
+    """Seed check n1, n60, n75: a start_date was read as the date the site was energized (Apple
+    Mesa's 2012 is the former factory's; QTS NAL1's 2024-04-01 is the start of construction). It
+    now dates nothing, stays in the note, and becomes an unverified_upstream item."""
+    old = building("way/1", 0, 0, name="Old", start_date="1938")
+    month = building("way/2", 0, 2000, name="Month", start_date="2019-05")
+    future = building("way/3", 0, 4000, name="Future", start_date="2027")
+    built_ = build(counties, [old, month, future], with_pnnl=False)
+    records = {c.match_values[0]: c.record for c in built_.candidates}
+    for r in records.values():
+        (event,) = r.status_history
+        assert (event.event, event.as_of.value) == ("other", "2026-10-07")
+        assert r.dates == {}
+    assert "start_date=2019-05 on way/2 is not read" in str(records["way/2"].status_history[0].note)
+    assert "start_date" not in str(records["way/1"].status_history[0].note)  # before 1990
+    (item,) = [i for i in built_.review if i.kind == "unverified_upstream"]
+    assert (item.source, item.external_id, item.data["start_date"]) == ("osm", "way/2", "2019-05")
+    assert "not the start of operation" in item.reason
+
+
+def test_opening_date_is_planned(counties: CountyIndex) -> None:
+    site = building(
+        "way/1",
+        0,
+        0,
+        name="Future Hall",
+        building="construction",
+        construction="data_center",
+        opening_date="2028",
+    )
+    (cand,) = build(counties, [site], with_pnnl=False).candidates
+    r = cand.record
+    assert [(e.seq, e.status, e.event, e.planned, e.as_of.value) for e in r.status_history] == [
+        (1, "under_construction", "other", False, "2026-10-07"),
+        (2, "operating", "energized", True, "2028"),
+    ]
+    assert r.status == "under_construction"
+    assert "operating_since" not in r.dates
+    assert validate_record(r, counties=counties, today=TODAY) == []
+
+
+def test_an_opening_date_that_has_passed_is_not_planned(counties: CountyIndex) -> None:
+    """Seed check n50: opening_date=2025 on a site OSM still tags under construction on the
+    2026-10-08 snapshot became a planned energized event in the past. The date is dropped and
+    becomes a conflict item; an opening_date within the snapshot's own year is still ahead."""
+    objects, _ = parse_overpass(json.loads(SEED_CHECK.read_text(encoding="utf-8")))
+    tuscaloosa = [o for o in objects if o.ref == "way/1374729776"]
+    assert tuscaloosa[0].tags["opening_date"] == "2025"
+    result = build(counties, tuscaloosa, with_pnnl=False, osm_base=SEED_CHECK_BASE)
+    (cand,) = result.candidates
+    assert [(e.event, e.planned) for e in cand.record.status_history] == [("other", False)]
+    (item,) = [i for i in result.review if i.kind == "conflict"]
+    assert item.external_id == "way/1374729776" and item.data["opening_date"] == "2025"
+    this_year = building("way/2", 0, 0, building="construction", opening_date="2026")
+    (cand,) = build(counties, [this_year], with_pnnl=False, osm_base=SEED_CHECK_BASE).candidates
+    assert [(e.event, e.planned) for e in cand.record.status_history][-1] == ("energized", True)
+
+
+def test_unnamed_cluster_names(counties: CountyIndex) -> None:
+    # The name gives the county's full Census name, so that "Taylor County, TX" (Abilene) is not
+    # read as the city of Taylor, TX, 300 km away; addr:city is a postal city and is not used.
+    bare = building("way/1", 0, 0)
+    op = building("way/2", 0, 3000, operator="Example Cloud")
+    city = building("way/3", 0, 0, at=(38.7509, -77.4753))  # Manassas, an independent city
+    parish = building("way/4", 0, 0, at=(29.9511, -90.0715))  # New Orleans
+    abilene = building("way/5", 0, 0, at=(32.4487, -99.7331))
+    named = building("way/6", 0, 0, at=(32.4387, -99.7331), addr__city="Abilene")
+    objects = [bare, op, city, parish, abilene, named]
+    names = {
+        c.match_values[0]: c.record.canonical_name
+        for c in build(counties, objects, with_pnnl=False).candidates
+    }
+    assert names == {
+        "way/1": "Data center (Loudoun County, VA)",
+        "way/2": "Example Cloud data center (Loudoun County, VA)",
+        "way/3": "Data center (Manassas city, VA)",
+        "way/4": "Data center (Orleans Parish, LA)",
+        "way/5": "Data center (Taylor County, TX)",
+        "way/6": "Data center (Taylor County, TX)",  # addr:city is a postal city (n57)
+    }
+
+
+def test_existing_first_reported_date_is_kept(counties: CountyIndex) -> None:
+    first = candidate(build(counties), "way/300162689").record
+    as_of = FuzzyDate(value="2026-01", precision="month")
+    events = [first.status_history[0].model_copy(update={"as_of": as_of})]
+    stored = first.model_copy(
+        update={"id": "gwa-01m4c7rym8gsp21hkfp8nhzxz1", "status_history": events}
+    )
+    again = candidate(build(counties, existing={stored.id: stored}), "way/300162689").record
+    assert again.status_history[0].as_of.value == "2026-01"
+
+
+def test_first_reported_kept_when_a_status_group_comes_and_goes(counties: CountyIndex) -> None:
+    def history(result: BuildResult) -> list[tuple[str, str, str, str | None]]:
+        r = candidate(result, "way/1188715510").record  # Cologix ASH1
+        return [(e.status, e.event, e.as_of.value, e.phase_id) for e in r.status_history]
+
+    objects, _ = parse_overpass(fixture_doc())
+    without_ash2 = [o for o in objects if o.ref != "way/1560827027"]
+    week1 = build(counties, without_ash2, with_pnnl=False)
+    assert history(week1) == [("operating", "other", "2026-10-07", None)]
+    rid = "gwa-01m4c7rym8gsp21hkfp8nhzxz1"
+
+    def stored(result: BuildResult) -> dict[str, FacilityRecord]:
+        return {rid: candidate(result, "way/1188715510").record.model_copy(update={"id": rid})}
+
+    # A week later ASH2 appears under construction next to it: the operating group becomes the
+    # phase osm-operating, but the operating status has not changed, so neither does its date.
+    week2 = build(
+        counties, objects, with_pnnl=False, existing=stored(week1), osm_base="2026-10-14T21:00:00Z"
+    )
+    assert history(week2) == [
+        ("operating", "other", "2026-10-07", "osm-operating"),
+        ("under_construction", "other", "2026-10-14", "osm-under_construction"),
+    ]
+    r = candidate(week2, "way/1188715510").record
+    assert r.dates == {}  # an observation dates nothing
+    # Another week later ASH2 is gone again: both dates stay.
+    week3 = build(
+        counties,
+        without_ash2,
+        with_pnnl=False,
+        existing=stored(week2),
+        osm_base="2026-10-21T21:00:00Z",
+    )
+    assert history(week3) == [("operating", "other", "2026-10-07", None)]
+    # A stored date later than the snapshot (a re-run on an older snapshot) never wins.
+    rerun = build(counties, without_ash2, with_pnnl=False, existing=stored(week3))
+    assert history(rerun) == [("operating", "other", "2026-10-07", None)]
+    late = build(
+        counties,
+        without_ash2,
+        with_pnnl=False,
+        existing=stored(week3),
+        osm_base="2026-10-01T00:00Z",
+    )
+    assert history(late) == [("operating", "other", "2026-10-01", None)]
+    # A record an earlier version wrote, with a first_reported event, keeps that event's date.
+    old = stored(week3)[rid]
+    first = old.status_history[0].model_copy(
+        update={"event": "first_reported", "as_of": FuzzyDate(value="2026-09-30", precision="day")}
+    )
+    legacy = {rid: old.model_copy(update={"status_history": [first]})}
+    again = build(counties, without_ash2, with_pnnl=False, existing=legacy)
+    assert history(again) == [("operating", "other", "2026-09-30", None)]
+
+
+# ---------------------------------------------------------------------------- importer and CLI
+
+
+def test_importer_is_discovered() -> None:
+    importer: Importer = IMPORTER
+    found = discover_importers()
+    assert found["osm"] is importer
+    assert "pnnl" not in found
+    assert importer.match_key == "osm"
+    assert importer.owned_external_keys == ("osm", "pnnl_im3")
+    assert importer.review_sources == ("osm", "pnnl")
+    assert importer.version == "4"  # 4: fix round 5 (campus joins, citations, IT above input)
+
+
+def parse_args(*argv: str) -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    IMPORTER.add_arguments(parser)
+    return parser.parse_args(
+        argv if "--overrides" in argv else (*argv, "--overrides", str(NO_OVERRIDES))
+    )
+
+
+def test_arguments() -> None:
+    args = parse_args()
+    assert (args.pnnl, args.no_pnnl, args.overpass_url, args.dissolve_m) == (
+        None,
+        False,
+        None,
+        300.0,
+    )
+    args = parse_args(
+        "--overpass-url", "https://a.example/api", "--overpass-url", "https://b.example/api"
+    )
+    assert args.overpass_url == ["https://a.example/api", "https://b.example/api"]
+    with pytest.raises(SystemExit):
+        parse_args("--pnnl", "x.geojson", "--no-pnnl")
+    assert parse_args("--dissolve-m", "150").dissolve_m == 150.0
+    for bad in ("0", "-5", "abc", "9000"):
+        with pytest.raises(SystemExit):
+            parse_args("--dissolve-m", bad)
+
+
+def test_run_uses_overpass_urls(make_test_context: MakeContext) -> None:
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        return overpass_response(fixture_doc())
+
+    ctx = make_test_context(handler=handler)
+    importer = OsmImporter(min_elements=1, sleep=lambda s: None)
+    result = importer.run(
+        ctx, parse_args("--overpass-url", "https://overpass.example/api/interpreter", "--no-pnnl")
+    )
+    assert calls == ["https://overpass.example/api/interpreter"]
+    assert [i.name for i in result.inputs] == ["overpass"]
+    assert result.metrics["clusters"] == 12
+
+
+def tree(root: Path) -> dict[str, bytes]:
+    return {
+        str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()
+    }
+
+
+def test_cli_import_is_idempotent(
+    tmp_repo: Path,
+    capsys: pytest.CaptureFixture[str],
+    census_reference_cache: Callable[[Path], Path],
+) -> None:
+    census_reference_cache(tmp_repo / ".cache" / "atlas")  # the place sample, as if downloaded
+    argv = [
+        "import",
+        "osm",
+        "--overrides",
+        str(NO_OVERRIDES),
+        "--input",
+        str(OVERPASS_FIXTURE),
+        "--pnnl",
+        str(PNNL_GEOJSON),
+        "--now",
+        "2026-10-12T00:00:00Z",
+        "--records",
+        str(tmp_repo / "data" / "records"),
+        "--review-dir",
+        str(tmp_repo / "review" / "queue"),
+        "--receipts-dir",
+        str(tmp_repo / "data" / "imports"),
+        "--cache-dir",
+        str(tmp_repo / ".cache" / "atlas"),
+        "--offline",
+    ]
+    assert main(argv) == 0
+    out = capsys.readouterr()
+    assert "candidates=12 new=12" in out.out
+    assert "warning: 94.1% of PNNL rows matched" in out.err
+    before = tree(tmp_repo)
+    assert len([k for k in before if k.startswith("data/records/")]) == 12
+    receipt = json.loads(before["data/imports/osm.json"])
+    assert receipt["counts"]["invalid"] == 0
+    assert [i["name"] for i in receipt["inputs"]] == ["overpass", "pnnl"]
+    assert receipt["inputs"][0]["upstream_version"] == OSM_BASE
+    assert {i.kind for i in read_review_queue(tmp_repo / "review" / "queue", "pnnl")} == {
+        "unmatched"
+    }
+
+    # Run 2 rewrites nothing but the receipt, whose counts now say unchanged; run 3 changes nothing.
+    assert main(argv) == 0
+    out = capsys.readouterr()
+    assert "new=0 updated=0 unchanged=12" in out.out
+    second = tree(tmp_repo)
+    changed = sorted(k for k in second if second[k] != before.get(k))
+    assert changed == ["data/imports/osm.json"]
+    assert set(second) == set(before)
+    assert main(argv) == 0
+    assert tree(tmp_repo) == second
+
+
+def test_cli_import_drops_control_characters(
+    tmp_path_factory: pytest.TempPathFactory,
+    capsys: pytest.CaptureFixture[str],
+    census_reference_cache: Callable[[Path], Path],
+) -> None:
+    """SV2-3: one DEL in an OSM name used to make the record invalid (the text rule) and the
+    import exit 1. The importer now drops control characters from every tag value, so the
+    sample with a DEL, an ESC, a BEL and a C1 control in its names and operators imports to the
+    same records as the clean sample."""
+    doc = fixture_doc()
+    by_id = {e["id"]: e["tags"] for e in doc["elements"]}
+    by_id[10014176940]["name"] = "Microsoft\x7f"  # out of scope (Puerto Rico), still written
+    by_id[10014176940]["operator"] = "Micro\x1bsoft"
+    by_id[1188715510]["name"] = "Cologix\x07 ASH1"
+    by_id[1188715510]["operator"] = "Colo\x9bgix"
+    dirty = tmp_path_factory.mktemp("input") / "overpass-controls.json"
+    dirty.write_text(json.dumps(doc), encoding="utf-8")
+
+    def run(overpass: Path) -> tuple[Path, str]:
+        repo = tmp_path_factory.mktemp("repo")
+        census_reference_cache(repo / "cache")
+        argv = ["import", "osm", "--input", str(overpass), "--no-pnnl"]
+        argv += ["--overrides", str(NO_OVERRIDES)]
+        argv += ["--now", "2026-10-12T00:00:00Z", "--offline"]
+        argv += ["--records", str(repo / "records"), "--review-dir", str(repo / "review")]
+        argv += ["--receipts-dir", str(repo / "imports"), "--cache-dir", str(repo / "cache")]
+        assert main(argv) == 0
+        return repo, capsys.readouterr().out
+
+    repo, out = run(dirty)
+    assert "candidates=12 new=12" in out and "invalid=0" in out
+    assert "invalid" not in {i.kind for i in read_review_queue(repo / "review", "osm")}
+    records = [
+        FacilityRecord.model_validate_json(f.read_text(encoding="utf-8"))
+        for f in sorted((repo / "records").glob("*.json"))
+    ]
+    for ref, name, building, operator in (
+        ("node/10014176940", "Microsoft", "Microsoft", "Microsoft"),
+        ("way/1188715510", "Cologix ASH1 and ASH2", "Cologix ASH1", "Cologix"),
+    ):
+        (record,) = [r for r in records if ref in r.external_ids["osm"]]
+        assert record.canonical_name.startswith(f"{name} (")
+        assert building in [b.name for b in record.buildings]
+        assert [p.name for p in record.parties.operator] == [operator]
+
+    def comparable(root: Path) -> list[dict[str, Any]]:
+        out = []
+        for f in sorted((root / "records").glob("*.json")):
+            data = json.loads(f.read_text(encoding="utf-8"))
+            data.pop("id")
+            out.append(data)
+        return sorted(out, key=lambda d: d["external_ids"]["osm"])
+
+    clean, _ = run(OVERPASS_FIXTURE)
+    assert comparable(repo) == comparable(clean)
+
+
+def test_cli_weekly_rerun_is_unchanged(
+    tmp_repo: Path,
+    tmp_path_factory: pytest.TempPathFactory,
+    capsys: pytest.CaptureFixture[str],
+    census_reference_cache: Callable[[Path], Path],
+) -> None:
+    """A later run on a newer snapshot of the same data changes no record: the snapshot date and
+    every sources[].retrieved_at move, but first_reported keeps its date and retrieved_at is not
+    a change (base._comparable)."""
+    census_reference_cache(tmp_repo / ".cache" / "atlas")
+
+    def run(overpass: Path, now: str) -> str:
+        argv = [
+            "import",
+            "osm",
+            "--overrides",
+            str(NO_OVERRIDES),
+            "--input",
+            str(overpass),
+            "--pnnl",
+            str(PNNL_GEOJSON),
+            "--now",
+            now,
+            "--records",
+            str(tmp_repo / "data" / "records"),
+            "--review-dir",
+            str(tmp_repo / "review" / "queue"),
+            "--receipts-dir",
+            str(tmp_repo / "data" / "imports"),
+            "--cache-dir",
+            str(tmp_repo / ".cache" / "atlas"),
+            "--offline",
+        ]
+        assert main(argv) == 0
+        return capsys.readouterr().out
+
+    assert "candidates=12 new=12" in run(OVERPASS_FIXTURE, "2026-10-12T00:00:00Z")
+    before = tree(tmp_repo)
+    later = fixture_doc()
+    later["osm3s"]["timestamp_osm_base"] = "2026-10-14T21:00:00Z"
+    week2 = tmp_path_factory.mktemp("input") / "overpass-week2.json"
+    week2.write_text(json.dumps(later), encoding="utf-8")
+    assert "new=0 updated=0 unchanged=12" in run(week2, "2026-10-19T00:00:00Z")
+    after = tree(tmp_repo)
+    changed = sorted(k for k in after if after[k] != before.get(k))
+    assert [k for k in changed if not k.startswith(".cache/")] == ["data/imports/osm.json"]
+    receipt = json.loads(after["data/imports/osm.json"])
+    assert receipt["inputs"][0]["upstream_version"] == "2026-10-14T21:00:00Z"
+    assert receipt["inputs"][0]["retrieved_at"] == "2026-10-19T00:00:00Z"
+
+
+def test_cli_offline_without_input_fails(
+    tmp_repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code = main(
+        [
+            "import",
+            "osm",
+            "--overrides",
+            str(NO_OVERRIDES),
+            "--no-pnnl",
+            "--records",
+            str(tmp_repo / "data" / "records"),
+            "--review-dir",
+            str(tmp_repo / "review" / "queue"),
+            "--receipts-dir",
+            str(tmp_repo / "data" / "imports"),
+            "--cache-dir",
+            str(tmp_repo / ".cache" / "atlas"),
+            "--offline",
+        ]
+    )
+    assert code == 1
+    assert "every Overpass endpoint failed" in capsys.readouterr().err
+    assert list((tmp_repo / "data" / "records").iterdir()) == []
+
+
+@pytest.mark.network
+def test_live_overpass(make_test_context: MakeContext) -> None:
+    """The full US query on maps.mail.ru (the endpoint that answered from the sandbox)."""
+    with make_client() as http:
+        ctx = make_test_context(http=http)
+        result = fetch_overpass(
+            ctx, ["https://maps.mail.ru/osm/tools/overpass/api/interpreter"], retries=1
+        )
+    # 2,062 on 2026-10-09 before the campus outlines and the containers came too (a campus
+    # polygon now comes twice, and a container once).
+    assert 1_500 <= len(result.doc["elements"]) <= 3_500

@@ -1,0 +1,12 @@
+# Python and tooling
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+
+# Atlas working files: raw upstream copies and Census responses (.cache/atlas), release builds
+.cache/
+build/

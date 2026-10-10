@@ -1,0 +1,177 @@
+{
+  "aliases": [],
+  "buildings": [],
+  "canonical_name": "Example Energy Campus (TX)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": 500.0,
+    "it_mw": null,
+    "mw_as_stated": "500 MW facility",
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-06T00:00:00Z",
+  "dates": {
+    "application_filed": {
+      "precision": "month",
+      "value": "2026-06"
+    },
+    "first_reported": {
+      "precision": "month",
+      "value": "2026-06"
+    }
+  },
+  "evidence_level": "confirmed",
+  "external_ids": {},
+  "field_meta": {
+    "/grid/iso_rto": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": []
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "ERCOT",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4785405ksmnvwymzaxynj4x",
+  "incentives": [],
+  "last_verified_at": "2026-10-06T00:00:00Z",
+  "location": {
+    "city": null,
+    "county_fips": null,
+    "county_name": null,
+    "geocode_method": null,
+    "geometry_ref": null,
+    "lat": null,
+    "lon": null,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "state",
+    "state_abbr": "TX",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [
+      {
+        "name": "Example Energy Campus LLC",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "ai_inference",
+  "record_type": "project",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "public-record",
+      "published_at": null,
+      "publisher": "Example State Environmental Agency",
+      "quote": "Standard permit application for emergency generators at a 500 MW facility",
+      "quote_end": 73,
+      "quote_match": "exact",
+      "quote_start": 0,
+      "retrieved_at": "2026-10-06T00:00:00Z",
+      "source_type": "government_record",
+      "supports": [
+        "/canonical_name",
+        "/location/state_abbr",
+        "/capacity",
+        "/purpose"
+      ],
+      "text_sha256": "46dd9c09b5ae457089a0749e1acdf527637d42f9445cbd08604a029e1beb2bdf",
+      "title": "Pending air permit applications",
+      "url": "https://example.org/state/air-permits/pending"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": "public-record",
+      "published_at": "2026-09-21T18:00:00Z",
+      "publisher": "Example State Environmental Agency",
+      "quote": "Pending and new data center permit applications are paused until the audit is complete.",
+      "quote_end": 87,
+      "quote_match": "exact",
+      "quote_start": 0,
+      "retrieved_at": "2026-10-06T00:00:00Z",
+      "source_type": "court_or_regulator",
+      "supports": [],
+      "text_sha256": "e00a30804b44bef3256798514b29deef7201152602a91b0cdad53efcde341f1e",
+      "title": "Order of 21 September 2026",
+      "url": "https://example.org/state/orders/2026-09-21"
+    }
+  ],
+  "status": "paused",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2026-06"
+      },
+      "event": "application_filed",
+      "note": "air permit application pending",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "proposed"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-09-21"
+      },
+      "event": "paused",
+      "note": "statewide pause of pending data center permits",
+      "phase_id": null,
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s2"
+      ],
+      "status": "paused"
+    }
+  ],
+  "status_reason": "regulatory_pause",
+  "updated_at": "2026-10-06T00:00:00Z"
+}

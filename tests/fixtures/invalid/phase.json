@@ -1,0 +1,161 @@
+{
+  "aliases": [],
+  "buildings": [],
+  "canonical_name": "Example Invalid Case: unknown phase (Ashburn, VA)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": 24.0,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-06T00:00:00Z",
+  "dates": {
+    "announced": {
+      "precision": "month",
+      "value": "2026-03"
+    },
+    "first_reported": {
+      "precision": "month",
+      "value": "2026-01"
+    }
+  },
+  "evidence_level": "reported",
+  "external_ids": {},
+  "field_meta": {},
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m47854090ndkby8bsx7d1nm4",
+  "incentives": [],
+  "last_verified_at": "2026-10-06T00:00:00Z",
+  "location": {
+    "city": "Ashburn",
+    "county_fips": "51107",
+    "county_name": "Loudoun",
+    "geocode_method": "manual",
+    "geometry_ref": null,
+    "lat": 39.0438,
+    "lon": -77.4874,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "site",
+    "state_abbr": "VA",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [
+    {
+      "building_sqft": null,
+      "capacity": {
+        "backup_generation_mw": null,
+        "facility_mw": null,
+        "it_mw": null,
+        "mw_as_stated": null,
+        "utility_request_mw": null
+      },
+      "expected_in_service": null,
+      "name": "Phase 1",
+      "phase_id": "p1",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  ],
+  "purpose": "unknown",
+  "record_type": "project",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "copyrighted-cite-only",
+      "published_at": null,
+      "publisher": "Example News",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-06T00:00:00Z",
+      "source_type": "news",
+      "supports": [
+        "/canonical_name",
+        "/location",
+        "/capacity"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://example.org/news/invalid-case"
+    }
+  ],
+  "status": "announced",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2026-03"
+      },
+      "event": "announced",
+      "note": null,
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "announced"
+    },
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2026-01"
+      },
+      "event": "first_reported",
+      "note": null,
+      "phase_id": "p9",
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "announced"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-06T00:00:00Z"
+}

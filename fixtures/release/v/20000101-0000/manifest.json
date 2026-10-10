@@ -1,0 +1,126 @@
+{
+  "attribution": "Gigawatt Atlas, moonspells.dev/atlas, release 20000101-0000, ODbL 1.0 (https://opendatacommons.org/licenses/odbl/1-0/); contains information from OpenStreetMap contributors (ODbL), PNNL IM3 (ODbL), and data adapted from Epoch AI and AI GridWatch (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/)",
+  "base_url": "https://tiles.moonspells.dev/v/20000101-0000/",
+  "contract_version": 1,
+  "counts": {
+    "by_group": {
+      "cx": 2,
+      "op": 2,
+      "pa": 1,
+      "pl": 2,
+      "uc": 0
+    },
+    "by_status": {
+      "announced": 1,
+      "cancelled": 1,
+      "denied": 1,
+      "operating": 2,
+      "paused": 1,
+      "permitted": 0,
+      "proposed": 1,
+      "under_construction": 0
+    },
+    "facilities": 7,
+    "merged": 1,
+    "records_public": 8
+  },
+  "files": [
+    {
+      "bytes": 7094,
+      "content_type": "text/markdown; charset=utf-8",
+      "path": "ATTRIBUTION.md",
+      "sha256": "fa01e432f71a749d9e4c678a748afd5f693c55d6ec42f93e198b8bccde4bc8b5"
+    },
+    {
+      "bytes": 47,
+      "content_type": "text/markdown; charset=utf-8",
+      "path": "CHANGELOG.md",
+      "sha256": "66f00aeb284f7842c95bdd3a38caacd98842bf0ab5c42e2f824fc6afd441531f"
+    },
+    {
+      "bytes": 25278,
+      "content_type": "text/plain; charset=utf-8",
+      "path": "LICENSE-ODbL-1.0.txt",
+      "sha256": "607680718977f6f6c9607972afd98f208573f19251315ed1362a8589b51beaf5"
+    },
+    {
+      "bytes": 2877,
+      "content_type": "text/markdown; charset=utf-8",
+      "path": "README.md",
+      "sha256": "70049af02bb6771285f07d6227fa870e3deb1aac5045afd25b3c32b131cb33b1"
+    },
+    {
+      "bytes": 2580,
+      "content_type": "application/json",
+      "path": "facilities-map.json",
+      "sha256": "fb5de00f555d8e190f990d5de9906eccbcf6f89ec709f6c32370e9e626323cbb"
+    },
+    {
+      "bytes": 3295,
+      "content_type": "text/csv; charset=utf-8",
+      "path": "facilities.csv",
+      "sha256": "9fc8257eb9a9ba6b515bf601a366656bfcce44704874fdad91030b1b2039e62e"
+    },
+    {
+      "bytes": 8188,
+      "content_type": "application/geo+json",
+      "path": "facilities.geojson",
+      "sha256": "cc102ac380dc96b8acac5d3d8b49314e450a17854eff28d4005f659c57aa2331"
+    },
+    {
+      "bytes": 19051,
+      "content_type": "application/vnd.apache.parquet",
+      "path": "facilities.parquet",
+      "sha256": "2698bf102b204655fa2352fc38930dd826e552ba5199268c948bfb0d16818271"
+    },
+    {
+      "bytes": 51569,
+      "content_type": "application/octet-stream",
+      "path": "facilities.pmtiles",
+      "sha256": "00cb19b7746df1d7f57ce56c1ed32dc89cdaae4226d11e44e5afa181ab1e34c2"
+    },
+    {
+      "bytes": 111,
+      "content_type": "application/json",
+      "path": "feed.json",
+      "sha256": "11e1d265610f16ebfb4106dcd77383e372c7faade8c40ff84f743f09447102a2"
+    },
+    {
+      "bytes": 5064,
+      "content_type": "application/gzip",
+      "path": "records.jsonl.gz",
+      "sha256": "a5a1f5e1bd61038f29bdc884a9f984d5042888aaaf092c1ac509829811ccf975"
+    },
+    {
+      "bytes": 34141,
+      "content_type": "application/json",
+      "path": "schema/facility.v1.json",
+      "sha256": "5b124951a7141fb8f5a445ef15870aedf1a6a350aa64168b6300b1d84b49a631"
+    },
+    {
+      "bytes": 3177,
+      "content_type": "application/json",
+      "path": "summary.json",
+      "sha256": "b675ec3647506767b88b488315cc10d142ade79b61b40288a9487b11f140ab91"
+    }
+  ],
+  "fixture": true,
+  "generated_at": "2000-01-01T00:00:00Z",
+  "git": {
+    "commit": "fixture",
+    "pr_number": null
+  },
+  "layers": {
+    "basemap": {
+      "asOf": "2026-10-06",
+      "attribution": "© OpenStreetMap contributors · Protomaps",
+      "frozen": false,
+      "label": "Basemap",
+      "url": "https://tiles.moonspells.dev/basemap/conus-z10-20261006.pmtiles"
+    }
+  },
+  "license": "ODbL-1.0",
+  "rec_base_url": "https://tiles.moonspells.dev/rec/",
+  "release": "20000101-0000",
+  "schema_version": "1.0.0"
+}

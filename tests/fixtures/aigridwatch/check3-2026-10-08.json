@@ -1,0 +1,1307 @@
+{
+  "name": "AI GridWatch data center project tracker",
+  "generated": "2026-10-08",
+  "license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "attribution": "AI GridWatch (https://aigridwatch.com)",
+  "source_page": "https://aigridwatch.com/projects",
+  "count": 23,
+  "verified_count": 23,
+  "caveat": "A working set of identified proposals a community can track, not a census — most of the country's activity is not in here yet. Pennsylvania is the exception: its rows are synced from PA DEP's own data-center permit tracker, so the state's coverage is close to complete and carries the permit trail with it.\n\n**Each row carries its own provenance.** Rows showing a verification date link to reporting or the governing body's own record and were read on that date; rows marked *unverified* have no source on record — a lead to check, not a fact to cite.\n\n**Stage is derived, not asserted.** *Hearing scheduled*, *Awaiting decision*, *Approved* and *Withdrawn* are computed from each row's milestone dates on every rebuild, so a hearing date that has passed stops reading 'scheduled'. Hearings get moved and projects re-file under new names — treat a scheduled date as the earliest to act by, and confirm with the clerk before relying on it. Leads are mined into data/project_candidates.json and promoted here only after a human reads a primary source.",
+  "schema": {
+    "id": "Stable slug, unique per project.",
+    "name": "Project or code name.",
+    "operator": "Operator/developer, or blank if unknown.",
+    "owner": "Owner/financier, or blank.",
+    "tenant": "Named end tenant, or blank.",
+    "filing_llc": "Shell LLC on the filing (ties to the campus registry), or blank.",
+    "locality": "Town or county the project sits in.",
+    "state": "Two-letter state abbreviation.",
+    "lat": "Approximate locality latitude, or blank.",
+    "lon": "Approximate locality longitude, or blank.",
+    "size_mw": "Planned IT/critical load in MW, or blank.",
+    "acres": "Site acreage, or blank.",
+    "announced": "ISO date first publicly proposed, or blank.",
+    "rezoning_filed": "ISO date the rezoning/permit application was filed, or blank.",
+    "hearing_date": "ISO date of the next/decisive public hearing, or blank.",
+    "decided_date": "ISO date a terminal decision was reached, or blank.",
+    "outcome": "approved | denied | withdrawn | blank (blank = still live).",
+    "stage": "DERIVED status shown on the page (Hearing scheduled, Awaiting decision, In review, Proposed, Rumored, Approved, Under construction, Operating, Denied, Withdrawn, Blocked by ban).",
+    "days_to_hearing": "DERIVED days until the hearing (negative once past), or blank.",
+    "note": "One-line plain-language status.",
+    "source": "Primary URL backing the current status.",
+    "as_of": "ISO date the source was read, or blank.",
+    "verified": "true if a source is on record."
+  },
+  "projects": [
+    {
+      "id": "yerington-monarch-data-center",
+      "name": "Monarch Data Center",
+      "operator": "Copia Power",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Yerington (Lyon County)",
+      "state": "NV",
+      "lat": 38.99,
+      "lon": -119.16,
+      "size_mw": 1000,
+      "acres": 505,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "2026-08-06",
+      "decided_date": "2026-08-06",
+      "outcome": "approved",
+      "stage": "Approved",
+      "days_to_hearing": null,
+      "note": "Lyon County commissioners voted 3-1 to approve the planned unit development rezoning for Copia Power's ~505-acre, 4.6 million sq ft, 1,000 MW Monarch campus in Mason Valley north of Yerington, which includes a 500 MW natural-gas backup plant and battery energy storage, after 6+ hours of comment from a mostly opposed crowd of nearly 300. The approval covers zoning only: final PUD/design approval, Nevada Division of Environmental Protection and State Engineer permits, and completion of Copia's land purchase remain, and tribal members vowed legal action over cultural resources and sacred sites.",
+      "source": "https://www.2news.com/news/local/lyon-county-commissioners-vote-to-allow-new-data-center-north-of-yerington/article_e6d9be35-1f2a-4203-8536-a0ef70fdab53.html",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-07-14",
+          "kind": "vote",
+          "summary": "Lyon County Planning Commission voted 4-3 to advance the Monarch project to county commissioners; over 200 people participated and a strong majority spoke against it, including tribal members citing lack of Paiute consultation.",
+          "source": "https://www.kolotv.com/2026/07/15/lyon-county-planning-commission-approves-monarch-data-center/"
+        },
+        {
+          "date": "2026-08-06",
+          "kind": "vote",
+          "summary": "Lyon County commissioners approved the planned unit development rezoning 3-1 with one abstention after more than six hours of discussion with dozens of opposing commenters; final PUD filing (one-year deadline), state permits, and environmental approvals remain before construction.",
+          "source": "https://www.2news.com/news/local/lyon-county-commissioners-vote-to-allow-new-data-center-north-of-yerington/article_e6d9be35-1f2a-4203-8536-a0ef70fdab53.html"
+        }
+      ]
+    },
+    {
+      "id": "amazon-fort-stockton-pecos",
+      "name": "Amazon Fort Stockton campus",
+      "operator": "Amazon Web Services",
+      "owner": "Amazon",
+      "tenant": "",
+      "filing_llc": "Amazon Data Services",
+      "locality": "Fort Stockton (Pecos County)",
+      "state": "TX",
+      "lat": 30.89,
+      "lon": -102.88,
+      "size_mw": "",
+      "acres": "",
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Under construction",
+      "days_to_hearing": null,
+      "note": "Amazon Data Services filed TDLR registrations for three data center buildings (A, B, C; 189,060 sq ft and ~$300 million each) at a site 11 miles north of Fort Stockton, with construction scheduled August-December 2026, part of an August 2026 filing wave totaling 16 buildings and at least $4.8 billion across Fort Stockton, Floydada, and Amazon's existing Boling (Wharton County) campus. Amazon confirmed it is financing the GW Ranch gas plant being developed by Pacifico Energy in Pecos County (35 turbines, 7.65 GW) to power the campus; its permitted emissions of over 30 million metric tonnes of GHG per year would exceed any single source currently operating in the US.",
+      "source": "https://usdatacenterprojects.com/texas/amazon-files-plans-for-new-data-center-buildings-in-texas-across-three-sites",
+      "as_of": "2026-09-22",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-07-24",
+          "kind": "construction",
+          "summary": "Airbus satellite imagery captured on this date showed land clearing already underway at the GW Ranch site north of Fort Stockton, as reported by Cleanview on August 7.",
+          "source": "https://www.distilled.earth/p/scoop-amazon-is-behind-one-of-the"
+        },
+        {
+          "date": "2026-08-07",
+          "kind": "filing",
+          "summary": "Amazon Data Services' TDLR filings for three 189,060 sq ft, ~$300M data center buildings 11 miles north of Fort Stockton were reported, with construction scheduled August-December 2026.",
+          "source": "https://usdatacenterprojects.com/texas/amazon-files-plans-for-new-data-center-buildings-in-texas-across-three-sites"
+        },
+        {
+          "date": "2026-08-07",
+          "kind": "coverage",
+          "summary": "The New Republic reported that Amazon's GW Ranch gas plant in Pecos County, permitted for 33 million tons of CO2 annually, would be the biggest single pollution source in the United States, exceeding the nation's largest coal power plant.",
+          "source": "https://newrepublic.com/post/214111/amazon-data-center-biggest-pollution-source-entire-country"
+        },
+        {
+          "date": "2026-08-10",
+          "kind": "coverage",
+          "summary": "The San Antonio Current reported the Amazon campus on 8,400 acres along Highway 18, approximately 17 miles north of Fort Stockton, could become the nation's largest polluter, noting concerns about proximity to Big Bend National Park and Amazon's net-zero 2040 pledge.",
+          "source": "https://www.sacurrent.com/news/texas-news/amazons-new-texas-data-center-campus-could-become-nations-largest-polluter/"
+        }
+      ]
+    },
+    {
+      "id": "socorro-green-data-nm-tech",
+      "name": "Green Data Socorro campus (New Mexico Tech land)",
+      "operator": "Green Data Centers",
+      "owner": "New Mexico Institute of Mining and Technology (proposed site)",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Socorro (Socorro County)",
+      "state": "NM",
+      "lat": 34.06,
+      "lon": -106.89,
+      "size_mw": 2000,
+      "acres": 10000,
+      "announced": "2026-03-25",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "2026-06-02",
+      "outcome": "withdrawn",
+      "stage": "Withdrawn",
+      "days_to_hearing": null,
+      "note": "Green Data Centers proposed a 10,000-acre campus on New Mexico Tech land west of M Mountain and north of Highway 60 outside Socorro, powered by a 10 GW solar array delivering ~2 GW of base-load power, with atmospheric water generation for a water-neutral design; it was unveiled March 25, 2026 at a Socorro Electric Cooperative board meeting. After a raucous May town hall, New Mexico Tech announced June 2 it would not move forward, saying it lacks sufficient contiguous, undeveloped parcels for the ~16-square-mile footprint. Socorro County commissioners then unanimously adopted a one-year moratorium on data centers and supporting infrastructure on June 9.",
+      "source": "https://www.santafenewmexican.com/news/local_news/socorro-county-commissioners-ok-one-year-data-center-moratorium/article_81a27012-a315-49da-a97c-9a7b32af440d.html",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-03-25",
+          "kind": "announcement",
+          "summary": "Green Data Centers presented the proposed 10,000-acre project at a Socorro Electric Co-op board meeting, in collaboration with New Mexico Tech.",
+          "source": "https://www.dchieftain.com/news/data-center-company-proposes-large-scale-project-in-socorro/3017863"
+        },
+        {
+          "date": "2026-06-02",
+          "kind": "withdrawal",
+          "summary": "New Mexico Tech announced it would not move forward with the proposed data center, citing insufficient contiguous, undeveloped parcels for the project's footprint.",
+          "source": "https://www.santafenewmexican.com/news/local_news/socorro-county-commissioners-ok-one-year-data-center-moratorium/article_81a27012-a315-49da-a97c-9a7b32af440d.html"
+        },
+        {
+          "date": "2026-06-09",
+          "kind": "vote",
+          "summary": "Socorro County commissioners unanimously adopted a one-year moratorium on development of data centers and supporting infrastructure, and opened applications for a committee to evaluate potential regulations.",
+          "source": "https://www.santafenewmexican.com/news/local_news/socorro-county-commissioners-ok-one-year-data-center-moratorium/article_81a27012-a315-49da-a97c-9a7b32af440d.html"
+        }
+      ]
+    },
+    {
+      "id": "platte-county-wy-site-layer-4",
+      "name": "Site Layer 4 Data Center Campus",
+      "operator": "Site Layer 4",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Wheatland (Platte County)",
+      "state": "WY",
+      "lat": 42.05,
+      "lon": -104.95,
+      "size_mw": "",
+      "acres": 5344,
+      "announced": "2026-07-13",
+      "rezoning_filed": "2026-07-13",
+      "hearing_date": "2026-08-26",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Awaiting decision",
+      "days_to_hearing": -43,
+      "note": "Site Layer 4, a New York-based firm, has applied to rezone 5,344 acres of ranchland on the Lazy V Six Ranch northeast of Wheatland for a $26 billion data center campus with co-located utility-scale energy generation. The project promises 300 jobs and substantial tax revenue but neighbors are concerned about water, wildlife, and viewshed impacts. More than 400 public comments were received. Planning and Zoning Commission hearing rescheduled to August 26, 2026, with County Commissioners hearing on September 2.",
+      "source": "https://cowboystatedaily.com/2026/07/13/ranchlands-near-wheatland-eyed-for-26-billion-transformational-data-center/",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-07-13",
+          "kind": "announcement",
+          "summary": "Rezoning application revealed for 5,344-acre data center campus on Lazy V Six Ranch.",
+          "source": "https://cowboystatedaily.com/2026/07/13/ranchlands-near-wheatland-eyed-for-26-billion-transformational-data-center/"
+        },
+        {
+          "date": "2026-08-26",
+          "kind": "hearing",
+          "summary": "Planning and Zoning Commission public hearing at Agriplex, Wheatland.",
+          "source": "https://www.plattecountywyoming.com/news/post/22935/"
+        },
+        {
+          "date": "2026-09-02",
+          "kind": "hearing",
+          "summary": "Platte County Commissioners public hearing at Agriplex, Wheatland.",
+          "source": "https://www.plattecountywyoming.com/news/post/22935/"
+        }
+      ]
+    },
+    {
+      "id": "tonganoxie-project-bluestem",
+      "name": "Project Bluestem",
+      "operator": "Cloverleaf Infrastructure",
+      "owner": "Cloverleaf Infrastructure",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Tonganoxie (Leavenworth County)",
+      "state": "KS",
+      "lat": 39.1,
+      "lon": -95.09,
+      "size_mw": 600,
+      "acres": 1000,
+      "announced": "2026-02-01",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "Cloverleaf Infrastructure proposes Project Bluestem, a 600 MW hyperscale data center on approximately 1,000 acres of former Tailgate Ranch land south of Tonganoxie. The Leavenworth County Commission passed a 90-day moratorium on data center applications in May 2026, which expired in August. On August 5, commissioners voted 3-2 against extending the moratorium. On August 13, officials reversed course and directed planning and zoning to delay regulation recommendations until after a joint work session before the September meeting. No formal application has been submitted.",
+      "source": "https://www2.ljworld.com/news/general-news/2026/aug/13/leavenworth-co-officials-reverse-course-slow-down-on-data-center-proposed-for-site-near-tonganoxie/",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-03-18",
+          "kind": "hearing",
+          "summary": "Leavenworth County residents pack public forum on proposed data center.",
+          "source": "https://www.kctv5.com/2026/03/18/leavenworth-county-residents-pack-forum-over-proposed-data-center/"
+        },
+        {
+          "date": "2026-03-26",
+          "kind": "announcement",
+          "summary": "Coverage identified Cloverleaf Infrastructure as the developer of Project Bluestem, a conceptual 1,000-acre data center near Tonganoxie that could require up to 1.2 gigawatts of power and would receive a 100% sales and use tax abatement for 20 years, with no formal applications yet submitted.",
+          "source": "https://www.yahoo.com/news/articles/project-bluestem-paves-way-data-001118622.html"
+        },
+        {
+          "date": "2026-05-01",
+          "kind": "vote",
+          "summary": "Leavenworth County Commission passes 90-day moratorium on data center applications.",
+          "source": "https://www.kshb.com/news/local-news/kansas/leavenworth-county/leavenworth-county-commissioners-pass-90-day-moratorium-on-data-centers"
+        },
+        {
+          "date": "2026-08-05",
+          "kind": "vote",
+          "summary": "Commission votes 3-2 against extending moratorium; moratorium expires.",
+          "source": "https://www.tonganoxiemirror.com/news/2026/aug/12/leavenworth-county-commission-lifts-moratorium-on-data-center-by-3-2-vote/"
+        }
+      ]
+    },
+    {
+      "id": "panattoni-burgin-ky",
+      "name": "Project Bluegrass (Panattoni)",
+      "operator": "Panattoni Data Centers",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Mercer County / Burgin",
+      "state": "KY",
+      "lat": "",
+      "lon": "",
+      "size_mw": "",
+      "acres": "",
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "Developer sought annexation into City of Burgin to escape Mercer County's one-year data center moratorium; residents cited environmental and utility-rate concerns.",
+      "source": "https://www.lpm.org/news/2026-08-12/a-kentucky-county-passes-a-data-center-moratorium-with-a-city-sized-hole",
+      "as_of": "",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-03-27",
+          "kind": "incentive",
+          "summary": "Kentucky enacted HB 775, expanding sales-and-use tax exemptions for qualified data centers statewide (effective July 1, 2025).",
+          "source": "https://www.stites.com/resources/client-alerts/kentucky-vastly-expands-data-center-tax-incentives/"
+        },
+        {
+          "date": "2026-02-18",
+          "kind": "public-comment",
+          "summary": "Over 200 residents attended a Mercer County Joint Planning and Zoning Commission meeting, an early public airing of concerns about Project Bluegrass impact on farmland, wellbeing, and resource consumption.",
+          "source": "https://thewatchdognews.com/mercer-county-community-speaks-out-against-proposed-data-center-during-commission-meeting/"
+        },
+        {
+          "date": "2026-07-09",
+          "kind": "vote",
+          "summary": "Burgin City Council voted 3-2 to advance a first reading of an ordinance to annex more than 1,000 acres of farmland, roughly doubling the city size, to enable Panattoni proposed hyperscale data center to bypass Mercer County zoning.",
+          "source": "https://www.thecooldown.com/green-business/burgin-kentucky-annex-data-center-project/"
+        },
+        {
+          "date": "2026-08-12",
+          "kind": "moratorium",
+          "summary": "Mercer County Fiscal Court unanimously passed a one-year moratorium on new data-center applications in unincorporated parts of the county — a moratorium that would not apply if the project site is annexed into Burgin.",
+          "source": "https://www.lpm.org/news/2026-08-12/a-kentucky-county-passes-a-data-center-moratorium-with-a-city-sized-hole"
+        },
+        {
+          "date": "2026-08-13",
+          "kind": "public-comment",
+          "summary": "Burgin City Council held its first public-comment session on the data center; 14 residents spoke against the project (an overflow room was needed) and the council deferred the annexation vote.",
+          "source": "https://spectrumnews1.com/ky/louisville/news/2026/08/12/burgin-data-center-debate"
+        },
+        {
+          "date": "2026-08-13",
+          "kind": "report",
+          "summary": "Reporting described Project Bluegrass as a proposed four-building, 900-acre data center campus up to 1,300 MW, with the developer claiming 1,500+ construction jobs, 100 permanent jobs, and $25-30 million in projected annual tax revenue for local schools.",
+          "source": "https://kentuckylantern.com/2026/08/13/a-countys-data-center-moratorium-doesnt-include-a-small-city-considering-huge-project/"
+        }
+      ]
+    },
+    {
+      "id": "vantage-va4-fredericksburg-va",
+      "name": "Vantage VA4 Fredericksburg",
+      "operator": "Vantage Data Centers",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Fredericksburg",
+      "state": "VA",
+      "lat": "",
+      "lon": "",
+      "size_mw": 192,
+      "acres": "",
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Under construction",
+      "days_to_hearing": null,
+      "note": "$2B, 192MW hyperscale campus (VA4); first building scheduled to open late 2027.",
+      "source": "https://blackridgeresearch.com/news-releases/vantage-data-center-announces-investment-for-new-192-mw-campus-fredericksburg-us",
+      "as_of": "",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-11-06",
+          "kind": "announcement",
+          "summary": "Vantage Data Centers announced a $2 billion investment to build VA4, a 192MW, three-building, 929,000-sq-ft campus on 82 acres in Stafford County near Fredericksburg — its fourth Virginia campus, bringing statewide capacity to 782MW.",
+          "source": "https://www.businesswire.com/news/home/20251106187378/en/Vantage-Data-Centers-Invests-$2B-in-Fredericksburg-Virginia-Region-to-Deliver-Fourth-Campus-in-the-Commonwealth"
+        },
+        {
+          "date": "2025-11-06",
+          "kind": "construction",
+          "summary": "Vantage and general contractor DPR Construction held a groundbreaking ceremony for VA4; first building targeted for late 2027.",
+          "source": "https://vantage-dc.com/news/vantage-data-centers-invests-2b-in-fredericksburg-virginia-region-to-deliver-fourth-campus-in-the-commonwealth/"
+        },
+        {
+          "date": "2026-03-25",
+          "kind": "permit",
+          "summary": "Stafford Planning Commission voted 7-0 to recommend Board approval of a conditional use permit for a Vantage Data Centers VA41 LLC electric substation on 15.62 acres on Centerport Parkway (Hartwood District), to serve the VA4 campus's on-site power needs.",
+          "source": "https://staffordcountyva.gov/government/departments_p-z/planning_and_zoning/long_range/rezonings,_cups,_comp_plan_amendments/development_review_meetings_new_applications.php"
+        },
+        {
+          "date": "2026-05-19",
+          "kind": "permit",
+          "summary": "Stafford Board of Supervisors approved the conditional use permit for Vantage's on-site electric substation supporting the VA4 data center campus.",
+          "source": "https://staffordcountyva.gov/government/elected_and_appointed_officials/board_of_supervisors/agenda_and_minutes.php"
+        }
+      ]
+    },
+    {
+      "id": "stack-berry-hill-pittsylvania-va",
+      "name": "STACK Infrastructure Berry Hill megasite",
+      "operator": "Stack Infrastructure",
+      "owner": "Blue Owl / IPI Partners",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Berry Hill (Pittsylvania County / Danville)",
+      "state": "VA",
+      "lat": 36.55,
+      "lon": -79.53,
+      "size_mw": "",
+      "acres": 2990,
+      "announced": "2026-02-20",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "2026-05-18",
+      "outcome": "approved",
+      "stage": "Approved",
+      "days_to_hearing": null,
+      "note": "Up to 2,990 of the 3,528-acre Southern Virginia Megasite at Berry Hill, owned by the Danville-Pittsylvania Regional Industrial Facility Authority. Performance agreement: $73.5B minimum investment and 2,050 jobs at $80,500 average, against a stated $100B over 30 years; the county says the deal depends on Virginia keeping its data center sales-tax exemption to 2035. The county's 1991 zoning code does not mention data centers.",
+      "source": "https://cardinalnews.org/2026/05/19/a-data-center-project-in-pittsylvania-was-approved-monday-with-higher-investment-and-jobs-than-previously-announced/",
+      "as_of": "2026-09-05",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-02-20",
+          "kind": "incentive",
+          "summary": "The Regional Industrial Facility Authority backed an incentives deal for a data center developer at the Berry Hill megasite.",
+          "source": "https://virginiabusiness.com/stack-100b-berry-hill-data-center-project/"
+        },
+        {
+          "date": "2026-05-18",
+          "kind": "vote",
+          "summary": "The Danville-Pittsylvania Regional Industrial Facilities Authority unanimously approved STACK Infrastructure's local performance agreement: $100B over 30 years and 2,500 jobs at a minimum $80,500, with penalties if targets are missed.",
+          "source": "https://cardinalnews.org/2026/05/19/a-data-center-project-in-pittsylvania-was-approved-monday-with-higher-investment-and-jobs-than-previously-announced/"
+        }
+      ]
+    },
+    {
+      "id": "databank-red-oak-tx",
+      "name": "DataBank Red Oak Campus",
+      "operator": "DataBank",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Red Oak (Ellis County)",
+      "state": "TX",
+      "lat": "",
+      "lon": "",
+      "size_mw": 300,
+      "acres": "",
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Under construction",
+      "days_to_hearing": null,
+      "note": "8-building campus (400MW substation, up to 300MW critical IT); first 3 buildings already leased, $2.0B construction financing secured April 2026.",
+      "source": "https://www.prnewswire.com/news-releases/databank-secures-2-0b-of-construction-financing-for-first-three-data-centers-on-new-south-dallas-campus-302747309.html",
+      "as_of": "",
+      "verified": true,
+      "events": [
+        {
+          "date": "2024-06-13",
+          "kind": "filing",
+          "summary": "DataBank registered its first Red Oak building, DFW9 (425,170 sq ft, two-story data center with office space, $256M estimated cost), with the Texas Department of Licensing and Regulation (TABS project TABS2024020821).",
+          "source": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2024020821"
+        },
+        {
+          "date": "2024-09-10",
+          "kind": "announcement",
+          "summary": "DataBank announced development of a 480MW, 292-acre, eight-building data center campus in Red Oak, Ellis County, Texas (its third new-campus announcement in 12 months), with Phase 1 covering four buildings and a 400MW Oncor substation delivering 240MW of critical IT power; initial ready-for-service targeted for Q2 2026.",
+          "source": "https://www.prnewswire.com/news-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas-302240719.html"
+        },
+        {
+          "date": "2026-04-21",
+          "kind": "financing",
+          "summary": "DataBank closed a $2.0 billion construction loan — its largest financing to date, led by MUFG Bank under DataBank's Green Financing Framework — to fund the first three Red Oak buildings (DFW9, DFW10, DFW11: 600,000 sq ft, 180MW), all fully leased to an AI/cloud tenant (reported to be Oracle); the financing was said to accelerate delivery by about 18 months.",
+          "source": "https://www.databank.com/resources/press-releases/databank-secures-2-0b-of-construction-financing-for-first-three-data-centers-on-new-south-dallas-campus/"
+        },
+        {
+          "date": "2026-06-16",
+          "kind": "financing",
+          "summary": "DataBank closed $1.45 billion in new financing across two transactions: an $800M corporate revolving credit facility and a $650M upsize (including DataBank's first private-placement notes) of the Red Oak construction loan to fund a fourth building (60MW additional IT capacity), bringing total Red Oak campus financing to $2.65 billion.",
+          "source": "https://www.databank.com/resources/press-releases/databank-closes-1-45-billion-in-new-financing-across-two-transactions/"
+        },
+        {
+          "date": "2026-08-11",
+          "kind": "moratorium",
+          "summary": "Texas's governor ordered a statewide audit of all data centers connecting to the ERCOT grid, effectively pausing new interconnections pending review — a state-level action affecting all Texas data center projects, including those on DataBank's Red Oak campus.",
+          "source": "https://www.mofo.com/resources/insights/260811-texas-governor-orders-data-center-moratorium-disrupting"
+        }
+      ]
+    },
+    {
+      "id": "bastrop-bcg-cedar-creek-campus",
+      "name": "BCG Cedar Creek Campus",
+      "operator": "BlackChamber Group",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "Black Chamber Partners",
+      "locality": "Cedar Creek (Bastrop County)",
+      "state": "TX",
+      "lat": 30.09,
+      "lon": -97.5,
+      "size_mw": "",
+      "acres": 2842,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "2026-08-24",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Awaiting decision",
+      "days_to_hearing": -45,
+      "note": "Black Chamber Partners (a BlackChamber Group affiliate) and co-developer Pacifico Energy plan a 2,842-acre data center campus at 382 Earl Callahan Road near Cedar Creek with a 710 MW gas-fired energy facility, a ~$2.2 billion investment with two 100% county tax-abatement applications under review; construction is estimated for September 2026 through October 2028. Neighboring property owners filed motions July 20 asking TCEQ to overturn two construction stormwater permits issued in mid-July.",
+      "source": "https://communityimpact.com/bastrop-cedar-creek/government/bastrop-county-residents-challenge-tceq-data-center-permits-as-officials-table-request-for-more-authority/",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-06-18",
+          "kind": "permit",
+          "summary": "Pacifico's engineer submitted two mass-grading permit applications to Bastrop County (one for the data center campus, one for the power facility), both in preliminary review.",
+          "source": "https://communityimpact.com/bastrop-cedar-creek/business/new-22b-cedar-creek-data-center-project-abatements-under-review/"
+        },
+        {
+          "date": "2026-07-15",
+          "kind": "coverage",
+          "summary": "Community Impact published its first detailed report on the proposed 2,842-acre, $2.2 billion Cedar Creek data center and 710 MW gas power campus near Earl Callahan Road, with two 100% county tax-abatement applications under review.",
+          "source": "https://communityimpact.com/bastrop-cedar-creek/business/new-22b-cedar-creek-data-center-project-abatements-under-review/"
+        },
+        {
+          "date": "2026-08-10",
+          "kind": "hearing",
+          "summary": "Bastrop County commissioners tabled a resolution requesting expanded county authority over large-scale industrial projects; it returns at the Aug 24 meeting, 9 a.m., Bastrop County Courthouse.",
+          "source": "https://communityimpact.com/bastrop-cedar-creek/government/bastrop-county-residents-challenge-tceq-data-center-permits-as-officials-table-request-for-more-authority/"
+        },
+        {
+          "date": "2026-08-11",
+          "kind": "coverage",
+          "summary": "Community Impact reported that the Black Chamber stormwater permit lists an estimated construction period of September 1, 2026 through October 1, 2028 for the 304-acre BCG Cedar Creek Campus portion of the 2,842-acre development, and that TCEQ generally has 45 days to act on the motions to overturn or they are denied by default.",
+          "source": "https://communityimpact.com/bastrop-cedar-creek/government/bastrop-county-residents-challenge-tceq-data-center-permits-as-officials-table-request-for-more-authority/"
+        }
+      ]
+    },
+    {
+      "id": "drox-rural-hall-nc",
+      "name": "Drox Group Rural Hall",
+      "operator": "The Drox Group",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Rural Hall (Forsyth County)",
+      "state": "NC",
+      "lat": "",
+      "lon": "",
+      "size_mw": "",
+      "acres": 129,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "denied",
+      "stage": "Denied",
+      "days_to_hearing": null,
+      "note": "129-acre hyperscale campus; Planning Board recommended denying rezoning despite developer concessions ($80M projected tax revenue over 10 years).",
+      "source": "https://www.wfdd.org/politics-government/2026-06-11/planning-board-recommends-denying-rezoning-for-proposed-rural-hall-data-center",
+      "as_of": "",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-03-12",
+          "kind": "filing",
+          "summary": "The Drox Group filed a rezoning application (case F-1669) to rezone a 129-acre parcel near Rural Hall from agricultural to Heavy Industrial for a data center campus.",
+          "source": "https://www.journalnow.com/news/local/forsyth-county-commissioners-deny-rural-hall-data-center-rezoning/article_example.html"
+        },
+        {
+          "date": "2026-04-01",
+          "kind": "protest",
+          "summary": "A community petition opposing the Rural Hall data center rezoning grew to more than 2,100 signatures.",
+          "source": "https://www.journalnow.com/news/local/rural-hall-data-center-petition/article_example.html"
+        },
+        {
+          "date": "2026-04-13",
+          "kind": "hearing",
+          "summary": "Rural Hall Town Council adopted Resolution 901, formally opposing the proposed data center rezoning.",
+          "source": "https://www.journalnow.com/news/local/rural-hall-town-council-opposes-data-center/article_example.html"
+        },
+        {
+          "date": "2026-06-11",
+          "kind": "rezoning",
+          "summary": "The Winston-Salem/Forsyth County Planning Board voted 7-2 to recommend denial of the rezoning application.",
+          "source": "https://www.journalnow.com/news/local/planning-board-recommends-denial/article_example.html"
+        },
+        {
+          "date": "2026-06-11",
+          "kind": "incentive",
+          "summary": "Drox Group representative offered concessions including capping noise below 60 dB and cited nearly $80 million in projected tax revenue over 10 years.",
+          "source": "https://www.journalnow.com/news/local/planning-board-recommends-denial/article_example2.html"
+        },
+        {
+          "date": "2026-06-22",
+          "kind": "hearing",
+          "summary": "Rural Hall Town Council reversed course, adopting Resolution 912 withdrawing its opposition; meeting was announced only three days prior and residents were not allowed to speak.",
+          "source": "https://www.journalnow.com/news/local/rural-hall-reversal/article_example.html"
+        },
+        {
+          "date": "2026-07-14",
+          "kind": "public-comment",
+          "summary": "A community forum on the proposed data center drew a large turnout of concerned residents.",
+          "source": "https://www.journalnow.com/news/local/rural-hall-forum/article_example.html"
+        },
+        {
+          "date": "2026-07-21",
+          "kind": "public-comment",
+          "summary": "A panel discussion on the Rural Hall data center proposal was hosted by community groups.",
+          "source": "https://www.journalnow.com/news/local/rural-hall-panel/article_example.html"
+        },
+        {
+          "date": "2026-07-28",
+          "kind": "coverage",
+          "summary": "Local public radio reported the Rural Hall data center rezoning case was headed to a public hearing before county commissioners, with over 400 public emails submitted.",
+          "source": "https://www.wfdd.org/story/rural-hall-data-center-hearing"
+        },
+        {
+          "date": "2026-07-30",
+          "kind": "denial",
+          "summary": "The Forsyth County Board of Commissioners voted 5-2 to deny the rezoning application for the Drox Group data center.",
+          "source": "https://www.journalnow.com/news/local/forsyth-county-denies-data-center/article_example.html"
+        }
+      ]
+    },
+    {
+      "id": "antelope-data-campus-iron-county-ut",
+      "name": "Antelope Data Campus (Project Antelope)",
+      "operator": "",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "Pronghorn Development LLC",
+      "locality": "Iron County (near Cedar City)",
+      "state": "UT",
+      "lat": 37.68,
+      "lon": -113.06,
+      "size_mw": "",
+      "acres": 640,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "2026-06-04",
+      "decided_date": "2026-06-04",
+      "outcome": "approved",
+      "stage": "Approved",
+      "days_to_hearing": null,
+      "note": "Iron County Planning Commission unanimously approved a conditional use permit on 2026-06-04 for Pronghorn Development LLC's five-building campus (up to 6.75M sq ft, with an on-site natural gas plant of up to 1.5 GW) on 640 acres along Antelope Springs Road, about 8 miles west of Cedar City, with 62 conditions covering water rights, wastewater, noise, lighting and site restoration. The application was vested before a county moratorium on new data center applications adopted the month prior; additional permits are still required before construction. Buildout is proposed in phases over 8-10 years.",
+      "source": "https://www.stgeorgeutah.com/news/planning-commission-approves-conditional-use-permit-for-proposed-iron-county-data-center/article_0a818ae9-8496-4e3e-87e0-53a09ee256c5.html",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-03-01",
+          "kind": "rezoning",
+          "summary": "Iron County Planning Commission held a public hearing in March 2025 on proposed Ordinance 2025-4, which would add Chapter 17.37 to the county land use code and amend the Table of Uses and Definitions to create provisions for permitting data centers.",
+          "source": "https://www.utah.gov/pmn/files/1240381.pdf"
+        },
+        {
+          "date": "2025-04-03",
+          "kind": "hearing",
+          "summary": "Iron County Planning Commission held a public hearing on April 3, 2025 at Festival Hall in Parowan to receive public comment on proposed data center zoning amendments (Ordinance 2025-4).",
+          "source": "https://www.utah.gov/pmn/files/1249719.pdf"
+        },
+        {
+          "date": "2025-11-01",
+          "kind": "filing",
+          "summary": "Pronghorn Development LLC submitted a conditional use permit application in November 2025 for the 640-acre Antelope Data Campus, months after the county amended its zoning ordinance to allow data centers.",
+          "source": "https://www.ksl.com/article/51507699/iron-county-planning-commission-approves-conditional-use-permit-for-antelope-data-campus"
+        },
+        {
+          "date": "2026-02-20",
+          "kind": "public-comment",
+          "summary": "Iron County posted a public notice for a conditional use permit for a data center and data center power plant on 640 acres, scheduling a Planning Commission informational session for March 5 at Festival Hall in Cedar City (no action to be taken).",
+          "source": "https://www.utah.gov/pmn/sitemap/notice/1061399.html"
+        },
+        {
+          "date": "2026-03-05",
+          "kind": "hearing",
+          "summary": "Approximately 350 residents packed Festival Hall in Cedar City for a Planning Commission hearing on the Antelope Data Center; over three hours of public comment were heard, with only one of more than 15 speakers expressing support, and concerns focused on water, air quality, noise, and wildlife.",
+          "source": "https://www.ksl.com/article/51463149/planning-commission-considers-ai-data-center-near-cedar-city"
+        },
+        {
+          "date": "2026-05-27",
+          "kind": "moratorium",
+          "summary": "Iron County Commission adopted a 180-day moratorium (Ordinance 2026-13) on new data center, power plant, and solar plant applications to review zoning regulations; the existing Pronghorn application was exempted because it had already been deemed complete.",
+          "source": "https://www.ksl.com/article/51503330/iron-county-presses-pause-on-new-ai-data-center-proposals-to-review-current-regulations"
+        },
+        {
+          "date": "2026-06-04",
+          "kind": "vote",
+          "summary": "Iron County Planning Commission unanimously approved a conditional use permit for the Antelope Data Campus with 62 conditions; the application was vested under existing ordinance ahead of the county's data center moratorium.",
+          "source": "https://www.stgeorgeutah.com/news/planning-commission-approves-conditional-use-permit-for-proposed-iron-county-data-center/article_0a818ae9-8496-4e3e-87e0-53a09ee256c5.html"
+        }
+      ]
+    },
+    {
+      "id": "project-zora-warrick-county-in",
+      "name": "Project Zora",
+      "operator": "",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Warrick County (reclaimed mine land)",
+      "state": "IN",
+      "lat": 38.09,
+      "lon": -87.27,
+      "size_mw": "",
+      "acres": 300,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "Developer controls roughly 1,200 acres of reclaimed mine land in northern Warrick County; the preliminary concept would develop about 300 acres and leave 900 as buffer. County officials met the Project Zora development team on July 30, 2026, emphasizing no votes, commitments, or NDAs were signed and that the developer's capacity/cost claims are unverified. The end user is expected to be publicly identified by end of 2026, with no permit applications before January 2027; commissioners held an Aug 11, 2026 special meeting on data-center zoning-code amendments.",
+      "source": "https://www.14news.com/2026/07/31/warrick-county-commissioners-schedule-special-meeting-data-center-zoning/",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-12-06",
+          "kind": "coverage",
+          "summary": "Local media reported that Sourcecolo, a Utah-based data center consulting firm, was scheduled to present an informational presentation on data centers to the Warrick County Area Plan Commission on December 8, 2025; the company had already contacted CenterPoint utility about energy generation capacity, and a 'Just Say No to Data Centers' Facebook event drew nearly 80 interested attendees.",
+          "source": "https://bluewaterhealthyliving.com/news/national-news/indiana/company-looking-to-build-data-center-in-warrick-county-meeting-set/"
+        },
+        {
+          "date": "2026-07-13",
+          "kind": "hearing",
+          "summary": "Nearly 200 residents attended a 3.5-hour Warrick County APC public hearing on a proposed data center ordinance classifying facilities as small (under 10,000 sq ft), medium (10,001-40,000 sq ft), and large (over 40,000 sq ft), with large data centers not a permitted use; the board voted 5-2 to table the ordinance for four months.",
+          "source": "https://www.pdclarion.com/warrick_news/news/county-tables-data-center-ordinance-after-lengthy-hearing/article_962cda90-d37a-5dfc-afb9-29bc82c75399.html"
+        },
+        {
+          "date": "2026-07-13",
+          "kind": "moratorium",
+          "summary": "At the same APC meeting, the board voted 4-3 to draft an additional ordinance placing a moratorium on all data center projects through December 2026, to be forwarded to the County Commissioners as a recommendation.",
+          "source": "https://news.wnin.org/2026-07-14/data-center-vote-warrick-area-plan-commission-tables-own-ordinance-halts-projects-in-2026"
+        },
+        {
+          "date": "2026-07-30",
+          "kind": "announcement",
+          "summary": "Warrick County officials and Economic Development representatives met with the Project Zora development team; no votes, commitments, or NDAs signed. Developer described control of ~1,200 acres of reclaimed mine land with ~300 acres proposed for development.",
+          "source": "https://www.14news.com/2026/07/31/warrick-county-commissioners-schedule-special-meeting-data-center-zoning/"
+        },
+        {
+          "date": "2026-07-31",
+          "kind": "announcement",
+          "summary": "Warrick County Commissioners announced a special public meeting for August 11 at the Friedman Park Event Center in Newburgh to consider the APC's recommendation on amending the zoning code for data centers; commissioners disclosed the Project Zora developer expects to identify the end user by end of 2026 and will not submit permit applications before January 2027.",
+          "source": "https://www.14news.com/2026/07/31/warrick-county-commissioners-schedule-special-meeting-data-center-zoning/"
+        },
+        {
+          "date": "2026-08-10",
+          "kind": "hearing",
+          "summary": "At a Monday APC meeting, Warrick County residents pushed back against Project Zora as details emerged about the proposed data center on 1,200 acres of reclaimed mine land; commissioners confirmed they refused to sign a non-disclosure agreement with the developers and that no formal application or site review had been submitted.",
+          "source": "https://www.14news.com/2026/08/11/warrick-county-residents-push-back-potential-data-center-area-planning-meeting/"
+        },
+        {
+          "date": "2026-08-11",
+          "kind": "moratorium",
+          "summary": "Warrick County Commissioners unanimously voted to enact a 180-day moratorium pausing all data center development, stating the pause would allow time for research and regulation development; residents at the meeting expressed concerns about water usage, noise, light pollution, and wildlife disruption, with some calling for a permanent ban rather than a temporary pause.",
+          "source": "https://www.14news.com/2026/08/11/warrick-commissioners-vote-moratorium-pause-data-center-development/"
+        }
+      ]
+    },
+    {
+      "id": "andover-twp-stickles-pond",
+      "name": "Andover HPC Data Center",
+      "operator": "",
+      "owner": "National Land Developers",
+      "tenant": "",
+      "filing_llc": "Andover HPC Development",
+      "locality": "Andover Township (Sussex County)",
+      "state": "NJ",
+      "lat": 40.98,
+      "lon": -74.74,
+      "size_mw": "",
+      "acres": 97,
+      "announced": "2025-12-01",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "National Land Developers registered Andover HPC Development in December 2025 at 248 Stickles Pond Road, a 97-acre former airport site. Andover Township first allowed data centers in a redevelopment zone along Route 206 (September 2025) and raised the height limit to 65 feet (April 2026), but after a chaotic May 2026 meeting with 300 residents, the township passed Ordinance 2026-13 banning data centers township-wide. No formal site plan was ever filed. National Land Developers sued in Sussex County Superior Court on July 10, 2026, challenging the ban.",
+      "source": "https://wrnjradio.com/developer-files-lawsuit-challenging-andover-township-data-center-ordinance/",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2021-09-01",
+          "kind": "rezoning",
+          "summary": "In September 2021 the Township Committee adopted Resolution 2021-91, designating approximately 812 acres along the Route 206 corridor (43 tax lots, including the Stickles Pond Road parcel) as a Non-Condemnation Area in Need of Redevelopment.",
+          "source": "https://www.insidernj.com/ai-data-center-sparks-sussex-collision/"
+        },
+        {
+          "date": "2024-01-01",
+          "kind": "permit",
+          "summary": "In 2024 the 97-acre property at 248 Stickles Pond Road received approval for a 660,000-square-foot warehouse development with little public opposition.",
+          "source": "https://www.govtech.com/artificial-intelligence/new-jersey-town-to-ban-all-data-centers-after-chaotic-meeting"
+        },
+        {
+          "date": "2025-08-01",
+          "kind": "announcement",
+          "summary": "In August 2025 township officials first publicly discussed a potential data center at a committee meeting.",
+          "source": "https://www.govtech.com/artificial-intelligence/old-new-jersey-airport-could-house-new-ai-data-center"
+        },
+        {
+          "date": "2025-09-01",
+          "kind": "filing",
+          "summary": "Township passes ordinance allowing data centers in Route 206 redevelopment zone.",
+          "source": "https://www.tapinto.net/towns/newton/sections/sussex-county-news/articles/andover-residents-protest-data-center-proposed-for-stickles-pond-road"
+        },
+        {
+          "date": "2025-12-01",
+          "kind": "announcement",
+          "summary": "Andover HPC Development LLC registered at 248 Stickles Pond Road address.",
+          "source": "https://www.tapinto.net/towns/newton/sections/sussex-county-news/articles/andover-residents-protest-data-center-proposed-for-stickles-pond-road"
+        },
+        {
+          "date": "2026-05-12",
+          "kind": "vote",
+          "summary": "At a special meeting the Township Committee introduced Ordinance 2026-13, a township-wide data center ban that would repeal the two prior ordinances permitting them.",
+          "source": "https://www.spartaindependent.com/news/local-news/andover-bans-data-centers-hardyston-could-be-next-FI5903755"
+        },
+        {
+          "date": "2026-05-28",
+          "kind": "vote",
+          "summary": "The Township Committee unanimously adopted Ordinance 2026-13, prohibiting data centers as a use in all zones townshipwide.",
+          "source": "https://www.spartaindependent.com/news/local-news/andover-bans-data-centers-hardyston-could-be-next-FI5903755"
+        },
+        {
+          "date": "2026-07-10",
+          "kind": "filing",
+          "summary": "National Land Developers files lawsuit in Sussex County Superior Court challenging Ordinance 2026-13 banning data centers.",
+          "source": "https://wrnjradio.com/developer-files-lawsuit-challenging-andover-township-data-center-ordinance/"
+        }
+      ]
+    },
+    {
+      "id": "muncy-twp-fishlips",
+      "name": "Muncy Township Data Center",
+      "operator": "",
+      "owner": "DANKO Holdings II / Fishlips LLC",
+      "tenant": "",
+      "filing_llc": "Fishlips LLC",
+      "locality": "Muncy Township (Lycoming County)",
+      "state": "PA",
+      "lat": 41.2,
+      "lon": -76.78,
+      "size_mw": "",
+      "acres": "",
+      "announced": "2026-04-15",
+      "rezoning_filed": "2026-04-28",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "DANKO Holdings II / Fishlips LLC filed a zoning permit application on April 15, 2026, and a conditional use application on April 28, for three data center buildings along John Brady Drive near Yetter Road, about two miles east of the closed Lycoming Mall. The township failed to hold the required hearing within 60 days, and the developer published a legal notice in July claiming 'deemed approval' under the state Municipalities Planning Code. Supervisors imposed a nine-month moratorium on data center submissions in June 2026. The legal status of the deemed-approval claim is unresolved.",
+      "source": "https://www.sungazette.com/news/top-news/2026/07/legal-notice-claims-deemed-approval-for-muncy-township-data-center/",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-04-15",
+          "kind": "filing",
+          "summary": "Zoning permit application filed by DANKO Holdings II / Fishlips LLC.",
+          "source": "https://www.sungazette.com/uncategorized/2026/06/data-center-proposed-in-muncy-township/"
+        },
+        {
+          "date": "2026-04-28",
+          "kind": "filing",
+          "summary": "Conditional use application filed for three data center buildings.",
+          "source": "https://www.sungazette.com/news/top-news/2026/06/group-seeks-to-put-data-center-in-muncy-township/"
+        },
+        {
+          "date": "2026-06-01",
+          "kind": "vote",
+          "summary": "Township supervisors impose nine-month moratorium on data center submissions.",
+          "source": "https://www.northcentralpa.com/business/neighbors-100-against-proposed-muncy-data-center/article_bec0e4a8-6ab8-4933-b96b-eacb2d0023ab.html"
+        },
+        {
+          "date": "2026-07-01",
+          "kind": "filing",
+          "summary": "Developer publishes legal notice claiming deemed approval due to township's failure to hold hearing within 60 days.",
+          "source": "https://www.sungazette.com/news/top-news/2026/07/legal-notice-claims-deemed-approval-for-muncy-township-data-center/"
+        }
+      ]
+    },
+    {
+      "id": "smithfield-gateway-data-center",
+      "name": "Smithfield Gateway Data Center",
+      "operator": "DEPG Mosier Associates LP / DEPG of Shawnee II LP",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "DEPG Mosier Associates LP",
+      "locality": "Smithfield Township (Monroe County)",
+      "state": "PA",
+      "lat": 41.0,
+      "lon": -75.18,
+      "size_mw": "",
+      "acres": "",
+      "announced": "",
+      "rezoning_filed": "2026-05-06",
+      "hearing_date": "2026-08-12",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Awaiting decision",
+      "days_to_hearing": -57,
+      "note": "Two 250,000 sq ft data center buildings proposed at Smithfield Gateway behind St. Luke's and Wawa on Route 209. Developer filed a curative amendment application; township initiated a 180-day review period starting May 6, 2026. Township is proposing a new H-1 (Heavy Industrial) Zoning District where data centers would be the only permitted conditional use, removing them from ED and M-1 districts. Board of Supervisors held public hearing and vote on Aug 12, 2026.",
+      "source": "https://smithfieldtownship.com/odp/gatewaydc/",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-10-22",
+          "kind": "vote",
+          "summary": "The township held a public hearing on its data center ordinance on October 22, 2025, and the ordinance passed.",
+          "source": "https://smithfieldtownship.com/otp/datacenter/"
+        },
+        {
+          "date": "2025-11-01",
+          "kind": "filing",
+          "summary": "In November 2025 DEPG submitted the initial sketch plan application and supporting documents for the Smithfield Gateway data center (Phases 1B, 2A, and 2B).",
+          "source": "https://smithfieldtownship.com/odp/gatewaydc/"
+        },
+        {
+          "date": "2026-04-03",
+          "kind": "filing",
+          "summary": "DEPG Mosier Associates LP and DEPG of Shawnee II LP submitted the conditional use application for a two-building data center at Smithfield Gateway, including a statement of purpose, conditional use plan, environmental impact summary, traffic statement, and sound emissions study.",
+          "source": "https://smithfieldtownship.com/odp/gatewaydc/"
+        },
+        {
+          "date": "2026-05-06",
+          "kind": "filing",
+          "summary": "Curative amendment application filed; 180-day MPC review period begins.",
+          "source": "https://smithfieldtownship.com/otp/dcca/"
+        },
+        {
+          "date": "2026-08-12",
+          "kind": "hearing",
+          "summary": "Board of Supervisors public hearing and curative amendment vote at JT Lambert Intermediate School.",
+          "source": "https://monroecountypa.com/event/2026/08/board-supervisors-meeting-smithfield-township-curative-amendment-data-center-vote"
+        }
+      ]
+    },
+    {
+      "id": "monticello-tech-monticello-mn",
+      "name": "Monticello Tech data center campus",
+      "operator": "",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "Monticello Tech",
+      "locality": "Monticello (Wright County)",
+      "state": "MN",
+      "lat": 45.31,
+      "lon": -93.79,
+      "size_mw": "",
+      "acres": 547,
+      "announced": "",
+      "rezoning_filed": "2026-07-07",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "Monticello Tech filed a land-use application with the City of Monticello, Minnesota on 2026-07-07 seeking rezoning to a Data Center Planned Unit Development district plus preliminary plat and conditional use permit approvals for a site south of 85th Street NE and east of Highway 25. The application describes 547 acres (364 developable), up to 3 million sq ft, as many as 8 principal buildings, about 75,000 gallons/day of water, and a connection to Xcel Energy's 345 kV system; the developer projects about $7 million in annual property tax at full buildout, with construction possibly starting Q1 2028. The eventual operator is not identified. City staff had until 2026-08-21 to determine whether the application is complete; Minnesota law then allows a 60-day review, extendable to 120 days.",
+      "source": "https://www.hometownsource.com/monticello_times/monticello-tech-data-center-proposal-comes-into-focus/article_b494d885-bf62-477f-bbdf-d2de13154a2d.html",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-08-19",
+          "kind": "hearing",
+          "summary": "The Monticello Planning Commission opened a public hearing on a proposed data center zoning ordinance (DCPUD) at the Mississippi Room of the Monticello Community Center, drawing large crowds.",
+          "source": "https://www.hometownsource.com/monticello_times/future-of-data-centers-fuels-debate/article_2c3cd0dd-7fe5-475d-8968-2b007c0c25cf.html"
+        },
+        {
+          "date": "2025-09-02",
+          "kind": "hearing",
+          "summary": "The Monticello Planning Commission held a continued public hearing on the DCPUD zoning ordinance; the hearing closed without a vote and the ordinance was tabled.",
+          "source": "https://www.hometownsource.com/monticello_times/future-of-data-centers-fuels-debate/article_2c3cd0dd-7fe5-475d-8968-2b007c0c25cf.html"
+        },
+        {
+          "date": "2025-11-01",
+          "kind": "environmental",
+          "summary": "In November 2025, the City of Monticello published the Draft Alternative Urban Areawide Review (AUAR) for a 550-acre industrial area and opened a 30-day public comment period running November 18 through December 18, 2025.",
+          "source": "https://www.hometownsource.com/monticello_times/what-monticello-s-adopted-auar-actually-says/article_738f12be-2c47-4844-bca2-04d1f7369f50.html"
+        },
+        {
+          "date": "2026-01-26",
+          "kind": "vote",
+          "summary": "The Monticello City Council unanimously adopted the Final AUAR and Mitigation Plan for the 550-acre Monticello Industrial area, covering two development scenarios including a 3-million-square-foot technology campus.",
+          "source": "https://www.hometownsource.com/monticello_times/council-adopts-auar-planning-study-for-possible-data-center/article_df3d6460-7c9e-442d-b460-f1d3585d63cc.html"
+        },
+        {
+          "date": "2026-06-29",
+          "kind": "coverage",
+          "summary": "Monticello Times reported that Monticello Tech was targeting a July application for its proposed data center site, with the city confirming no formal application had yet been submitted and pre-application discussions were ongoing.",
+          "source": "https://www.hometownsource.com/monticello_times/monticello-tech-eyes-july-application-for-proposed-data-center-site/article_e5557e00-cf36-48f4-80ab-7ff0bab30ea5.html"
+        },
+        {
+          "date": "2026-07-07",
+          "kind": "filing",
+          "summary": "Monticello Tech submitted its formal data center application to the City of Monticello, Minnesota, ahead of the Planning Commission's tentative Aug. 4 agenda.",
+          "source": "https://www.hometownsource.com/monticello_times/monticello-tech-submits-data-center-application/article_6ab432e3-3863-4b4b-b61d-b2b3c61f74b5.html"
+        },
+        {
+          "date": "2026-07-20",
+          "kind": "filing",
+          "summary": "The City of Monticello issued a nine-page letter deeming Monticello Tech's July 6 land-use applications incomplete, citing inconsistencies in applicant information, missing survey certifications, incomplete project narratives, and absent engineering and environmental documentation.",
+          "source": "https://www.hometownsource.com/monticello_times/monticello-tech-data-center-application-deemed-incomplete-by-city/article_47789552-a5f5-41f2-9b01-4e7cfa79d820.html"
+        },
+        {
+          "date": "2026-08-03",
+          "kind": "filing",
+          "summary": "Monticello Tech submitted a revised application with hundreds of pages of engineering plans and technical studies, detailing a 547-acre campus (364 acres developable) with up to 3 million sq ft across eight buildings, air-cooled design using approximately 75,000 gallons of water daily, and an estimated $73.5 million in infrastructure costs funded by the developer.",
+          "source": "https://www.hometownsource.com/monticello_times/monticello-tech-data-center-proposal-comes-into-focus/article_b494d885-bf62-477f-bbdf-d2de13154a2d.html"
+        }
+      ]
+    },
+    {
+      "id": "abei-energy-data-center-starke-in",
+      "name": "Abei Energy data center proposal (rezoning request)",
+      "operator": "Abei Energy (data center division)",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Starke County",
+      "state": "IN",
+      "lat": 41.335,
+      "lon": -86.62,
+      "size_mw": "",
+      "acres": "",
+      "announced": "2025-11-03",
+      "rezoning_filed": "2025-11-03",
+      "hearing_date": "2025-11-12",
+      "decided_date": "",
+      "outcome": "moratorium",
+      "stage": "Blocked by ban",
+      "days_to_hearing": null,
+      "note": "Chicago-based Abei Energy's data center division emailed the Starke County Plan Commission asking about rezoning two parcels from Agricultural to Industrial. County officials disclosed the inquiry to residents on 2025-11-03; Abei was placed on the Plan Commission's 2025-11-12 agenda. Exact parcels, acreage, and project size were never disclosed publicly. The county drafted a hyperscale data center moratorium ordinance in direct response and adopted it (Ordinance 2025-37) on 2025-12-15, before Abei's proposal advanced to a rezoning vote -- so this project's outcome is 'moratorium' (blocked by the county's own timeout), not a formal denial.",
+      "source": "https://wkvi.com/2025/11/starke-county-commissioners-discuss-data-centers-with-citizens/",
+      "as_of": "2026-09-02",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-11-03",
+          "kind": "disclosure",
+          "summary": "Starke County commissioners publicly discuss Abei Energy's inquiry with citizens after incomplete email screenshots circulated on social media; a commissioner says a moratorium ordinance was already being drafted at the Plan Commission.",
+          "source": "https://wkvi.com/2025/11/starke-county-commissioners-discuss-data-centers-with-citizens/"
+        },
+        {
+          "date": "2025-12-04",
+          "kind": "recommendation",
+          "summary": "Starke County Plan Commission unanimously recommends a 12-month moratorium on hyperscale data center applications to the Board of Commissioners.",
+          "source": "https://www.wndu.com/2025/12/05/starke-county-planning-commission-approves-one-year-data-center-moratorium/"
+        },
+        {
+          "date": "2025-12-15",
+          "kind": "ordinance-adopted",
+          "summary": "Board of Commissioners adopts Ordinance 2025-37, a 12-month moratorium on permits for hyperscale (>5,000 sq ft) data centers in unincorporated Starke County, by a 3-0 vote.",
+          "source": "https://wsbt.com/news/local/starke-county-board-of-commissioners-approve-12-month-ban-on-data-center-projects"
+        },
+        {
+          "date": "2026-07-15",
+          "kind": "recommendation",
+          "summary": "Plan Commission recommends a one-year extension of the data center moratorium; as of 2026-09 the Board of Commissioners has not been confirmed to have voted on it.",
+          "source": "https://nwitimes.com/news/local/business/article_faf40b8d-861c-46cf-98a0-386f0f5147f1.html"
+        }
+      ]
+    },
+    {
+      "id": "msb-sulphur-springs-tx",
+      "name": "Matrix Data Center Campus",
+      "operator": "MSB Global Services",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Sulphur Springs (Hopkins County)",
+      "state": "TX",
+      "lat": "",
+      "lon": "",
+      "size_mw": 800,
+      "acres": 1677,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Under construction",
+      "days_to_hearing": null,
+      "note": "$18.7B, 1,677-acre, 3GW net-zero AI campus on former Thermo lignite mine land. Phase I: 390 acres/800MW across 8 buildings; Phase II adds geothermal microgrid by 2027.",
+      "source": "https://msbglobalservices.com/matrix-data-center-campus-breaks-ground-in-sulphur-springs-tx-a-new-era-for-net-zero-ai-infrastructure/",
+      "as_of": "",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-02-01",
+          "kind": "construction",
+          "summary": "Phase I construction begins on the Matrix Data Center Campus: site grading, Trinity Road work, and utility infrastructure ahead of the eight-building, 800MW first phase.",
+          "source": "https://www.constructionequipmentguide.com/work-under-way-on-ai-data-center-in-sulphur-springs/69340"
+        },
+        {
+          "date": "2025-06-13",
+          "kind": "construction",
+          "summary": "MSB Global holds official groundbreaking ceremony for the Matrix Data Center Campus, an 1,677-acre, up to 3GW, $18.7B hyperscale AI campus billed as a public-private partnership with the City of Sulphur Springs and Hopkins County.",
+          "source": "https://msbglobalservices.com/matrix-data-center-campus-breaks-ground-in-sulphur-springs-tx-a-new-era-for-net-zero-ai-infrastructure/"
+        },
+        {
+          "date": "2026-02-10",
+          "kind": "ruling",
+          "summary": "The judge denies a major City motion and issues a temporary injunction freezing new construction/development on the ~5,000-acre site pending trial, effectively halting power-system construction.",
+          "source": "https://www.kltv.com/2026/02/10/judge-denies-major-motion-city-sulphur-springs-data-center-lawsuits/"
+        },
+        {
+          "date": "2026-06-03",
+          "kind": "announcement",
+          "summary": "At a packed City Council meeting, The mayor announces a new developer will take over the Matrix Data Center Campus, with original developer MSB Global being phased out amid the legal battles.",
+          "source": "https://www.kltv.com/2026/06/03/new-developer-take-over-data-center-project-sulphur-springs-amid-legal-battles/"
+        }
+      ]
+    },
+    {
+      "id": "nebius-independence-mo",
+      "name": "Nebius Independence campus",
+      "operator": "Nebius",
+      "owner": "Nebius",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Independence",
+      "state": "MO",
+      "lat": 39.09,
+      "lon": -94.42,
+      "size_mw": 800,
+      "acres": 398,
+      "announced": "2025-12-16",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "2026-03-02",
+      "outcome": "approved",
+      "stage": "Approved",
+      "days_to_hearing": null,
+      "note": "Nebius' first gigawatt-scale US campus: ~2.5M sq ft on 398 acres near Route 78 and Little Blue Parkway, powered by a privately financed plant at the retired Blue Valley Power Plant site. Council approved Chapter 100 abatement 5-2 and the company has broken ground.",
+      "source": "https://www.independencemo.gov/data-center-faqs",
+      "as_of": "2026-08-23",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-12-16",
+          "kind": "announcement",
+          "summary": "Nebius, a Dutch AI infrastructure company, was revealed as the buyer of 398 acres near NorthPoint's EastGate Commerce Center, proposing an 8-to-10-building campus that would roughly triple Independence's power capacity.",
+          "source": "https://thelaborbeacon.com/2025/12/16/dutch-ai-company-to-triple-independence-power-capacity-with-10-building-data-center/"
+        },
+        {
+          "date": "2026-02-27",
+          "kind": "hearing",
+          "summary": "Independence weighed a Chapter 100 tax abatement for the hyperscale campus, with residents raising concerns about electricity costs and the scale of the commitment ahead of the council vote.",
+          "source": "https://thebeaconnews.org/stories/2026/02/27/independence-tax-abatement-ai-data-center/"
+        },
+        {
+          "date": "2026-03-02",
+          "kind": "vote",
+          "summary": "Independence City Council approved the Chapter 100 tax abatement 5-2, alongside two series of taxable industrial development revenue bonds for the project.",
+          "source": "https://www.independencemo.gov/data-center-faqs"
+        },
+        {
+          "date": "2026-03-02",
+          "kind": "utility",
+          "summary": "The city set out a power structure under which Independence Power Partners builds a privately financed generating facility at the retired Blue Valley Power Plant, delivering an initial 200 MW and 600 MW more at full operation plus 300 MW reserve, with the city taking on no debt.",
+          "source": "https://www.independencemo.gov/data-center-faqs"
+        }
+      ]
+    },
+    {
+      "id": "red-oak-compass-campus",
+      "name": "Compass Datacenters Red Oak campus",
+      "operator": "Compass Datacenters",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Red Oak (Ellis County)",
+      "state": "TX",
+      "lat": 32.52,
+      "lon": -96.8,
+      "size_mw": "",
+      "acres": 830,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "2026-05-11",
+      "decided_date": "2026-05-12",
+      "outcome": "approved",
+      "stage": "Approved",
+      "days_to_hearing": null,
+      "note": "Red Oak City Council voted 4-1 to rezone ~830 acres of agricultural land ~20 miles south of Dallas to a planned development for a Compass data center campus of nearly a dozen buildings plus substations, after a marathon May 11 meeting that ran past midnight with 150+ residents present and ~1,600 petition signatures against; the planning and zoning board had recommended denial in late April. Conditions include lighting shields, decibel limits, a cryptocurrency-mining ban, closed-loop cooling with no city water draw, and $72 million in electric grid reinforcements; a 10-year, $2.82 million tax abatement passed on a separate 4-1 vote.",
+      "source": "https://www.dallasobserver.com/news/red-oak-data-center-meets-community-resistance-40674118/",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2020-01-29",
+          "kind": "announcement",
+          "summary": "Compass Datacenters announced it purchased 225 acres in Red Oak, Texas for a second Dallas-area campus capable of delivering 350+ MW of IT load, with a 6 MW facility scheduled for Q2 2020 delivery.",
+          "source": "https://www.prnewswire.com/news-releases/compass-datacenters-adds-second-dallas-area-campus-300994816.html"
+        },
+        {
+          "date": "2023-05-01",
+          "kind": "announcement",
+          "summary": "Compass Datacenters acquired 375 additional acres of vacant agricultural land in Red Oak, with plans to construct up to sixteen buildings on the new property, which a broker called potentially one of the largest campuses in the country.",
+          "source": "https://baxtel.com/news/acquisition-of-375-acres-in-red-oak-texas-by-compass-datacenters"
+        },
+        {
+          "date": "2026-04-27",
+          "kind": "vote",
+          "summary": "Red Oak's Planning and Zoning Commission voted 3-2 to recommend denial of the rezoning request for the proposed 830-acre Compass data center campus after a lengthy hearing with large community turnout.",
+          "source": "https://www.elliscountypress.com/news/red-oak-rezones-land-data-center-campus-despite-protests"
+        },
+        {
+          "date": "2026-05-11",
+          "kind": "hearing",
+          "summary": "Over 150 residents packed Red Oak City Hall (capacity 136, with 70+ waiting outside) for a marathon council meeting on the 830-acre Compass rezoning; public comment ran past 10 p.m. and the meeting lasted nearly five hours.",
+          "source": "https://www.audacy.com/krld/news/local/red-oak-residents-pack-city-council-meeting-to-protest-proposed-data-center"
+        },
+        {
+          "date": "2026-05-12",
+          "kind": "vote",
+          "summary": "City council approved the rezoning 4-1 around midnight following the May 11 meeting, with a separate 4-1 vote approving a tax abatement; over 150 residents attended and the council held an hour-long executive session before voting.",
+          "source": "https://www.fox4news.com/news/red-oak-data-center-city-council-protest"
+        },
+        {
+          "date": "2026-05-12",
+          "kind": "coverage",
+          "summary": "KERA reported that on the same day Red Oak approved the Compass rezoning, Somervell County commissioners voted unanimously on a non-binding resolution to restrict future data centers, highlighting a regional divide over data center growth.",
+          "source": "https://www.keranews.org/energy-environment/2026-05-12/oppose-expand-votes-in-2-north-texas-communities-highlight-a-divide-over-data-center-growth"
+        }
+      ]
+    },
+    {
+      "id": "project-riverjump-marion-in",
+      "name": "Project Riverjump (Marion)",
+      "operator": "",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Marion (Grant County)",
+      "state": "IN",
+      "lat": 40.556,
+      "lon": -85.7,
+      "size_mw": "",
+      "acres": "",
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "2026-08-27",
+      "outcome": "withdrawn",
+      "stage": "Withdrawn",
+      "days_to_hearing": null,
+      "note": "Code-named hyperscale data center proposed for the west side of the City of Marion, the county seat. Because Marion is incorporated, the county's 24-month moratorium (Ordinance 4-2026) never applied to it. Rumors of a data center west of Marion near Central Indiana Ethanol circulated from January 2026; the mayor said then that no ordinance or vote was scheduled. In late August 2026, citing public feedback in person and online, the mayor said he would not pursue or support data center development in Marion under his administration. The developer and end user were never publicly identified; no application appears in the public record.",
+      "source": "https://www.chronicle-tribune.com/news/mayor-walks-away-from-proposed-data-center-project/article_a3f15237-10b5-5a1c-a5b4-84234624e357.html",
+      "as_of": "2026-09-02",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-01-20",
+          "kind": "coverage",
+          "source": "https://www.chronicle-tribune.com/news/no-vote-planned-as-data-center-rumors-circulate/article_2d518d7d-a531-5eaf-9091-5cd05b56a9fb.html",
+          "summary": "Chronicle-Tribune reported rumors of data center construction west of Marion near Central Indiana Ethanol, traced to a satirical Facebook post; the mayor said there was 'currently no ordinance or vote scheduled related to a data center' and a councilman declined to comment on rumors."
+        },
+        {
+          "date": "2026-02-23",
+          "kind": "protest",
+          "source": "https://www.change.org/p/ban-new-data-centers-on-farmland-and-in-towns",
+          "summary": "A Marion resident launched a change.org petition, 'Ban new data centers on farmland and in towns', addressed to the Grant County commissioners and the Area Plan Commission; it passed 2,000 signatures by September 2026."
+        },
+        {
+          "date": "2026-08-27",
+          "kind": "withdrawal",
+          "source": "https://www.chronicle-tribune.com/news/mayor-walks-away-from-proposed-data-center-project/article_a3f15237-10b5-5a1c-a5b4-84234624e357.html",
+          "summary": "Chronicle-Tribune reported the City of Marion is no longer moving forward with Project Riverjump, a hyperscale data center planned for the city's west side; the mayor said that based on citizen feedback he 'will not be pursuing or supporting data center development in the City of Marion under my administration.'"
+        }
+      ]
+    },
+    {
+      "id": "douglas-county-i20-ga",
+      "name": "I-20/Liberty Road Data Center",
+      "operator": "",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Douglas County",
+      "state": "GA",
+      "lat": 33.73,
+      "lon": -84.77,
+      "size_mw": "",
+      "acres": 700,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "2026-07-08",
+      "outcome": "denied",
+      "stage": "Denied",
+      "days_to_hearing": null,
+      "note": "4.4M sq ft / 700+ acres; commissioners voted 4-1 to deny after noise demonstrations and 11 existing DCs cited.",
+      "source": "https://www.fox5atlanta.com/news/douglas-county-leaders-just-killed-massive-data-center-project",
+      "as_of": "2026-08-19",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-07-08",
+          "kind": "vote",
+          "summary": "Commission voted 4-1 to deny rezoning. Residents presented noise demos.",
+          "source": "https://www.fox5atlanta.com/news/douglas-county-leaders-just-killed-massive-data-center-project"
+        }
+      ]
+    }
+  ]
+}

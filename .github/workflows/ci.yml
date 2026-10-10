@@ -1,0 +1,132 @@
+# CI for every pull request and for main (07 §7, 10 §8.4). Each job is a required check in the main
+# ruleset (.github/rulesets/main.json), so renaming a job needs a ruleset change in the same PR.
+# Action SHAs resolved with `git ls-remote` on 2026-10-07 (lightweight tags, so the tag SHA is the
+# commit); Dependabot keeps them current. zizmor is pinned by hash in .github/zizmor-requirements.txt.
+name: ci
+
+on:
+  # All pull_request types: the repo is public, so CI minutes are free and drafts are not skipped.
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with: { version: '0.11.32', enable-cache: false }
+      - run: uv sync --locked
+      - run: uv run --locked ruff check .
+      - run: uv run --locked ruff format --check .
+      - run: uv run --locked mypy
+      - name: Release age (10 §11.8)
+        # `[tool.uv] exclude-newer = "24 hours"` applies only when uv resolves; `uv sync --locked`
+        # and `uv lock --check` accept a lock that pins a file uploaded a minute ago (a hand-edited
+        # lock, a CLI override, an old uv). This fails on any uv.lock file uploaded less than 24
+        # hours ago, except within a reviewed `exclude-newer-package` entry (see dependabot.yml).
+        # Lock values are printed through ascii(), so a PR cannot emit workflow commands.
+        run: |
+          uv run --locked python -I - <<'PY'
+          import re, sys, tomllib
+          from datetime import UTC, datetime, timedelta
+
+          now = datetime.now(UTC)
+          lock = tomllib.loads(open("uv.lock", encoding="utf-8").read())
+          span_re = re.compile(r"P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?")
+          cutoffs, bad = {}, []
+          for name, entry in lock["options"].get("exclude-newer-package", {}).items():
+              print(f"::warning::uv.lock: exclude-newer-package {ascii(name)}; drop it after a day")
+              if isinstance(entry, str):
+                  cutoffs[name] = datetime.fromisoformat(entry)
+              elif isinstance(entry, dict) and (m := span_re.fullmatch(entry.get("span", ""))):
+                  d, h, mi, s = (int(g or 0) for g in m.groups())
+                  cutoffs[name] = now - timedelta(days=d, hours=h, minutes=mi, seconds=s)
+              else:
+                  bad.append(f"{name}: unsupported exclude-newer-package entry {entry!r}")
+          for pkg in lock["package"]:
+              if "registry" not in pkg["source"]:
+                  continue
+              limit = cutoffs.get(pkg["name"], now - timedelta(hours=24))
+              for f in ([pkg["sdist"]] if "sdist" in pkg else []) + pkg.get("wheels", []):
+                  at = f.get("upload-time")
+                  if at is None or datetime.fromisoformat(at) > limit:
+                      bad.append(f"{pkg['name']} {pkg['version']}: {f['url']} uploaded {at}")
+          for line in bad:
+              print("uv.lock: less than 24 hours old or unchecked:", ascii(line))
+          print(f"{len(bad)} problem(s); checked at {now:%Y-%m-%dT%H:%M}Z")
+          sys.exit(1 if bad else 0)
+          PY
+
+  test:
+    name: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25 # the tippecanoe build adds about a minute; the suite itself takes a few
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with: { version: '0.11.32', enable-cache: false }
+      - run: uv sync --locked
+      - run: uv run --locked python -m atlas.geo.duck --install # DuckDB spatial extension (signed), once
+      # The same tippecanoe as publish.yml (keep the commits equal), so the tippecanoe-marked tests
+      # and the fixture's PMTiles comparison run on every PR instead of first failing on main.
+      # Built from source each run (about a minute); no actions/cache, so nothing a PR writes is
+      # reused.
+      - name: Build tippecanoe 2.79.0 (the PMTiles build test and fixture --check compare)
+        env:
+          TIPPECANOE_COMMIT: 68ab8dcc229f95b8b25877697d5e8d66783af503 # tag 2.79.0
+        run: |
+          sudo apt-get update -q   # the runner image's package index may be stale
+          sudo apt-get install -y --no-install-recommends libsqlite3-dev zlib1g-dev
+          git init -q "$RUNNER_TEMP/tippecanoe" && cd "$RUNNER_TEMP/tippecanoe"
+          git fetch -q --depth 1 https://github.com/felt/tippecanoe "$TIPPECANOE_COMMIT"
+          git checkout -q FETCH_HEAD
+          make -j"$(nproc)" tippecanoe
+          echo "$RUNNER_TEMP/tippecanoe" >> "$GITHUB_PATH"
+      - run: |
+          tippecanoe --version # fail rather than skip the tippecanoe tests if the build is not on PATH
+          uv run --locked pytest
+
+  validate:
+    name: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with: { version: '0.11.32', enable-cache: false }
+      - run: uv sync --locked
+      - run: uv run --locked atlas schema export --check # schema/facility.v1.json matches atlas/schema/record.py
+      - run: uv run --locked atlas validate # 07 §3.6 over data/records/ and data/orgs.json
+
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - name: Install zizmor
+        run: |
+          python3 -m venv "$RUNNER_TEMP/zizmor"
+          "$RUNNER_TEMP/zizmor/bin/pip" install --quiet --disable-pip-version-check \
+            --require-hashes --only-binary :all: -r .github/zizmor-requirements.txt
+      - run: '"$RUNNER_TEMP/zizmor/bin/zizmor" --min-severity medium .'
+        env:
+          GH_TOKEN: ${{ github.token }}

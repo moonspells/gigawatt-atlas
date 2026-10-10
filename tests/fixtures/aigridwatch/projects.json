@@ -1,0 +1,541 @@
+{
+  "name": "AI GridWatch data center project tracker",
+  "generated": "2026-10-07",
+  "license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "attribution": "AI GridWatch (https://aigridwatch.com)",
+  "source_page": "https://aigridwatch.com/projects",
+  "count": 12,
+  "verified_count": 11,
+  "caveat": "A working set of identified proposals a community can track, not a census — most of the country's activity is not in here yet. Pennsylvania is the exception: its rows are synced from PA DEP's own data-center permit tracker, so the state's coverage is close to complete and carries the permit trail with it.\n\n**Each row carries its own provenance.** Rows showing a verification date link to reporting or the governing body's own record and were read on that date; rows marked *unverified* have no source on record — a lead to check, not a fact to cite.\n\n**Stage is derived, not asserted.** *Hearing scheduled*, *Awaiting decision*, *Approved* and *Withdrawn* are computed from each row's milestone dates on every rebuild, so a hearing date that has passed stops reading 'scheduled'. Hearings get moved and projects re-file under new names — treat a scheduled date as the earliest to act by, and confirm with the clerk before relying on it. Leads are mined into data/project_candidates.json and promoted here only after a human reads a primary source.",
+  "schema": {
+    "id": "Stable slug, unique per project.",
+    "name": "Project or code name.",
+    "operator": "Operator/developer, or blank if unknown.",
+    "owner": "Owner/financier, or blank.",
+    "tenant": "Named end tenant, or blank.",
+    "filing_llc": "Shell LLC on the filing (ties to the campus registry), or blank.",
+    "locality": "Town or county the project sits in.",
+    "state": "Two-letter state abbreviation.",
+    "lat": "Approximate locality latitude, or blank.",
+    "lon": "Approximate locality longitude, or blank.",
+    "size_mw": "Planned IT/critical load in MW, or blank.",
+    "acres": "Site acreage, or blank.",
+    "announced": "ISO date first publicly proposed, or blank.",
+    "rezoning_filed": "ISO date the rezoning/permit application was filed, or blank.",
+    "hearing_date": "ISO date of the next/decisive public hearing, or blank.",
+    "decided_date": "ISO date a terminal decision was reached, or blank.",
+    "outcome": "approved | denied | withdrawn | blank (blank = still live).",
+    "stage": "DERIVED status shown on the page (Hearing scheduled, Awaiting decision, In review, Proposed, Rumored, Approved, Under construction, Operating, Denied, Withdrawn, Blocked by ban).",
+    "days_to_hearing": "DERIVED days until the hearing (negative once past), or blank.",
+    "note": "One-line plain-language status.",
+    "source": "Primary URL backing the current status.",
+    "as_of": "ISO date the source was read, or blank.",
+    "verified": "true if a source is on record."
+  },
+  "projects": [
+    {
+      "id": "stokes-county-project-delta",
+      "name": "Project Delta",
+      "operator": "Engineered Land Solutions (ELS)",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Walnut Cove (Stokes County)",
+      "state": "NC",
+      "lat": 36.3,
+      "lon": -80.14,
+      "size_mw": "",
+      "acres": 1800,
+      "announced": "2025-11-01",
+      "rezoning_filed": "2026-07-20",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "Hyperscale data center on 1,800 acres near Dan River; 998 acres developable, rest is floodplain. Originally approved by commissioners Jan 2026 but rescinded in April after a lawsuit (SCSJ/SELC) challenged the public hearing notice. ELS reapplied in late July 2026. Planning board voted 5-2 to recommend denial on Aug 14, 2026. Commissioners make the final decision. Closed-loop cooling and possible on-site generation planned.",
+      "source": "http://www.thestokesnews.com/news/data-center-zoning-discussed-by-planning-board-denied-but-with-conditions/article_41f32903-1409-4a58-a955-7677c306befe.html",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-11-01",
+          "kind": "announcement",
+          "summary": "Project Delta hyperscale data center proposed near Walnut Cove.",
+          "source": "https://spectrumlocalnews.com/nc/charlotte/news/2026/01/12/stokes-county-proposed-data-center-creates-backlash"
+        },
+        {
+          "date": "2026-07-20",
+          "kind": "filing",
+          "summary": "ELS submits new conditional use application for Project Delta.",
+          "source": "https://myfox8.com/news/north-carolina/stokes/stokes-county-board-of-commissioners-speaks-out-after-voting-to-start-proposed-data-center-development-over-again-after-lawsuit/"
+        },
+        {
+          "date": "2026-08-14",
+          "kind": "vote",
+          "summary": "Planning board votes 5-2 to recommend denial of Project Delta conditional use application.",
+          "source": "https://www.publicradioeast.org/2026-08-14/planning-board-again-recommends-denial-of-stokes-data-center"
+        }
+      ]
+    },
+    {
+      "id": "qts-richmond-3",
+      "name": "QTS Richmond 3",
+      "operator": "",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Sandston (Henrico County)",
+      "state": "VA",
+      "lat": 37.52,
+      "lon": -77.33,
+      "size_mw": 144,
+      "acres": "",
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Under construction",
+      "days_to_hearing": null,
+      "note": "Epoch AI estimates ~144 MW.",
+      "source": "https://q.com/data-centers/richmond-3/",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2022-07-13",
+          "kind": "announcement",
+          "summary": "QTS announced acquisition of 200 acres at its Richmond Mega Data Center campus for an expansion of up to 240 MW across 1.5 million square feet of additional capacity at the White Oak Technology Park in Henrico County.",
+          "source": "https://www.prnewswire.com/news-releases/qts-richmond-mega-data-center-campus-earns-status-as-premier-global-interconnection-hub-301586093.html"
+        },
+        {
+          "date": "2022-12-13",
+          "kind": "construction",
+          "summary": "QTS blog post documented construction progress on two new multi-story data centers at Richmond 2 (DC1 at 36 MW and DC2 at 36 MW), noting QTS Richmond owns 200+ acres of land for future growth capacity.",
+          "source": "https://q.com/resources/new-builds-two-multi-story-data-centers-for-richmond-va/"
+        }
+      ]
+    },
+    {
+      "id": "google-bristow",
+      "name": "Google Bristow",
+      "operator": "Google",
+      "owner": "Google",
+      "tenant": "Google DeepMind",
+      "filing_llc": "",
+      "locality": "Bristow (Prince William County)",
+      "state": "VA",
+      "lat": 38.73,
+      "lon": -77.54,
+      "size_mw": 279,
+      "acres": "",
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Operating",
+      "days_to_hearing": null,
+      "note": "Chip types: TPU v5e,TPU v5p,TPU v6e,TPU v7. Epoch AI estimates ~279 MW.",
+      "source": "https://sustainability.google/reports/google-2026-environmental-report/",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2023-01-01",
+          "kind": "operational",
+          "summary": "Google's Prince William County data center campus in Bristow, a roughly 290,000-square-foot facility on the 250-acre Mango Farm site at 13001 Rollins Ford Road, was built and became operational in 2023, according to Virginia Business.",
+          "source": "https://virginiabusiness.com/google-investing-1b-in-va-data-center-campuses/"
+        },
+        {
+          "date": "2024-04-26",
+          "kind": "announcement",
+          "summary": "Google announced a $1 billion investment to expand its Virginia data centers, including its newly opened Prince William County campus and two Loudoun County sites, bringing total Virginia investment to over $4.2 billion; Governor Youngkin attended the announcement at Google's Reston headquarters.",
+          "source": "https://wtop.com/virginia/2024/04/google-announces-1b-for-data-center-expansion-in-loudoun-prince-william-counties/"
+        }
+      ]
+    },
+    {
+      "id": "archbald-i-llc-archbald-ii-llc-unnamed-data-centers-archbald-borough-pa",
+      "name": "Unnamed Data Centers",
+      "operator": "Archbald I LLC / Archbald II LLC",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "Archbald I LLC / Archbald II LLC",
+      "locality": "Archbald Borough (Lackawanna County)",
+      "state": "PA",
+      "lat": 41.52458,
+      "lon": -75.553656,
+      "size_mw": "",
+      "acres": "",
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Rumored",
+      "days_to_hearing": null,
+      "note": "On PA DEP's tracker as proposed — no permit applications received yet.",
+      "source": "https://gis.dep.pa.gov/DataCenterPermitTracker/",
+      "as_of": "2026-10-02",
+      "verified": true,
+      "events": []
+    },
+    {
+      "id": "red-oak-compass-campus",
+      "name": "Compass Datacenters Red Oak campus",
+      "operator": "Compass Datacenters",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Red Oak (Ellis County)",
+      "state": "TX",
+      "lat": 32.52,
+      "lon": -96.8,
+      "size_mw": "",
+      "acres": 830,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "2026-05-11",
+      "decided_date": "2026-05-12",
+      "outcome": "approved",
+      "stage": "Approved",
+      "days_to_hearing": null,
+      "note": "Red Oak City Council voted 4-1 to rezone ~830 acres of agricultural land ~20 miles south of Dallas to a planned development for a Compass data center campus of nearly a dozen buildings plus substations, after a marathon May 11 meeting that ran past midnight with 150+ residents present and ~1,600 petition signatures against; the planning and zoning board had recommended denial in late April. Conditions include lighting shields, decibel limits, a cryptocurrency-mining ban, closed-loop cooling with no city water draw, and $72 million in electric grid reinforcements; a 10-year, $2.82 million tax abatement passed on a separate 4-1 vote.",
+      "source": "https://www.dallasobserver.com/news/red-oak-data-center-meets-community-resistance-40674118/",
+      "as_of": "2026-08-14",
+      "verified": true,
+      "events": [
+        {
+          "date": "2020-01-29",
+          "kind": "announcement",
+          "summary": "Compass Datacenters announced it purchased 225 acres in Red Oak, Texas for a second Dallas-area campus capable of delivering 350+ MW of IT load, with a 6 MW facility scheduled for Q2 2020 delivery.",
+          "source": "https://www.prnewswire.com/news-releases/compass-datacenters-adds-second-dallas-area-campus-300994816.html"
+        },
+        {
+          "date": "2026-04-27",
+          "kind": "vote",
+          "summary": "Red Oak's Planning and Zoning Commission voted 3-2 to recommend denial of the rezoning request for the proposed 830-acre Compass data center campus after a lengthy hearing with large community turnout.",
+          "source": "https://www.elliscountypress.com/news/red-oak-rezones-land-data-center-campus-despite-protests"
+        },
+        {
+          "date": "2026-05-12",
+          "kind": "vote",
+          "summary": "City council approved the rezoning 4-1 around midnight following the May 11 meeting, with a separate 4-1 vote approving a tax abatement; over 150 residents attended and the council held an hour-long executive session before voting.",
+          "source": "https://www.fox4news.com/news/red-oak-data-center-city-council-protest"
+        }
+      ]
+    },
+    {
+      "id": "sabey-decatur-township-in",
+      "name": "Sabey Decatur Township",
+      "operator": "Sabey Data Centers",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Decatur Township (Indianapolis)",
+      "state": "IN",
+      "lat": "",
+      "lon": "",
+      "size_mw": 250,
+      "acres": 130,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "approved",
+      "stage": "Approved",
+      "days_to_hearing": null,
+      "note": "Two-building, 900,000+ sq ft, $4B campus near Camby Rd/Kentucky Ave. Approved by Metropolitan Development Commission in March 2026 via industrial-zoning adjustment; ~90 residents protested. Residents later sued; case helped drive Indianapolis's data-center moratorium push.",
+      "source": "https://mirrorindy.org/sabey-data-centers-decatur-downship-indianapolis-john-dillon-josh-bain/",
+      "as_of": "",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-12-18",
+          "kind": "announcement",
+          "summary": "Seattle-based Sabey Data Centers sought city approval for a roughly 130-acre, two-building data center campus on industrially-zoned land near Camby Road and Kentucky Avenue in Decatur Township, telling residents the project could generate more than $20M/year in property tax revenue at full buildout.",
+          "source": "https://mirrorindy.org/decatur-township-data-center-proposal-southside-indianapolis-ai/"
+        },
+        {
+          "date": "2026-01-29",
+          "kind": "hearing",
+          "summary": "The Metropolitan Development Commission's hearing examiner held a petition hearing on Sabey's request for a variance of use to allow the data center campus on industrially-zoned land in Decatur Township.",
+          "source": "https://www.wfyi.org/news/articles/decatur-township-data-center-sabey-variance"
+        },
+        {
+          "date": "2026-03-18",
+          "kind": "vote",
+          "summary": "The Indianapolis Metropolitan Development Commission voted to approve Sabey's variance-of-use request for a $4B, two-building, 900,000+ sq ft, ~250MW data center campus on 130 acres, making it Indianapolis's first hyperscale data center.",
+          "source": "https://www.wthr.com/article/news/local/decatur-township-data-center-proposal-approved-by-indianapolis-metropolitan-development-commission/531-3f96eee2-4942-46de-9774-e306b03b6b2e"
+        }
+      ]
+    },
+    {
+      "id": "burkhalter-road-statesboro-ga",
+      "name": "Burkhalter Road data center (4AM Development)",
+      "operator": "",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "4AM Development, LLC",
+      "locality": "Statesboro (Bulloch County)",
+      "state": "GA",
+      "lat": 32.45,
+      "lon": -81.78,
+      "size_mw": "",
+      "acres": 26.5,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "2026-08-18",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Awaiting decision",
+      "days_to_hearing": -50,
+      "note": "Two-story 230,000 sq ft data center plus a 32,000 sq ft substation on ~26.5 acres at 6539 Burkhalter Road (R-4 residential to Office & Business rezoning). Planning Commission recommended approval 5-1; City Council decides Aug 18, 2026. Bulloch County, separately, has been extending data-center moratoriums.",
+      "source": "https://www.wtoc.com/2026/08/04/statesboro-planning-commission-backs-proposed-data-center-rezoning-5-1-vote/",
+      "as_of": "2026-08-07",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-08-29",
+          "kind": "filing",
+          "summary": "On August 29, 2025, 4AM Development LLC acquired the roughly 27-acre Burkhalter Road parcel from Habersham Development Group in a zero-dollar transfer.",
+          "source": "https://www.statesboroherald.com/local/developers-seek-to-build-data-center-on-burkhalter-rd-inside-statesboros-edge/"
+        },
+        {
+          "date": "2026-08-04",
+          "kind": "vote",
+          "summary": "Statesboro Planning Commission voted 5-1 to recommend approval of 4AM Development LLC's rezoning of ~26.5 acres at 6539 Burkhalter Road (chair dissenting), with a condition dedicating a 10-ft frontage strip for future road work.",
+          "source": "https://www.wtoc.com/2026/08/04/statesboro-planning-commission-backs-proposed-data-center-rezoning-5-1-vote/"
+        },
+        {
+          "date": "2026-08-18",
+          "kind": "meeting",
+          "summary": "Statesboro City Council scheduled to consider the rezoning request - the decisive vote.",
+          "source": "https://www.statesboroherald.com/local/statesboro-city-planning-board-recommends-zoning-change-for-burkhalter-rd-data-center/"
+        }
+      ]
+    },
+    {
+      "id": "pw-digital-gateway-va",
+      "name": "PW Digital Gateway",
+      "operator": "Compass Datacenters / QTS",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Prince William County",
+      "state": "VA",
+      "lat": 38.72,
+      "lon": -77.55,
+      "size_mw": "",
+      "acres": 2100,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "2026-04-01",
+      "outcome": "withdrawn",
+      "stage": "Withdrawn",
+      "days_to_hearing": null,
+      "note": "Approved in 2023 (4-3-1) but the rezoning was judicially voided over defective hearing notice; county and developer dropped their appeals in 2026, ending the project as approved.",
+      "source": "https://northernvirginiamag.com/news/2026/07/08/prince-william-county-votes-against-massive-data-center-plan/",
+      "as_of": "2026-08-07",
+      "verified": true,
+      "events": [
+        {
+          "date": "2022-11-02",
+          "kind": "vote",
+          "summary": "Prince William Board of Supervisors voted 5-2 to approve the comprehensive plan amendment (CPA2021-00004) changing roughly 2,100 acres of the rural crescent to technology/flex zoning, after a 14-hour meeting that began the evening of November 1.",
+          "source": "https://www.potomaclocal.com/2022/11/02/supervisors-approve-prince-william-digital-gateway-comp-plan-amendment/"
+        },
+        {
+          "date": "2023-12-13",
+          "kind": "vote",
+          "summary": "Prince William Board of Supervisors approved the rezoning 4-3-1 after a ~27-hour public hearing - roughly 2,100 acres / 23M sq ft along Pageland Lane, billed as the world's largest data center corridor.",
+          "source": "https://www.datacenterfrontier.com/site-selection/article/33016383/rezoning-for-pw-digital-gateway-data-centers-approved-by-virginias-prince-william-county-supervisors"
+        },
+        {
+          "date": "2026-04-01",
+          "kind": "filing",
+          "summary": "County dropped its legal appeals (~$1.7M spent defending the project) and the developer withdrew, terminating the approved Digital Gateway (April 2026).",
+          "source": "https://northernvirginiamag.com/news/2026/07/08/prince-william-county-votes-against-massive-data-center-plan/"
+        }
+      ]
+    },
+    {
+      "id": "talen-montour-pa",
+      "name": "Talen Energy Montour Data Center",
+      "operator": "Talen Energy",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Montour County",
+      "state": "PA",
+      "lat": "",
+      "lon": "",
+      "size_mw": "",
+      "acres": 800,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "denied",
+      "stage": "Denied",
+      "days_to_hearing": null,
+      "note": "County commissioners unanimously denied Talen Energy's request to rezone 800+ acres from agricultural to industrial for a data center plus power-plant expansion, after a grassroots group gathered ~3,000 petition signatures.",
+      "source": "https://www.foodandwaterwatch.org/2026/02/10/montour-county-pa-commissioners-reject-rezone-for-data-center/",
+      "as_of": "",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-08-01",
+          "kind": "announcement",
+          "summary": "Concerned Citizens of Montour County formed with four members after Talen's rezoning request became public; its first town hall days later drew about 120 people.",
+          "source": "https://www.publicsource.org/datacenters-pittsburgh-pennsylvania-energy-resistance-environment/"
+        },
+        {
+          "date": "2025-08-18",
+          "kind": "filing",
+          "summary": "Talen Energy submitted a rezoning petition to Montour County covering roughly 870 acres in Anthony and Derry Townships, seeking to change land from agricultural to industrial near its Montour Steam Electric Station for a data center and power-plant expansion.",
+          "source": "https://www.datacenterdynamics.com/en/news/talen-energy-seeks-to-rezone-land-in-montour-county-pennsylvania-for-data-center-project/"
+        },
+        {
+          "date": "2025-11-19",
+          "kind": "hearing",
+          "summary": "The Montour County Planning Commission voted to recommend against Talen Energy's request to rezone roughly 870 acres of agricultural land to industrial.",
+          "source": "https://www.foodandwaterwatch.org/2025/11/20/montour-pa-planning-commission-recommends-against-rezone-for-data-center/"
+        }
+      ]
+    },
+    {
+      "id": "meta-leap-lebanon-in",
+      "name": "Meta Lebanon / LEAP Data Center Campus",
+      "operator": "Meta",
+      "owner": "",
+      "tenant": "Meta",
+      "filing_llc": "",
+      "locality": "Boone County",
+      "state": "IN",
+      "lat": 40.0492,
+      "lon": -86.4642,
+      "size_mw": 1000,
+      "acres": 1500,
+      "announced": "2026-02-11",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Proposed",
+      "days_to_hearing": null,
+      "note": "1500-acre, 1GW, $10B+ Meta campus at the LEAP Lebanon Innovation District. Multiple sources (WISH-TV, WRTV, Data Center Dynamics, IndyStar) place this site on land annexed into the City of Lebanon as part of the state-sponsored LEAP district -- NOT unincorporated Boone County and NOT the Town of Advance. This conflicts with the task baseline description citing the Town of Advance; flagging for the tracker maintainer to reconcile (see research_notes). Either way, all reporting agrees this project is exempt from the county's unincorporated-land moratorium. First proposed publicly around Nov 2024 (~$800M), then expanded to the current $10B/1GW scope announced Feb 2026.",
+      "source": "https://www.wishtv.com/news/politics/boone-county-indiana-approves-moratorium-on-new-data-centers/",
+      "as_of": "2026-09-02",
+      "verified": true,
+      "events": [
+        {
+          "date": "2024-11-25",
+          "kind": "announced",
+          "summary": "Meta proposes ~$800 million data center in Lebanon, Indiana.",
+          "source": "https://www.wishtv.com/"
+        },
+        {
+          "date": "2026-02-11",
+          "kind": "announced",
+          "summary": "Meta officially announces expanded $10B, 1GW data center campus at LEAP District in Lebanon.",
+          "source": "https://www.ibj.com/"
+        },
+        {
+          "date": "2026-06-15",
+          "kind": "moratorium",
+          "summary": "Boone County passes a 1-year moratorium on new data centers in unincorporated county land; county officials and press confirm this does not affect the Meta LEAP/Lebanon project because it sits on annexed City of Lebanon land, not unincorporated county land.",
+          "source": "https://boonecounty.in.gov/2026/06/15/19190/"
+        }
+      ]
+    },
+    {
+      "id": "abei-energy-data-center-starke-in",
+      "name": "Abei Energy data center proposal (rezoning request)",
+      "operator": "Abei Energy (data center division)",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Starke County",
+      "state": "IN",
+      "lat": 41.335,
+      "lon": -86.62,
+      "size_mw": "",
+      "acres": "",
+      "announced": "2025-11-03",
+      "rezoning_filed": "2025-11-03",
+      "hearing_date": "2025-11-12",
+      "decided_date": "",
+      "outcome": "moratorium",
+      "stage": "Blocked by ban",
+      "days_to_hearing": null,
+      "note": "Chicago-based Abei Energy's data center division emailed the Starke County Plan Commission asking about rezoning two parcels from Agricultural to Industrial. County officials disclosed the inquiry to residents on 2025-11-03; Abei was placed on the Plan Commission's 2025-11-12 agenda. Exact parcels, acreage, and project size were never disclosed publicly. The county drafted a hyperscale data center moratorium ordinance in direct response and adopted it (Ordinance 2025-37) on 2025-12-15, before Abei's proposal advanced to a rezoning vote -- so this project's outcome is 'moratorium' (blocked by the county's own timeout), not a formal denial.",
+      "source": "https://wkvi.com/2025/11/starke-county-commissioners-discuss-data-centers-with-citizens/",
+      "as_of": "2026-09-02",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-12-04",
+          "kind": "recommendation",
+          "summary": "Starke County Plan Commission unanimously recommends a 12-month moratorium on hyperscale data center applications to the Board of Commissioners.",
+          "source": "https://www.wndu.com/2025/12/05/starke-county-planning-commission-approves-one-year-data-center-moratorium/"
+        },
+        {
+          "date": "2025-12-15",
+          "kind": "ordinance-adopted",
+          "summary": "Board of Commissioners adopts Ordinance 2025-37, a 12-month moratorium on permits for hyperscale (>5,000 sq ft) data centers in unincorporated Starke County, by a 3-0 vote.",
+          "source": "https://wsbt.com/news/local/starke-county-board-of-commissioners-approve-12-month-ban-on-data-center-projects"
+        }
+      ]
+    },
+    {
+      "id": "project-marvel-bessemer-al",
+      "name": "Project Marvel",
+      "operator": "Logistics Land Investment",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Bessemer",
+      "state": "AL",
+      "lat": 33.4,
+      "lon": -86.95,
+      "size_mw": "",
+      "acres": 700,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "$14B, 700-acre campus; rezoning delayed amid opposition from residents and county officials.",
+      "source": "",
+      "as_of": "",
+      "verified": false,
+      "events": [
+        {
+          "date": "2025-03-01",
+          "kind": "announcement",
+          "summary": "Project Marvel first reported: a 4.5M-sq-ft, ~700-acre, 18-building hyperscale data center campus proposed for Bessemer by Logistics Land Investment LLC (affiliate of Atlanta TPA Group).",
+          "source": "https://www.datacenterdynamics.com/en/news/project-marvel-data-center-could-come-to-bessemer-alabama/"
+        },
+        {
+          "date": "2025-03-18",
+          "kind": "vote",
+          "summary": "Bessemer Planning and Zoning Commission votes unanimously to add data centers as a permitted zoning use, clearing a procedural path for the project.",
+          "source": "https://www.bhamwiki.com/w/Bessemer_Hyperscale_Data_Center"
+        },
+        {
+          "date": "2025-11-18",
+          "kind": "rezoning",
+          "summary": "Bessemer City Council votes 5-2 to adopt the rezoning ordinance converting roughly 700 acres from A-1 Agricultural to I-1 Light Industrial, approving Project Marvel over transparency and environmental objections.",
+          "source": "https://www.wbrc.com/2025/11/19/bessemer-city-council-approves-149-billion-data-center-project-despite-transparency-concerns/"
+        }
+      ]
+    }
+  ]
+}

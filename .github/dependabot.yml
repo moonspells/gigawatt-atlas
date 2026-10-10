@@ -1,0 +1,41 @@
+# Dependabot version updates (10 §8.5).
+# Release age: Dependabot's uv updater runs `uv lock` on this repo's pyproject.toml, so uv applies
+# `[tool.uv] exclude-newer = "24 hours"` there: it locks only files at least a day old. A security
+# fix published today does not resolve yet (security updates skip `cooldown`, not this): expect an
+# update error on the alert, or a lock with an older version, rather than a PR that turns green
+# later; re-running checks changes nothing. Once the fix is a day old, a later Dependabot run or a
+# hand-made `uv lock --upgrade-package <pkg>` PR picks it up. CI's lint job rejects any uv.lock file
+# less than 24 hours old, so a hand-made lock cannot skip the delay either.
+# Urgent fix (the advisory is exploited, or reaches a release or the upload job): in one PR add
+# `exclude-newer-package = { <pkg> = "<RFC 3339 time after its upload>" }` under [tool.uv] (plus an
+# entry for any dependency it needs that is also new), run `uv lock`, check that only those
+# packages changed, and remove the entries in a PR the next day.
+# Review the uv.lock diff of every PR: new transitive packages, sdist-only packages, and git or URL
+# sources are reasons to stop.
+# required-version in pyproject.toml has no upper bound: Dependabot runs a newer uv (0.12.x) than
+# CI's pinned 0.11.32 and refuses to run under a cap.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule: { interval: weekly, day: monday, time: '05:13', timezone: Etc/UTC }
+    # 7 days, as zizmor's dependabot-cooldown audit asks (it fails the required `zizmor` check below 7).
+    # boto3 releases almost daily, so the cooldown also keeps that noise down.
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+    open-pull-requests-limit: 5
+    groups:
+      dev-tooling:
+        dependency-type: development
+        update-types: ['minor', 'patch']
+      minor-patch:
+        update-types: ['minor', 'patch']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday, time: '05:13', timezone: Etc/UTC }
+    # Dependabot bumps the action SHAs, not the setup-uv `version:` input; uv itself is bumped by hand
+    # in ci.yml, publish.yml and basemap.yml together, with `[tool.uv] required-version` as its floor.
+    cooldown: { default-days: 7 }
+    groups:
+      actions: { patterns: ['*'] }
