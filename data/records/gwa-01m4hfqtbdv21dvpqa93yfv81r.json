@@ -1,0 +1,215 @@
+{
+  "aliases": [],
+  "buildings": [],
+  "canonical_name": "Google Storey County (Storey County, NV)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:51:55.265980Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "epoch_name": [
+      "Google Storey County"
+    ]
+  },
+  "field_meta": {
+    "/location": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "stated",
+      "source_ids": [
+        "s2"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqtbdv21dvpqa93yfv81r",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:51:55.265980Z",
+  "location": {
+    "city": null,
+    "county_fips": "32029",
+    "county_name": "Storey",
+    "geocode_method": "county_centroid",
+    "geometry_ref": null,
+    "lat": 39.439458,
+    "lon": -119.532471,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "county",
+    "state_abbr": "NV",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": [
+      {
+        "name": "Google",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ]
+  },
+  "phases": [
+    {
+      "building_sqft": null,
+      "capacity": {
+        "backup_generation_mw": null,
+        "facility_mw": 214.0,
+        "it_mw": 161.0,
+        "mw_as_stated": null,
+        "utility_request_mw": null
+      },
+      "expected_in_service": null,
+      "name": "Google Storey County (buildings tracked by Epoch AI)",
+      "phase_id": "google-storey-county",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  ],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "Epoch AI",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/capacity",
+        "/cooling",
+        "/money",
+        "/status_history"
+      ],
+      "text_sha256": null,
+      "title": "AI data centers",
+      "url": "https://epoch.ai/data/ai-data-centers"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "Google",
+      "quote": "Since the Henderson, Nevada data center was built in 2019, and the Storey County, Nevada data center was built in 2021, Google has invested more than $6 billion in the state.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-08T05:12:26Z",
+      "source_type": "company_release",
+      "supports": [
+        "/location"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://datacenters.google/locations/storey-county-nevada/"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "ndep-onbase.nv.gov",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "government_record",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Air quality permit application listing emergency generators and a small \"R&D\" fuel cell plant",
+      "url": "https://ndep-onbase.nv.gov/api/Document/AeFo%C3%89pjclbkomJ7CWpPryLOjA6FQT9HFrkSuMWbMXTpKCzSR%C3%81W1f8zzFhGhik1iZCcNSpuTRRqNXD1inrrpBxtA%3D/"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": null,
+      "published_at": null,
+      "publisher": "aterio.io",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Aterio",
+      "url": "https://www.aterio.io/"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2023-08-30"
+      },
+      "event": "other",
+      "note": "Building 1, which was first operational in 2021, has increased power capacity by about 75%. This is based on the expansion of the dry cooling array from 4 to 7 columns (seen on Google Earth). Its bac…",
+      "phase_id": "google-storey-county",
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:51:55.265980Z"
+}

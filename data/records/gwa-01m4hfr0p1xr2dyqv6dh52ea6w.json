@@ -1,0 +1,225 @@
+{
+  "aliases": [],
+  "buildings": [],
+  "canonical_name": "Metrobloks Martindale-Brightwood (Indianapolis, IN)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:52:35.702411Z",
+  "dates": {
+    "announced": {
+      "precision": "year",
+      "value": "2025"
+    },
+    "application_filed": {
+      "precision": "year",
+      "value": "2025"
+    },
+    "approved": {
+      "precision": "day",
+      "value": "2026-05-04"
+    },
+    "first_reported": {
+      "precision": "year",
+      "value": "2025"
+    }
+  },
+  "evidence_level": "reported",
+  "external_ids": {
+    "aigridwatch_id": [
+      "metrobloks-martindale-brightwood-in"
+    ]
+  },
+  "field_meta": {
+    "/location": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    },
+    "/site/acreage": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfr0p1xr2dyqv6dh52ea6w",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:52:35.702411Z",
+  "location": {
+    "city": "Indianapolis",
+    "county_fips": null,
+    "county_name": null,
+    "geocode_method": "source_coords",
+    "geometry_ref": null,
+    "lat": 39.79,
+    "lon": -86.13,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "locality",
+    "state_abbr": "IN",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [
+      {
+        "name": "Metrobloks",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [
+      {
+        "name": "Metrobloks",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "project",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": 14.0,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "AI GridWatch",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:52:35.702411Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/location",
+        "/capacity",
+        "/site",
+        "/status_history"
+      ],
+      "text_sha256": null,
+      "title": "AI GridWatch data center project tracker",
+      "url": "https://aigridwatch.com/projects"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "mirrorindy.org",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:52:35.702411Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://mirrorindy.org/martindale-brightwood-metrobloks-data-center-east-indianapolis/"
+    }
+  ],
+  "status": "permitted",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "year",
+        "value": "2025"
+      },
+      "event": "announced",
+      "note": null,
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "announced"
+    },
+    {
+      "as_of": {
+        "precision": "year",
+        "value": "2025"
+      },
+      "event": "application_filed",
+      "note": null,
+      "phase_id": null,
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "proposed"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-05-04"
+      },
+      "event": "approved",
+      "note": null,
+      "phase_id": null,
+      "planned": false,
+      "seq": 3,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "permitted"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:52:35.702411Z"
+}

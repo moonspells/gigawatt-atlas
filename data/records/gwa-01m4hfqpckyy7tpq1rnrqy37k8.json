@@ -1,0 +1,484 @@
+{
+  "aliases": [
+    {
+      "kind": "osm_name",
+      "name": "Switch12",
+      "source_ids": [
+        "s3"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Switch Las Vegas 7",
+      "source_ids": [
+        "s4"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Switch Las Vegas 8",
+      "source_ids": [
+        "s5"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Switch Las Vegas 9",
+      "source_ids": [
+        "s6"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Switch Las Vegas 11",
+      "source_ids": [
+        "s7"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Switch Las Vegas 10",
+      "source_ids": [
+        "s8"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Switch Edge 1",
+      "source_ids": [
+        "s9"
+      ]
+    }
+  ],
+  "buildings": [
+    {
+      "name": "Switch12",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/172739950",
+      "sqft": null
+    },
+    {
+      "name": "Switch Las Vegas 7",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/172739953",
+      "sqft": null
+    },
+    {
+      "name": "Switch Las Vegas 8",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/585998677",
+      "sqft": null
+    },
+    {
+      "name": "Switch Las Vegas 9",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/585998678",
+      "sqft": null
+    },
+    {
+      "name": "Switch Las Vegas 11",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/617194689",
+      "sqft": null
+    },
+    {
+      "name": "Switch Las Vegas 10",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/984796364",
+      "sqft": null
+    },
+    {
+      "name": "Switch Edge 1",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/1017048670",
+      "sqft": null
+    }
+  ],
+  "canonical_name": "Switch Las Vegas 12 (Enterprise, NV)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:50:24.684005Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "osm": [
+      "way/172739950",
+      "way/172739953",
+      "way/585998677",
+      "way/585998678",
+      "way/617194689",
+      "way/984796364",
+      "way/1017048670",
+      "way/1314355599"
+    ],
+    "pnnl_im3": [
+      "building@-115.210245,36.059925",
+      "building@-115.213292,36.061739",
+      "building@-115.213682,36.059149",
+      "building@-115.214137,36.055885",
+      "building@-115.214258,36.057834",
+      "building@-115.219628,36.055708",
+      "building@-115.223061,36.055586",
+      "campus@-115.210389,36.058130"
+    ]
+  },
+  "field_meta": {
+    "/location/county_fips": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": []
+    },
+    "/status": {
+      "confidence": 0.6,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqpckyy7tpq1rnrqy37k8",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:50:24.684005Z",
+  "location": {
+    "city": "Enterprise",
+    "county_fips": "32003",
+    "county_name": "Clark",
+    "geocode_method": "osm",
+    "geometry_ref": "osm:way/1314355599",
+    "lat": 36.0579919,
+    "lon": -115.2103279,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": "89118",
+    "precision": "footprint",
+    "state_abbr": "NV",
+    "street": "7135 South Decatur Boulevard"
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [
+      {
+        "name": "Switch",
+        "org_id": null,
+        "source_ids": [
+          "s3",
+          "s4",
+          "s5",
+          "s6",
+          "s7"
+        ]
+      }
+    ],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [
+    {
+      "building_sqft": null,
+      "capacity": {
+        "backup_generation_mw": null,
+        "facility_mw": null,
+        "it_mw": null,
+        "mw_as_stated": null,
+        "utility_request_mw": null
+      },
+      "expected_in_service": null,
+      "name": "Operating in OpenStreetMap: Switch12, Switch Las Vegas 7, Switch Las Vegas 8 and 4 more",
+      "phase_id": "osm-operating",
+      "source_ids": [
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9"
+      ]
+    },
+    {
+      "building_sqft": null,
+      "capacity": {
+        "backup_generation_mw": null,
+        "facility_mw": null,
+        "it_mw": null,
+        "mw_as_stated": null,
+        "utility_request_mw": null
+      },
+      "expected_in_service": null,
+      "name": "Under construction in OpenStreetMap: Switch Las Vegas 12",
+      "phase_id": "osm-under_construction",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  ],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": 11.1,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/location/city",
+        "/location/county_name",
+        "/location/state_abbr"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1314355599",
+      "url": "https://www.openstreetmap.org/way/1314355599"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "Pacific Northwest National Laboratory (IM3)",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/site"
+      ],
+      "text_sha256": null,
+      "title": "IM3 Open Source Data Center Atlas v2026.02.09, web map file im3_datacenter_centroids.geojson",
+      "url": "https://doi.org/10.57931/3017294"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/0"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/172739950",
+      "url": "https://www.openstreetmap.org/way/172739950"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/street",
+        "/location/postcode",
+        "/buildings/1"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/172739953",
+      "url": "https://www.openstreetmap.org/way/172739953"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/2"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/585998677",
+      "url": "https://www.openstreetmap.org/way/585998677"
+    },
+    {
+      "archive_url": null,
+      "id": "s6",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/3"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/585998678",
+      "url": "https://www.openstreetmap.org/way/585998678"
+    },
+    {
+      "archive_url": null,
+      "id": "s7",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/4"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/617194689",
+      "url": "https://www.openstreetmap.org/way/617194689"
+    },
+    {
+      "archive_url": null,
+      "id": "s8",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/5"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/984796364",
+      "url": "https://www.openstreetmap.org/way/984796364"
+    },
+    {
+      "archive_url": null,
+      "id": "s9",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/6"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1017048670",
+      "url": "https://www.openstreetmap.org/way/1017048670"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-09"
+      },
+      "event": "other",
+      "note": "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot date, not the date it began",
+      "phase_id": "osm-operating",
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9"
+      ],
+      "status": "operating"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-09"
+      },
+      "event": "other",
+      "note": "Tagged landuse=construction in OpenStreetMap; status per 07 §4.7, seen on the snapshot date, not the date it began",
+      "phase_id": "osm-under_construction",
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "under_construction"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:50:24.684005Z"
+}

@@ -1,0 +1,249 @@
+{
+  "aliases": [],
+  "buildings": [],
+  "canonical_name": "xAI QTS Atlanta (Atlanta, GA)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:51:55.265980Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "epoch_name": [
+      "xAI QTS Atlanta"
+    ]
+  },
+  "field_meta": {
+    "/location": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": [
+        "s1"
+      ]
+    },
+    "/phases/0/capacity": {
+      "confidence": 0.85,
+      "conflicts": [
+        {
+          "note": "Epoch AI's modelled IT power and power, not a stated figure",
+          "source_ids": [
+            "s1"
+          ],
+          "value": {
+            "facility_mw": 24.0,
+            "it_mw": 17.32971
+          }
+        }
+      ],
+      "method": "stated",
+      "source_ids": [
+        "s3"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqtdbes2shmde75cw3z0s",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:51:55.265980Z",
+  "location": {
+    "city": "Atlanta",
+    "county_fips": "13121",
+    "county_name": "Fulton",
+    "geocode_method": "census_geocoder",
+    "geometry_ref": null,
+    "lat": 33.775662,
+    "lon": -84.422576,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": "30318",
+    "precision": "address",
+    "state_abbr": "GA",
+    "street": "1025 Jefferson St NW"
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": [
+      {
+        "name": "SpaceXAI",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ]
+  },
+  "phases": [
+    {
+      "building_sqft": null,
+      "capacity": {
+        "backup_generation_mw": null,
+        "facility_mw": 20.0,
+        "it_mw": null,
+        "mw_as_stated": "20 megawatts of total power",
+        "utility_request_mw": null
+      },
+      "expected_in_service": null,
+      "name": "xAI QTS Atlanta (buildings tracked by Epoch AI)",
+      "phase_id": "xai-qts-atlanta",
+      "source_ids": [
+        "s1",
+        "s3"
+      ]
+    }
+  ],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "Epoch AI",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/location",
+        "/capacity",
+        "/cooling",
+        "/money",
+        "/status_history"
+      ],
+      "text_sha256": null,
+      "title": "AI data centers",
+      "url": "https://epoch.ai/data/ai-data-centers"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "developfultoncounty.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Develop Fulton bond fact sheet: X Corp Generative AI Equipment Project (Jan 23, 2024)",
+      "url": "https://www.developfultoncounty.com/meetings-and-minutes_239_547601452.pdf"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "Business Insider",
+      "quote": "The data center architect estimated the Atlanta facility would require 20 megawatts of total power, which it could realistically get from the power grid.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T21:58:01Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Business Insider: Elon Musk's new Atlanta data center for xAI has $700 million in AI equipment",
+      "url": "https://www.businessinsider.com/xai-elon-musk-x-new-atlanta-data-center-2025-2"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": null,
+      "published_at": null,
+      "publisher": "fortune.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Fortune: Elon Musk's xAI is sharing X's equipment at its Atlanta data center (Jan 24, 2025)",
+      "url": "https://fortune.com/2025/01/24/elon-musk-xai-sharing-x-equipment-gpus-datacenter-georgia-tax-breaks-documents/"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2024-01-23"
+      },
+      "event": "other",
+      "note": "X Corp's $700 million investment in AI training hardware for the Atlanta data center is approved by the Development Authority of Fulton County (bond resolution fact sheet).",
+      "phase_id": "xai-qts-atlanta",
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "under_construction"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2025-02-20"
+      },
+      "event": "other",
+      "note": "xAI's GPU cluster in the QTS Atlanta building at 1025 Jefferson Street NW is operational around this time. This date is a tentative estimate: Business Insider reported the buildout in February 2025,…",
+      "phase_id": "xai-qts-atlanta",
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:51:55.265980Z"
+}

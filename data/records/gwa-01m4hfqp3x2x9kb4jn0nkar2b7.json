@@ -1,0 +1,398 @@
+{
+  "aliases": [
+    {
+      "kind": "osm_name",
+      "name": "QTS Manassas DC5",
+      "source_ids": [
+        "s1"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "QTS Manassas DC6",
+      "source_ids": [
+        "s3"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "QTS Manassas DC1",
+      "source_ids": [
+        "s4"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "QTS Manassas DC3",
+      "source_ids": [
+        "s5"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "QTS Manassas DC2",
+      "source_ids": [
+        "s6"
+      ]
+    }
+  ],
+  "buildings": [
+    {
+      "name": "QTS Manassas DC6",
+      "phase_id": "osm-under_construction",
+      "ref": "osm:node/14209729093",
+      "sqft": null
+    },
+    {
+      "name": "QTS Manassas DC5",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/1090837713",
+      "sqft": null
+    },
+    {
+      "name": "QTS Manassas DC1",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/1134911642",
+      "sqft": null
+    },
+    {
+      "name": "QTS Manassas DC3",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/1287260558",
+      "sqft": null
+    },
+    {
+      "name": "QTS Manassas DC2",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/1464257784",
+      "sqft": null
+    }
+  ],
+  "canonical_name": "QTS Manassas (Innovation, VA)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:50:24.684005Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "osm": [
+      "node/14209729093",
+      "way/1090837713",
+      "way/1134911642",
+      "way/1287260558",
+      "way/1464257784"
+    ],
+    "pnnl_im3": [
+      "building@-77.510797,38.753195",
+      "building@-77.512523,38.752551",
+      "building@-77.513111,38.752517",
+      "building@-77.517447,38.754693"
+    ]
+  },
+  "field_meta": {
+    "/location/county_fips": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": []
+    },
+    "/status": {
+      "confidence": 0.6,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1",
+        "s4",
+        "s5",
+        "s6"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqp3x2x9kb4jn0nkar2b7",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:50:24.684005Z",
+  "location": {
+    "city": "Innovation",
+    "county_fips": "51153",
+    "county_name": "Prince William",
+    "geocode_method": "osm",
+    "geometry_ref": "osm:way/1090837713",
+    "lat": 38.7525684,
+    "lon": -77.5133768,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": "20110",
+    "precision": "footprint",
+    "state_abbr": "VA",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [
+      {
+        "name": "Quality Technology Services",
+        "org_id": null,
+        "source_ids": [
+          "s1",
+          "s3",
+          "s4",
+          "s5",
+          "s6"
+        ]
+      }
+    ],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [
+    {
+      "building_sqft": null,
+      "capacity": {
+        "backup_generation_mw": null,
+        "facility_mw": null,
+        "it_mw": null,
+        "mw_as_stated": null,
+        "utility_request_mw": null
+      },
+      "expected_in_service": null,
+      "name": "Operating in OpenStreetMap: QTS Manassas DC5, QTS Manassas DC1, QTS Manassas DC3 and 1 more",
+      "phase_id": "osm-operating",
+      "source_ids": [
+        "s1",
+        "s4",
+        "s5",
+        "s6"
+      ]
+    },
+    {
+      "building_sqft": null,
+      "capacity": {
+        "backup_generation_mw": null,
+        "facility_mw": null,
+        "it_mw": null,
+        "mw_as_stated": null,
+        "utility_request_mw": null
+      },
+      "expected_in_service": null,
+      "name": "Under construction in OpenStreetMap: QTS Manassas DC6",
+      "phase_id": "osm-under_construction",
+      "source_ids": [
+        "s3"
+      ]
+    }
+  ],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/location/city",
+        "/location/county_name",
+        "/location/state_abbr",
+        "/buildings/1"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1090837713",
+      "url": "https://www.openstreetmap.org/way/1090837713"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "Pacific Northwest National Laboratory (IM3)",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/site"
+      ],
+      "text_sha256": null,
+      "title": "IM3 Open Source Data Center Atlas v2026.02.09, web map file im3_datacenter_centroids.geojson",
+      "url": "https://doi.org/10.57931/3017294"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/0"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap node/14209729093",
+      "url": "https://www.openstreetmap.org/node/14209729093"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/location/postcode",
+        "/buildings/2"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1134911642",
+      "url": "https://www.openstreetmap.org/way/1134911642"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/location/postcode",
+        "/buildings/3"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1287260558",
+      "url": "https://www.openstreetmap.org/way/1287260558"
+    },
+    {
+      "archive_url": null,
+      "id": "s6",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/location/postcode",
+        "/buildings/4"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1464257784",
+      "url": "https://www.openstreetmap.org/way/1464257784"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-09"
+      },
+      "event": "other",
+      "note": "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot date, not the date it began",
+      "phase_id": "osm-operating",
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1",
+        "s4",
+        "s5",
+        "s6"
+      ],
+      "status": "operating"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-09"
+      },
+      "event": "other",
+      "note": "Tagged construction:telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot date, not the date it began",
+      "phase_id": "osm-under_construction",
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s3"
+      ],
+      "status": "under_construction"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:50:24.684005Z"
+}

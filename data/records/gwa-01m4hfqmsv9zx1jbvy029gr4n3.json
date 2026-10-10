@@ -1,0 +1,488 @@
+{
+  "aliases": [
+    {
+      "kind": "osm_name",
+      "name": "Intergate Seattle East Building 3",
+      "source_ids": [
+        "s1"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Intergate Seattle East Building 2",
+      "source_ids": [
+        "s4"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Intergate Seattle East Building 1",
+      "source_ids": [
+        "s5"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Intergate Seattle East Building 5",
+      "source_ids": [
+        "s6"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Intergate Seattle East Building 4",
+      "source_ids": [
+        "s7"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Intergate Seattle West Building C",
+      "source_ids": [
+        "s8"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Intergate Seattle West Building B",
+      "source_ids": [
+        "s9"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Intergate Seattle West Building A",
+      "source_ids": [
+        "s10"
+      ]
+    }
+  ],
+  "buildings": [
+    {
+      "name": "Intergate Seattle East Building 2",
+      "phase_id": null,
+      "ref": "osm:way/205724881",
+      "sqft": null
+    },
+    {
+      "name": "Intergate Seattle East Building 1",
+      "phase_id": null,
+      "ref": "osm:way/205724885",
+      "sqft": null
+    },
+    {
+      "name": "Intergate Seattle East Building 5",
+      "phase_id": null,
+      "ref": "osm:way/293211683",
+      "sqft": null
+    },
+    {
+      "name": "Intergate Seattle East Building 3",
+      "phase_id": null,
+      "ref": "osm:way/293211686",
+      "sqft": null
+    },
+    {
+      "name": "Intergate Seattle East Building 4",
+      "phase_id": null,
+      "ref": "osm:way/293211687",
+      "sqft": null
+    },
+    {
+      "name": "Intergate Seattle West Building C",
+      "phase_id": null,
+      "ref": "osm:way/337126739",
+      "sqft": null
+    },
+    {
+      "name": "Intergate Seattle West Building B",
+      "phase_id": null,
+      "ref": "osm:way/337126741",
+      "sqft": null
+    },
+    {
+      "name": "Intergate Seattle West Building A",
+      "phase_id": null,
+      "ref": "osm:way/337126742",
+      "sqft": null
+    }
+  ],
+  "canonical_name": "Sabey Data Centers Intergate Seattle (Tukwila, WA)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:50:24.684005Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "osm": [
+      "way/205724881",
+      "way/205724885",
+      "way/293211683",
+      "way/293211686",
+      "way/293211687",
+      "way/337126739",
+      "way/337126741",
+      "way/337126742"
+    ],
+    "pnnl_im3": [
+      "building@-122.288194,47.494860",
+      "building@-122.288858,47.493411",
+      "building@-122.289736,47.491920",
+      "building@-122.290302,47.493556",
+      "building@-122.290570,47.495031",
+      "building@-122.293320,47.492148",
+      "building@-122.293684,47.493076",
+      "building@-122.294407,47.494131"
+    ]
+  },
+  "field_meta": {
+    "/location/county_fips": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": []
+    },
+    "/status": {
+      "confidence": 0.6,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqmsv9zx1jbvy029gr4n3",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:50:24.684005Z",
+  "location": {
+    "city": "Tukwila",
+    "county_fips": "53033",
+    "county_name": "King",
+    "geocode_method": "osm",
+    "geometry_ref": "osm:way/293211686",
+    "lat": 47.4935175,
+    "lon": -122.2911466,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": "98168",
+    "precision": "footprint",
+    "state_abbr": "WA",
+    "street": "3333 South 120th Place"
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [
+      {
+        "name": "Sabey Data Centers",
+        "org_id": null,
+        "source_ids": [
+          "s1",
+          "s3",
+          "s5",
+          "s6",
+          "s8",
+          "s9",
+          "s10"
+        ]
+      }
+    ],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/location/city",
+        "/location/county_name",
+        "/location/state_abbr",
+        "/location/street",
+        "/location/postcode",
+        "/buildings/3"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/293211686",
+      "url": "https://www.openstreetmap.org/way/293211686"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "Pacific Northwest National Laboratory (IM3)",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/site"
+      ],
+      "text_sha256": null,
+      "title": "IM3 Open Source Data Center Atlas v2026.02.09, web map file im3_datacenter_centroids.geojson",
+      "url": "https://doi.org/10.57931/3017294"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "PeeringDB",
+      "quote": "\"address1\": \"3433 South 120th Place\", \"address2\": \"Sabey Intergate East Building 4\"",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T13:18:55Z",
+      "source_type": "community_report",
+      "supports": [
+        "/canonical_name"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://www.peeringdb.com/api/fac/4226"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/0"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/205724881",
+      "url": "https://www.openstreetmap.org/way/205724881"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/1"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/205724885",
+      "url": "https://www.openstreetmap.org/way/205724885"
+    },
+    {
+      "archive_url": null,
+      "id": "s6",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/2"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/293211683",
+      "url": "https://www.openstreetmap.org/way/293211683"
+    },
+    {
+      "archive_url": null,
+      "id": "s7",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/4"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/293211687",
+      "url": "https://www.openstreetmap.org/way/293211687"
+    },
+    {
+      "archive_url": null,
+      "id": "s8",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/5"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/337126739",
+      "url": "https://www.openstreetmap.org/way/337126739"
+    },
+    {
+      "archive_url": null,
+      "id": "s9",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/6"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/337126741",
+      "url": "https://www.openstreetmap.org/way/337126741"
+    },
+    {
+      "archive_url": null,
+      "id": "s10",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/7"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/337126742",
+      "url": "https://www.openstreetmap.org/way/337126742"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-09"
+      },
+      "event": "other",
+      "note": "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot date, not the date it began",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:50:24.684005Z"
+}

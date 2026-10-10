@@ -1,0 +1,254 @@
+{
+  "aliases": [],
+  "buildings": [],
+  "canonical_name": "CoreWeave Denton TX (Denton, TX)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:51:55.265980Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "epoch_name": [
+      "CoreWeave Denton TX"
+    ]
+  },
+  "field_meta": {
+    "/location": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "stated",
+      "source_ids": [
+        "s2"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqt9ctrjp1hw0er4z1a0k",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:51:55.265980Z",
+  "location": {
+    "city": "Denton",
+    "county_fips": null,
+    "county_name": null,
+    "geocode_method": "gazetteer",
+    "geometry_ref": null,
+    "lat": 33.217449,
+    "lon": -97.141346,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "locality",
+    "state_abbr": "TX",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": [
+      {
+        "name": "CoreWeave",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      },
+      {
+        "name": "OpenAI",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ]
+  },
+  "phases": [
+    {
+      "building_sqft": null,
+      "capacity": {
+        "backup_generation_mw": null,
+        "facility_mw": 367.0,
+        "it_mw": 262.0,
+        "mw_as_stated": null,
+        "utility_request_mw": null
+      },
+      "expected_in_service": null,
+      "name": "CoreWeave Denton TX (buildings tracked by Epoch AI)",
+      "phase_id": "coreweave-denton-tx",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  ],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "Epoch AI",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/capacity",
+        "/cooling",
+        "/money",
+        "/status_history"
+      ],
+      "text_sha256": null,
+      "title": "AI data centers",
+      "url": "https://epoch.ai/data/ai-data-centers"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "Core Scientific",
+      "quote": "Core Scientific’s north Dallas data center in Denton, Texas, is near one of the fastest-growing data center markets in North America.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T07:27:11Z",
+      "source_type": "company_release",
+      "supports": [
+        "/location"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://corescientific.com/high-density-data-centers/denton-texas/"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "investors.corescientific.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "company_release",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Core Scientific - CoreWeave Announce 1.2B expansion in Denton, TX",
+      "url": "https://investors.corescientific.com/news-events/press-releases/detail/110/core-scientific-and-coreweave-announce-1-2-billion-expansion-at-denton-tx-site"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": null,
+      "published_at": null,
+      "publisher": "fool.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "TMF - Core Scientific Q4 2025 Earnings Transcript",
+      "url": "https://www.fool.com/earnings/call-transcripts/2026/03/02/core-scientific-corz-q4-2025-earnings-transcript/"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": null,
+      "published_at": null,
+      "publisher": "wsj.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "WSJ - plans to rent to OpenAI",
+      "url": "https://www.wsj.com/tech/ai/coreweave-stock-market-ai-bubble-a3c8c321"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2024-11"
+      },
+      "event": "other",
+      "note": "Construction start - The Texas Department of Licensing and Regulation reports Core Scientific is converting existing Bitcoin mining buildings into AI data centers, planning to build AROUND the existi…",
+      "phase_id": "coreweave-denton-tx",
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "under_construction"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2025-05-31"
+      },
+      "event": "other",
+      "note": "First 8 MW billable tranche dedicated to AI starts running at the site, with another 40 scheduled by the end of the quarter.",
+      "phase_id": "coreweave-denton-tx",
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:51:55.265980Z"
+}

@@ -1,0 +1,231 @@
+{
+  "aliases": [],
+  "buildings": [],
+  "canonical_name": "Google Midlothian (Midlothian, TX)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:51:55.265980Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "epoch_name": [
+      "Google Midlothian"
+    ]
+  },
+  "field_meta": {
+    "/location": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "stated",
+      "source_ids": [
+        "s2"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqtba9vpt10c2kmw4x8ys",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:51:55.265980Z",
+  "location": {
+    "city": "Midlothian",
+    "county_fips": "48139",
+    "county_name": "Ellis",
+    "geocode_method": "gazetteer",
+    "geometry_ref": null,
+    "lat": 32.468198,
+    "lon": -96.990724,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "locality",
+    "state_abbr": "TX",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": [
+      {
+        "name": "Google",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ]
+  },
+  "phases": [
+    {
+      "building_sqft": null,
+      "capacity": {
+        "backup_generation_mw": null,
+        "facility_mw": 123.0,
+        "it_mw": 103.0,
+        "mw_as_stated": null,
+        "utility_request_mw": null
+      },
+      "expected_in_service": null,
+      "name": "Google Midlothian (buildings tracked by Epoch AI)",
+      "phase_id": "google-midlothian",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  ],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "Epoch AI",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/capacity",
+        "/cooling",
+        "/money",
+        "/status_history"
+      ],
+      "text_sha256": null,
+      "title": "AI data centers",
+      "url": "https://epoch.ai/data/ai-data-centers"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "Google",
+      "quote": "The Lone Star State is home to two of our data center locations in Midlothian and Red Oak in Ellis County, Texas.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T07:17:23Z",
+      "source_type": "company_release",
+      "supports": [
+        "/location",
+        "/phases"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://datacenters.google/locations/texas/"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "ecode360.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "government_record",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Site Map and Permit",
+      "url": "https://ecode360.com/MI6405/laws/LF1665983.pdf"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": null,
+      "published_at": null,
+      "publisher": "archive-stream.granicus.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "government_record",
+      "supports": [],
+      "text_sha256": null,
+      "title": "City Council Presentation",
+      "url": "https://archive-stream.granicus.com/OnDemand/_definst_/mp4:swagitVideo/midlothiantx/eefcd9e0-4c12-41ba-986a-165a20124c72.mp4/playlist.m3u8"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2023-11-28"
+      },
+      "event": "other",
+      "note": "Visible land clearing around the area for Building 1",
+      "phase_id": "google-midlothian",
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "under_construction"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-04-19"
+      },
+      "event": "other",
+      "note": "Building 1 is probably mostly operational despite some cooling towers yet to be installed. In the original building permit Google only expected to build 6 new cooling towers, but they've extended the…",
+      "phase_id": "google-midlothian",
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:51:55.265980Z"
+}

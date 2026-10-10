@@ -1,0 +1,230 @@
+{
+  "aliases": [],
+  "buildings": [],
+  "canonical_name": "CoreWeave Muskogee OK (Muskogee County, OK)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:51:55.265980Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "epoch_name": [
+      "CoreWeave Muskogee OK"
+    ]
+  },
+  "field_meta": {
+    "/location": {
+      "confidence": 0.95,
+      "conflicts": [],
+      "method": "stated",
+      "source_ids": [
+        "s2"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqtdmzcq39vrwvwnvr9t9",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:51:55.265980Z",
+  "location": {
+    "city": null,
+    "county_fips": "40101",
+    "county_name": "Muskogee",
+    "geocode_method": "county_centroid",
+    "geometry_ref": null,
+    "lat": 35.560237,
+    "lon": -95.420202,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "county",
+    "state_abbr": "OK",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": [
+      {
+        "name": "CoreWeave",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ]
+  },
+  "phases": [
+    {
+      "building_sqft": null,
+      "capacity": {
+        "backup_generation_mw": null,
+        "facility_mw": null,
+        "it_mw": null,
+        "mw_as_stated": null,
+        "utility_request_mw": null
+      },
+      "expected_in_service": null,
+      "name": "CoreWeave Muskogee OK (buildings tracked by Epoch AI)",
+      "phase_id": "coreweave-muskogee-ok",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  ],
+  "purpose": "unknown",
+  "record_type": "project",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "Epoch AI",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/capacity",
+        "/cooling",
+        "/money",
+        "/status_history"
+      ],
+      "text_sha256": null,
+      "title": "AI data centers",
+      "url": "https://epoch.ai/data/ai-data-centers"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "Oklahoma Department of Environmental Quality",
+      "quote": "the Core Scientific MSK1 & MSK2 facility, located Section 15, Township 14N, Range 18E, Muskogee County, Oklahoma",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T07:23:43Z",
+      "source_type": "government_record",
+      "supports": [
+        "/location"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://applications.deq.ok.gov/permitspublic/storedpermits/9138.pdf"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "investors.corescientific.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "company_release",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Core Scientific ground breaking announcement",
+      "url": "https://investors.corescientific.com/news-events/press-releases/detail/99/core-scientific-and-port-muskogee-break-ground-on-100-mw-hpc-data-center"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": null,
+      "published_at": null,
+      "publisher": "portmuskogee.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Port Muskogee ground breaking announcement",
+      "url": "https://www.portmuskogee.com/core-scientific-and-port-muskogee-break-ground-on-100-mw-hpc-data-center/"
+    }
+  ],
+  "status": "under_construction",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2024-11-18"
+      },
+      "event": "other",
+      "note": "Core Scientific, CoreWeave, and Port Muskogee publicly announce groundbreaking for the 100 MW Muskogee HPC data center. Core Scientific says the site will provide about 70 MW of critical IT load for…",
+      "phase_id": "coreweave-muskogee-ok",
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "under_construction"
+    },
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2026-12"
+      },
+      "event": "energized",
+      "note": "Estimating building 1 is operational by the end of the year, judging from the building currently completed, the completed power substation to the southwest. The surrounding yard work/construction wil…",
+      "phase_id": "coreweave-muskogee-ok",
+      "planned": true,
+      "seq": 2,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:51:55.265980Z"
+}

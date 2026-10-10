@@ -1,0 +1,194 @@
+{
+  "aliases": [
+    {
+      "kind": "filing_llc",
+      "name": "Hexa Builders LLC",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  ],
+  "buildings": [],
+  "canonical_name": "Hexa Builders data center (Black Horse Pike) (Monroe Township, NJ)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:52:35.702411Z",
+  "dates": {
+    "application_filed": {
+      "precision": "month",
+      "value": "2026-04"
+    },
+    "first_reported": {
+      "precision": "day",
+      "value": "2026-01-08"
+    }
+  },
+  "evidence_level": "reported",
+  "external_ids": {
+    "aigridwatch_id": [
+      "hexa-monroe-township-nj"
+    ]
+  },
+  "field_meta": {
+    "/location": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfr081afq6fared3bdbezb",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:52:35.702411Z",
+  "location": {
+    "city": null,
+    "county_fips": "34015",
+    "county_name": "Gloucester",
+    "geocode_method": "source_coords",
+    "geometry_ref": null,
+    "lat": 39.68,
+    "lon": -74.99,
+    "municipality": "Monroe Township",
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "locality",
+    "state_abbr": "NJ",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [
+      {
+        "name": "Hexa Builders LLC",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ],
+    "operator": [],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "project",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "AI GridWatch",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:52:35.702411Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/location",
+        "/capacity",
+        "/site",
+        "/status_history"
+      ],
+      "text_sha256": null,
+      "title": "AI GridWatch data center project tracker",
+      "url": "https://aigridwatch.com/projects"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "wjrz.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:52:35.702411Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://wjrz.com/2026/07/30/hexa-files-300m-lawsuit-against-monroe-township-over-data-center-prohibition/"
+    }
+  ],
+  "status": "proposed",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-01-08"
+      },
+      "event": "first_reported",
+      "note": "Earliest report in AI GridWatch's event log (meeting)",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "announced"
+    },
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2026-04"
+      },
+      "event": "application_filed",
+      "note": null,
+      "phase_id": null,
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "proposed"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:52:35.702411Z"
+}

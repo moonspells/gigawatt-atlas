@@ -1,0 +1,308 @@
+{
+  "aliases": [],
+  "buildings": [],
+  "canonical_name": "Colossus 1 (Memphis, TN)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": 425.0,
+    "it_mw": 340.0,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:51:55.265980Z",
+  "dates": {
+    "construction_start": {
+      "precision": "day",
+      "value": "2024-04-24"
+    },
+    "first_reported": {
+      "precision": "day",
+      "value": "2024-04-24"
+    },
+    "operating_since": {
+      "precision": "day",
+      "value": "2024-08-11"
+    }
+  },
+  "evidence_level": "reported",
+  "external_ids": {
+    "epoch_name": [
+      "Colossus 1"
+    ]
+  },
+  "field_meta": {
+    "/capacity/facility_mw": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    },
+    "/capacity/it_mw": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    },
+    "/location": {
+      "confidence": 0.95,
+      "conflicts": [],
+      "method": "stated",
+      "source_ids": [
+        "s2"
+      ]
+    },
+    "/money/investment_usd": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqt97aw0zxkfw6ch16pnw",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:51:55.265980Z",
+  "location": {
+    "city": "Memphis",
+    "county_fips": null,
+    "county_name": null,
+    "geocode_method": "gazetteer",
+    "geometry_ref": null,
+    "lat": 35.109164,
+    "lon": -89.968511,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "locality",
+    "state_abbr": "TN",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": 2025,
+    "investment_basis": "estimate",
+    "investment_usd": 12879880000.0
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": [
+      {
+        "name": "SpaceXAI",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      },
+      {
+        "name": "Anthropic",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ]
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "Epoch AI",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/capacity",
+        "/cooling",
+        "/money",
+        "/status_history"
+      ],
+      "text_sha256": null,
+      "title": "AI data centers",
+      "url": "https://epoch.ai/data/ai-data-centers"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "U.S. Senate Committee on Environment and Public Works",
+      "quote": "In April 2025, thermal imagery revealed more than 30 unpermitted gas turbines at the company’s Colossus 1 data center in South Memphis, Tennessee",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T07:26:26Z",
+      "source_type": "government_record",
+      "supports": [
+        "/location"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://www.epw.senate.gov/public/_cache/files/d/d/ddb47040-2070-4947-b9e4-33ebdeec63b2/8E78983C37084D41FBF7C84A1316686A668FC405556F6995C9CA8E3253FC8386.letter-to-epa-re-xai.pdf"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "drive.google.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "May 2025 Electricity Provider Disclosure",
+      "url": "https://drive.google.com/file/d/17WAFThn95X85ebzA_e19R1zYycwFzAl2/view?usp=sharing"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": null,
+      "published_at": null,
+      "publisher": "scribd.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "government_record",
+      "supports": [],
+      "text_sha256": null,
+      "title": "July 2025 Permit for Gas Turbines",
+      "url": "https://www.scribd.com/document/883601734/01156-01PC-070225-Permit"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": null,
+      "published_at": null,
+      "publisher": "cdn.arstechnica.net",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Southern Environmental Law Center Gas Permit Appeal, with additional satellite images",
+      "url": "https://cdn.arstechnica.net/wp-content/uploads/2025/07/NAACP-and-YGGs-xAI-Air-Permit-Appeal-7-15-2025.pdf"
+    },
+    {
+      "archive_url": null,
+      "id": "s6",
+      "license": null,
+      "published_at": null,
+      "publisher": "archive.is",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Disclosure on X (formerly Twitter) by Elon Musk of the breakdown of GPUs",
+      "url": "https://archive.is/oHQSA"
+    },
+    {
+      "archive_url": null,
+      "id": "s7",
+      "license": null,
+      "published_at": null,
+      "publisher": "anthropic.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Anthropic announcement",
+      "url": "https://www.anthropic.com/news/higher-limits-spacex"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2024-04-24"
+      },
+      "event": "construction_start",
+      "note": "Epoch AI's first observation, not a dated report: Construction starts with a road added on site, retrofitting a former Electrolux building.",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "under_construction"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2024-08-11"
+      },
+      "event": "energized",
+      "note": "First significant/useful training workload on 25k H100s.",
+      "phase_id": null,
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:51:55.265980Z"
+}

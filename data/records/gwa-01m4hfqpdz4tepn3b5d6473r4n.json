@@ -1,0 +1,307 @@
+{
+  "aliases": [
+    {
+      "kind": "osm_name",
+      "name": "CloudHQ LC1",
+      "source_ids": [
+        "s3"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "CloudHQ LC2",
+      "source_ids": [
+        "s4"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "CloudHQ LC3",
+      "source_ids": [
+        "s5"
+      ]
+    }
+  ],
+  "buildings": [
+    {
+      "name": "CloudHQ LC1",
+      "phase_id": null,
+      "ref": "osm:way/794147654",
+      "sqft": null
+    },
+    {
+      "name": "CloudHQ LC2",
+      "phase_id": null,
+      "ref": "osm:way/794147655",
+      "sqft": null
+    },
+    {
+      "name": "CloudHQ LC3",
+      "phase_id": null,
+      "ref": "osm:way/1443187163",
+      "sqft": null
+    }
+  ],
+  "canonical_name": "CloudHQ Ashburn Campus (Ashburn, VA)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": 558.0,
+    "it_mw": 320.0,
+    "mw_as_stated": "OSM it_power: CloudHQ LC1 144 MW; CloudHQ LC2 96 MW; CloudHQ LC3 80 MW | OSM input:electricity: CloudHQ LC1 264 MW; CloudHQ LC2 162 MW; CloudHQ LC3 132 MW",
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:50:24.684005Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "osm": [
+      "way/794147654",
+      "way/794147655",
+      "way/1343774537",
+      "way/1443187163"
+    ],
+    "pnnl_im3": [
+      "building@-77.460405,39.011212",
+      "building@-77.462457,39.011764",
+      "building@-77.462785,39.010157"
+    ]
+  },
+  "field_meta": {
+    "/capacity/facility_mw": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s3",
+        "s4",
+        "s5"
+      ]
+    },
+    "/capacity/it_mw": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s3",
+        "s4",
+        "s5"
+      ]
+    },
+    "/location/county_fips": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": []
+    },
+    "/status": {
+      "confidence": 0.6,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s3",
+        "s4",
+        "s5"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqpdz4tepn3b5d6473r4n",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:50:24.684005Z",
+  "location": {
+    "city": "Ashburn",
+    "county_fips": "51107",
+    "county_name": "Loudoun",
+    "geocode_method": "osm",
+    "geometry_ref": "osm:way/1343774537",
+    "lat": 39.0109315,
+    "lon": -77.4619922,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": "20147",
+    "precision": "footprint",
+    "state_abbr": "VA",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [
+      {
+        "name": "CloudHQ",
+        "org_id": null,
+        "source_ids": [
+          "s3",
+          "s4",
+          "s5"
+        ]
+      }
+    ],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/location/city",
+        "/location/county_name",
+        "/location/state_abbr"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1343774537",
+      "url": "https://www.openstreetmap.org/way/1343774537"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "Pacific Northwest National Laboratory (IM3)",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/site"
+      ],
+      "text_sha256": null,
+      "title": "IM3 Open Source Data Center Atlas v2026.02.09, web map file im3_datacenter_centroids.geojson",
+      "url": "https://doi.org/10.57931/3017294"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/postcode",
+        "/capacity/mw_as_stated",
+        "/buildings/0"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/794147654",
+      "url": "https://www.openstreetmap.org/way/794147654"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/postcode",
+        "/capacity/mw_as_stated",
+        "/buildings/1"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/794147655",
+      "url": "https://www.openstreetmap.org/way/794147655"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/postcode",
+        "/capacity/mw_as_stated",
+        "/buildings/2"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1443187163",
+      "url": "https://www.openstreetmap.org/way/1443187163"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-09"
+      },
+      "event": "other",
+      "note": "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot date, not the date it began; start_date=2020 on way/794147654 is not read as the start of operation",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s3",
+        "s4",
+        "s5"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:50:24.684005Z"
+}

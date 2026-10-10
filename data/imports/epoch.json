@@ -1,0 +1,58 @@
+{
+  "atlas_version": "0.1.0",
+  "counts": {
+    "candidates": 73,
+    "conflicts": 0,
+    "held": 0,
+    "invalid": 0,
+    "new": 0,
+    "removed_upstream": 0,
+    "review": 18,
+    "unchanged": 73,
+    "updated": 0
+  },
+  "git_commit": "fe6999af68727fad497ded35289a26e4b5cc5c23",
+  "importer_version": "5",
+  "inputs": [
+    {
+      "bytes": 114113,
+      "etag": null,
+      "last_modified": null,
+      "license": "CC-BY-4.0",
+      "name": "epoch",
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "sha256": "0ce2b5e45705a7d2044e885a49d6030353b9336945c09e9ba0c6b598f2932043",
+      "upstream_version": null,
+      "url": "https://epoch.ai/data/data_centers/data_centers.zip"
+    }
+  ],
+  "metrics": {
+    "candidates": 73,
+    "capacities_cited": 2,
+    "census_cache_hits": 31,
+    "census_requests": 0,
+    "facility_statuses_cited": 1,
+    "first_observations": 15,
+    "first_reports_cited": 22,
+    "first_reports_noted": 2,
+    "geocode_failed": 2,
+    "location_address": 25,
+    "location_county": 2,
+    "location_override": 43,
+    "location_street": 3,
+    "milestones_cited": 2,
+    "missing_location": 0,
+    "overrides_unused": 0,
+    "overrides_used": 56,
+    "planned_events": 17,
+    "sites": 93,
+    "sites_in_shared_campuses": 4,
+    "timeline_rows": 548,
+    "timelines_held": 14,
+    "timelines_partial": 20,
+    "timelines_status_unknown": 0,
+    "us_sites": 77
+  },
+  "ran_at": "2026-10-09T09:51:55.265980Z",
+  "source": "epoch"
+}

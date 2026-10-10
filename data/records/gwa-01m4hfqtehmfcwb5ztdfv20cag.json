@@ -1,0 +1,271 @@
+{
+  "aliases": [
+    {
+      "kind": "codename",
+      "name": "Stargate",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  ],
+  "buildings": [],
+  "canonical_name": "OpenAI Stargate New Mexico (Doña Ana County, NM)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:51:55.265980Z",
+  "dates": {
+    "construction_start": {
+      "precision": "month",
+      "value": "2025-10"
+    },
+    "first_reported": {
+      "precision": "month",
+      "value": "2025-07"
+    }
+  },
+  "evidence_level": "reported",
+  "external_ids": {
+    "epoch_name": [
+      "OpenAI Stargate New Mexico"
+    ]
+  },
+  "field_meta": {
+    "/location": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "stated",
+      "source_ids": [
+        "s2"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqtehmfcwb5ztdfv20cag",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:51:55.265980Z",
+  "location": {
+    "city": null,
+    "county_fips": "35013",
+    "county_name": "Doña Ana",
+    "geocode_method": "county_centroid",
+    "geometry_ref": null,
+    "lat": 32.44648,
+    "lon": -106.837496,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "county",
+    "state_abbr": "NM",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": [
+      {
+        "name": "Oracle",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      },
+      {
+        "name": "OpenAI",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ]
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "project",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "Epoch AI",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/capacity",
+        "/cooling",
+        "/money",
+        "/status_history"
+      ],
+      "text_sha256": null,
+      "title": "AI data centers",
+      "url": "https://epoch.ai/data/ai-data-centers"
+    },
+    {
+      "archive_url": "https://web.archive.org/web/20260427210558/https://www.oracle.com/news/announcement/oracle-borderplex-and-bloom-energy-to-power-project-jupiter-with-fuel-cell-technology-2026-04-27/",
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "Oracle",
+      "quote": "Oracle and BorderPlex Digital Assets today announced Project Jupiter will utilize Bloom Energy fuel cells to fully power the AI data center campus in Doña Ana County, New Mexico.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T03:13:27Z",
+      "source_type": "company_release",
+      "supports": [
+        "/location"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://www.oracle.com/news/announcement/oracle-borderplex-and-bloom-energy-to-power-project-jupiter-with-fuel-cell-technology-2026-04-27/"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "projectjupitertogether.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Project Jupiter Website",
+      "url": "https://projectjupitertogether.com/"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": null,
+      "published_at": null,
+      "publisher": "drive.google.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "government_record",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Stormwater Permitting",
+      "url": "https://drive.google.com/file/d/1vVKvPogq2TkeFn7ibnp0GNqz8aB4tZXz/view?usp=sharing"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": null,
+      "published_at": null,
+      "publisher": "El Paso Matters",
+      "quote": "BorderPlex Digital Assets included this rendering of Project Jupiter in a presentation to a legislative committee in New Mexico in July.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T21:52:02Z",
+      "source_type": "news",
+      "supports": [
+        "/status_history"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://elpasomatters.org/2025/09/25/stargate-open-ai-oracle-project-jupiter-data-center-dona-ana-new-mexico-el-paso-texas/"
+    }
+  ],
+  "status": "under_construction",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2025-07"
+      },
+      "event": "first_reported",
+      "note": "The earliest dated report among the record's sources",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s5"
+      ],
+      "status": "announced"
+    },
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2025-10"
+      },
+      "event": "construction_start",
+      "note": "Construction and land clearing begins",
+      "phase_id": null,
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "under_construction"
+    },
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2028-12"
+      },
+      "event": "energized",
+      "note": "Estimated construction completion date of the site. Stormwater permitting says 2027-12-31 for stormwater construction to finish, but for a more conservative estimate and based on the current state of…",
+      "phase_id": null,
+      "planned": true,
+      "seq": 3,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:51:55.265980Z"
+}

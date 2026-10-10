@@ -1,0 +1,194 @@
+{
+  "aliases": [
+    {
+      "kind": "filing_llc",
+      "name": "The Stillwater Group, LLC",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  ],
+  "buildings": [],
+  "canonical_name": "Stillwater data center campus (Panhandle Road) (Lovejoy, GA)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": "AI GridWatch size_mw: 1250",
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:52:35.702411Z",
+  "dates": {
+    "cancelled": {
+      "precision": "day",
+      "value": "2026-08-06"
+    },
+    "first_reported": {
+      "precision": "month",
+      "value": "2025-12"
+    }
+  },
+  "evidence_level": "reported",
+  "external_ids": {
+    "aigridwatch_id": [
+      "lovejoy-panhandle-road-data-center"
+    ]
+  },
+  "field_meta": {
+    "/location": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfr0atk51899th65ra96em",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:52:35.702411Z",
+  "location": {
+    "city": "Lovejoy",
+    "county_fips": "13063",
+    "county_name": "Clayton",
+    "geocode_method": "source_coords",
+    "geometry_ref": null,
+    "lat": 33.44,
+    "lon": -84.31,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "locality",
+    "state_abbr": "GA",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [
+      {
+        "name": "The Stillwater Group, LLC",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ],
+    "operator": [],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "project",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "AI GridWatch",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:52:35.702411Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/location",
+        "/capacity",
+        "/site",
+        "/status_history"
+      ],
+      "text_sha256": null,
+      "title": "AI GridWatch data center project tracker",
+      "url": "https://aigridwatch.com/projects"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "atlantanewsfirst.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:52:35.702411Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://www.atlantanewsfirst.com/2026/08/07/proposal-clayton-county-data-center-withdrawn/"
+    }
+  ],
+  "status": "cancelled",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2025-12"
+      },
+      "event": "first_reported",
+      "note": "The filing month AI GridWatch's row states (no earlier report in its event log)",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "proposed"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-08-06"
+      },
+      "event": "withdrawn",
+      "note": null,
+      "phase_id": null,
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "cancelled"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:52:35.702411Z"
+}

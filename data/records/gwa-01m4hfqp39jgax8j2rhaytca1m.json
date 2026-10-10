@@ -1,0 +1,739 @@
+{
+  "aliases": [],
+  "buildings": [
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1073720208",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1073720209",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1073720210",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1073720211",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1073720212",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1073720213",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1073720214",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1073720215",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1073720216",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1073720217",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1073720218",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1073720219",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1073720220",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1073720221",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1287260560",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1287260561",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1565614265",
+      "sqft": null
+    },
+    {
+      "name": "Google",
+      "phase_id": null,
+      "ref": "osm:way/1565614266",
+      "sqft": null
+    }
+  ],
+  "canonical_name": "Google (Council Bluffs, IA)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:50:24.684005Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "osm": [
+      "way/1073720208",
+      "way/1073720209",
+      "way/1073720210",
+      "way/1073720211",
+      "way/1073720212",
+      "way/1073720213",
+      "way/1073720214",
+      "way/1073720215",
+      "way/1073720216",
+      "way/1073720217",
+      "way/1073720218",
+      "way/1073720219",
+      "way/1073720220",
+      "way/1073720221",
+      "way/1287260560",
+      "way/1287260561",
+      "way/1565614265",
+      "way/1565614266"
+    ],
+    "pnnl_im3": [
+      "building@-95.788678,41.173597",
+      "building@-95.792203,41.173595",
+      "building@-95.799948,41.175554",
+      "building@-95.800967,41.177483",
+      "building@-95.801119,41.175545",
+      "building@-95.801148,41.172611",
+      "building@-95.802224,41.175547",
+      "building@-95.802521,41.172640",
+      "building@-95.803215,41.177456",
+      "building@-95.803390,41.175544",
+      "building@-95.804024,41.172635",
+      "building@-95.804493,41.175543",
+      "building@-95.804857,41.177344",
+      "building@-95.805652,41.175540",
+      "building@-95.806380,41.177274",
+      "building@-95.806763,41.175540"
+    ]
+  },
+  "field_meta": {
+    "/location/county_fips": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": []
+    },
+    "/status": {
+      "confidence": 0.6,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11",
+        "s12",
+        "s13",
+        "s14",
+        "s15",
+        "s16",
+        "s17",
+        "s18",
+        "s19"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqp39jgax8j2rhaytca1m",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:50:24.684005Z",
+  "location": {
+    "city": "Council Bluffs",
+    "county_fips": "19155",
+    "county_name": "Pottawattamie",
+    "geocode_method": "osm",
+    "geometry_ref": "osm:way/1073720209",
+    "lat": 41.1747192,
+    "lon": -95.800527,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "footprint",
+    "state_abbr": "IA",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [
+      {
+        "name": "Google",
+        "org_id": null,
+        "source_ids": [
+          "s1",
+          "s3",
+          "s4",
+          "s5",
+          "s6",
+          "s7",
+          "s8",
+          "s9",
+          "s10",
+          "s11",
+          "s12",
+          "s13",
+          "s14",
+          "s15",
+          "s16",
+          "s17",
+          "s18",
+          "s19"
+        ]
+      }
+    ],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/location/city",
+        "/location/county_name",
+        "/location/state_abbr",
+        "/buildings/1"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1073720209",
+      "url": "https://www.openstreetmap.org/way/1073720209"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "Pacific Northwest National Laboratory (IM3)",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/site"
+      ],
+      "text_sha256": null,
+      "title": "IM3 Open Source Data Center Atlas v2026.02.09, web map file im3_datacenter_centroids.geojson",
+      "url": "https://doi.org/10.57931/3017294"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/0"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1073720208",
+      "url": "https://www.openstreetmap.org/way/1073720208"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/2"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1073720210",
+      "url": "https://www.openstreetmap.org/way/1073720210"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/3"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1073720211",
+      "url": "https://www.openstreetmap.org/way/1073720211"
+    },
+    {
+      "archive_url": null,
+      "id": "s6",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/4"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1073720212",
+      "url": "https://www.openstreetmap.org/way/1073720212"
+    },
+    {
+      "archive_url": null,
+      "id": "s7",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/5"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1073720213",
+      "url": "https://www.openstreetmap.org/way/1073720213"
+    },
+    {
+      "archive_url": null,
+      "id": "s8",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/6"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1073720214",
+      "url": "https://www.openstreetmap.org/way/1073720214"
+    },
+    {
+      "archive_url": null,
+      "id": "s9",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/7"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1073720215",
+      "url": "https://www.openstreetmap.org/way/1073720215"
+    },
+    {
+      "archive_url": null,
+      "id": "s10",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/8"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1073720216",
+      "url": "https://www.openstreetmap.org/way/1073720216"
+    },
+    {
+      "archive_url": null,
+      "id": "s11",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/9"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1073720217",
+      "url": "https://www.openstreetmap.org/way/1073720217"
+    },
+    {
+      "archive_url": null,
+      "id": "s12",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/10"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1073720218",
+      "url": "https://www.openstreetmap.org/way/1073720218"
+    },
+    {
+      "archive_url": null,
+      "id": "s13",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/11"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1073720219",
+      "url": "https://www.openstreetmap.org/way/1073720219"
+    },
+    {
+      "archive_url": null,
+      "id": "s14",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/12"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1073720220",
+      "url": "https://www.openstreetmap.org/way/1073720220"
+    },
+    {
+      "archive_url": null,
+      "id": "s15",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/13"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1073720221",
+      "url": "https://www.openstreetmap.org/way/1073720221"
+    },
+    {
+      "archive_url": null,
+      "id": "s16",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/14"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1287260560",
+      "url": "https://www.openstreetmap.org/way/1287260560"
+    },
+    {
+      "archive_url": null,
+      "id": "s17",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/15"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1287260561",
+      "url": "https://www.openstreetmap.org/way/1287260561"
+    },
+    {
+      "archive_url": null,
+      "id": "s18",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/16"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1565614265",
+      "url": "https://www.openstreetmap.org/way/1565614265"
+    },
+    {
+      "archive_url": null,
+      "id": "s19",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/buildings/17"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1565614266",
+      "url": "https://www.openstreetmap.org/way/1565614266"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-09"
+      },
+      "event": "other",
+      "note": "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot date, not the date it began",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11",
+        "s12",
+        "s13",
+        "s14",
+        "s15",
+        "s16",
+        "s17",
+        "s18",
+        "s19"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:50:24.684005Z"
+}

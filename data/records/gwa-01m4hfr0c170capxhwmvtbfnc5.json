@@ -1,0 +1,170 @@
+{
+  "aliases": [],
+  "buildings": [],
+  "canonical_name": "Compass Wakarusa Campus (Shawnee County, KS)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:52:35.702411Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "aigridwatch_id": [
+      "compass-wakarusa-ks"
+    ]
+  },
+  "field_meta": {
+    "/location": {
+      "confidence": 0.6,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": [
+        "s1"
+      ]
+    },
+    "/site/acreage": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfr0c170capxhwmvtbfnc5",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:52:35.702411Z",
+  "location": {
+    "city": null,
+    "county_fips": "20177",
+    "county_name": "Shawnee",
+    "geocode_method": "gazetteer",
+    "geometry_ref": null,
+    "lat": 38.893829,
+    "lon": -95.70491,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "locality",
+    "state_abbr": "KS",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [
+      {
+        "name": "Compass Datacenters",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "project",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": 600.0,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "AI GridWatch",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:52:35.702411Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/location",
+        "/capacity",
+        "/site",
+        "/status_history"
+      ],
+      "text_sha256": null,
+      "title": "AI GridWatch data center project tracker",
+      "url": "https://aigridwatch.com/projects"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "ksnt.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:52:35.702411Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://www.ksnt.com/news/local-news/company-submits-data-center-proposal-in-shawnee-county/"
+    }
+  ],
+  "status": "proposed",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-08"
+      },
+      "event": "other",
+      "note": "AI GridWatch stage 'In review', seen in its file on the file's date: the row has no as_of, so this is not the date the stage began",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "proposed"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:52:35.702411Z"
+}

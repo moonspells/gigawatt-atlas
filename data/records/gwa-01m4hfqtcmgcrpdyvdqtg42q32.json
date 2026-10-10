@@ -1,0 +1,322 @@
+{
+  "aliases": [
+    {
+      "kind": "phase_name",
+      "name": "Anthropic Lake Mariner",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  ],
+  "buildings": [],
+  "canonical_name": "Core42 Lake Mariner (Niagara County, NY)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:51:55.265980Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "epoch_name": [
+      "Core42 Lake Mariner",
+      "Anthropic Lake Mariner"
+    ]
+  },
+  "field_meta": {
+    "/location": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqtcmgcrpdyvdqtg42q32",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:51:55.265980Z",
+  "location": {
+    "city": null,
+    "county_fips": "36063",
+    "county_name": "Niagara",
+    "geocode_method": "census_geocoder",
+    "geometry_ref": null,
+    "lat": 43.34894,
+    "lon": -78.603357,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": "14012",
+    "precision": "address",
+    "state_abbr": "NY",
+    "street": "7725 Lake Rd"
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": [
+      {
+        "name": "Core42",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      },
+      {
+        "name": "G42",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      },
+      {
+        "name": "AI XPV Platform",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      },
+      {
+        "name": "Anthropic",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ]
+  },
+  "phases": [
+    {
+      "building_sqft": null,
+      "capacity": {
+        "backup_generation_mw": null,
+        "facility_mw": 58.0,
+        "it_mw": 58.0,
+        "mw_as_stated": null,
+        "utility_request_mw": null
+      },
+      "expected_in_service": null,
+      "name": "Core42 Lake Mariner (buildings tracked by Epoch AI)",
+      "phase_id": "core42-lake-mariner",
+      "source_ids": [
+        "s1"
+      ]
+    },
+    {
+      "building_sqft": null,
+      "capacity": {
+        "backup_generation_mw": null,
+        "facility_mw": 49.0,
+        "it_mw": 42.0,
+        "mw_as_stated": null,
+        "utility_request_mw": null
+      },
+      "expected_in_service": null,
+      "name": "Anthropic Lake Mariner (buildings tracked by Epoch AI)",
+      "phase_id": "anthropic-lake-mariner",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  ],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "Epoch AI",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/location",
+        "/capacity",
+        "/cooling",
+        "/money",
+        "/status_history"
+      ],
+      "text_sha256": null,
+      "title": "AI data centers",
+      "url": "https://epoch.ai/data/ai-data-centers"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "investors.terawulf.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "company_release",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Terawulf press release with details of Core42 lease for Buildings 1-2",
+      "url": "https://investors.terawulf.com/news-events/press-releases/detail/99/terawulf-to-deliver-over-70-mw-of-data-center"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "investors.terawulf.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "company_release",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Terawulf press release with details and timeline for Buildings 1-5",
+      "url": "https://investors.terawulf.com/news-events/press-releases/detail/132/terawulf-reports-fourth-quarter-and-full-year-2025-results"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": null,
+      "published_at": null,
+      "publisher": "datacenterdynamics.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "DCD article suggesting that Fluidstack will deploy Google TPUs at Lake Mariner",
+      "url": "https://www.datacenterdynamics.com/en/news/google-offers-its-tpus-to-ai-cloud-providers-report/"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": null,
+      "published_at": null,
+      "publisher": "anthropic.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Announcement of Anthropic-Fluidstack partnership, including data center(s) in New York",
+      "url": "https://www.anthropic.com/news/anthropic-invests-50-billion-in-american-ai-infrastructure"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2024-10"
+      },
+      "event": "other",
+      "note": "Land clearing begins for Building 1, also known as CB-1, the first large AI/HPC building on the site.",
+      "phase_id": "core42-lake-mariner",
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "under_construction"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2025-06-11"
+      },
+      "event": "other",
+      "note": "Land clearing begins for Building 1 (AKA CB3).",
+      "phase_id": "anthropic-lake-mariner",
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "under_construction"
+    },
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2025-10"
+      },
+      "event": "other",
+      "note": "Building 1 is operational. Based on Terawulf saying \"As of September 30, 2025, the site has energized 245 MW of Bitcoin-mining capacity and 22.5 MW of HPC capacity.\" The small \"Wulf Den\" building was…",
+      "phase_id": "core42-lake-mariner",
+      "planned": false,
+      "seq": 3,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "operating"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-05-31"
+      },
+      "event": "other",
+      "note": "Building 1 is operational. On February 26, Terawulf stated that CB3 was expected to be energized by mid-May 2026. A drone video commissioned from RAAD shows several cooling units operating on May 8.…",
+      "phase_id": "anthropic-lake-mariner",
+      "planned": false,
+      "seq": 4,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:51:55.265980Z"
+}

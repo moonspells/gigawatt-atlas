@@ -1,0 +1,307 @@
+{
+  "aliases": [],
+  "buildings": [],
+  "canonical_name": "Microsoft-Nebius New Jersey (Vineland, NJ)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": 70.0,
+    "it_mw": 50.0,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:51:55.265980Z",
+  "dates": {
+    "construction_start": {
+      "precision": "day",
+      "value": "2024-05-31"
+    },
+    "first_reported": {
+      "precision": "day",
+      "value": "2024-05-31"
+    },
+    "operating_since": {
+      "precision": "quarter",
+      "value": "2026-Q1"
+    }
+  },
+  "evidence_level": "reported",
+  "external_ids": {
+    "epoch_name": [
+      "Microsoft-Nebius New Jersey"
+    ]
+  },
+  "field_meta": {
+    "/capacity/facility_mw": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    },
+    "/capacity/it_mw": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    },
+    "/location": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": [
+        "s1"
+      ]
+    },
+    "/money/investment_usd": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqtcwatpms3ywf8gmsdpw",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:51:55.265980Z",
+  "location": {
+    "city": "Vineland",
+    "county_fips": "34011",
+    "county_name": "Cumberland",
+    "geocode_method": "census_geocoder",
+    "geometry_ref": null,
+    "lat": 39.428193,
+    "lon": -75.018457,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": "08361",
+    "precision": "address",
+    "state_abbr": "NJ",
+    "street": "3963 S Lincoln Ave"
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": 2025,
+    "investment_basis": "estimate",
+    "investment_usd": 1894100000.0
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": [
+      {
+        "name": "Nebius",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      },
+      {
+        "name": "Microsoft",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ]
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "Epoch AI",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/location",
+        "/capacity",
+        "/cooling",
+        "/money",
+        "/status_history"
+      ],
+      "text_sha256": null,
+      "title": "AI data centers",
+      "url": "https://epoch.ai/data/ai-data-centers"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "nebius.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Nebius: up to 300 MW capacity at new New Jersey data center",
+      "url": "https://nebius.com/newsroom/nebius-accelerates-us-expansion-adding-up-to-300-mw-capacity-at-new-data-center-in-new-jersey"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "datacentremagazine.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "DataOne and Nebius partner for 300 MW AI data center (Data Centre Magazine)",
+      "url": "https://datacentremagazine.com/articles/dataone-and-nebius-partner-for-new-300mw-ai-data-centre"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": null,
+      "published_at": null,
+      "publisher": "tomshardware.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Microsoft secures 100,000 NVIDIA GB300 via Nebius deal (Tom's Hardware)",
+      "url": "https://www.tomshardware.com/tech-industry/artificial-intelligence/microsoft-inks-usd33-billion-in-deals-with-neoclouds-like-nebius-coreweave-nebius-deal-alone-secures-100-000-nvidia-gb300-chips-for-internal-use"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": null,
+      "published_at": null,
+      "publisher": "linkedin.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "DataOne CEO on first 50 MW delivery to Nebius (LinkedIn)",
+      "url": "https://www.linkedin.com/feed/update/urn:li:activity:7367650153555591168/"
+    },
+    {
+      "archive_url": null,
+      "id": "s6",
+      "license": null,
+      "published_at": null,
+      "publisher": "capemaycountyherald.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Large data center nears completion in Vineland (Cape May County Herald)",
+      "url": "https://capemaycountyherald.com/article/large-data-center-nears-completion-in-vineland/"
+    },
+    {
+      "archive_url": null,
+      "id": "s7",
+      "license": null,
+      "published_at": null,
+      "publisher": "newsletter.semianalysis.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "SemiAnalysis: Stop Saying Half of 2026 US Datacenter Capacity Is Canceled",
+      "url": "https://newsletter.semianalysis.com/p/stop-saying-half-of-2026-us-datacenter"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2024-05-31"
+      },
+      "event": "construction_start",
+      "note": "Epoch AI's first observation, not a dated report: Land clearing begins for northern two buildings (Building 1-2).",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "under_construction"
+    },
+    {
+      "as_of": {
+        "precision": "quarter",
+        "value": "2026-Q1"
+      },
+      "event": "energized",
+      "note": "We estimate Building 1 became operational around early 2026 … SemiAnalysis estimated the full 50 MW was reached around January to February 2026",
+      "phase_id": null,
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:51:55.265980Z"
+}

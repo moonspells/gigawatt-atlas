@@ -1,0 +1,504 @@
+{
+  "aliases": [
+    {
+      "kind": "osm_name",
+      "name": "NTT VA3",
+      "source_ids": [
+        "s4"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "NTT VA5",
+      "source_ids": [
+        "s5"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "NTT VA4",
+      "source_ids": [
+        "s6"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "NTT VA6",
+      "source_ids": [
+        "s7"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "NTT VA8",
+      "source_ids": [
+        "s3",
+        "s10"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "NTT VA7",
+      "source_ids": [
+        "s9"
+      ]
+    }
+  ],
+  "buildings": [
+    {
+      "name": "NTT VA3",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/649365751",
+      "sqft": null
+    },
+    {
+      "name": "NTT VA5",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/793888429",
+      "sqft": null
+    },
+    {
+      "name": "NTT VA4",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/793888430",
+      "sqft": null
+    },
+    {
+      "name": "NTT VA6",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/1188691867",
+      "sqft": null
+    },
+    {
+      "name": "NTT VA8",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/1188691868",
+      "sqft": null
+    },
+    {
+      "name": "NTT VA7",
+      "phase_id": "osm-operating",
+      "ref": "osm:way/1556781864",
+      "sqft": null
+    },
+    {
+      "name": "NTT VA8",
+      "phase_id": "osm-under_construction",
+      "ref": "osm:way/1560827941",
+      "sqft": null
+    }
+  ],
+  "canonical_name": "NTT Ashburn Campus (Ashburn, VA)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": "OSM it_power: NTT VA3 16 MW; NTT VA5 32 MW; NTT VA4 32 MW; NTT VA7 36 MW | OSM input:electricity: NTT VA3 33 MW; NTT VA5 65 MW; NTT VA4 65 MW; NTT VA6 52 MW; NTT VA7 78 MW",
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:50:24.684005Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "osm": [
+      "way/649365745",
+      "way/649365751",
+      "way/793888429",
+      "way/793888430",
+      "way/1188691867",
+      "way/1188691868",
+      "way/1556781864",
+      "way/1560827941"
+    ],
+    "pnnl_im3": [
+      "building@-77.470376,39.017182",
+      "building@-77.472595,39.019869",
+      "building@-77.472614,39.018296",
+      "building@-77.473267,39.017102",
+      "building@-77.475531,39.020190",
+      "point@-77.471954,39.016014"
+    ]
+  },
+  "field_meta": {
+    "/location/county_fips": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": []
+    },
+    "/status": {
+      "confidence": 0.6,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqnfxf36xmtdh8bnpp0dx",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:50:24.684005Z",
+  "location": {
+    "city": "Ashburn",
+    "county_fips": "51107",
+    "county_name": "Loudoun",
+    "geocode_method": "osm",
+    "geometry_ref": "osm:way/649365745",
+    "lat": 39.0179614,
+    "lon": -77.471922,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": "20147",
+    "precision": "footprint",
+    "state_abbr": "VA",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [
+      {
+        "name": "NTT",
+        "org_id": null,
+        "source_ids": [
+          "s4",
+          "s5",
+          "s6",
+          "s7",
+          "s8",
+          "s9",
+          "s10"
+        ]
+      }
+    ],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [
+    {
+      "building_sqft": null,
+      "capacity": {
+        "backup_generation_mw": null,
+        "facility_mw": null,
+        "it_mw": null,
+        "mw_as_stated": null,
+        "utility_request_mw": null
+      },
+      "expected_in_service": null,
+      "name": "Operating in OpenStreetMap: NTT VA3, NTT VA5, NTT VA4 and 3 more",
+      "phase_id": "osm-operating",
+      "source_ids": [
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9"
+      ]
+    },
+    {
+      "building_sqft": null,
+      "capacity": {
+        "backup_generation_mw": null,
+        "facility_mw": null,
+        "it_mw": null,
+        "mw_as_stated": null,
+        "utility_request_mw": null
+      },
+      "expected_in_service": null,
+      "name": "Under construction in OpenStreetMap: NTT VA8",
+      "phase_id": "osm-under_construction",
+      "source_ids": [
+        "s10"
+      ]
+    }
+  ],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/location/city",
+        "/location/county_name",
+        "/location/state_abbr"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/649365745",
+      "url": "https://www.openstreetmap.org/way/649365745"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "Pacific Northwest National Laboratory (IM3)",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/site"
+      ],
+      "text_sha256": null,
+      "title": "IM3 Open Source Data Center Atlas v2026.02.09, web map file im3_datacenter_centroids.geojson",
+      "url": "https://doi.org/10.57931/3017294"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "Baxtel",
+      "quote": "44710 Gigabit Plz Operational Fully operational facility",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T21:35:31Z",
+      "source_type": "commercial_aggregator",
+      "supports": [
+        "/buildings/4"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://baxtel.com/data-center/ntt-va8"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/postcode",
+        "/capacity/mw_as_stated",
+        "/buildings/0"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/649365751",
+      "url": "https://www.openstreetmap.org/way/649365751"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/postcode",
+        "/capacity/mw_as_stated",
+        "/buildings/1"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/793888429",
+      "url": "https://www.openstreetmap.org/way/793888429"
+    },
+    {
+      "archive_url": null,
+      "id": "s6",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/postcode",
+        "/capacity/mw_as_stated",
+        "/buildings/2"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/793888430",
+      "url": "https://www.openstreetmap.org/way/793888430"
+    },
+    {
+      "archive_url": null,
+      "id": "s7",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/postcode",
+        "/capacity/mw_as_stated",
+        "/buildings/3"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1188691867",
+      "url": "https://www.openstreetmap.org/way/1188691867"
+    },
+    {
+      "archive_url": null,
+      "id": "s8",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/postcode",
+        "/buildings/4"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1188691868",
+      "url": "https://www.openstreetmap.org/way/1188691868"
+    },
+    {
+      "archive_url": null,
+      "id": "s9",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/postcode",
+        "/capacity/mw_as_stated",
+        "/buildings/5"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1556781864",
+      "url": "https://www.openstreetmap.org/way/1556781864"
+    },
+    {
+      "archive_url": null,
+      "id": "s10",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/postcode",
+        "/buildings/6"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1560827941",
+      "url": "https://www.openstreetmap.org/way/1560827941"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-09"
+      },
+      "event": "other",
+      "note": "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot date, not the date it began; start_date=2018 on way/649365751 is not read as the start of operation",
+      "phase_id": "osm-operating",
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9"
+      ],
+      "status": "operating"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-09"
+      },
+      "event": "other",
+      "note": "Tagged construction=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot date, not the date it began",
+      "phase_id": "osm-under_construction",
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s10"
+      ],
+      "status": "under_construction"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:50:24.684005Z"
+}

@@ -1,0 +1,491 @@
+{
+  "aliases": [],
+  "buildings": [
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/464097467",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/775412066",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/775412067",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/775412068",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/775412069",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/775412072",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/775412073",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1210199365",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1210199366",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1210199367",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1210199368",
+      "sqft": null
+    }
+  ],
+  "canonical_name": "Apple Reno Data Center (Washoe County, NV)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:50:24.684005Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "osm": [
+      "way/464097467",
+      "way/700974839",
+      "way/775412066",
+      "way/775412067",
+      "way/775412068",
+      "way/775412069",
+      "way/775412072",
+      "way/775412073",
+      "way/1210199365",
+      "way/1210199366",
+      "way/1210199367",
+      "way/1210199368"
+    ],
+    "pnnl_im3": [
+      "building@-119.535318,39.570986",
+      "building@-119.536034,39.570592",
+      "building@-119.537092,39.570053",
+      "building@-119.537859,39.569711",
+      "building@-119.542363,39.567714",
+      "building@-119.543209,39.567501",
+      "building@-119.544388,39.567160",
+      "building@-119.545227,39.566921",
+      "building@-119.547690,39.565106",
+      "building@-119.547974,39.565758",
+      "building@-119.548574,39.567105"
+    ]
+  },
+  "field_meta": {
+    "/location/county_fips": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": []
+    },
+    "/status": {
+      "confidence": 0.6,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11",
+        "s12",
+        "s13"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfqnj0rrpvb7p0hda9vhqb",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:50:24.684005Z",
+  "location": {
+    "city": null,
+    "county_fips": "32031",
+    "county_name": "Washoe",
+    "geocode_method": "osm",
+    "geometry_ref": "osm:way/700974839",
+    "lat": 39.5685241,
+    "lon": -119.5403266,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": "89434",
+    "precision": "footprint",
+    "state_abbr": "NV",
+    "street": "21505 Reno Technology Parkway West"
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [
+      {
+        "name": "Apple Inc.",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/location/city",
+        "/location/county_name",
+        "/location/state_abbr",
+        "/location/street",
+        "/location/postcode"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/700974839",
+      "url": "https://www.openstreetmap.org/way/700974839"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "Pacific Northwest National Laboratory (IM3)",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/site"
+      ],
+      "text_sha256": null,
+      "title": "IM3 Open Source Data Center Atlas v2026.02.09, web map file im3_datacenter_centroids.geojson",
+      "url": "https://doi.org/10.57931/3017294"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/0"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/464097467",
+      "url": "https://www.openstreetmap.org/way/464097467"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/1"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/775412066",
+      "url": "https://www.openstreetmap.org/way/775412066"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/2"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/775412067",
+      "url": "https://www.openstreetmap.org/way/775412067"
+    },
+    {
+      "archive_url": null,
+      "id": "s6",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/3"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/775412068",
+      "url": "https://www.openstreetmap.org/way/775412068"
+    },
+    {
+      "archive_url": null,
+      "id": "s7",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/4"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/775412069",
+      "url": "https://www.openstreetmap.org/way/775412069"
+    },
+    {
+      "archive_url": null,
+      "id": "s8",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/5"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/775412072",
+      "url": "https://www.openstreetmap.org/way/775412072"
+    },
+    {
+      "archive_url": null,
+      "id": "s9",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/6"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/775412073",
+      "url": "https://www.openstreetmap.org/way/775412073"
+    },
+    {
+      "archive_url": null,
+      "id": "s10",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/7"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1210199365",
+      "url": "https://www.openstreetmap.org/way/1210199365"
+    },
+    {
+      "archive_url": null,
+      "id": "s11",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/8"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1210199366",
+      "url": "https://www.openstreetmap.org/way/1210199366"
+    },
+    {
+      "archive_url": null,
+      "id": "s12",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/9"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1210199367",
+      "url": "https://www.openstreetmap.org/way/1210199367"
+    },
+    {
+      "archive_url": null,
+      "id": "s13",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/10"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1210199368",
+      "url": "https://www.openstreetmap.org/way/1210199368"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-09"
+      },
+      "event": "other",
+      "note": "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot date, not the date it began",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11",
+        "s12",
+        "s13"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:50:24.684005Z"
+}

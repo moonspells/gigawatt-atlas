@@ -1,0 +1,245 @@
+{
+  "aliases": [
+    {
+      "kind": "filing_llc",
+      "name": "Amazon Data Services",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  ],
+  "buildings": [],
+  "canonical_name": "Amazon Warrenton (Blackwell Road) (Fauquier County, VA)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [],
+  "created_at": "2026-10-09T09:52:35.702411Z",
+  "dates": {
+    "application_filed": {
+      "precision": "month",
+      "value": "2022-04"
+    },
+    "approved": {
+      "precision": "month",
+      "value": "2023-02"
+    },
+    "first_reported": {
+      "precision": "month",
+      "value": "2022-04"
+    }
+  },
+  "evidence_level": "reported",
+  "external_ids": {
+    "aigridwatch_id": [
+      "amazon-warrenton-blackwell-road-va"
+    ]
+  },
+  "field_meta": {
+    "/location": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    },
+    "/site/acreage": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4hfr0q56w3bddxyajbpw7jn",
+  "incentives": [],
+  "last_verified_at": "2026-10-09T09:52:35.702411Z",
+  "location": {
+    "city": null,
+    "county_fips": "51061",
+    "county_name": "Fauquier",
+    "geocode_method": "source_coords",
+    "geometry_ref": null,
+    "lat": 38.72,
+    "lon": -77.78,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "locality",
+    "state_abbr": "VA",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [
+      {
+        "name": "Amazon",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ],
+    "filing_entities": [
+      {
+        "name": "Amazon Data Services",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ],
+    "operator": [],
+    "owner": [
+      {
+        "name": "Amazon Web Services, Inc.",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ],
+    "tenant": [
+      {
+        "name": "Amazon",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ]
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "project",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": 42.0,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "AI GridWatch",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:52:35.702411Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/location",
+        "/capacity",
+        "/site",
+        "/status_history"
+      ],
+      "text_sha256": null,
+      "title": "AI GridWatch data center project tracker",
+      "url": "https://aigridwatch.com/projects"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "fauquiernow.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:52:35.702411Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://www.fauquiernow.com/news/business/warrenton-town-council-approves-amazon-data-center-proposal/article_3913e82e-ad0a-11ed-83f3-538a8a5bb411.html"
+    }
+  ],
+  "status": "permitted",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2022-04"
+      },
+      "event": "first_reported",
+      "note": "Earliest report in AI GridWatch's event log (filing)",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "proposed"
+    },
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2022-04"
+      },
+      "event": "application_filed",
+      "note": "Dated by the row's own filing, not its rezoning_filed date",
+      "phase_id": null,
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "proposed"
+    },
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2023-02"
+      },
+      "event": "approved",
+      "note": null,
+      "phase_id": null,
+      "planned": false,
+      "seq": 3,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "permitted"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-09T09:52:35.702411Z"
+}
