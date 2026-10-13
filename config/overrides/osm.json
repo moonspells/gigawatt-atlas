@@ -528,6 +528,19 @@
       }
     ]
   },
+  "way/1543931283": {
+    "expect": {
+      "name": "Equinix DC17"
+    },
+    "publisher": "Baxtel",
+    "quote": "Equinix: DC17 Year Planned: 2027 Equinix intends to build its DC-17 data center in Loudoun County, Virginia",
+    "reason": "Equinix DC17 at 44710 Performance Circle is planned for 2027, not operating as the way's bare building=data_center and telecom=data_center tags read",
+    "retrieved_at": "2026-10-13T15:50:09Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "commercial_aggregator",
+    "source_url": "https://baxtel.com/data-center/equinix-dc17",
+    "status": "announced"
+  },
   "way/1547829412": {
     "corrections": [
       {

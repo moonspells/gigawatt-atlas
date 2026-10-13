@@ -391,7 +391,8 @@ def test_the_committed_overrides_correct_stale_tags(run: ImportResult) -> None:
     assert gi.canonical_name == "GI Partners data center (Fulton County, GA)"
     # Seven more of fix round 5 (test_osm_fix5.py), and Equinix DC18's status of fix round 6
     # (correction gwa-01m4hfqn4bwmzj62gstjhxcern), the one new entry for an element of the fixture.
-    assert run.metrics["overrides"] == 13
+    # Equinix DC17's status (the re-check's correction of gwa-01m4tqhhx4jnm4htwmz1acjs01) is another.
+    assert run.metrics["overrides"] == 14
 
 
 def write(tmp_path: Path, entries: Mapping[str, object]) -> Path:

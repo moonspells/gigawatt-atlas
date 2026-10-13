@@ -1035,6 +1035,17 @@ construction per the correction: the only page that says so, datacenterHawk's, r
 project's user agent and has no Wayback copy; EdgeConneX's own page calls POR03 planned and
 Baxtel lists it as fully operational with expansion in progress, so it stays as tagged).
 
+The re-check of the corrected records (reviewed 2026-10-13, PR #2) adds one element decision:
+way/1543931283, Equinix DC17 at 44710 Performance Circle, `status` announced with `expect` name
+"Equinix DC17", citing Baxtel's DC17 page ("Year Planned: 2027", read with the project's user
+agent on 2026-10-13, 15:50 UTC). The way's bare `building=data_center` and `telecom=data_center`
+read as operating, the defect DC18's entry corrected. Like DC18, DC17 is now a building of the
+Equinix Ashburn record's announced phase, and the operating phase and its observation no longer
+cite its way. The campus rename's `from` ("Equinix DC1, DC2, DC4 and 10 more") still holds,
+since the campus name counts the named buildings whatever their phase. Equinix's Washington,
+D.C. metro page refuses the project's user agent, and the Wayback Machine could not be reached,
+so it is not cited.
+
 ## 10. Known limits
 
 - **Bounding-box containment in saved inputs.** A response saved before 2026-10-09's second
