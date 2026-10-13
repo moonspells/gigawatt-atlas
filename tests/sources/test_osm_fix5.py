@@ -181,16 +181,14 @@ def test_a_series_split_further_apart_is_a_review_item(run: ImportResult) -> Non
     assert item.data["other"] == "way/32560290"
     assert "'RagingWire CA3' continues the series of 'RagingWire CA2', 720 m apart" in item.reason
     lc = record(run, "way/1343774537")
-    assert lc != record(run, "way/1560822523")
+    # Owner's correction gwa-01m4hfqpdz4tepn3b5d6473r4n: the LC campus is one record (rule 9).
+    assert lc == record(run, "way/1560822523")
     assert lc.canonical_name.startswith("CloudHQ Ashburn Campus (")
-    lc4 = record(run, "way/1560822523")
-    reps = {rep_ref(lc), rep_ref(lc4)}
-    (pair,) = [
+    assert not [
         i
         for i in run.review
-        if i.kind == "possible_duplicate" and {i.external_id, i.data.get("other")} == reps
+        if i.kind == "possible_duplicate" and rep_ref(lc) in (i.external_id, i.data.get("other"))
     ]
-    assert "may be one campus" in pair.reason
 
 
 def test_an_unnamed_building_in_one_operators_row_joins_it(run: ImportResult) -> None:

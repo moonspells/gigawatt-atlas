@@ -1,0 +1,944 @@
+{
+  "name": "AI GridWatch data center project tracker",
+  "generated": "2026-10-08",
+  "license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "attribution": "AI GridWatch (https://aigridwatch.com)",
+  "source_page": "https://aigridwatch.com/projects",
+  "count": 12,
+  "verified_count": 12,
+  "caveat": "A working set of identified proposals a community can track, not a census — most of the country's activity is not in here yet. Pennsylvania is the exception: its rows are synced from PA DEP's own data-center permit tracker, so the state's coverage is close to complete and carries the permit trail with it.\n\n**Each row carries its own provenance.** Rows showing a verification date link to reporting or the governing body's own record and were read on that date; rows marked *unverified* have no source on record — a lead to check, not a fact to cite.\n\n**Stage is derived, not asserted.** *Hearing scheduled*, *Awaiting decision*, *Approved* and *Withdrawn* are computed from each row's milestone dates on every rebuild, so a hearing date that has passed stops reading 'scheduled'. Hearings get moved and projects re-file under new names — treat a scheduled date as the earliest to act by, and confirm with the clerk before relying on it. Leads are mined into data/project_candidates.json and promoted here only after a human reads a primary source.",
+  "schema": {
+    "id": "Stable slug, unique per project.",
+    "name": "Project or code name.",
+    "operator": "Operator/developer, or blank if unknown.",
+    "owner": "Owner/financier, or blank.",
+    "tenant": "Named end tenant, or blank.",
+    "filing_llc": "Shell LLC on the filing (ties to the campus registry), or blank.",
+    "locality": "Town or county the project sits in.",
+    "state": "Two-letter state abbreviation.",
+    "lat": "Approximate locality latitude, or blank.",
+    "lon": "Approximate locality longitude, or blank.",
+    "size_mw": "Planned IT/critical load in MW, or blank.",
+    "acres": "Site acreage, or blank.",
+    "announced": "ISO date first publicly proposed, or blank.",
+    "rezoning_filed": "ISO date the rezoning/permit application was filed, or blank.",
+    "hearing_date": "ISO date of the next/decisive public hearing, or blank.",
+    "decided_date": "ISO date a terminal decision was reached, or blank.",
+    "outcome": "approved | denied | withdrawn | blank (blank = still live).",
+    "stage": "DERIVED status shown on the page (Hearing scheduled, Awaiting decision, In review, Proposed, Rumored, Approved, Under construction, Operating, Denied, Withdrawn, Blocked by ban).",
+    "days_to_hearing": "DERIVED days until the hearing (negative once past), or blank.",
+    "note": "One-line plain-language status.",
+    "source": "Primary URL backing the current status.",
+    "as_of": "ISO date the source was read, or blank.",
+    "verified": "true if a source is on record."
+  },
+  "projects": [
+    {
+      "id": "sarasota-county-moratorium-fl",
+      "name": "Sarasota County Data Center (Cattleman Road)",
+      "operator": "",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Sarasota County",
+      "state": "FL",
+      "lat": 27.34,
+      "lon": -82.47,
+      "size_mw": "",
+      "acres": "",
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "Unnamed company eyed Cattleman Road; county responded with unanimous 1-year moratorium (5-0). Commissioner: 'not now, never.'",
+      "source": "https://www.yourobserver.com/news/2026/jul/11/data-centers-rejected-sarasota-county/",
+      "as_of": "2026-08-19",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-07-09",
+          "kind": "vote",
+          "summary": "Commission voted 5-0 for 1-year moratorium. Joins Citrus, Nassau, Hernando counties.",
+          "source": "https://www.yourobserver.com/news/2026/jul/11/data-centers-rejected-sarasota-county/"
+        }
+      ]
+    },
+    {
+      "id": "tulare-county-moratorium-ca",
+      "name": "Tulare County Data Center (moratorium)",
+      "operator": "",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Tulare County",
+      "state": "CA",
+      "lat": 36.23,
+      "lon": -119.32,
+      "size_mw": "",
+      "acres": "",
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "County Supervisors passed a 45-day moratorium on new data centers in August 2026, pausing all pending applications countywide.",
+      "source": "https://www.yourcentralvalley.com/news/local-news/tulare-county-ai-data-center-moratorium/",
+      "as_of": "2026-08-19",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-08-01",
+          "kind": "vote",
+          "summary": "Tulare County Board of Supervisors passed 45-day moratorium on new data center applications.",
+          "source": "https://www.yourcentralvalley.com/news/local-news/tulare-county-ai-data-center-moratorium/"
+        }
+      ]
+    },
+    {
+      "id": "inver-grove-heights-mn",
+      "name": "Inver Grove Heights Data Center",
+      "operator": "",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Inver Grove Heights",
+      "state": "MN",
+      "lat": 44.85,
+      "lon": -93.05,
+      "size_mw": 5,
+      "acres": "",
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "55,000 sq ft / 5 MW; 1-year moratorium passed 3-2 after 700+ petition signatures. Developer threatening $150M+ lawsuit.",
+      "source": "https://www.fox9.com/news/inver-grove-heights-data-center-moratorium-june-26-2026",
+      "as_of": "2026-08-19",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-06-26",
+          "kind": "vote",
+          "summary": "Council voted 3-2 for 1-year moratorium. Developer threatened $150M+ suit.",
+          "source": "https://www.fox9.com/news/inver-grove-heights-data-center-moratorium-june-26-2026"
+        }
+      ]
+    },
+    {
+      "id": "qts-dane-county-wi",
+      "name": "QTS Dane County",
+      "operator": "QTS Data Centers",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Dane County",
+      "state": "WI",
+      "lat": "",
+      "lon": "",
+      "size_mw": 750,
+      "acres": "",
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "Multi-billion dollar, 750MW renewable-powered data center campus in Dane County, Wisconsin.",
+      "source": "https://www.electricchoice.com/datacenters/",
+      "as_of": "",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-07-09",
+          "kind": "announcement",
+          "summary": "QTS Data Centers began exploring a multi-building data center campus on a 615-acre property in the Town of Vienna, Dane County, holding a public drop-in meeting to introduce the concept.",
+          "source": "https://urbanmilwaukee.com/2025/07/09/developer-wants-to-build-data-center-campus-in-dane-county/"
+        },
+        {
+          "date": "2025-07-31",
+          "kind": "public-comment",
+          "summary": "Local residents and officials raised early questions about the scale, water use, and energy demand of the proposed QTS data center campus in rural Dane County.",
+          "source": "https://www.wmtv15news.com/2025/07/31/large-data-center-proposal-raises-questions-rural-dane-county/"
+        },
+        {
+          "date": "2025-10-20",
+          "kind": "environmental",
+          "summary": "Dane County energy office director told Madison sustainability committee the proposed Vienna data center could use about 2.5 times the electricity that all of Dane County currently consumes.",
+          "source": "https://isthmus.com/news/vienna-data-center-could-use-more-than-twice-the-energy-consumption-of-dane-county/"
+        },
+        {
+          "date": "2025-11-01",
+          "kind": "filing",
+          "summary": "QTS planned to submit a formal zoning/annexation application to the DeForest Village Board, triggering village staff due diligence with outside legal and development experts.",
+          "source": "https://www.engagedeforest.com/QTS"
+        },
+        {
+          "date": "2025-11-14",
+          "kind": "announcement",
+          "summary": "QTS and UW-Madison announced a $1.5 million Advancing Data Center Sustainability research partnership with the Nelson Institute for Environmental Studies, funding 14 faculty research projects.",
+          "source": "https://www.wmtv15news.com/2025/11/14/uw-madison-qts-partner-15-million-data-center-development-initiative/"
+        },
+        {
+          "date": "2025-11-18",
+          "kind": "announcement",
+          "summary": "QTS announced a $12 billion, up-to-1,600-acre data center campus in Dane County (Town of Vienna/DeForest), partnering with the Building Trades Council for up to 5,000 union construction jobs and pledging a $50 million community commitment.",
+          "source": "https://dailyreporter.com/2025/11/18/qts-12b-union-data-center-dane-county/"
+        },
+        {
+          "date": "2026-01-07",
+          "kind": "protest",
+          "summary": "More than four hours of public comment at a packed DeForest Village Hall meeting drew opposition to the QTS annexation; a citizen petition sought to require large annexations to go to referendum.",
+          "source": "https://spectrumnews1.com/wi/milwaukee/news/2026/01/07/residents-pack-deforest-village-hall-for-data-center-meeting"
+        },
+        {
+          "date": "2026-01-13",
+          "kind": "moratorium",
+          "summary": "Madison Common Council approved a temporary one-year moratorium on zoning approvals for new data centers larger than 10,000 square feet.",
+          "source": "https://isthmus.com/news/news/madison-moves-to-enact-one-year-moratorium-on-data-center-construction/"
+        },
+        {
+          "date": "2026-01-27",
+          "kind": "report",
+          "summary": "DeForest village staff recommended the Village Board reject QTS annexation petition, concluding the data center proposal was not feasible in DeForest after QTS declined pre-annexation requirements including a 70%-renewable energy commitment.",
+          "source": "https://www.hngnews.com/the_star/local_news/deforest-village-staff-recommend-board-vote-no-on-qts-annexation/article_06e08c70-3221-41c4-8551-05bb29bc872e.html"
+        },
+        {
+          "date": "2026-01-28",
+          "kind": "withdrawal",
+          "summary": "QTS withdrew its data center project from consideration in the Village of DeForest following staff recommendation against annexation and sustained community opposition.",
+          "source": "https://wtmj.com/news/2026/01/28/update-qts-withdraws-data-center-project-in-village-of-deforest/"
+        },
+        {
+          "date": "2026-01-28",
+          "kind": "utility",
+          "summary": "Alliant Energy adjusted plans tied to the QTS Greater Madison project as the DeForest annexation collapsed, having previously committed to developing 750 MW of renewable generation.",
+          "source": "https://nationaltoday.com/us/wi/madison/news/2026/01/28/alliant-energy-pivots-on-qts-greater-madison-wi-data-center-project/"
+        },
+        {
+          "date": "2026-02-03",
+          "kind": "vote",
+          "summary": "The DeForest Village Board voted unanimously 7-0 to reject QTS petition to annex nearly 1,600 acres of Town of Vienna farmland, formally ending the DeForest route for the project.",
+          "source": "https://www.wkow.com/news/top-stories/village-of-deforest-board-unanimously-rejects-annexation-tied-to-qts-data-center/article_99466eb5-860f-4072-af23-4bd063bce2e9.html"
+        },
+        {
+          "date": "2026-02-12",
+          "kind": "coverage",
+          "summary": "Democratic state lawmakers proposed a statewide data center moratorium bill and held a day of action, citing the DeForest/QTS fight as a driver of the broader Wisconsin data center policy debate.",
+          "source": "https://wisconsinexaminer.com/2026/02/12/democratic-lawmakers-propose-data-center-moratorium/"
+        },
+        {
+          "date": "2026-04-06",
+          "kind": "moratorium",
+          "summary": "The Town of Westport (Dane County) enacted a one-year moratorium restricting new data centers to no more than 10,000 square feet, part of a wave of local moratoriums following the QTS controversy.",
+          "source": "https://www.hngnews.com/tribune_enterprise/news/local/westport-enacts-data-center-moratorium/article_41bd7395-3dc5-4617-8fbd-72dcc27142f3.html"
+        },
+        {
+          "date": "2026-05-15",
+          "kind": "filing",
+          "summary": "A resolution was introduced on the Dane County Board establishing an 18-month moratorium on receiving or issuing zoning permits for hyperscale data centers in unincorporated areas.",
+          "source": "https://www.danecounty.gov/PressDetail/11883"
+        },
+        {
+          "date": "2026-06-04",
+          "kind": "moratorium",
+          "summary": "The Dane County Board of Supervisors unanimously approved an 18-month moratorium on zoning permits for hyperscale data centers in unincorporated county areas, running until December 2027.",
+          "source": "https://isthmus.com/news/news/dane-county-board-approves-data-center-moratorium/"
+        }
+      ]
+    },
+    {
+      "id": "kearney-data-center-ne",
+      "name": "Kearney Data Center",
+      "operator": "Worldwide Mission Critical",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Kearney",
+      "state": "NE",
+      "lat": 40.7,
+      "lon": -99.08,
+      "size_mw": 368,
+      "acres": "",
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "2026-08-21",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Awaiting decision",
+      "days_to_hearing": -48,
+      "note": "368 MW; CUP discussed at Planning Commission Aug 21. Staff recommended approval.",
+      "source": "https://rock1015.com/2026/08/18/data-center-conditional-use-permit-to-be-discussed-at-kearney-planning-commission-meeting/",
+      "as_of": "2026-08-19",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-08-21",
+          "kind": "hearing",
+          "summary": "Planning Commission to discuss CUP; staff recommends approval.",
+          "source": "https://rock1015.com/2026/08/18/data-center-conditional-use-permit-to-be-discussed-at-kearney-planning-commission-meeting/"
+        }
+      ]
+    },
+    {
+      "id": "t5-palmetto-ga",
+      "name": "T5@ATL IV (Palmetto)",
+      "operator": "T5 Data Centers",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Palmetto (South Fulton County)",
+      "state": "GA",
+      "lat": "",
+      "lon": "",
+      "size_mw": 300,
+      "acres": 91,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "New multi-building Atlanta-area campus scalable to 300MW with on-site substation, expected operational in 2026.",
+      "source": "https://www.prnewswire.com/news-releases/t5-finalizes-land-acquisition-in-atlanta-to-support-a-300-mw-data-center-campus-302232913.html",
+      "as_of": "",
+      "verified": true,
+      "events": [
+        {
+          "date": "2024-06-12",
+          "kind": "filing",
+          "summary": "T5 Data Centers filed a preliminary Development of Regional Impact (DRI) application with the Atlanta Regional Commission for a two-building, 495,000-sq-ft data center campus off I-85 and Gullatt Road near Fairburn, its third south-Atlanta-area campus at the time.",
+          "source": "https://www.bisnow.com/atlanta/news/data-center/t5-plotting-data-center-campus-in-fairburn-124663"
+        },
+        {
+          "date": "2024-07-16",
+          "kind": "withdrawal",
+          "summary": "T5 withdrew its original DRI application, which by that point had grown to a proposed 2.95 million-sq-ft, 300MW campus across seven buildings.",
+          "source": "https://www.bldup.com/posts/t5-refiles-modified-plans-for-atl-iv-data-center-campus-in-south-fulton-county"
+        },
+        {
+          "date": "2024-08-28",
+          "kind": "announcement",
+          "summary": "T5 finalized acquisition of the 91-acre Palmetto/South Fulton County site and publicly announced the ATL IV campus, describing it as scalable up to 300MW with an on-site substation targeted for 2026 operation and liquid cooling to support AI workloads.",
+          "source": "https://www.prnewswire.com/news-releases/t5-finalizes-land-acquisition-in-atlanta-to-support-a-300-mw-data-center-campus-302232913.html"
+        },
+        {
+          "date": "2025-05-05",
+          "kind": "filing",
+          "summary": "T5 submitted a revised, scaled-down DRI application for ATL IV consisting of three data center buildings totaling up to 1,320,000 sq ft along Gullatt Road, with supporting access roads, parking, utilities, and stormwater infrastructure.",
+          "source": "https://www.bldup.com/posts/t5-refiles-modified-plans-for-atl-iv-data-center-campus-in-south-fulton-county"
+        },
+        {
+          "date": "2025-11-01",
+          "kind": "report",
+          "summary": "The Atlanta Regional Commission completed its Development of Regional Impact review of the revised ATL IV application, a milestone reported as clearing the way toward construction; the Fairburn portion of the site already held full zoning/permits under existing industrial designation.",
+          "source": "https://www.bldup.com/posts/fairburn-data-center-project-gains-fresh-traction-with-regulatory-wins-and-community-dialogue"
+        },
+        {
+          "date": "2026-01-07",
+          "kind": "hearing",
+          "summary": "The City of Palmetto held a special city council session that advanced discussion of a potential economic development agreement tied to the T5 project.",
+          "source": "https://www.bldup.com/posts/fairburn-data-center-project-gains-fresh-traction-with-regulatory-wins-and-community-dialogue"
+        },
+        {
+          "date": "2026-03-01",
+          "kind": "moratorium",
+          "summary": "The Palmetto City Council unanimously approved a rewritten industrial zoning code that permanently excludes data centers from the city, following community concern that had built up around the T5 project and area data-center growth; the mayor cited an \"overall disinterest\" in the warehouse-like structures.",
+          "source": "https://www.wabe.org/palmetto-city-council-approves-rewritten-industrial-zoning-code-to-ban-exclude-data-centers/"
+        }
+      ]
+    },
+    {
+      "id": "microsoft-cheyenne-expansion",
+      "name": "Microsoft Cheyenne Expansion",
+      "operator": "Microsoft",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Cheyenne",
+      "state": "WY",
+      "lat": "",
+      "lon": "",
+      "size_mw": "",
+      "acres": 3200,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Operating",
+      "days_to_hearing": null,
+      "note": "Microsoft announced intent to acquire ~3,200 acres in southeast Cheyenne for a multiyear data-center expansion, building on its Black Hills Energy partnership.",
+      "source": "https://news.microsoft.com/source/2026/04/14/microsoft-announces-intent-to-expand-datacenter-operations-in-cheyenne-accelerating-innovation-and-economic-growth/",
+      "as_of": "",
+      "verified": true,
+      "events": [
+        {
+          "date": "2010-03-05",
+          "kind": "incentive",
+          "summary": "Wyoming's governor signed HB 67, exempting data centers that buy or rent more than $2 million in computing equipment annually from state sales tax.",
+          "source": "https://cowboystatedaily.com/2026/06/12/heres-why-wyoming-doesnt-tax-big-data-center-purchases/"
+        },
+        {
+          "date": "2012-01-01",
+          "kind": "operational",
+          "summary": "Microsoft established its first data center presence in Cheyenne, Wyoming.",
+          "source": "https://www.datacenters.com/news/microsoft-expands-data-center-operations-in-cheyenne-wyoming"
+        },
+        {
+          "date": "2014-01-01",
+          "kind": "construction",
+          "summary": "Microsoft expanded its original Cheyenne data center footprint, adding capacity to its existing campus.",
+          "source": "https://www.datacenters.com/news/microsoft-expands-data-center-operations-in-cheyenne-wyoming"
+        },
+        {
+          "date": "2021-01-01",
+          "kind": "operational",
+          "summary": "Microsoft opened two additional data centers in Cheyenne, further building out its Wyoming campus.",
+          "source": "https://www.datacenters.com/news/microsoft-expands-data-center-operations-in-cheyenne-wyoming"
+        },
+        {
+          "date": "2025-01-01",
+          "kind": "incentive",
+          "summary": "The Wyoming Legislature extended the state data-center sales-and-use tax exemption through 2042.",
+          "source": "https://cowboystatedaily.com/2026/06/12/heres-why-wyoming-doesnt-tax-big-data-center-purchases/"
+        },
+        {
+          "date": "2025-07-01",
+          "kind": "construction",
+          "summary": "Microsoft, with JE Dunn as general contractor, began heavy earthwork on a new data center campus on HR Ranch Road east of Cheyenne, with completion targeted for early 2026.",
+          "source": "https://www.datacenterdynamics.com/en/news/microsoft-breaks-ground-on-data-center-campus-in-cheyenne-wyoming/"
+        },
+        {
+          "date": "2026-04-14",
+          "kind": "announcement",
+          "summary": "Microsoft announced intent to purchase roughly 3,200 acres in Cheyenne to roughly triple its data center footprint, pledging over $68 million in off-site infrastructure improvements and no reliance on local property tax incentives.",
+          "source": "https://news.microsoft.com/source/2026/04/14/microsoft-announces-intent-to-expand-datacenter-operations-in-cheyenne-accelerating-innovation-and-economic-growth/"
+        },
+        {
+          "date": "2026-04-14",
+          "kind": "utility",
+          "summary": "Microsoft detailed a utility partnership with Black Hills Energy under the Large Power Contract Service (LPCS) tariff, under which Microsoft funds the full cost of electricity infrastructure so other ratepayers are not burdened.",
+          "source": "https://www.datacenterdynamics.com/en/news/microsoft-plans-to-buy-3200-acres-of-land-for-data-center-project-in-cheyenne-wyoming/"
+        },
+        {
+          "date": "2026-04-14",
+          "kind": "environmental",
+          "summary": "Microsoft said it would minimize water use and fund replenishment projects in Cheyenne, with partners including Trout Unlimited, expected to restore an estimated 566 million gallons of water.",
+          "source": "https://www.datacenterdynamics.com/en/news/microsoft-plans-to-buy-3200-acres-of-land-for-data-center-project-in-cheyenne-wyoming/"
+        },
+        {
+          "date": "2026-04-27",
+          "kind": "protest",
+          "summary": "Opposition to Cheyenne data center growth intensified as the city moved to accommodate further development, with residents raising sustained objections.",
+          "source": "https://cowboystatedaily.com/2026/04/27/opposition-to-cheyenne-data-centers-grows-as-city-moves-to-add-them/"
+        },
+        {
+          "date": "2026-04-28",
+          "kind": "hearing",
+          "summary": "Angry Cheyenne residents spoke out at a public meeting against the proposed annexation and Microsoft data center project.",
+          "source": "https://cowboystatedaily.com/2026/04/28/angry-cheyenne-residents-speak-out-against-annexation-and-proposed-data-center/"
+        },
+        {
+          "date": "2026-04-29",
+          "kind": "report",
+          "summary": "A Wyoming state legislator said the state needs to determine how revenue from the data center boom should be distributed among local governments and residents.",
+          "source": "https://cowboystatedaily.com/2026/04/29/legislator-says-state-needs-to-figure-out-who-gets-money-from-data-center-boom/"
+        },
+        {
+          "date": "2026-05-08",
+          "kind": "environmental",
+          "summary": "Wyoming residents pressed for clarity on where water for the expanding data center boom would come from in the semi-arid region.",
+          "source": "https://cowboystatedaily.com/2026/05/08/as-data-centers-boom-wyomingites-want-to-know-where-the-waters-coming-from/"
+        },
+        {
+          "date": "2026-05-27",
+          "kind": "vote",
+          "summary": "The Cheyenne City Council rejected a proposed 12-month moratorium on new data center development by an 8-1 vote after hours of debate over water, noise, and long-term community impacts.",
+          "source": "https://cowboystatedaily.com/2026/05/27/full-speed-ahead-for-cheyenne-data-centers-as-council-rejects-moratorium/"
+        },
+        {
+          "date": "2026-05-28",
+          "kind": "coverage",
+          "summary": "Wyoming Public Media reported on the city council rejection of a data center moratorium, noting no pause on development despite resident concerns.",
+          "source": "https://www.wyomingpublicmedia.org/wyoming-economy/2026-05-28/no-pause-on-data-centers-for-cheyenne"
+        },
+        {
+          "date": "2026-06-02",
+          "kind": "hearing",
+          "summary": "The Cheyenne Planning Commission held a five-hour hearing on Microsoft 3,200-acre southside expansion, recommending denial for most components.",
+          "source": "https://cowboystatedaily.com/2026/06/02/cheyenne-planners-recommend-denial-for-most-of-microsofts-data-center-expansion/"
+        },
+        {
+          "date": "2026-06-05",
+          "kind": "vote",
+          "summary": "Microsoft data center annexation/zoning plans failed to secure the Cheyenne Planning Commission endorsement, with two parcels near Laramie County Community College falling short of the required votes.",
+          "source": "https://capcity.news/community/city/2026/06/05/microsofts-data-center-plans-fail-to-get-planning-commission-endorsement-monday/"
+        },
+        {
+          "date": "2026-06-12",
+          "kind": "report",
+          "summary": "Coverage explained Wyoming data center sales tax exemption, worth up to $22.6 million annually, and its extension through 2042.",
+          "source": "https://cowboystatedaily.com/2026/06/12/heres-why-wyoming-doesnt-tax-big-data-center-purchases/"
+        },
+        {
+          "date": "2026-07-06",
+          "kind": "vote",
+          "summary": "The Cheyenne City Council rejected a proposal to slow down the Microsoft land annexation process, clearing the way for a final vote.",
+          "source": "https://capcity.news/community/city/2026/07/06/cheyenne-rejects-new-proposal-to-slow-microsoft-land-annexation-clears-way-for-final-vote/"
+        },
+        {
+          "date": "2026-07-13",
+          "kind": "vote",
+          "summary": "After a seven-hour public hearing with overwhelming resident opposition, the Cheyenne City Council passed Ordinance 4687 by a 6-3 vote, annexing roughly 3,460 acres into the city for Microsoft planned data center campus.",
+          "source": "https://county17.com/2026/07/14/cheyenne-passes-microsoft-data-center-land-annexation-after-more-than-5-hours-of-discussion/"
+        },
+        {
+          "date": "2026-07-14",
+          "kind": "coverage",
+          "summary": "Reporting confirmed Cheyenne grew by 3,500 acres after the controversial Microsoft-related annexation vote following more than five hours of council discussion.",
+          "source": "https://oilcity.news/community/wyoming-community-2/2026/07/14/cheyenne-passes-microsoft-data-center-land-annexation-after-more-than-5-hours-of-discussion/"
+        },
+        {
+          "date": "2026-07-20",
+          "kind": "protest",
+          "summary": "Opponents launched a referendum petition drive seeking to reverse the Cheyenne City Council 3,460-acre annexation vote, needing roughly 2,700 signatures within 20 days.",
+          "source": "https://capcity.news/community/2026/07/20/locals-launch-referendum-petition-after-cheyenne-passes-3500-acre-microsoft-annexation/"
+        },
+        {
+          "date": "2026-08-07",
+          "kind": "protest",
+          "summary": "Referendum organizers submitted 3,275-plus signatures seeking a public vote to reverse the Microsoft annexation, exceeding the roughly 2,739 registered-voter threshold required to force a November ballot measure.",
+          "source": "https://www.thecooldown.com/green-tech/cheyenne-wyoming-data-center-referendum-vote/"
+        }
+      ]
+    },
+    {
+      "id": "flexential-kaufman-tx",
+      "name": "Flexential Kaufman County",
+      "operator": "Flexential",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Talty (Kaufman County)",
+      "state": "TX",
+      "lat": "",
+      "lon": "",
+      "size_mw": 108,
+      "acres": 110,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "approved",
+      "stage": "Approved",
+      "days_to_hearing": null,
+      "note": "Fourth and largest Flexential DFW-area facility; 110-acre site supports up to three 36MW buildings (108MW total); Phase 1 is 375,000 sq ft / 36MW, site work starting early 2027.",
+      "source": "https://www.prnewswire.com/news-releases/flexential-to-build-new-dallas-area-data-center-campus-on-110-acres-in-kaufman-county-302836104.html",
+      "as_of": "",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-01-01",
+          "kind": "filing",
+          "summary": "The Flexential project site near Talty was released from the City of Talty extraterritorial jurisdiction (ETJ) under Texas state law after a petition was filed with Kaufman County, leaving Talty with no regulatory authority over the site.",
+          "source": "https://www.nbcdfw.com/news/local/data-center-spanning-hundreds-of-acres-planned-in-kaufman-county/4055993/"
+        },
+        {
+          "date": "2026-07-01",
+          "kind": "coverage",
+          "summary": "Data Center Dynamics reported Flexential acquisition of 110 acres outside Dallas for a planned 108 MW campus, noting the design targets closed-loop cooling with zero water usage.",
+          "source": "https://www.datacenterdynamics.com/en/news/flexential-acquires-110-acres-outside-dallas-texas-for-108mw-data-center-campus/"
+        },
+        {
+          "date": "2026-07-28",
+          "kind": "announcement",
+          "summary": "Flexential announced it purchased 110 acres in Kaufman County near Talty to build its fourth and largest Dallas-area data center campus, with Phase 1 comprising a 375,000 sq ft, 36 MW building and full build-out potential of 108 MW across three buildings.",
+          "source": "https://www.flexential.com/resources/press-release/flexential-build-new-dallas-area-data-center-campus-110-acres"
+        },
+        {
+          "date": "2026-07-29",
+          "kind": "coverage",
+          "summary": "Connect CRE reported Flexential land acquisition for a 375,000 sq ft, 36 MW first-phase data center about 20 minutes east of Dallas in Talty, citing Cushman and Wakefield ranking of Dallas as the world top data center market.",
+          "source": "https://www.connectcre.com/stories/flexential-secures-land-outside-dallas-for-375k-sf-data-center/"
+        },
+        {
+          "date": "2026-08-01",
+          "kind": "coverage",
+          "summary": "Unite.AI reported Flexential had secured 36 MW of power for the first building — exceeding the combined electrical capacity of its three existing Dallas-area facilities (28.4 MW).",
+          "source": "https://www.unite.ai/flexential-secures-power-for-its-largest-dallas-data-center/"
+        },
+        {
+          "date": "2026-08-06",
+          "kind": "coverage",
+          "summary": "Local press reported Talty officials say the city has no regulatory authority over the Flexential site because the property was released from the city ETJ earlier in 2026 after a Kaufman County petition.",
+          "source": "https://www.terrelltribune.com/news/data-center-has-sights-set-talty"
+        }
+      ]
+    },
+    {
+      "id": "amazon-bridgefield-ashburn-va",
+      "name": "Amazon Bridgefield Tech Center (GW campus, Ashburn)",
+      "operator": "Amazon (AWS)",
+      "owner": "Amazon Data Services",
+      "tenant": "Amazon (AWS)",
+      "filing_llc": "Amazon Data Services",
+      "locality": "Ashburn (Loudoun County)",
+      "state": "VA",
+      "lat": 39.05,
+      "lon": -77.46,
+      "size_mw": "",
+      "acres": 122,
+      "announced": "2026-03-17",
+      "rezoning_filed": "2026-07-31",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "Four data center buildings (about 800,000 sq ft per WTOP; Northern Virginia Magazine reports ~400,000 sq ft plus three parking garages) on George Washington University's Virginia Science and Technology campus, filed as a site plan under 1972-era zoning so it would need no Planning Commission review, public hearing or Board vote. The county says data centers are not by-right there and will require special-exception review. Construction cannot start until GW vacates, up to five years. 'rezoning_filed' here is the site-plan filing date.",
+      "source": "https://wtop.com/loudoun-county/2026/08/concrete-jungle-as-amazon-details-plans-for-new-ashburn-data-centers-some-residents-are-fed-up/",
+      "as_of": "2026-09-05",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-03-17",
+          "kind": "announcement",
+          "summary": "Amazon Data Services bought George Washington University's Ashburn campus for $427 million. Loudoun's economic development director: \"At no time has the Board of Supervisors envisioned data centers on that property,\" and the county said any data center there needs special-exception review before the Board of Supervisors, not by-right approval.",
+          "source": "https://wtop.com/loudoun-county/2026/03/loudoun-county-will-fight-to-keep-amazon-data-center-off-just-sold-gw-campus-in-ashburn/"
+        },
+        {
+          "date": "2026-07-31",
+          "kind": "filing",
+          "summary": "Amazon Data Services filed a site plan for four two-story data center buildings and three parking garages on the 122-acre campus. The Algonkian district supervisor: \"Replacing the George Washington University campus with four massive data center buildings would be a profound loss for our community.\"",
+          "source": "https://northernvirginiamag.com/news/2026/07/31/amazon-plans-4-data-centers-on-george-washington-universitys-loudoun-campus/"
+        },
+        {
+          "date": "2026-08-04",
+          "kind": "meeting",
+          "summary": "Amazon presented the 'Bridgefield Tech Center' plan (about 800,000 sq ft in four buildings) to residents. The application relies on 1972 zoning to proceed as a site plan with no Planning Commission review, public hearing or Board vote. The supervisor called it too close to homes, Bles Park and the Potomac; residents described the area as becoming \"a concrete jungle.\"",
+          "source": "https://wtop.com/loudoun-county/2026/08/concrete-jungle-as-amazon-details-plans-for-new-ashburn-data-centers-some-residents-are-fed-up/"
+        }
+      ]
+    },
+    {
+      "id": "cloudburst-san-marcos-tx",
+      "name": "CloudBurst San Marcos",
+      "operator": "CloudBurst Data Centers",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "San Marcos (Hays/Guadalupe Counties)",
+      "state": "TX",
+      "lat": "",
+      "lon": "",
+      "size_mw": 1200,
+      "acres": 96,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Under construction",
+      "days_to_hearing": null,
+      "note": "Gigawatt-scale gas-powered AI campus straddling Hays and Guadalupe Counties; site sits outside both cities' ETJ to avoid local review. Over 50 residents opposed at San Marcos council meetings over water scarcity, emissions and transparency.",
+      "source": "https://communityimpact.com/san-marcos-buda-kyle/development/new-data-center-planned-near-new-braunfels-and-san-marcos-sparks-debate/",
+      "as_of": "",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-02-07",
+          "kind": "utility",
+          "summary": "Energy Transfer and CloudBurst Data Centers announced a natural gas supply agreement via the Oasis Pipeline to provide behind-the-meter power to CloudBurst's planned Central Texas data center campus.",
+          "source": "https://ir.energytransfer.com/news-releases/news-release-details/energy-transfer-and-cloudburst-sign-agreement-natural-gas-supply"
+        },
+        {
+          "date": "2025-02-13",
+          "kind": "coverage",
+          "summary": "First major television news coverage announced CloudBurst's proposed 1.2 GW data center campus at Francis Harris Lane straddling Hays and Guadalupe Counties near San Marcos.",
+          "source": "https://centexdatacenters.org/projects/cloudburst-data-center"
+        },
+        {
+          "date": "2025-03-18",
+          "kind": "permit",
+          "summary": "CloudBurst filed a Flood Hazard Development Permit with Hays County, the only county-level permit instrument applicable to the site given it sits outside city ETJ.",
+          "source": "https://centexdatacenters.org/projects/cloudburst-data-center"
+        },
+        {
+          "date": "2025-03-30",
+          "kind": "protest",
+          "summary": "The Central Texas Data Center Tracker organized its first public protest against the CloudBurst project at the Francis Harris Lane site.",
+          "source": "https://centexdatacenters.org/projects/cloudburst-data-center"
+        },
+        {
+          "date": "2025-04-01",
+          "kind": "coverage",
+          "summary": "The Hays County judge publicly stated the CloudBurst project would be approved regardless of local objections, saying 'there's nothing we can do about it' because the site lies outside county land-use authority.",
+          "source": "https://centexdatacenters.org/projects/cloudburst-data-center"
+        },
+        {
+          "date": "2025-05-20",
+          "kind": "hearing",
+          "summary": "Hays County Commissioners Court held a public workshop for residents to hear directly from CloudBurst representatives about the proposed facility south of San Marcos.",
+          "source": "https://www.kut.org/energy-environment/2025-06-04/hays-county-texas-data-center-ai"
+        },
+        {
+          "date": "2025-05-21",
+          "kind": "coverage",
+          "summary": "Community Impact reported that more than 50 residents had opposed the CloudBurst project at San Marcos City Council meetings, citing water scarcity, emissions and transparency concerns, even though the site is outside city jurisdiction.",
+          "source": "https://communityimpact.com/austin/san-marcos-buda-kyle/development/2025/05/21/new-data-center-planned-near-new-braunfels-and-san-marcos-sparks-debate/"
+        },
+        {
+          "date": "2025-06-04",
+          "kind": "coverage",
+          "summary": "Media outlets reported CloudBurst had reversed an earlier renewable-energy pledge in favor of on-site natural gas generation, citing unreliable ERCOT grid supply.",
+          "source": "https://www.kut.org/energy-environment/2025-06-04/hays-county-texas-data-center-ai"
+        },
+        {
+          "date": "2025-11-05",
+          "kind": "construction",
+          "summary": "CloudBurst and Evolve Holdings held a groundbreaking ceremony for the 1.2 GW San Marcos Data Center I campus; the Data Center Action Coalition organized a protest with signs and noisemakers outside the event.",
+          "source": "https://www.datacenterdynamics.com/en/news/cloudburst-breaks-ground-on-gigawatt-scale-data-center-campus-in-texas/"
+        },
+        {
+          "date": "2026-01-20",
+          "kind": "environmental",
+          "summary": "Hays County Commissioners Court authorized an 11-month, $542,360 regional water and wastewater study by HDR Engineers, prompted in part by data center water demand including CloudBurst's.",
+          "source": "https://www.sanmarcosrecord.com/article_0f9d2549-163a-491f-8043-a072b5a40e40.html"
+        },
+        {
+          "date": "2026-02-18",
+          "kind": "denial",
+          "summary": "San Marcos City Council voted 5-2 to deny a land-use change that would have cleared the way for a separate data center southwest of downtown, reflecting the same organized opposition driving pushback on CloudBurst.",
+          "source": "https://www.kut.org/energy-environment/2026-02-18/san-marcos-city-council-blocks-proposed-data-center"
+        },
+        {
+          "date": "2026-02-24",
+          "kind": "vote",
+          "summary": "Guadalupe County Commissioners Court voted 3-2 against a $500 million, 10-year property tax abatement for the CloudBurst data center campus.",
+          "source": "https://seguintoday.com/2026/02/25/guadalupe-county-commissioners-decline-tax-abatement-for-10b-data-center-project/"
+        },
+        {
+          "date": "2026-02-26",
+          "kind": "coverage",
+          "summary": "Water advocates said they would oppose all five data centers proposed in the Hays/Caldwell County area, including CloudBurst, as the region's water resource fight was described as 'just beginning.'",
+          "source": "https://www.kut.org/energy-environment/2026-02-26/hays-county-tx-data-centers-water-resources"
+        },
+        {
+          "date": "2026-04-09",
+          "kind": "hearing",
+          "summary": "The Texas House Environmental Regulation Committee held a hearing on proposed state legislation requiring data center water-use disclosure, discussion informed in part by the CloudBurst case.",
+          "source": "https://centexdatacenters.org/projects/cloudburst-data-center"
+        },
+        {
+          "date": "2026-04-21",
+          "kind": "vote",
+          "summary": "Guadalupe County Commissioners Court reversed its February decision and approved a development agreement and tax abatement package for CloudBurst in a 3-2 vote after a nearly four-hour hearing; more than 35 residents protested at the courthouse.",
+          "source": "https://communityimpact.com/san-antonio/northeast-san-antonio-metrocom/government/2026/03/26/guadalupe-county-commissioners-vote-down-500m-tax-cut-for-proposed-data-center-in-new-braunfels/"
+        },
+        {
+          "date": "2026-06-16",
+          "kind": "moratorium",
+          "summary": "San Marcos City Council voted 4-3 to redefine its zoning code and prohibit data centers in all zoning districts citywide, becoming the first Texas city to ban the industry outright, a policy response shaped by the CloudBurst controversy.",
+          "source": "https://www.texastribune.org/2026/06/30/texas-san-marcos-data-center-ban-zoning-laws/"
+        }
+      ]
+    },
+    {
+      "id": "applied-digital-harwood-nd",
+      "name": "Applied Digital Harwood ND",
+      "operator": "Applied Digital",
+      "owner": "Applied Digital",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Harwood",
+      "state": "ND",
+      "lat": "",
+      "lon": "",
+      "size_mw": 280,
+      "acres": "",
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "Under construction",
+      "days_to_hearing": null,
+      "note": "$3B, 280MW data center in Harwood, North Dakota. Under construction.",
+      "source": "https://www.electricchoice.com/datacenters/",
+      "as_of": "",
+      "verified": true,
+      "events": [
+        {
+          "date": "2025-08-18",
+          "kind": "announcement",
+          "summary": "Applied Digital announced Polaris Forge 2, a $3 billion, 280MW AI data center campus on 900+ contracted acres southeast of Harwood, ND, with plans to break ground in September 2025.",
+          "source": "https://northdakotamonitor.com/2025/08/18/company-announces-plan-for-data-center-north-of-fargo/"
+        },
+        {
+          "date": "2025-08-25",
+          "kind": "public-comment",
+          "summary": "About 300 residents attended a town hall at the Harwood Community Center; some shouted when is the vote? and accused the town of having sold out.",
+          "source": "https://www.inforum.com/news/fargo/controversial-giant-ai-data-center-holds-headed-meeting-in-small-town-harwood"
+        },
+        {
+          "date": "2025-08-25",
+          "kind": "protest",
+          "summary": "Community members voiced anger and pressed for more disclosure, citing concerns about transparency in the approval process.",
+          "source": "https://northdakotamonitor.com/2025/08/25/data-center-proposed-for-harwood-prompts-anger-questions-from-community-members/"
+        },
+        {
+          "date": "2025-08-28",
+          "kind": "filing",
+          "summary": "City of Fargo moved to annex roughly 800 acres near Harwood including the proposed data center site; Applied Digital said it would formally protest the annexation.",
+          "source": "https://kfgo.com/2025/08/28/1193385/"
+        },
+        {
+          "date": "2025-09-02",
+          "kind": "rezoning",
+          "summary": "Harwood City Council voted unanimously on first reading to rezone roughly 320 acres from agricultural to light industrial, after a contentious session with public shouting.",
+          "source": "https://bismarcktribune.com/news/state-regional/article_3b120a07-bbc2-4144-b5d7-4c2ff68854cb.html"
+        },
+        {
+          "date": "2025-09-10",
+          "kind": "vote",
+          "summary": "Harwood City Council gave final approval to rezone the 320-acre site in about 25 minutes at a special meeting, even as Fargo continued to pursue annexation.",
+          "source": "https://www.valleynewslive.com/2025/09/11/harwood-approves-2nd-reading-rezoning-3b-ai-data-center/"
+        },
+        {
+          "date": "2025-09-15",
+          "kind": "construction",
+          "summary": "Construction crews observed breaking ground on the Polaris Forge 2 site near Harwood.",
+          "source": "https://www.inforum.com/news/fargo/construction-begins-on-3-billion-ai-data-center-near-fargo"
+        },
+        {
+          "date": "2025-10-22",
+          "kind": "financing",
+          "summary": "Applied Digital announced a roughly $5 billion, 15-year, 200MW AI factory lease with an unnamed US-based investment-grade hyperscaler (later reported as Oracle) at Polaris Forge 2, with right of first refusal on an additional 800MW.",
+          "source": "https://www.globenewswire.com/news-release/2025/10/22/3171024/0/en/Applied-Digital-Announces-5-Billion-AI-Factory-Lease-with-U-S-Based-Investment-Grade-Hyperscaler-at-Polaris-Forge-2-ND-Campus.html"
+        },
+        {
+          "date": "2025-10-29",
+          "kind": "coverage",
+          "summary": "Reporting revealed Harwood and Fargo mayors had signed NDAs with Applied Digital covering project details, raising open-records concerns and prompting draft state legislation to ban such NDAs by public officials.",
+          "source": "https://www.inforum.com/news/north-dakota/harwood-fargo-mayors-signed-confidentiality-agreements-with-company-behind-controversial-ai-data-center"
+        },
+        {
+          "date": "2025-11-24",
+          "kind": "vote",
+          "summary": "Harwood City Council voted unanimously to reject a draft agreement proposed by Fargo that would have set conditions in exchange for dropping its annexation attempt.",
+          "source": "https://www.inforum.com/news/fargo/harwood-rejects-deal-with-fargo-to-withdraw-attempts-to-annex-ai-data-center"
+        },
+        {
+          "date": "2025-12-08",
+          "kind": "vote",
+          "summary": "Fargo City Commission voted unanimously to cancel its annexation of roughly 300 acres including the data center site and voted 4-1 to send a separate disputed annexation into mediation with Harwood.",
+          "source": "https://www.valleynewslive.com/2025/12/09/fargo-commissioners-vote-drop-disputed-annexation-near-harwood/"
+        },
+        {
+          "date": "2026-02-01",
+          "kind": "public-comment",
+          "summary": "Dakota Resource Council held a public meeting on the Harwood data center drawing about 100 attendees; the group said it wants projects to be transparent and beneficial to host communities.",
+          "source": "https://www.newsfromthestates.com/article/data-center-developer-looks-west-backs-power-upgrades-near-fargo"
+        },
+        {
+          "date": "2026-03-10",
+          "kind": "financing",
+          "summary": "Applied Digital closed a $2.15 billion private offering of 6.750% senior secured notes (maturing 2031) to fund construction of roughly 200MW at the Harwood campus.",
+          "source": "https://www.valleynewslive.com/2026/03/10/applied-digital-closes-215b-deal-build-out-harwood-ai-campus/"
+        },
+        {
+          "date": "2026-03-23",
+          "kind": "utility",
+          "summary": "Reporting detailed Applied Digital backing of the Agassiz Transmission Line and Substation project with Minnkota Power Cooperative to deliver the 280MW needed for the Harwood campus.",
+          "source": "https://northdakotamonitor.com/2026/03/23/data-center-developer-looks-west-backs-power-upgrades-near-fargo/"
+        },
+        {
+          "date": "2026-04-02",
+          "kind": "utility",
+          "summary": "Minnkota disclosed the cost of the Agassiz transmission line rose from about $75 million to $110 million due to tight timelines and tariffs; Applied Digital will cover the full cost with no charge to other customers.",
+          "source": "https://nationaltoday.com/us/nd/fargo/news/2026/04/02/minnkota-raises-cost-of-data-center-power-project-but-customers-wont-be-affected/"
+        },
+        {
+          "date": "2026-04-29",
+          "kind": "ruling",
+          "summary": "North Dakota Public Service Commission approved the $110 million Agassiz Transmission Line and Substation, targeting operational by fall 2026.",
+          "source": "https://northdakotamonitor.com/2026/04/29/power-project-for-ai-data-center-gets-north-dakota-agency-approval/"
+        },
+        {
+          "date": "2026-05-11",
+          "kind": "coverage",
+          "summary": "Statewide reporting examined the lack of ND state-level siting authority for data centers, noting the PSC has virtually no say over location, and a failed 2025 bill (HB 1427) that would have granted it.",
+          "source": "https://northdakotamonitor.com/2026/05/11/data-center-dilemma-who-should-decide-where-they-go-in-north-dakota/"
+        },
+        {
+          "date": "2026-07-13",
+          "kind": "announcement",
+          "summary": "Applied Digital confirmed it was expanding its ND footprint and eyeing Oliver County for a third data center campus.",
+          "source": "https://www.valleynewslive.com/2026/07/13/applied-digital-expands-north-dakota-eyes-oliver-county-third-data-center/"
+        },
+        {
+          "date": "2026-08-01",
+          "kind": "coverage",
+          "summary": "Harwood residents still felt left in the dark about the data center months after approval, citing the town NDA-driven negotiation process as an example of insufficient transparency.",
+          "source": "https://www.inforum.com/news/north-dakota/harwood-residents-voice-transparency-concerns-over-ai-data-center"
+        }
+      ]
+    },
+    {
+      "id": "databank-cartersville-ga",
+      "name": "DataBank Project Indo",
+      "operator": "DataBank",
+      "owner": "",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "Cartersville (Bartow County)",
+      "state": "GA",
+      "lat": "",
+      "lon": "",
+      "size_mw": 200,
+      "acres": 69,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "200MW, $2.4B, 1.1M sq ft data center campus at 218 Industrial Park Road near Atlanta; filed a Development of Regional Impact application and a 288MW grid interconnection request.",
+      "source": "https://mlq.ai/news/databank-files-for-200mw-data-center-campus-outside-atlanta-georgia/",
+      "as_of": "",
+      "verified": true,
+      "events": [
+        {
+          "date": "2026-06-22",
+          "kind": "filing",
+          "summary": "DataBank Holdings filed a Development of Regional Impact (DRI) application with the Georgia Department of Community Affairs for 'Project Indo,' a proposed 200 MW data center campus on 69 acres at 218 Industrial Park Road, Cartersville, seeking a 288 MW utility grid connection; full build-out is estimated at $2.4 billion with first phase targeted for 2032.",
+          "source": "https://inforcapital.com/news/databank-files-for-200mw-data-center-campus-outside-atlanta-georgia/"
+        },
+        {
+          "date": "2026-06-25",
+          "kind": "rezoning",
+          "summary": "DataBank filed a rezoning request with the City of Cartersville to change the 218 Industrial Park Road site from HI (heavy industrial) to T (technology district) to permit the ~1 million-sq-ft data center and on-site power substation; the city planner said the request would go before the Planning Commission on August 11, with projected annual tax revenue of $23 million and 60 full-time jobs.",
+          "source": "https://www.daily-tribune.com/news/data-center-eyes-cartersville-industrial-site/article_effaa5c3-3a8b-56dd-bbb3-53d11fb7a072.html"
+        },
+        {
+          "date": "2026-08-11",
+          "kind": "hearing",
+          "summary": "Cartersville Planning Commission scheduled hearing on DataBank's rezoning request (HI to Technology district) for the Project Indo data center campus at 218 Industrial Park Road.",
+          "source": "https://www.daily-tribune.com/news/data-center-eyes-cartersville-industrial-site/article_effaa5c3-3a8b-56dd-bbb3-53d11fb7a072.html"
+        }
+      ]
+    }
+  ]
+}

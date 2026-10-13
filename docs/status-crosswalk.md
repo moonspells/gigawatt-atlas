@@ -30,7 +30,11 @@ writes it at the snapshot date, and it sets the status and dates nothing, becaus
 feature is, not when its status began (07 §2.3; `derive_dates` skips `other` events). A
 `start_date` becomes an `unverified_upstream` review item, not an `energized` date. `opening_date`
 on a non-operating group adds a planned `energized` event unless its period has passed, in which
-case it is a `conflict` item. The proposed rules 1 to 3 below read as `announced`, because no OSM
+case it is a `conflict` item. A construction site that leads its cluster (`landuse=construction`
+or a `construction` tag) and whose `opening_date` is after the snapshot date makes the members
+read as operating by rules 9 to 11 under construction with it, with a `conflict` item: the site is
+not open yet (PowerHouse CTP-02's hall, tagged only `telecom=data_center`, on a site with
+`opening_date=2027`; [osm-pnnl.md](sources/osm-pnnl.md#status-events-and-phases)). The proposed rules 1 to 3 below read as `announced`, because no OSM
 tag is a filing (07 §2.3): `proposed=yes` on an anonymous lot in Manchester Township, NJ (way
 1549253250) was published as `proposed` before the third review round.
 
@@ -120,9 +124,18 @@ it sets the status and dates nothing (`derive_dates` skips `other` events). A ro
 log or note reports a milestone the stage has not reached, or leaves no application under review (an
 application refused as incomplete, a moratorium adopted after the filing), stays held for review
 with a `conflict` item, and so does an Under construction row whose log reports an injunction or a
-halt of its works that no later entry lifts, and a row read as `announced` with no filing that a
-ban or moratorium adopted after it was public (and not ended) blocks
-([epoch-aigridwatch.md](sources/epoch-aigridwatch.md#status-history)).
+halt of its works that no later entry lifts, and a row with no filing known, read as `announced` or
+at a stage that implies an application (In review, Hearing scheduled, Awaiting decision), that a
+ban or moratorium adopted after it was public (and not ended) blocks: Sarasota County's In review
+row, whose log reports the commission's "voted 5-0 for 1-year moratorium", was published
+`proposed`. A row whose stage is ahead of everything its own note and log say of the project is
+held the same way: an Operating or Under construction stage whose operation entries all predate
+the project's announcement while the note speaks only of a plan (Microsoft Cheyenne Expansion),
+and an Approved stage whose decision is an incentive, with no land-use approval or permit named
+anywhere in the row (STACK Berry Hill's performance agreement)
+([epoch-aigridwatch.md](sources/epoch-aigridwatch.md#status-history)). Application stages without
+a known filing are not downgraded in general: of the 10 such reviewed rows, 9 were judged right as
+`proposed`.
 
 "Withdrawn" does not say who withdrew. On 2026-10-08, 13 rows read Withdrawn: in some the developer
 withdrew ("Deep Green withdrew its rezoning request"), in others a mayor dropped his support, a host

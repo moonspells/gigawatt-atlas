@@ -1541,9 +1541,9 @@ def test_cli_run_is_idempotent(
     assert main(common) == 0
     assert "import aigridwatch: candidates=11 new=11" in capsys.readouterr().out
     receipt = json.loads((tmp_repo / "data" / "imports" / "aigridwatch.json").read_text("utf-8"))
-    # 4: milestones read as the row explains them, places the row puts the site outside, the
-    # holds of the fifth fix round
-    assert receipt["importer_version"] == "4"
+    # 5: the holds of the sixth fix round (a moratorium on an unfiled application, a stage
+    # ahead of its row), a property deal as the first report, the county of a Gazetteer point
+    assert receipt["importer_version"] == "5"
     stored = RecordStore(tmp_repo / "data" / "records").load()
     assert len(stored) == 11  # every verified row
     queue = (tmp_repo / "review" / "queue" / "aigridwatch.jsonl").read_text(encoding="utf-8")

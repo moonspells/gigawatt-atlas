@@ -1,8 +1,8 @@
 # OpenStreetMap test fixtures
 
-`overpass-sample.json`, `overpass-cases.json`, `overpass-seed-check.json`, `overpass-fix4.json`
-and `overpass-fix5.json` are small extracts of OpenStreetMap data for the tests of
-`atlas/sources/osm.py` and `atlas/dissolve.py`.
+`overpass-sample.json`, `overpass-cases.json`, `overpass-seed-check.json`, `overpass-fix4.json`,
+`overpass-fix5.json` and `overpass-fix6.json` are small extracts of OpenStreetMap data for the
+tests of `atlas/sources/osm.py` and `atlas/dissolve.py`.
 
 **© OpenStreetMap contributors. Available under the Open Database License 1.0
 (<https://www.openstreetmap.org/copyright>).** The elements and their tags are verbatim; only the
@@ -160,3 +160,29 @@ seed import found (`tests/sources/test_osm_fix5.py`; the finding numbers are in 
 | A building drawn twice inside its site | Apple Mesa ways 300974499, 567575425 and its site way 567575428 |
 | A campus named after one building | QTS NAL1 construction polygon way 1281938083, DC1 and DC2 ways 1425043215, 1425043214 |
 | Status and values from members other than the representative | AWS Canton site way 1459880367 and buildings 1430720170 to 1430720174; Flexential Brentwood way 826001604 and node 12112295055 |
+
+## `overpass-fix6.json`
+
+70 elements copied verbatim, one per line under the `version`, `generator` and `osm3s` header,
+from the same response as `overpass-fix4.json` (the second seed import's Overpass response of
+2026-10-09, `osm3s.timestamp_osm_base` 2026-10-09T09:47:46Z, SHA-256
+`b0fc73d78f3494d8fd1cf56b0ef0b8911578e7e13ccc98f3b5895aac1f40c234`, which the fifth seed import
+read again). Elements are sorted by type and id. Each group is a case of an importer rule of fix
+round 6, or a case the rule must leave as it is (`tests/sources/test_osm_fix6.py`). Without PNNL
+and without overrides, and with the Census files, the importer gives these clusters the same
+names, scopes, statuses, events, operators and capacities as on the full input, but for STACK
+NVA04C's node, which is a record of its own here instead of a member of STACK's NVA04 campus:
+
+| Case | Elements |
+|---|---|
+| Businesses that "server" or "computer" kept in scope | All About Serving Process Server node 7578821329; QES Computers way 358946546; Alembic Computer Services node 11938614120; Center for Computation & Technology node 3468203102 |
+| Names that still say compute center or data center | Iron City No. 1 Power Generator and Compute Center node 13908533343; Date Center West - Eugene node 13748859030 |
+| A house, and buildings that are not houses | Lumen way 835601088 (St. George, `building=house`); Cologix Jacksonville JAX1 way 497151852 (`building=apartments`); Lumen ways 444683815 (Spokane), 151179323 and 1052182309 (Phoenix), 441502816 (Tustin) |
+| A satellite teleport, an earth station, and a data center named Teleport | Encompass Minneapolis Facility way 1391966326; SES - Hawley Earth Station relation 10132610; Telehouse Teleport way 247428943 |
+| A construction site not yet open, and sites that keep their status | PowerHouse CTP-02 site way 1493522242 and hall way 1449347339; Meta Rosemount construction site way 1333289545 and ways 1454573842, 1454573843; Arcola Tech Park way 897226573 (`landuse=industrial`, `opening_date=2030`) and Microsoft IAD11 ways 1124864831, 1560641652, 1560641653 |
+| A building outside a campus polygon, and one in a row without one | Equinix DC14 site way 1227539675, building way 45583050 and way 45583037 (7777 Infantry Ridge Road); Evoque Allen DA1 way 254773897 and way 254773884 (800 Guardians Way) |
+| A landlord's buildings leased to a tenant | Digital Loudoun Plaza ways 1020953454, 1020953461; Digital Realty ways 300969614, 300969616, 300969617, 300969619, 597970806, 597970809, 597970811, 597970813; Amazon IAD-6 way 300969615 and IAD-13 way 460175672 (`owner=Digital Realty`) |
+| A carrier hotel's building | Lakeside Technology Center way 156520409; Digital Realty ORD10 node 10910879064, Centersquare ORD1 node 10910879065, Equinix CH1 node 12695496267 |
+| One campus tied two ways, another operator between | CloudHQ Ashburn Campus way 1343774537 with LC1 to LC3 (ways 794147654, 794147655, 1443187163); LC4 to LC14 (nodes 14201428241 to 14201428243, ways 1381994242, 1560822516 to 1560822519, 1560822523); STACK NVA04C node 14189562575 |
+| A code word beside a series | Aligned IAD-01 way 793622740, IAD-02 way 1088241977, "IAD" way 1088241982 |
+| Names that differ by a leading operator, and the campus nearby | Digital Realty Silicon Valley SJC37 way 1314012931 and Silicon Valley SJC31 way 209087373; Digital Realty Silicon Valley SJC10, SJC11, SJC15, SJC16, SJC29, SJC30 (ways 209073641, 209076412, 209073649, 209073653, 209073657, 209073647) |

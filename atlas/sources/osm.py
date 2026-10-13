@@ -10,7 +10,8 @@ with PNNL IM3 (07 §4.1, §4.2, §5.1, §6.5 step 1). docs/sources/osm-pnnl.md d
 2. Parse every element into an OsmObject (center = node position or bounding-box midpoint), keep
    the containers that hold data center objects (keep_containers), and apply the reviewers'
    decisions in config/overrides/osm.json (load_overrides, apply_overrides: an entry drops an
-   element from scope or replaces its name or operator, with a cited source).
+   element from scope or replaces its name or operator, with a cited source; an entry whose name
+   another element carries nearby is a conflict item, override_name_items).
 3. Dissolve objects into campuses (atlas.dissolve.dissolve_with_notes), each within one county
    unless a site outline holds it across the line.
 4. Join PNNL rows to the clusters (atlas.sources.pnnl) unless --no-pnnl.
@@ -67,9 +68,11 @@ from atlas.dissolve import (
     Polyline,
     box_overlap,
     dissolve_with_notes,
+    haversine_m,
     one_edit,
     operator_conflicts,
     operator_words,
+    operators_compatible,
     ref_key,
     specific_name,
 )
@@ -246,6 +249,29 @@ _DATA_CENTER_RE = re.compile(
     r"|internet exchange|\bidc\b",
     re.IGNORECASE,
 )
+# The words that keep a cluster in scope against the later doubt rules (scope_doubt) and against
+# the teleport rule (telecom_site). "Server", "computer(s)", "compute", "computing" and
+# "computation" alone name businesses as often as data centers ("All About Serving Process
+# Server", "QES Computers", "Alembic Computer Services"), so only a server farm or a compute or
+# computing center counts.
+_DATA_CENTER_STRONG_RE = re.compile(
+    r"data ?cent(?:er|re)s?|\bcolo(?:cation)?\b|\bhosting\b|\bcloud\b|supercomput|\bhpc\b"
+    r"|\bdc ?-?\d|\bnap\b|carrier hotel|internet exchange|\bidc\b|\bserver farms?\b"
+    r"|\bcomput(?:e|ing) cent(?:er|re)s?\b",
+    re.IGNORECASE,
+)
+# Residential building types (scope_doubt). building=apartments is not one: Cologix JAX1 is
+# tagged that way.
+_HOUSES = frozenset(
+    {"house", "detached", "semidetached_house", "bungalow", "terrace", "static_caravan"}
+)
+# Satellite teleports and earth stations, transmission sites rather than data centers (07 §2.2,
+# telecom_site): by name or operator, or in a description or note. "Teleport" in a name alone
+# does not count (Telehouse Teleport, way 247428943, is a data center).
+_BROADCAST_NAME_RE = re.compile(
+    r"\bearth stations?\b|\bsatellite (?:ground )?stations?\b", re.IGNORECASE
+)
+_BROADCAST_TEXT_RE = re.compile(r"\bteleports?\b|\bearth stations?\b|\buplinks?\b", re.IGNORECASE)
 # normalize_name of names that are only a telephone company's brand (2026-10-08: "CenturyLink",
 # "Verizon", "AT&T", "Windstream"): telephone exchanges and offices as often as data centers.
 _TELEPHONE_BRANDS = frozenset(
@@ -281,6 +307,8 @@ class OverpassError(ValueError):
 
 OVERRIDES_PATH = Path("config/overrides/osm.json")
 _REF_RE = re.compile(r"^(?:node|way|relation)/[1-9]\d*$")
+# An entry's name that another element carries this close (centers) is one name for two buildings.
+OVERRIDE_NAME_GAP_M = 2_000.0
 
 
 class ElementOverride(AtlasModel):
@@ -382,6 +410,46 @@ def apply_overrides(
                 tags["operator"] = ov.operator
         kept.append(dataclasses.replace(obj, tags=tags))
     return kept, dropped
+
+
+def override_name_items(
+    objects: Sequence[OsmObject],
+    overrides: Mapping[str, ElementOverride],
+    path: Path = OVERRIDES_PATH,
+) -> list[ReviewItem]:
+    """`conflict` items for entries that give an element a name another element of the input
+    (objects, before the overrides) carries within OVERRIDE_NAME_GAP_M, when no entry drops that
+    element or replaces its name: one campus would list two buildings of one name (way
+    1188691868 renamed "NTT VA8" while way 1560827941, 160 m away, is "NTT VA8" in OSM). The
+    import goes on; a reviewer corrects one of the two."""
+    by_ref = {o.ref: o for o in objects}
+    items: list[ReviewItem] = []
+    for ref, ov in sorted(overrides.items(), key=lambda kv: ref_key(kv[0])):
+        obj = by_ref.get(ref)
+        if obj is None or "name" not in ov.model_fields_set or not ov.name:
+            continue
+        key = normalize_name(ov.name)
+        for other in objects:
+            if other.ref == ref or not other.name or normalize_name(other.name) != key:
+                continue
+            fixed = overrides.get(other.ref)
+            if fixed is not None and (fixed.drop or "name" in fixed.model_fields_set):
+                continue
+            gap = haversine_m(obj.lat, obj.lon, other.lat, other.lon)
+            if gap > OVERRIDE_NAME_GAP_M:
+                continue
+            items.append(
+                _review(
+                    "conflict",
+                    f"{path} names {ref} {ov.name!r}, which {other.ref} also carries "
+                    f"{gap:,.0f} m away in OpenStreetMap, and no entry renames it: one name for "
+                    "two buildings; a reviewer corrects the entry, or names the other element "
+                    "with an entry of its own",
+                    external_id=ref,
+                    data={"osm": ref, "other": other.ref, "name": ov.name, "gap_m": round(gap)},
+                )
+            )
+    return items
 
 
 # ---------------------------------------------------------------------------- parse
@@ -906,6 +974,57 @@ def _period_after(d: FuzzyDate) -> date:
     return date(start.year + month // 12, month % 12 + 1, 1)
 
 
+def _construction_site_groups(
+    groups: list[_Group], rep: OsmObject, ctx: _Context, review: list[ReviewItem]
+) -> list[_Group]:
+    """The status groups of a cluster led by a construction site whose opening is still to come.
+
+    When the representative is an area tagged as planned or being built (OsmObject.planned:
+    landuse=construction, a construction tag) and its opening_date is after the snapshot date,
+    the members read as operating lie on a site that OpenStreetMap says is not open yet: they are
+    regrouped with the site into one under_construction group, with a `conflict` item for a
+    reviewer to check whether a building operates. _events then adds the planned energized event
+    from the site's opening_date. PowerHouse CTP-02's site, way 1493522242 (landuse=construction,
+    industrial=data_centre, opening_date=2027), holds a hall tagged only telecom=data_center,
+    which made the record operating. A construction site without a future opening_date keeps
+    its groups: Meta Cheyenne, QTS NAL1, Digital Realty IAD51 and Meta Rosemount operate on
+    theirs."""
+    if rep.kind not in AREA_KINDS or not rep.planned:
+        return groups
+    opening = osm_date(rep.tags.get("opening_date"), latest=ctx.latest_date)
+    if opening is None or _period_after(opening) <= ctx.as_of_date:
+        return groups
+    operating = [g for g in groups if g.status.status == "operating"]
+    if not operating:
+        return groups
+    moved = tuple(m for g in operating for m in g.members if m.ref != rep.ref)
+    rest = [g for g in groups if g.status.status != "operating"]
+    building = next((g for g in rest if g.status.status == "under_construction"), None)
+    tag = (
+        "landuse=construction"
+        if rep.tags.get("landuse") == "construction"
+        else f"construction={rep.tags.get('construction', 'yes')}"
+    )
+    label = f"{tag} on {rep.ref} (opening_date={opening.value})"
+    built = tuple(m for m in (building.members if building else ()) if m.ref != rep.ref)
+    site = _Group(
+        Crosswalked("under_construction", "other", None, None, STATUS_CONFIDENCE, label),
+        (rep, *moved, *built),
+    )
+    review.append(
+        _review(
+            "conflict",
+            f"{', '.join(m.ref for m in moved)} tagged {operating[0].status.label} (read as "
+            f"operating) lie on the construction site {rep.ref}, which OpenStreetMap tags {tag} "
+            f"with opening_date={opening.value}: the site is not open yet, so the record is under "
+            "construction; a reviewer checks whether a building operates",
+            external_id=rep.ref,
+            data={"refs": [m.ref for m in moved], "opening_date": opening.value},
+        )
+    )
+    return [site] + [g for g in rest if g is not building]
+
+
 def _phase_name(group: _Group) -> str:
     names = list(dict.fromkeys(m.name or m.ref for m in group.members))
     shown = ", ".join(names[:3]) + (f" and {len(names) - 3} more" if len(names) > 3 else "")
@@ -1154,14 +1273,18 @@ def _beyond_operator(stem: Sequence[str], operators: frozenset[str]) -> str:
 
 
 def campus_name(
-    names: Sequence[str], words: frozenset[str], operators: frozenset[str] = frozenset()
+    names: Sequence[str],
+    words: frozenset[str],
+    operators: frozenset[str] = frozenset(),
+    *,
+    series_first: bool = False,
 ) -> str | None:
     """The name a campus of several named buildings goes by, from their names (07 §2.1: one
     campus, not one of its buildings), or None:
 
     - the words they all begin with, without trailing numbers and generic words, when they say
       more than the operator ("PowerHouse Pacific" for Buildings 1 to 3, "QTS NAL1" for DC1 and
-      DC2, "Intergate Seattle" for East Building 1 and West Building A);
+      DC2, "Intergate Seattle" for East Building 1 and West Building A), unless series_first;
     - else, when each name ends its common beginning with one code and number of one series, the
       series: "Amazon IAD-124 to IAD-127" (numbers without a gap), "NTT VA1 and VA2", "Digital
       Realty IAD39, IAD40, IAD41 and IAD73", "CloudHQ LC4, LC5, LC8 and 3 more";
@@ -1170,7 +1293,9 @@ def campus_name(
 
     words are the words of the campus's operators (dissolve.operator_words), for specific_name;
     the stem must also say something beyond the start of any operator in the input (operators,
-    normalize_org), so "H5" (H5 Data Centers) names no campus of its own."""
+    normalize_org), so "H5" (H5 Data Centers) names no campus of its own. series_first skips the
+    common words and goes to the series (_base_name, for names compared without their operator:
+    "Silicon Valley SJC31 and SJC37", not "Silicon Valley", the name of another campus nearby)."""
     distinct = list(dict.fromkeys(names))
     if len(distinct) < 2:
         return None
@@ -1186,7 +1311,7 @@ def campus_name(
     while stem and _filler(stem[-1]):
         stem.pop()
     rest = _beyond_operator(stem, operators)
-    if stem and rest and specific_name(rest, words) is not None:
+    if stem and rest and specific_name(rest, words) is not None and not series_first:
         return " ".join(stem)
     rests = [t[common:] for t in tokens]
     parts = [_SERIES_SUFFIX_RE.match(r[0]) if len(r) == 1 else None for r in rests]
@@ -1217,6 +1342,48 @@ def campus_name(
     return prefix + series
 
 
+def _strip_operator(name: str, operators: frozenset[str]) -> tuple[str, str]:
+    """(the leading words of the name that are an operator of the input, the rest), comparing
+    normalize_name word by word and taking the longest operator that leaves a word: ("Digital
+    Realty", "Silicon Valley SJC37") for "Digital Realty Silicon Valley SJC37"."""
+    tokens = name.split()
+    words = [normalize_name(t) for t in tokens]
+    lead = 0
+    for op in operators:
+        op_words = op.split()
+        if len(op_words) < len(words) and words[: len(op_words)] == op_words:
+            lead = max(lead, len(op_words))
+    return " ".join(tokens[:lead]), " ".join(tokens[lead:])
+
+
+def _series_name(
+    named: Sequence[OsmObject], words: frozenset[str], operators: frozenset[str]
+) -> tuple[str, list[OsmObject]] | None:
+    """(campus_name, the members whose names give it) for building names that are no siblings as
+    they stand, or None:
+
+    - the names compared without a leading operator ("Digital Realty Silicon Valley SJC37" and
+      "Silicon Valley SJC31"), series first, with the first operator stripped (in ref order) put
+      back: "Digital Realty Silicon Valley SJC31 and SJC37". The stem first would give "Digital
+      Realty Silicon Valley", the name of another Digital Realty campus 0.78 km away;
+    - else the names without those that are only words of another member's name ("IAD" beside
+      "Aligned IAD-01" and "Aligned IAD-02"), when two or more remain: "Aligned IAD-01 and
+      IAD-02"."""
+    parts = [_strip_operator(m.name or "", operators) for m in named]
+    lead = next((head for head, _ in parts if head), None)
+    if lead is not None:
+        found = campus_name([rest for _, rest in parts], words, operators, series_first=True)
+        if found is not None:
+            return f"{lead} {found}", list(named)
+    keys = {m.ref: set(normalize_name(m.name or "").split()) for m in named}
+    kept = [m for m in named if not any(keys[m.ref] < keys[o.ref] for o in named)]
+    if 2 <= len(kept) < len(named):
+        found = campus_name([m.name or "" for m in kept], words, operators)
+        if found is not None:
+            return found, kept
+    return None
+
+
 def _base_name(
     rep: OsmObject,
     ordered: Sequence[OsmObject],
@@ -1229,7 +1396,9 @@ def _base_name(
       site), one whose name is not a development's codename ("Project ..."), then one that is
       not planned, then the largest (Meta New Albany Data Center, not Meta LCO 3 Project; Google
       Lenoir Data Center, not Google Project Cardinal). A container's name comes last.
-    - Else, several named buildings name the campus by campus_name ("PowerHouse Pacific").
+    - Else, several named buildings name the campus by campus_name ("PowerHouse Pacific"), or
+      when their names are no siblings as they stand, by _series_name (without a leading
+      operator, or without a name that is only words of another's).
     - Else the representative's name (unless it is tagged with another primary use, the USPO
       Terminal Annex: then the most common name of a member without one, "CoreSite - LA2"), else
       the most common member name.
@@ -1255,6 +1424,11 @@ def _base_name(
         found = campus_name([m.name or "" for m in named], words, operators)
         if found is not None:
             return found, [m for m in buildings if normalize_name(m.name or "") in by_key]
+        retried = _series_name(named, words, operators)
+        if retried is not None:
+            found, giving = retried
+            keys = {normalize_name(m.name or "") for m in giving}
+            return found, [m for m in buildings if normalize_name(m.name or "") in keys]
     base = (
         (rep.name if rep.other_use is None else None)
         or _most_common(m.name for m in own)
@@ -1292,16 +1466,29 @@ def telecom_site(cluster: Cluster) -> str | None:
 
     It is one when every member that has a name, alt_name or operator names a cable landing
     station, a central office, a wire center or a telephone company or cooperative, or is tagged
-    telecom=exchange; unnamed members do not count either way.
+    telecom=exchange, or is a satellite teleport or earth station: named an earth station or a
+    satellite (ground) station, or described as a teleport, an earth station or an uplink in its
+    description or note (Encompass's Lino Lakes facility "houses a state-of-the-art teleport"; SES
+    Hawley Earth Station), unless those texts also say data center, colocation, hosting or the
+    like (_DATA_CENTER_STRONG_RE). Unnamed members do not count either way.
     """
     reasons: list[str] = []
     for m in cluster.members:
         text = " ".join(v for v in (m.name, m.tags.get("alt_name"), m.operator) if v)
         found = _TELECOM_RE.search(text)
+        notes = " ".join(v for k in ("description", "note") if (v := m.tags.get(k)))
+        broadcast = None
+        if not _DATA_CENTER_STRONG_RE.search(f"{text} {notes}"):
+            broadcast = _BROADCAST_NAME_RE.search(text) or _BROADCAST_TEXT_RE.search(notes)
         if m.tags.get("telecom") in _TELECOM_TAGS:
             reasons.append(f"{m.ref} is tagged telecom={m.tags['telecom']}")
         elif found is not None:
             reasons.append(f"{m.ref} is named as a telecom site ({found.group(0)!r})")
+        elif broadcast is not None:
+            reasons.append(
+                f"{m.ref} is named or described as a satellite teleport or earth station "
+                f"({broadcast.group(0)!r})"
+            )
         elif text:
             return None
     return reasons[0] if reasons else None
@@ -1338,9 +1525,13 @@ def scope_doubt(cluster: Cluster, operators: frozenset[str]) -> str | None:
       "Family History Center");
     - an outbuilding: every member a shed, hut, cabin, kiosk or container, or tagged
       utility=telecom (a 5 m x 5 m telecom shed on a school campus);
+    - a house: every member a building=house, detached, semidetached_house, bungalow, terrace
+      or static_caravan ("Lumen" in St. George, a 169 m² house among 25 others); not
+      building=apartments, as Cologix JAX1 is tagged;
 
-    The rest apply only when no member's text says data center, colocation, hosting, cloud,
-    servers or computing:
+    The rest apply only when no member's text says data center, colocation, hosting, cloud, a
+    server farm or a compute or computing center (_DATA_CENTER_STRONG_RE: "server", "computers"
+    or "computing" alone name businesses, "All About Serving Process Server", "QES Computers"):
 
     - another primary use: every member with a name or operator is tagged with one
       (OsmObject.other_use: amenity, shop, tourism, healthcare, healthcare:speciality), as
@@ -1374,7 +1565,10 @@ def scope_doubt(cluster: Cluster, operators: frozenset[str]) -> str | None:
     ):
         tag = f"building={b}" if (b := members[0].tags.get("building")) in _OUTBUILDINGS else ""
         return f"{members[0].ref} is an outbuilding ({tag or 'utility=telecom'})"
-    if any(_DATA_CENTER_RE.search(_texts(m, (*_TEXT_KEYS, "operator"))) for m in members):
+    if shaped and all(m.tags.get("building") in _HOUSES for m in members):
+        house = members[0].tags["building"]
+        return f"{members[0].ref} is a house (building={house}), not a data center building"
+    if any(_DATA_CENTER_STRONG_RE.search(_texts(m, (*_TEXT_KEYS, "operator"))) for m in members):
         return None
     if shaped and sum(m.area_m2() for m in members) < _MIN_FOOTPRINT_M2:
         return f"{members[0].ref} covers under {_MIN_FOOTPRINT_M2:g} m², a hut or a room"
@@ -1502,6 +1696,46 @@ def _duplicate_footprints(clusters: Sequence[Cluster]) -> dict[str, OsmObject]:
                 found[m.ref] = other
                 break
     return found
+
+
+def _multi_tenant_buildings(objects: Sequence[OsmObject]) -> dict[str, list[OsmObject]]:
+    """Carrier hotels: buildings without operator information, with a street address, whose box
+    holds the data center points of two or more operators that disagree, at the building's own
+    address (dissolve rule 6 joins a point to its building only when the operators agree): ref ->
+    the points. Lakeside Technology Center, 350
+    East Cermak Road (way 156520409), holds Digital Realty ORD10, Centersquare ORD1 and Equinix
+    CH1."""
+    points = [o for o in objects if o.kind == "point" and o.has_operator]
+    found: dict[str, list[OsmObject]] = {}
+    for b in objects:
+        if b.kind != "building" or b.bounds is None or b.has_operator or not b.addresses:
+            continue
+        inside = [
+            p for p in points if b.bounds.contains(p.lat, p.lon) and p.addresses & b.addresses
+        ]
+        if len(inside) >= 2 and not all(
+            operators_compatible(x, y) for i, x in enumerate(inside) for y in inside[i + 1 :]
+        ):
+            found[b.ref] = inside
+    return found
+
+
+def _carrier_hotel_item(cluster: Cluster, tenants: Sequence[OsmObject]) -> ReviewItem:
+    """The possible_duplicate item that holds a carrier hotel's building (_multi_tenant_buildings)
+    when its cluster has no operator: its tenants' points are records of their own (dissolve rule
+    6 joins none of them), so a record of the building would count the facility twice (Lakeside Technology Center
+    beside Digital Realty ORD10, both at 350 East Cermak Road)."""
+    rep = cluster.representative
+    operators = sorted({p.operator or p.ref for p in tenants})
+    return _review(
+        "possible_duplicate",
+        f"{rep.ref} ({rep.name or 'unnamed'}) has no operator and holds the data center points of "
+        f"{len(operators)} operators at its own address ({', '.join(operators)}): each is its own "
+        "record, so a record of the building would count the facility again; no record is made "
+        "until a reviewer decides",
+        external_id=rep.ref,
+        data={"refs": list(cluster.refs), "other": _json_refs(p.ref for p in tenants)},
+    )
 
 
 def _override_source(sid: str, ov: ElementOverride, supports: list[str]) -> Source:
@@ -1653,6 +1887,7 @@ def _build_one(
     groups = _status_groups(ordered) or _status_groups(
         [rep] + [m for m in cluster.members if m.ref != rep.ref]
     )
+    groups = _construction_site_groups(groups, rep, ctx, review)
     dropped = ctx.overrides.get(rep.ref) if rep.ref in ctx.dropped else None
 
     st = county.state_abbr
@@ -2365,12 +2600,16 @@ def build_candidates(
     candidates: list[Candidate] = []
     built: list[tuple[Cluster, Candidate]] = []
     duplicates = _duplicate_footprints(clusters)
+    carrier_hotels = _multi_tenant_buildings(objects)
     held: set[str] = set()
     chosen: list[tuple[Cluster, tuple[float, float], County | None]] = []
     for cluster, point, rep_point, mean_county, rep_county in zip(
         clusters, points, reps, at_point, at_rep, strict=True
     ):
         item = _hold(cluster, ctx)
+        tenants = carrier_hotels.get(cluster.representative.ref)
+        if item is None and tenants and not any(m.has_operator for m in cluster.members):
+            item = _carrier_hotel_item(cluster, tenants)
         twin = duplicates.get(cluster.representative.ref)
         if item is None and twin is not None:
             item = _review(
@@ -2465,7 +2704,7 @@ class OsmImporter:
     match_key = "osm"
     owned_external_keys = ("osm", "pnnl_im3")
     review_sources = ("osm", "pnnl")
-    version = "4"
+    version = "5"
     help = (
         "OpenStreetMap data centers via Overpass, dissolved into campuses, checked against PNNL IM3"
     )
@@ -2521,7 +2760,8 @@ class OsmImporter:
             ctx, endpoints, min_elements=self.min_elements, retries=self.retries, sleep=self.sleep
         )
         parsed, skipped = parse_overpass(overpass.doc)
-        objects, dropped = apply_overrides(keep_containers(parsed), overrides, overrides_path)
+        read = keep_containers(parsed)
+        objects, dropped = apply_overrides(read, overrides, overrides_path)
         counties = ctx.counties()
         everything = objects + dropped
         found = counties.lookup_many([(o.lat, o.lon) for o in everything])
@@ -2561,6 +2801,7 @@ class OsmImporter:
             dropped=[o.ref for o in dropped],
         )
         built.metrics["overrides"] = len(overrides)
+        built.review.extend(override_name_items(read, overrides, overrides_path))
         for ref in skipped:
             built.review.append(
                 _review("missing_location", "the Overpass element has no position", external_id=ref)

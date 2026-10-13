@@ -177,10 +177,15 @@ between centers, so two large halls that touch join although their centers are 3
    *An area without an operator over two operators:* when the objects whose centers an area
    without an operator covers name operators that disagree, the area holds only its anchors and
    the objects compatible with them (`dissolve.mixed_anchors`): the objects at its own street
-   address, else those of the operator most of them name, else none. The HITT polygon's box
-   covers Digital Realty IAD51 (at its address) and three AWS buildings; the Digital Loudoun Plaza
-   polygons' boxes cover seven Digital Realty halls and two AWS buildings, which all chained into
-   one record before.
+   address, else those of the operator most of them name, else none. It also holds an object
+   whose `owner` tag names the area's owner or operator, or the anchors' operator
+   (`dissolve.owner_agrees`): a landlord's building leased to a tenant. The HITT polygon's box
+   covers Digital Realty IAD51 (at its address) and three AWS buildings, which stay apart; the
+   Digital Loudoun Plaza polygons (`owner=Digital Realty`, no operator) cover Digital Realty's
+   halls and Amazon IAD-6 and IAD-13 (operator AWS, `owner=Digital Realty`), which all chained into
+   one record before fix round 5 and were two records after it (the plaza's and "Amazon IAD-6 and
+   IAD-13"). Since fix round 6 they are one record, operated by Digital Realty (the most common
+   operator), with the AWS buildings and their power tags in `buildings[]` and `mw_as_stated`.
    An object that shares an area's street address (any number of a ";" list on the same street)
    but whose operator disagrees is an `address_conflict` note (section 5, held clusters).
 2. **Operator distance.** Two non-campus objects whose boxes are within `radius_m` of each other
@@ -251,8 +256,16 @@ between centers, so two large halls that touch join although their centers are 3
    Digital Dallas buildings, was a record "Data center (Richardson, TX)". A node marks where a
    tenant is, not a row of buildings, so it neither joins nor is joined this way, and a way drawn
    over the building (half of the smaller box or more) is the same building mapped twice, which
-   is held instead (section 5). Four unnamed buildings join on the 2026-10-09 input (Evoque Allen
-   DA1, Digital Realty EWR11 and EWR12, Amazon IAD-73 and IAD-74, Equinix DC14).
+   is held instead (section 5). A building whose cluster holds a campus or site polygon is passed
+   over when none of those polygons covers the unnamed building's center: a building outside a
+   campus's own polygon is not a building of that campus. Way 45583037, the former AOL building at
+   7777 Infantry Ridge Road, is 39 m from Equinix DC14's building but outside Equinix's site
+   polygon, and was listed as a building of DC14; since fix round 6 it is its own record, "Data
+   center (Prince William County, VA)", for a reviewer to name. (A different house number on the
+   same street was measured as the guard too, and rejected: it also splits Evoque Allen DA1, 900
+   Guardians Way, from the unnamed way at 800, which may be a hall of that campus.) Three unnamed
+   buildings join on the 2026-10-09 input (Evoque Allen DA1, Digital Realty EWR11 and EWR12,
+   Amazon IAD-73 and IAD-74).
 8. **A numbered sibling or a street neighbour just beyond the radius.** Two non-campus objects of
    one operator (rule 2's keys) whose boxes are more than `radius_m` but at most 500 m apart join
    when one's name continues a numbered series of the other's cluster (`dissolve.series_key`: the
@@ -268,13 +281,25 @@ between centers, so two large halls that touch join although their centers are 3
    2026-10-09 input this joins Iron Mountain VA-6, Digital Realty IAD41, CoreSite VA3 (Reston),
    Digital Realty SJC11 (Santa Clara), CloudHQ MCC2, Microsoft Leesburg Buildings 3 to 5 and AWS
    IAD-140 to IAD-145 with their campuses.
+9. **Two links** (`dissolve.multi_link_joins`, fix round 6). After rule 8, two clusters of one
+   operator (rule 2's keys) whose members are linked in two or more independent ways within 1 km
+   (`SERIES_GAP_M`) join: a name that continues the other's numbered series, the same
+   `addr:street`, the same web page (a `website` with a path). Every member with operator
+   information must be compatible, and the clusters must not be separated by different ZIP codes,
+   two points or a site polygon of each. An object of another operator between them does not
+   separate them, as it does for rule 8's single link: two links are not chance. CloudHQ LC1 to
+   LC3 and LC4 to LC14, about 650 m apart, share the series LC3-LC4, Loudoun County Parkway and the
+   page `cloudhq.com/campus/lc-campus/` ("fourteen data centers" by CloudHQ), with STACK NVA04C's
+   node between them; they were two records and are one, "CloudHQ Ashburn Campus (Ashburn, VA)",
+   with three phases. Of the 15 `same_operator_nearby` pairs of the 2026-10-09 input, only this
+   one has two links (RagingWire's pair has a series only, Equinix's a street only, and the
+   Aligned, LightEdge and Stream pairs share a page but are 1.4 km or more apart).
 
 After the joins, `same_operator_nearby` notes also name the clusters of one operator that may
 still be one site: a numbered series or a street split within 1 km (`SERIES_GAP_M`: RagingWire
-CA3, 720 m from CA1 and CA2, "one of three data centers on our 52.7MW campus" by NTT; CloudHQ LC1
-to LC3 and LC4 to LC14, about 650 m apart, "fourteen data centers" by CloudHQ), or members that
-give one web page (a `website` with a path, read for this comparison only and never published)
-within 2 km (`SITE_PAGE_GAP_M`). `tenant_building` notes name a cluster that is one building with
+CA3, 720 m from CA1 and CA2, "one of three data centers on our 52.7MW campus" by NTT), or members
+that give one web page (a `website` with a path, read for this comparison only and never
+published) within 2 km (`SITE_PAGE_GAP_M`), with one link (two make rule 9's join). `tenant_building` notes name a cluster that is one building with
 an operator within 150 m (`TENANT_GAP_M`) of a row of at least three buildings of one other
 operator, with no third operator within `radius_m`: the Rackspace-tagged building 42 m from
 Digital Dallas, which Digital Realty lists as DFW25 of that campus. Both become
@@ -332,7 +357,7 @@ record (07 §2.1: records are never deleted; a cluster that disappears upstream 
 | Field | Value |
 |---|---|
 | `record_type` / `scope` | `campus`; `in_scope`, or `out_of_scope` outside the 50 states and DC, for a telecom site, or for an object the scope screen doubts (the record is kept, 07 §2.2; see below) |
-| `canonical_name` | base (`osm._base_name`) = the name of a named campus or site member: of several (a campus and its expansion site), one whose name is not a development's codename ("Project ..."), then one that is not planned, then the largest ("Meta New Albany Data Center", not "Meta LCO 3 Project"; "Google Lenoir Data Center", not "Google Project Cardinal"); a container's name comes last. Else, when two or more building members carry distinct names, their common name (`osm.campus_name`): the words they all begin with, without trailing generic words, when that says more than an operator of the input ("PowerHouse Pacific" for Buildings 1 to 3, "QTS NAL1" for DC1 and DC2, "Digital Realty Dallas"), else their series when each ends in one code and number ("Amazon IAD-124 to IAD-127" for numbers without a gap, "NTT VA1 and VA2", "Digital Realty IAD39, IAD40, IAD41 and IAD73", "CloudHQ LC4, LC5, LC8 and 3 more"); a campus of several buildings is not named after one of them (97 records renamed on the 2026-10-09 input). Else the representative's `name` (unless it has another primary use: then the most common name of a member without one, "CoreSite - LA2" for the Terminal Annex), else the most common member name, else "{operator} data center", else "Data center". The operator is prefixed unless the base already starts with the operator, an `operator:short` of a member with that operator, or the operator's first word, also misspelt by one letter ("Lumen Ashburn" for Lumen Technologies stays as is; "CyrusOne NVA14" operated by PowerHouse becomes "PowerHouse CyrusOne NVA14"; "CyrusOne Data Center Campus" is not prefixed with "CyrysOne"). Then " ({city}, {ST})" with `location.city`, the Census place that contains the point (below), else " ({county}, {ST})" with the county's full Census name from the Gazetteer ("Loudoun County", "Manassas city", "Orleans Parish"). The county contains the point; `addr:city` is the postal city of the address, which need not (Flexential Atlanta - Norcross, `addr:city=Norcross`, lies in Peachtree Corners; "Sterling" and "Dulles" are postal names for points in Ashburn), so it never names the record. A bare county name also reads as a city: Taylor County, TX is Abilene, while the city of Taylor, TX is 300 km away. |
+| `canonical_name` | base (`osm._base_name`) = the name of a named campus or site member: of several (a campus and its expansion site), one whose name is not a development's codename ("Project ..."), then one that is not planned, then the largest ("Meta New Albany Data Center", not "Meta LCO 3 Project"; "Google Lenoir Data Center", not "Google Project Cardinal"); a container's name comes last. Else, when two or more building members carry distinct names, their common name (`osm.campus_name`): the words they all begin with, without trailing generic words, when that says more than an operator of the input ("PowerHouse Pacific" for Buildings 1 to 3, "QTS NAL1" for DC1 and DC2, "Digital Realty Dallas"), else their series when each ends in one code and number ("Amazon IAD-124 to IAD-127" for numbers without a gap, "NTT VA1 and VA2", "Digital Realty IAD39, IAD40, IAD41 and IAD73", "CloudHQ LC4, LC5, LC8 and 3 more"); a campus of several buildings is not named after one of them (97 records renamed on the 2026-10-09 input). Names that are no siblings as they stand are compared again (`osm._series_name`, fix round 6): without the leading words that are an operator of the input, series first, with the operator put back ("Digital Realty Silicon Valley SJC31 and SJC37" for "Digital Realty Silicon Valley SJC37" and "Silicon Valley SJC31"; the common words first would give "Digital Realty Silicon Valley", the name of another Digital Realty campus 0.78 km away), else without the names that are only words of another member's name ("Aligned IAD-01 and IAD-02", not "Aligned IAD-02", beside a hall named "IAD"). Else the representative's `name` (unless it has another primary use: then the most common name of a member without one, "CoreSite - LA2" for the Terminal Annex), else the most common member name, else "{operator} data center", else "Data center". The operator is prefixed unless the base already starts with the operator, an `operator:short` of a member with that operator, or the operator's first word, also misspelt by one letter ("Lumen Ashburn" for Lumen Technologies stays as is; "CyrusOne NVA14" operated by PowerHouse becomes "PowerHouse CyrusOne NVA14"; "CyrusOne Data Center Campus" is not prefixed with "CyrysOne"). Then " ({city}, {ST})" with `location.city`, the Census place that contains the point (below), else " ({county}, {ST})" with the county's full Census name from the Gazetteer ("Loudoun County", "Manassas city", "Orleans Parish"). The county contains the point; `addr:city` is the postal city of the address, which need not (Flexential Atlanta - Norcross, `addr:city=Norcross`, lies in Peachtree Corners; "Sterling" and "Dulles" are postal names for points in Ashburn), so it never names the record. A bare county name also reads as a city: Taylor County, TX is Abilene, while the city of Taylor, TX is 300 km away. |
 | `aliases[]` | every other distinct member name (`osm_name`), the representative's too when the record goes by another name; each cites the members that carry it |
 | `parties.operator` | the most common `operator` tag, citing every member that carries it, not counting a member with another primary use or a contractor's tag (section 3); an operator a config/overrides/osm.json entry gives cites that entry's source (section 9) |
 | `parties.owner` | the `owner` tag of the largest campus or site member that has one, else the owner every building and point member names when each has one and they agree (normalized), citing those members; one building's owner is not the campus's (only Equinix DC10 of six buildings carried `owner=Digital Realty`) |
@@ -375,6 +400,14 @@ A cluster that OSM gives too little to publish makes no record; a review item ho
   a single such way whose box shares at least half of the smaller box with another cluster's
   building is the same building mapped twice (way 567575425 on the Apple Data Center, way
   300974499, Mesa, AZ).
+- **A carrier hotel's building** (`possible_duplicate`, fix round 6): a building without operator
+  information and with a street address, whose box holds the data center points of two or more
+  operators that disagree at its own address, leading a cluster with no operator. Each tenant's
+  point is its own record (rule 6 joins a point to its building only when the operators agree), so
+  a record of the building would count the facility again. Lakeside Technology Center (way
+  156520409, 350 East Cermak Road) holds Digital Realty ORD10, Centersquare ORD1 and Equinix CH1,
+  and its record duplicated ORD10's; it is the only such building in the 2026-10-09 input.
+  `data.other` lists the points.
 
 After the records are built, `_hold_after_build` holds clusters when two records would describe
 one site (07 §2.1: one campus, one count). A held cluster makes no record; its item names the
@@ -423,8 +456,14 @@ also tags cable landing stations and telephone company offices. A cluster is a t
 every member that has a `name`, `alt_name` or `operator` names a cable landing station, a landing
 station, a central office, a wire center, or a telephone company or cooperative ("Telephone Co",
 "Telephone Coop", "Cooperative Telephone"), or is tagged `telecom=exchange` or
-`telecom=central_office`. Unnamed members count neither way, and one data center name in the
-cluster keeps it in scope. The record gets `scope: "out_of_scope"`, `purpose: "telecom"` and an
+`telecom=central_office`. Since fix round 6 a member is also a telecom site when it is a
+satellite teleport or earth station: its name, `alt_name` or operator says "earth station" or
+"satellite (ground) station", or its `description` or `note` says teleport, earth station or
+uplink, unless those texts also say data center, colocation, hosting or the like (the strong
+words below). "Teleport" in a name alone does not count: Telehouse Teleport (way 247428943, 7
+Teleport Drive) is a data center. Encompass's Lino Lakes facility ("houses a state-of-the-art
+teleport", by its description) and SES's Hawley Earth Station were published as data centers.
+Unnamed members count neither way, and one data center name in the cluster keeps it in scope. The record gets `scope: "out_of_scope"`, `purpose: "telecom"` and an
 `out_of_scope` review item naming the member and the words that matched. On 2026-10-07 this
 catches 10 sites: 8 cable landing stations (Tuckerton, Manasquan, Wall Township, Shirley, Norma
 Beach, Myrtle Beach) and 2 telephone cooperative offices. "AT&T Center" in San Diego, operated by
@@ -455,7 +494,12 @@ doubted when:
   Mountain Records Storage", the "Family History Center" of the Church of Jesus Christ of
   Latter-day Saints in Montpelier, ID, which was published as an operating data center;
 - **every member** is a `building=shed`, `hut`, `cabin`, `kiosk`, `container`, `garage` or
-  `carport`, or is tagged `utility=telecom` (a 5 m by 5 m telecom shed on a school campus).
+  `carport`, or is tagged `utility=telecom` (a 5 m by 5 m telecom shed on a school campus);
+- **every member** is a house: `building=house`, `detached`, `semidetached_house`, `bungalow`,
+  `terrace` or `static_caravan` (fix round 6: "Lumen" in St. George, UT, a 169 m² house among 25
+  others, was published as an operating data center). `building=apartments` is not one, as
+  Cologix Jacksonville JAX1 is tagged that way; and "Lumen" is not a telephone brand of the screen,
+  because Lumen's Spokane, Phoenix and Tustin buildings are likely its data centers.
 
 The crypto rule also reads `resource` and `quarry` values (Compute North's Kearney site is
 `resource=cryptocurrency` + `quarry=mining`), and the room rule the word "lab" (not "Labs", a
@@ -464,8 +508,13 @@ common company name, nor "Laboratory": a national laboratory's computing center 
 library floor.
 
 The other rules apply only when no member's name, description or operator says data center,
-colocation, hosting, cloud, servers, computer, computing or HPC, or names a DC number, a NAP, a
-carrier hotel or an internet exchange:
+colocation, hosting, cloud, a server farm, a compute or computing center, supercomputing or HPC,
+or names a DC number, a NAP, an IDC, a carrier hotel or an internet exchange. Since fix round 6
+"server", "computer(s)", "compute", "computing" and "computation" alone no longer count: they
+name businesses as often (a process server's point, "All About Serving Process Server", and "QES
+Computers", an 87 m² shop, were published; "Alembic Computer Services, Inc." and LSU's "Center
+for Computation & Technology" are now held too), while "Iron City ... Compute Center" and "Date
+Center West" stay in scope:
 
 - another primary use: every member with a name or operator carries `amenity`, `shop`,
   `tourism`, `healthcare` or `healthcare:speciality` (section 3): "Myndshift Technologies" is
@@ -536,6 +585,17 @@ a building tag gets no status. Members are grouped by the resulting status.
 - **`opening_date`** on a group that is not operating adds a planned `energized` event, which never
   changes the status. A date whose whole period has passed by the snapshot (opening_date=2025 on
   a site still tagged under construction on 2026-10-08) is not used; it is a `conflict` item.
+- **A construction site that has not opened** (`osm._construction_site_groups`, fix round 6):
+  when the representative is an area tagged as planned or being built (`landuse=construction` or a
+  `construction` tag) and its `opening_date` is after the snapshot date, the members read as
+  operating (a bare `telecom=data_center` or `building=data_center`) are regrouped with the site
+  into one `under_construction` group, and the site's `opening_date` adds the planned `energized`
+  event; a `conflict` item asks a reviewer to check whether a building operates. PowerHouse CTP-02
+  (way 1493522242: `landuse=construction`, `industrial=data_centre`, `opening_date=2027`) holds a
+  hall tagged only `telecom=data_center`, and was published as operating. A construction polygon
+  without a future `opening_date` keeps its groups (the review accepted operating for Meta
+  Cheyenne, QTS NAL1, Digital Realty IAD51 and Meta Rosemount), and Arcola Tech Park's
+  `opening_date=2030` is on a `landuse=industrial` polygon, which is not planned.
 - On later runs, an observation (`other`, or a `first_reported` event an earlier version wrote)
   keeps the earliest `as_of` already stored for the same status from OpenStreetMap sources (the
   members it cites change as the cluster does), and the note names no date, so weekly runs change
@@ -665,8 +725,8 @@ warning.
 | `osm.jsonl` | `missing_location` | an element without a position, or a cluster no Census county contains |
 | `osm.jsonl` | `unknown_status` | a held cluster with no status: a site polygon with no data center object inside, or no member tag the crosswalk knows |
 | `osm.jsonl` | `unverified_upstream` | a `start_date` not used as a date; a position OSM calls approximate; a held cluster planned only in OSM, with no name and no operator; an operator tag that names a general contractor (not used); two operators one letter apart, read as one; buildings of one record with one numbered name and different statuses (way 1560827941, under construction, and the operating way 1188691868 are both "NTT VA8" once the override gives the second its name back; Stack Infrastructure's four "POR03" ways) |
-| `osm.jsonl` | `conflict` | an `opening_date` that has passed while OSM still tags the site as not operating (not used); a held cluster of a site OSM names two ways (section 5); an `it_power` above the `input:electricity` it is drawn from (neither is published; `data.it_mw`, `facility_mw`, `members`) |
-| `osm.jsonl` | `possible_duplicate` | records with the same canonical name chained within 1 km (one item per group); an object inside a campus or site that has no building of its own, or lists its house number, or a node inside a building, whose operator disagrees; an area without an operator that does not hold all its box covers; a held unnamed building drawn over another, or a member drawn over another of its own record (left out of `buildings[]`); a cluster held after building (an area its buildings contradict, the smaller side of a county line, a hall of a development mapped hall by hall; section 5); two records of one operator that a series, a street or a web page links, and a lone building beside another operator's row (section 5) |
+| `osm.jsonl` | `conflict` | an `opening_date` that has passed while OSM still tags the site as not operating (not used); members read as operating on a construction site whose `opening_date` is still to come (the record is under construction; `data.refs`, `opening_date`); a held cluster of a site OSM names two ways (section 5); an `it_power` above the `input:electricity` it is drawn from (neither is published; `data.it_mw`, `facility_mw`, `members`); a config/overrides/osm.json entry that gives an element a name another element carries within 2 km (section 9; `data.osm`, `other`, `name`, `gap_m`) |
+| `osm.jsonl` | `possible_duplicate` | records with the same canonical name chained within 1 km (one item per group); an object inside a campus or site that has no building of its own, or lists its house number, or a node inside a building, whose operator disagrees; an area without an operator that does not hold all its box covers; a held unnamed building drawn over another, or a member drawn over another of its own record (left out of `buildings[]`); a held carrier hotel's building (section 5); a cluster held after building (an area its buildings contradict, the smaller side of a county line, a hall of a development mapped hall by hall; section 5); two records of one operator that a series, a street or a web page links, and a lone building beside another operator's row (section 5) |
 | `osm.jsonl` | `county_mismatch` | a record whose site outline holds members across a county line (they are named; the record has its representative's county) |
 | `osm.jsonl` | `invalid` | a cluster that does not fit the record schema (for example a point in Guam, whose longitude the schema does not accept) |
 | `pnnl.jsonl` | `unmatched` | a PNNL row that no data center element the import read takes |
@@ -717,7 +777,11 @@ scope or replaces its name or operator:
 An entry must drop the element or replace its name or operator, not both; any other key, a key
 that is not a ref, or a malformed value stops the import (exit 1), and so does an entry whose
 element the input does not have: an element deleted or retagged upstream must be reviewed, not
-silently stop applying. A test fixture names its own file with `--overrides`
+silently stop applying. An entry that gives an element a name another element of the input
+carries within 2 km (`OVERRIDE_NAME_GAP_M`, centers, `normalize_name`), when no entry drops that
+element or replaces its name, is a `conflict` item instead, and the import goes on
+(`osm.override_name_items`, fix round 6): the entry naming way/1188691868 "NTT VA8" while way
+1560827941, 160 m away, is "NTT VA8" in OSM made one campus list two buildings of one name. A test fixture names its own file with `--overrides`
 (`tests/fixtures/osm/overrides-empty.json`).
 
 A record built from an element an entry changed cites the entry's source (s3, s4, ...) with its
@@ -962,3 +1026,37 @@ Mountain VA-6, Digital Realty IAD41, CoreSite VA3, Digital Realty SJC11, CloudHQ
 Leesburg Buildings 3 to 5 and AWS IAD-140 to IAD-145 (rule 8); and the unnamed buildings at
 Digital Dallas, Evoque Allen DA1, Digital Realty EWR11 and EWR12, Amazon IAD-73 and IAD-74 and
 Equinix DC14 (rule 7). `atlas validate` passes for all 971.
+
+## 15. Fix round 6: re-run of the 2026-10-09 seed input
+
+The review of the fifth seed import (1,211 records, a 90-record sample with 11 errors under the
+cited standard, and 45 cited errors in all) found OSM records that were not data centers (a
+process server's point, a computer shop, a house, a satellite teleport), a construction site read
+as operating, a building outside a campus polygon listed as the campus's, a carrier hotel's
+building counted beside its tenant's record, one campus as two records twice (a landlord's
+buildings leased to a tenant, CloudHQ's LC campus), names taken from one building, and an
+override that gave a building the name of its neighbour. Each importer rule was measured alone,
+then all together, on the same saved input with the committed overrides, into an empty scratch
+store (`--input overpass-us-20261009T095131Z.json --pnnl im3_datacenter_centroids.geojson --now
+2026-10-09T09:50:24.684005Z --offline`); the rules (OSM importer version 5) are in sections 4, 5
+and 9:
+
+| | Fix round 5 | Fix round 6 |
+|---|---|---|
+| Objects / clusters | 2,046 / 1,021 | 2,046 / 1,020 |
+| Records (in scope) | 971 (887) | 969 (878) |
+| Held, no record | 50 | 51 |
+| Operating / under construction / announced | 943 / 23 / 5 | 940 / 24 / 5 |
+| Out of scope | 84 | 91 |
+| Review items (osm / pnnl) | 211 / 30 | 218 / 30 |
+
+Changed: 7 records held out of scope (All About Serving Process Server, QES Computers, Alembic
+Computer Services and LSU's Center for Computation & Technology by the strong-word gate; Lumen in
+St. George, a house; Encompass's teleport and SES's Hawley Earth Station, telecom sites);
+PowerHouse CTP-02 under construction with a planned energized event in 2027; way 45583037 split
+from Equinix DC14; Lakeside Technology Center held; Digital Loudoun Plaza with Amazon IAD-6 and
+IAD-13, and CloudHQ's LC campus, one record each; "Aligned IAD-01 and IAD-02" and "Digital Realty
+Silicon Valley SJC31 and SJC37" renamed. No record of the sample that the review judged right
+changes. The NTT VA8 entry's name is a `conflict` item until the owner's entry for way 1560827941
+lands. A second run on the same store leaves every candidate unchanged, and `atlas validate`
+passes.

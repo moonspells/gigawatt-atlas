@@ -14,7 +14,9 @@ union-find:
    is only an approximation of the campus polygon and in dense areas such as Ashburn it covers
    other operators' buildings. An area without an operator whose contents name operators that
    disagree holds only the objects that share its street address (a construction site's box
-   over two companies' buildings).
+   over two companies' buildings), or those of the operator most of them name, and the objects
+   whose owner tag names the area's owner or operator or that operator: a landlord's building
+   leased to a tenant (owner_agrees).
 2. Operator distance: two non-campus objects whose bounding boxes (a node is its point) are within
    radius_m of each other join when they have the same normalize_org(operator) or the same
    operator:wikidata. An object without operator information whose name starts with an operator
@@ -47,7 +49,11 @@ union-find:
    information, in a cluster without an operator, joins the nearest building with an operator
    within NEIGHBOR_GAP_M when every object with operator information within radius_m names that
    one operator (904 Quality Way, 18 m from Digital Realty DFW18 among the Digital Dallas
-   buildings). A node marks where a tenant is, not a row, so it neither joins nor is joined.
+   buildings). A node marks where a tenant is, not a row, so it neither joins nor is joined. A
+   building whose cluster holds a campus or site polygon is passed over when none of those
+   polygons covers the unnamed building's center: a building outside a campus's own polygon is
+   not a building of that campus (the former AOL building at 7777 Infantry Ridge Road, 39 m from
+   Equinix DC14's site).
 8. A numbered sibling or a street neighbour just beyond the radius: two non-campus objects of one
    operator (rule 2's keys) whose boxes are more than radius_m but at most NAME_GAP_M apart join
    when one's name continues a numbered series of the other's cluster (series_key: "Iron Mountain
@@ -56,10 +62,18 @@ union-find:
    (separation): addr:postcodes that differ, an object of another operator between them, a site
    polygon of each, or two points (a point shows where a tenant is, not a building). A separated
    pair is a same_operator_nearby note.
+9. Two links: after rule 8, two clusters of one operator whose members are linked in two or more
+   independent ways within SERIES_GAP_M (a numbered series continued, the same addr:street, the
+   same web page) join when every member with operator information is compatible and nothing
+   but an object of another operator separates them (ZIP codes that differ, two points, a site
+   polygon of each): CloudHQ LC1 to LC3 and LC4 to LC14, 650 m apart on Loudoun County Parkway,
+   with the series LC3-LC4 and the page cloudhq.com/campus/lc-campus/ (multi_link_joins). Two
+   links are not chance, so another operator's building between them (STACK NVA04C) does not
+   keep them apart.
 
 After the joins, same_operator_nearby notes name the clusters that may still be one site: one
-operator's numbered series or street split within SERIES_GAP_M (CloudHQ LC1 to LC3 and LC4 to
-LC14, 650 m apart), or members that name one web page within SITE_PAGE_GAP_M; and
+operator's numbered series or street split within SERIES_GAP_M (RagingWire CA3, 720 m from CA1
+and CA2), or members that name one web page within SITE_PAGE_GAP_M; and
 tenant_building notes name a lone building of another operator within TENANT_GAP_M of one
 operator's row of buildings, with no third operator around it (Rackspace's DFW3, which Digital
 Realty lists as DFW25 of its Digital Dallas campus).
@@ -803,6 +817,20 @@ def shares_address(inner: OsmObject, area: OsmObject) -> bool:
     return bool(inner.addresses & area.addresses)
 
 
+def owner_agrees(obj: OsmObject, area: OsmObject, anchors: Sequence[OsmObject]) -> bool:
+    """True when obj's owner tag (normalize_org) names the area's owner or operator, or the
+    anchors' operator (mixed_anchors): a landlord's building leased to a tenant, which belongs to
+    the landlord's site although its operator tag names the tenant (Amazon IAD-6 and IAD-13,
+    operator AWS and owner=Digital Realty, in the Digital Loudoun Plaza polygons, owner=Digital
+    Realty, among Digital Realty's halls)."""
+    owner = normalize_org(obj.tags.get("owner", ""))
+    if not owner:
+        return False
+    keys = {normalize_org(area.tags.get(k, "")) for k in ("owner", "operator")}
+    keys |= {a.operator_key for a in anchors if a.operator_key}
+    return owner in keys - {""}
+
+
 NoteKind = Literal[
     "county_line",
     "county_blocked",
@@ -961,10 +989,12 @@ def _separation(
     group_a: Sequence[OsmObject],
     group_b: Sequence[OsmObject],
     objects: Sequence[OsmObject],
+    *,
+    between: bool = True,
 ) -> str | None:
     """What keeps a and b apart although rule 8 links them, or None: different ZIP codes, both
-    points, a site polygon of each, or an object of another operator whose center lies in the box
-    that spans the two."""
+    points, a site polygon of each, or (unless between is False) an object of another operator
+    whose center lies in the box that spans the two."""
     pa, pb = _postcode(a), _postcode(b)
     if pa is not None and pb is not None and pa != pb:
         return f"their postcodes differ ({pa} and {pb})"
@@ -974,6 +1004,8 @@ def _separation(
     areas_b = [m.ref for m in group_b if m.kind in AREA_KINDS]
     if areas_a and areas_b:
         return f"each lies in its own site polygon ({areas_a[0]} and {areas_b[0]})"
+    if not between:
+        return None
     span = _union_box(a.extent, b.extent)
     for o in objects:
         if (
@@ -984,6 +1016,79 @@ def _separation(
         ):
             return f"{o.ref} ({o.name or _who(o)}) of another operator lies between them"
     return None
+
+
+LinkKind = Literal["series", "street", "page"]
+
+
+def multi_link_joins(
+    ordered: Sequence[OsmObject],
+    find: Callable[[OsmObject], int],
+    groups: dict[int, list[OsmObject]],
+    keys: SeriesKeys,
+    join: Join,
+) -> None:
+    """Rule 9: join two clusters of one operator (rule 2's keys) whose members are linked in two
+    or more independent ways within SERIES_GAP_M: a name that continues the other's numbered
+    series (series_key, numbers one apart), the same addr:street, the same web page. Every member
+    with operator information must be compatible, and _separation must find nothing but an
+    object of another operator between them. groups holds the clusters by root (find), and is
+    kept up to date as clusters join.
+
+    CloudHQ LC1 to LC3 and LC4 to LC14 (2026-10-09) are 650 m apart on Loudoun County Parkway,
+    'LC4' continues 'LC3', and both name https://cloudhq.com/campus/lc-campus/: one campus by
+    CloudHQ's own page, two records before. STACK NVA04C's node lies in the box that spans them,
+    which keeps a pair with one link apart (rule 8), but not one with two. Of the other
+    same_operator_nearby pairs of that input none has two links (RagingWire CA3: a series only)."""
+    page = {o.ref: _web_page(o) for o in ordered}
+    linkable = sorted(
+        (o for o in ordered if o.kind not in AREA_KINDS and o.has_operator),
+        key=lambda o: (o.extent.minlat, ref_key(o.ref)),
+    )
+    dlat = SERIES_GAP_M / METERS_PER_DEGREE_LAT
+    links: dict[tuple[int, int], dict[LinkKind, tuple[float, OsmObject, OsmObject]]] = {}
+    for i, a in enumerate(linkable):
+        for b in linkable[i + 1 :]:
+            if b.extent.minlat > a.extent.maxlat + dlat:
+                break
+            ra, rb = find(a), find(b)
+            if ra == rb or not set(_operator_keys(a)) & set(_operator_keys(b)):
+                continue
+            gap = a.gap_m(b)
+            if gap > SERIES_GAP_M:
+                continue
+            kinds: list[LinkKind] = []
+            ka, kb = keys.get(a.ref), keys.get(b.ref)
+            if ka is not None and kb is not None and ka[0] == kb[0] and abs(ka[1] - kb[1]) == 1:
+                kinds.append("series")
+            street = _street_key(a)
+            if street is not None and street == _street_key(b):
+                kinds.append("street")
+            if page[a.ref] is not None and page[a.ref] == page[b.ref]:
+                kinds.append("page")
+            found = links.setdefault((min(ra, rb), max(ra, rb)), {})
+            for kind in kinds:
+                best = found.get(kind)
+                if best is None or gap < best[0]:
+                    found[kind] = (gap, a, b)
+    for _, found in sorted(links.items()):
+        if len(found) < 2:
+            continue
+        _, a, b = min(found.values(), key=lambda t: t[0])
+        ra, rb = find(a), find(b)
+        if ra == rb:
+            continue
+        group_a, group_b = groups[ra], groups[rb]
+        if not _all_compatible([m for m in group_a + group_b if m.has_operator]):
+            continue
+        if _separation(a, b, group_a, group_b, ordered, between=False) is not None:
+            continue
+        join(a, b)
+        root = find(a)
+        if root == find(b):  # not blocked by a county line
+            groups.pop(ra, None)
+            groups.pop(rb, None)
+            groups[root] = group_a + group_b
 
 
 def _split_notes(
@@ -1161,7 +1266,11 @@ def dissolve_with_notes(
             kept = {
                 o.ref
                 for o in inside
-                if anchors and all(operators_compatible(o, a) for a in anchors)
+                if anchors
+                and (
+                    all(operators_compatible(o, a) for a in anchors)
+                    or owner_agrees(o, area, anchors)
+                )
             }
             held_by[area.ref] = kept
             for o in inside:
@@ -1328,6 +1437,14 @@ def dissolve_with_notes(
     with_op = sorted((o for o in others if o.has_operator), key=lambda o: o.extent.minlat)
     south_edges = [o.extent.minlat for o in with_op]
     groups_now = members_by_root()
+    area_objects = campuses + sites
+
+    def outside_its_site(obj: OsmObject, o: OsmObject) -> bool:
+        """True when o's cluster holds campus or site polygons and none covers obj's center."""
+        root = uf.find(index[o.ref])
+        areas = [a for a in area_objects if uf.find(index[a.ref]) == root]
+        return bool(areas) and not any(a.covers(obj.lat, obj.lon) for a in areas)
+
     for obj in others:
         if obj.kind != "building" or obj.has_operator or obj.name:
             continue
@@ -1342,6 +1459,7 @@ def dissolve_with_notes(
             and box_overlap(obj.bounds, o.bounds) >= DUPLICATE_OVERLAP
             for o in close
         )  # the same building mapped twice: a held duplicate, not a building of the row
+        close = [o for o in close if not outside_its_site(obj, o)]
         if close and not drawn_over and _all_compatible(near):
             join7(obj, min(close, key=lambda o: (obj.gap_m(o), ref_key(o.ref))))
 
@@ -1381,6 +1499,9 @@ def dissolve_with_notes(
             groups_now.pop(ra, None)
             groups_now.pop(rb, None)
             groups_now[root] = group_a + group_b
+
+    # Rule 9: two clusters of one operator that two independent links tie.
+    multi_link_joins(ordered, lambda o: uf.find(index[o.ref]), groups_now, series, join_rule("9"))
 
     grouped = members_by_root()
     root_of = {m.ref: root for root, members in grouped.items() for m in members}

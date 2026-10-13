@@ -12,16 +12,18 @@ verified project becomes a `project` record at `locality` precision:
   in it (check_place: the Census place polygons, and for a township its Gazetteer point and area);
 - a city or municipality is never named when the row's note or event log puts the site outside
   it ("north of Yerington", "near Fredericksburg", "annexation into City of Burgin"): the record
-  names the county and keeps the point at county precision (outside_phrase); a row without
+  names the county and keeps the point at county precision (outside_phrase; for a row placed at
+  that place's Gazetteer point, the county that holds the point); a row without
   coordinates whose locality names no county is placed in the county its note and log state ("in
   Stafford County"), and a Virginia independent city is its own county;
 - status_history is built from the milestone dates (announced, rezoning filed, a hearing a
   decision on its day or an event of its day says was held, a decision; an approval only when
   the row names it a land-use approval or a permit), read as the row explains them: an announced
   date the row calls an LLC's registration is no announcement and one it calls a filing is the
-  filing; a rezoning_filed date that is an inquiry, a report or the municipality's own act is no
-  filing, and the row's own earlier filing dates the application; a vote around midnight is
-  dated by its meeting. A first_reported event comes from the row's event log when its first
+  filing, and one whose entries report only a property deal is the first report; a
+  rezoning_filed date that is an inquiry, a report or the municipality's own act is no filing,
+  and the row's own earlier filing dates the application; a vote around midnight is dated by its
+  meeting. A first_reported event comes from the row's event log when its first
   report can be told (first_report), before the announced date too; entries citing placeholder
   links date nothing. A date on the 1st of a month is
   read at month precision, one on January 1 as its year. The derived `stage` goes through the
@@ -32,7 +34,10 @@ verified project becomes a `project` record at `locality` precision:
   reached, or leaves no application under review, is held for review, and so is one whose
   earliest milestone would date its first report later than the row shows, or is a denial, a
   withdrawal or a pause; so is a row under construction whose log reports an injunction or a
-  halt, and an announced row a ban or moratorium blocks;
+  halt, a row with no filing known (announced, or a stage that implies an application) a ban or
+  moratorium blocks, and a row whose stage is ahead of its own note and log (stage_ahead: an
+  operating stage whose operation entries are an older site's, an approval that is an
+  incentive);
 - size_mw keeps its figure in mw_as_stated and becomes it_mw or utility_request_mw only when the
   row's note states that basis (07 §2.4) and no entry of its log gives the campus another figure
   on that basis; a named campus gets the acreage its log gives it; a row that is a power supply
@@ -398,6 +403,25 @@ _LOG_MORATORIUM_RE = re.compile(
     r"|\b(?:removing|removed|removes) data cent(?:er|re)s? as (?:a )?permitted use\b",
     re.I,
 )
+# A vote for a moratorium, and a moratorium in answer ("Council voted 3-2 for 1-year moratorium",
+# "Commission voted 5-0 for 1-year moratorium", "the county responded with unanimous 1-year
+# moratorium").
+_LOG_MORATORIUM_VOTE_RE = re.compile(
+    r"\bvot(?:ed|es|ing)\s+(?:\d+\s*-\s*\d+\s+|unanimously\s+)?(?:for|in favor of)\s+(?:an?\s+)?"
+    r"(?:[\w-]+\s+){0,2}moratori(?:um|a)\b"
+    r"|\brespond\w*\s+with\s+(?:an?\s+)?(?:[\w-]+\s+){0,3}moratori(?:um|a)\b",
+    re.I,
+)
+# A ban written as a zoning code that shuts data centers out of the place (Palmetto: "approved a
+# rewritten industrial zoning code that permanently excludes data centers from the city").
+_LOG_BAN_RE = re.compile(
+    r"\b(?:pass(?:ed|es)?|adopt(?:ed|s)?|approv(?:e|ed|es)|enact(?:ed|s)?)(?:\W+[\w'-]+){0,8}?\W+"
+    r"(?:exclud|prohibit|bann?)\w*\s+(?:all\s+|new\s+)?data cent(?:er|re)s?\s+from\s+the\s+"
+    r"(?:city|county|township|town|village|borough|parish)\b",
+    re.I,
+)
+# Every way a log entry says a moratorium or ban on data centers was adopted (log_obstacle).
+_LOG_MORATORIUM_RES = (_LOG_MORATORIUM_RE, _LOG_MORATORIUM_VOTE_RE, _LOG_BAN_RE)
 # Words close before a moratorium that make it a demand or a draft, not an act ("residents urged
 # the board to impose a moratorium").
 _MORATORIUM_HEDGE_RE = re.compile(
@@ -1400,6 +1424,28 @@ def announcement(project: dict[str, Any]) -> Announcement:
     return Announcement(announced)
 
 
+_ANNOUNCES_RE = re.compile(r"\bannounc", re.I)
+PROPERTY_DEAL_NOTE = "A property deal the row dates as announced; it states no data center plan"
+
+
+def property_deal(project: dict[str, Any], day: AgwDate) -> str | None:
+    """The text that explains an announced day as a property deal, or None: the row's entries of
+    that day (else the note's clauses that name it) all report a purchase, a sale or a transfer
+    (_PROPERTY_RE), and none states a data center plan (_PLAN_RE) or says it announces anything.
+    Amazon Data Services "bought George Washington University's Ashburn campus for $427 million":
+    the deal's report is the project's first report, not its announcement. EdgeCore Louisa
+    "announced the land purchase ... and $17B+ phased campus plan", which stays an
+    announcement."""
+    entries, clauses = _day_texts(project, day)
+    texts = entries or clauses
+    if texts and all(
+        _PROPERTY_RE.search(t) and not _PLAN_RE.search(t) and not _ANNOUNCES_RE.search(t)
+        for t in texts
+    ):
+        return texts[0]
+    return None
+
+
 @dataclass(frozen=True)
 class Filing:
     """AI GridWatch's rezoning_filed date as the row explains it: the application_filed date to
@@ -1512,11 +1558,16 @@ def milestone_events(project: dict[str, Any], today: date) -> list[dict[str, Any
     later-stage milestone is left out (late_announcement), and so are a past hearing nothing says
     was held (hearing_held) and an approval nothing names a land-use approval or a permit
     (unnamed_approval). The announced, rezoning_filed and decided_date fields are read as the row
-    explains them (announcement, rezoning_filing, decision_day)."""
+    explains them (announcement, rezoning_filing, decision_day); an announced day the row explains
+    as a property deal (property_deal) is the first report, status announced, not an
+    announcement."""
     found: list[tuple[AgwDate, int, Status, EventType, str | None]] = []
     announced = announcement(project).day
     if announced and late_announcement(project) is None:
-        found.append((announced, 0, "announced", "announced", None))
+        if property_deal(project, announced) is None:
+            found.append((announced, 0, "announced", "announced", None))
+        else:
+            found.append((announced, 0, "announced", "first_reported", PROPERTY_DEAL_NOTE))
     filing = rezoning_filing(project)
     if filing.day:
         note = None
@@ -2084,21 +2135,26 @@ def log_obstacle(
     upheld (Urbana: the BZA "unanimously denies Thor's appeal, upholding city determination that
     site plan application was incomplete"), or, after its filing, a moratorium or ban on data
     centers adopted that does not exempt it (Urbana's council "passed a 12-month moratorium on new
-    data centers" three weeks after the filing). For a row at announced with no filing, a ban or
-    moratorium adopted after the project was public (`public`: the earliest date the row shows;
-    when it shows none, any) holds it too (n34: Andover's Ordinance 2026-13 banning data centers
-    township-wide). For a row under construction, an injunction or a halt of its works that no
-    later entry lifts (n34: Matrix's temporary injunction freezing construction). None
-    otherwise."""
+    data centers" three weeks after the filing; a vote for one, "Council voted 3-2 for 1-year
+    moratorium"; a zoning code that "permanently excludes data centers from the city", T5's
+    Palmetto). For a row with no filing known, at announced or at a stage that implies an
+    application (proposed: In review, Hearing scheduled, Awaiting decision), a ban or moratorium
+    adopted after the project was public (`public`: the earliest date the row shows; when it
+    shows none, any) holds it too (n34: Andover's Ordinance 2026-13 banning data centers
+    township-wide; Sarasota County's moratorium on a row In review with no filing). For a row
+    under construction, an injunction or a halt of its works that no later entry lifts (n34:
+    Matrix's temporary injunction freezing construction). None otherwise."""
     if status == "under_construction":
         return _halted(project, today)
     if status not in ("announced", "proposed"):
         return None
     filed = filing_day(project)
     since: date | None = filed.end if filed is not None else None
-    after = "after its filing"
-    if filed is None and status == "announced":
+    after, unfiled = "after its filing", ""
+    if filed is None:
         since, after = public, "after the project was public"
+        if status == "proposed":
+            unfiled = ", and the row shows no filing"
     for day, e in _log_entries(project):
         if day is not None and day.start > today:
             continue
@@ -2108,22 +2164,22 @@ def log_obstacle(
             if _LOG_INCOMPLETE_RE.search(clause) and _LOG_UPHELD_RE.search(clause):
                 what = "its application refused as incomplete, and the refusal upheld"
                 return LogMilestone(None, what, day, kind, source)
-            # For an announced row without a filing, the note's ban counts too: any ban in force
-            # blocks a project that has not applied.
+            # For a row without a filing, the note's ban counts too: any ban in force blocks a
+            # project that has not applied.
             if (
-                (filed is not None or status == "announced")
-                and (day is not None or filed is None)
+                (day is not None or filed is None)
                 and (since is None or day is None or day.start > since)
                 and not _LOG_EXEMPT_RE.search(clean_text(e.get("summary")))
                 and any(
                     _unhedged(clause, m.start(), m.end())
                     and not _MORATORIUM_HEDGE_RE.search(clause[max(0, m.start() - 40) : m.start()])
-                    for m in _LOG_MORATORIUM_RE.finditer(clause)
+                    for pattern in _LOG_MORATORIUM_RES
+                    for m in pattern.finditer(clause)
                 )
                 and not _moratorium_ended(project, day)
             ):
                 what = f"a moratorium or ban on data centers adopted {after}"
-                return LogMilestone("paused", what, day, kind, source)
+                return LogMilestone("paused", what, day, kind, source, unfiled)
     return None
 
 
@@ -2147,6 +2203,108 @@ def _moratorium_ended(project: dict[str, Any], day: AgwDate | None) -> bool:
         and _MORATORIUM_ENDED_RE.search(clean_text(e.get("summary")))
         for e in row_events(project)
     )
+
+
+# stage_ahead: an incentive, which is no approval to build (STACK Berry Hill's performance
+# agreement, Nebius Independence's tax abatement).
+_INCENTIVE_RE = re.compile(
+    r"\b(?:performance agreements?|incentives?(?: deal| agreement| package)?|(?:tax )?abatements?|"
+    r"tax (?:breaks?|exemptions?|credits?)|economic development agreements?|PILOT|"
+    r"payments? in lieu of taxes|grants?)\b",
+    re.I,
+)
+# A note that speaks only of a plan (Microsoft Cheyenne Expansion: "announced intent to acquire
+# ~3,200 acres ... for a multiyear data-center expansion"), with no word of a site built or
+# operating.
+_PLANNED_NOTE_RE = re.compile(
+    r"\b(?:intent to|intends? to|plans? to|planned|proposed|proposes|will (?:build|develop|"
+    r"construct)|seek(?:s|ing)?|expansion)\b",
+    re.I,
+)
+_BUILT_NOTE_RE = re.compile(
+    r"\b(?:operat\w*|online|opened|energi[sz]ed|live|built|under construction|broke ground|"
+    r"groundbreaking)\b",
+    re.I,
+)
+_OPERATED_KINDS = frozenset({"operational", "operation", "opening", "energized"})
+_BUILT_KINDS = frozenset({"construction", "groundbreaking"}) | _OPERATED_KINDS
+
+
+def stage_ahead(project: dict[str, Any], status: Status, today: date) -> str | None:
+    """Why the stage's status is ahead of everything the row's own note and event log say of the
+    project, or None. _record holds such a row (a `conflict` item, released with "stage") when
+    neither log_milestone nor log_obstacle found anything.
+
+    - Operating or Under construction, when every operation entry (operational, operation,
+      opening, energized; for under construction also construction and groundbreaking) dated by
+      today ends before the project was announced (its announced milestone, else its earliest
+      announcement entry), and the note speaks only of a plan: the entries report an older site
+      (Microsoft Cheyenne Expansion: operational entries of 2012 and 2021 for the existing campus,
+      the 3,200-acre expansion announced 2026-04-14). Without the note's plan the rule does not
+      apply: the fixture's operating google-bristow has later announcements that are investment
+      news.
+    - Approved, when the decision is no land-use approval (unnamed_approval), the entries or note
+      clauses of its day name an incentive (a performance agreement, an incentive deal, a tax
+      abatement or credit, a PILOT, a grant), and no entry by today and no note clause names a
+      land-use approval or a permit (STACK Berry Hill's performance agreement). An Approved stage
+      without land-use words but without an incentive either is left alone (DC Blox, EdgeCore
+      Louisa and Flexential Kaufman, which the review judged right)."""
+    if status in ("operating", "under_construction"):
+        kinds = _OPERATED_KINDS if status == "operating" else _BUILT_KINDS
+        announced = milestone_date(project, "announced")
+        if announced is None:
+            days = [
+                d
+                for e in dating_events(project)
+                if clean_text(e.get("kind")).casefold() == "announcement"
+                and (d := entry_date(e)) is not None
+            ]
+            announced = min(days, key=lambda d: d.start) if days else None
+        built = [
+            d
+            for e in dating_events(project)
+            if clean_text(e.get("kind")).casefold() in kinds
+            and (d := entry_date(e)) is not None
+            and d.start <= today
+        ]
+        note = clean_text(project.get("note"))
+        planned = bool(_PLANNED_NOTE_RE.search(note)) and not _BUILT_NOTE_RE.search(note)
+        if (
+            announced is not None
+            and built
+            and planned
+            and all(d.end < announced.start for d in built)
+        ):
+            last = max(d.end for d in built)
+            return (
+                f"its {'/'.join(sorted(kinds & {'operational', 'construction'}))} entries all "
+                f"come before the project was announced ({announced.fuzzy()['value']}; the latest "
+                f"is of {last.isoformat()}), so they report an older site, and nothing reports "
+                "this project " + ("operating" if status == "operating" else "being built")
+            )
+    if status == "permitted":
+        decided = unnamed_approval(project)
+        if decided is None:
+            return None
+        clauses = _CLAUSE_RE.split(clean_text(project.get("note")))
+        day_texts = [
+            clean_text(e.get("summary"))
+            for e in dating_events(project)
+            if (d := entry_date(e)) is not None and _same_period(d, decided)
+        ] + [c for c in clauses if _clause_of_day(c, decided)]
+        texts = [
+            clean_text(e.get("summary"))
+            for e in dating_events(project)
+            if (d := entry_date(e)) is None or d.start <= today
+        ] + clauses
+        incentive = next((m for t in day_texts if (m := _INCENTIVE_RE.search(t))), None)
+        if incentive is not None and not any(_LAND_USE_APPROVAL_RE.search(t) for t in texts):
+            return (
+                f"the approval of {decided.fuzzy()['value']} is {incentive.group(0)!r}, an "
+                "incentive, not an approval to build, and neither its note nor its event log "
+                "names a land-use approval or a permit"
+            )
+    return None
 
 
 def withdrawal_reason(project: dict[str, Any]) -> StatusReason | None:
@@ -2894,7 +3052,7 @@ class AIGridWatchImporter:
     match_key = "aigridwatch_id"
     owned_external_keys = ("aigridwatch_id",)
     review_sources = ("aigridwatch",)
-    version = "4"
+    version = "5"
     help = "AI GridWatch project tracker (CC BY 4.0): contested proposals and their milestones"
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
@@ -3519,6 +3677,16 @@ class AIGridWatchImporter:
                 continue
             out_phrase, out_where = outside
             location[key] = None
+            if (
+                not location.get("county_fips")
+                and location.get("lat") is not None
+                and location.get("lon") is not None
+            ):
+                # The point is the place's Gazetteer point (CloudBurst "near San Marcos"): it
+                # still tells the county, as for a row with coordinates.
+                at = counties.lookup(location["lat"], location["lon"])
+                if at is not None and at.state_abbr == state:
+                    location["county_fips"], location["county_name"] = at.fips, at.name
             if location.get("county_fips"):
                 location["precision"] = "county"
             flag(
@@ -3733,6 +3901,22 @@ class AIGridWatchImporter:
                 announced=clean_text(project.get("announced")),
                 filing=explained.filing.fuzzy()["value"] if explained.filing else None,
             )
+        deal = (
+            property_deal(project, explained.day)
+            if explained.day is not None and late is None
+            else None
+        )
+        if deal is not None:
+            flag(
+                "conflict",
+                pid,
+                f"AI GridWatch's announced date ({clean_text(project.get('announced'))}) is the "
+                f"day of a property deal ({deal[:160]!r}), which states no data center plan and "
+                "announces nothing: it is imported as the project's first report, not as its "
+                "announcement, and a reviewer dates the announcement if there is one",
+                announced=clean_text(project.get("announced")),
+                entry=deal[:300],
+            )
         filing = rezoning_filing(project)
         if filing.doubt is not None:
             flag(
@@ -3943,6 +4127,20 @@ class AIGridWatchImporter:
                     f"{why}: the row is held for review, not imported, rather than published "
                     "with the stage's status",
                     **evidence,
+                )
+        ahead = stage_ahead(project, status, ctx.today) if log is None else None
+        if ahead is not None:
+            why = f"AI GridWatch's stage {stage!r} ({status}) is ahead of its own row: {ahead}"
+            if release is not None and "stage" in free:
+                released(pid, release, "stage", "conflict", why, stage=stage)
+            else:
+                holds.append("stage")
+                flag(
+                    "conflict",
+                    pid,
+                    f"{why}: the row is held for review, not imported, rather than published "
+                    "with the stage's status",
+                    stage=stage,
                 )
         if status == "cancelled" and status_reason is None:
             status_reason = withdrawal_reason(project)

@@ -224,7 +224,9 @@ def test_a_virginia_independent_city_is_its_own_county(
     assert va4.location.precision == "locality"
 
 
-def test_a_county_inside_a_compound_parenthesis_is_read(check3: ImportResult) -> None:
+def test_a_county_inside_a_compound_parenthesis_is_read(
+    check3: ImportResult, make_context: MakeContext, tmp_path: Path
+) -> None:
     # "Berry Hill (Pittsylvania County / Danville)" names Pittsylvania County (n42).
     loc = parse_locality("Berry Hill (Pittsylvania County / Danville)", "VA")
     assert (loc.place, loc.county_texts, loc.hint) == (
@@ -232,7 +234,13 @@ def test_a_county_inside_a_compound_parenthesis_is_read(check3: ImportResult) ->
         ("Pittsylvania County",),
         "Danville",
     )
-    stack = records(check3)["stack-berry-hill-pittsylvania-va"]
+    # Owner's correction gwa-01m4hfr0pzx7pp6mt8ptap6rm7: Berry Hill is held (its approval is an
+    # incentive); released here, its location is the one under test.
+    assert "stack-berry-hill-pittsylvania-va" not in records(check3)
+    released = tmp_path / "aigridwatch.json"
+    release = {"release": ["stage"], "reason": "test", "reviewed_at": "2026-10-09"}
+    released.write_text(json.dumps({"stack-berry-hill-pittsylvania-va": release}), encoding="utf-8")
+    stack = records(run(make_context, overrides=released))["stack-berry-hill-pittsylvania-va"]
     assert (stack.location.county_name, stack.location.county_fips) == ("Pittsylvania", "51143")
     assert (
         stack.canonical_name == "STACK Infrastructure Berry Hill megasite (Pittsylvania County, VA)"

@@ -384,7 +384,8 @@ def test_an_approval_of_an_incentive_is_no_approval_to_build(check2: ImportResul
     botetourt = records(check2)["google-botetourt-greenfield-va"]
     assert botetourt.status == "permitted"
     assert "approved" not in botetourt.dates
-    assert [e.event for e in botetourt.status_history] == ["announced", "other"]
+    # Owner's correction gwa-01m4hfr0psax0sebz3s0qc7bgv: the land deal is no announcement.
+    assert [e.event for e in botetourt.status_history] == ["first_reported", "other"]
     (item,) = [
         i
         for i in items(check2, "google-botetourt-greenfield-va", "conflict")
