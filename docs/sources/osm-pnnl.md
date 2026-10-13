@@ -932,6 +932,58 @@ way/682979410 ("Google Project Cardinal": the cited article places the project o
 adjacent to the campus, so it does not show this way to be the campus; the way joins Google's
 Lenoir campus by rule 2, which names the record "Google Lenoir Data Center").
 
+Entries of fix round 6 (reviewed 2026-10-13: the owner's corrections of the fifth seed's review,
+PR #2; every page read with the project's user agent on 2026-10-13, the site polygon way
+1387391200 through the OSM API, because the website challenged automated clients). Element
+decisions carry the top-level citation and an `expect` guard on the tags they replace or read;
+record ops are cited `corrections` with `basis` and the review PR as `issue_url`:
+
+| Element | Decision | Source |
+|---|---|---|
+| node/9669340912 (111 Market Place, Baltimore) | operator Crown Castle Fiber → Zayo (`set_party`); renamed "Zayo Baltimore - 111 Market Pl", the old name a former_name alias | Crown Castle, directory page (it sold its fiber business to Zayo); PeeringDB facilities in Baltimore |
+| node/10910879064 (Digital Realty ORD10) | joins way/156520409, the Lakeside Technology Center at the same address; the record is renamed "Digital Realty ORD10", Lakeside Technology Center an osm_name alias | Baxtel, Digital Realty: ORD10; OpenStreetMap way 156520409 |
+| node/10910879065 (350 East Cermak Road) | name "Chicago (Cermak) ORD1", operator Centersquare → Csquare | Csquare, Chicago |
+| way/190868312 (RagingWire CA3) | joins way/32560290 (CA1 and CA2, 720 m); renamed "NTT Sacramento CA1 to CA3", "NTT RagingWire" a former_name alias | NTT, Sacramento CA3 and Sacramento data centers |
+| way/138643160 (601 Benjamin Drive, Springfield) | the fix-round-5 entry, cited to Baxtel's CMH01 page instead of the LexisNexus page, which calls the site decommissioned | Baxtel, 5CDC: Columbus CMH01 |
+| way/155739337 (2500 West Union Hills Drive, Phoenix) | name "Aligned PHX-01/02/03", operator Aligned Data Centers (Aligned Energy is its former name) | Aligned Data Centers, Phoenix |
+| way/220518160 (2055 East Technology Circle, Tempe) | name and operator Digital Realty removed: the building is Mapletree Industrial Trust's, vacant until a new lease in FY25/26 | Mapletree Industrial Trust, investor presentation of May 2026 |
+| way/460050155 (Equinix DC10 and its cluster) | joins way/234722029's cluster (Filigree Court, 710 m); renamed "Equinix Ashburn" | Equinix, release of 2020-11-17 |
+| node/14156477686 (Equinix Ashburn DC18) | `status` announced: a phase of its own | Baxtel, Equinix: DC18 |
+| way/279410762, way/279410766 (1919 Park Avenue and 300 JFK Blvd East, Weehawken) | name "EWR2", operator Cyxtera and Digital Realty → Csquare; rule 2 joins them | Csquare, New York/New Jersey spec sheet |
+| way/318069356 (John F. Simms Building, Santa Fe) | postcode 87501 → 87505 | New Mexico Department of Information Technology |
+| way/336387583 (1401 Russell Street, Baltimore) | name "Baltimore (BAL)", operator TierPoint | TierPoint, Baltimore |
+| way/377345296 (2425 Busse Road, Elk Grove Village) | name "Elk Grove Village ORD2", operator Centersquare → Csquare | Csquare, Chicago |
+| way/300969615 (Amazon IAD-6, Digital Loudoun Plaza) | tenant Amazon Web Services (rule 1's owner check joins IAD-6 and IAD-13 to the plaza) | OpenStreetMap way 300969615 |
+| way/460212563 (3015 Winona Avenue, Burbank) | the fix-round-4 entry replaced: name "BUR10", operator Centurylink → Digital Realty | Digital Realty, Los Angeles |
+| way/597835788 (Stream DFW IV) | operator Stream removed: Stream sold the building in 2011 | Stream Data Centers, Dallas |
+| way/597876719 (Rackspace Richardson DFW3, 1215 Integrity Drive) | joins way/597876730, Digital Realty's DFW18; the record keeps "Digital Realty Dallas" (`rename`) and gains tenant Rackspace | Digital Realty, DFW25; Baxtel, Rackspace Richardson DFW3 |
+| way/1560827941 (44725 Gigabit Plaza, under construction) | name "NTT VA8" → "NTT VA9": Baxtel's VA9, under construction for 2027, has its map point 40 m from the way (its address reads 44470 Gigabit Plaza); the NTT VA8 conflict item goes | Baxtel, NTT: VA9 |
+| way/747985149 (2236 Airport Drive, Wichita Falls) | OSM's operating observation replaced by an approval of 2026-08 (`remove_event`, `add_event`) | KAUZ News Channel 6, 2026-08-13 |
+| way/818167571 (1623 Farnam Street, Omaha) | postcode 68106 → 68102 | 1623 Farnam |
+| way/818790301 (Credit Suisse: Clifton Data Center) | operator and owner DXC Technology; renamed "DXC Technology Clifton Data Center", OSM's name an osm_name alias | DXC Technology, release of 2019-05-13; The Register, 2019-05-14 |
+| way/1000784035, way/1059030596, way/1280340215 (9750, 9740 and 9730 Hornbaker Road) | name "AWS" removed, operator Amazon Web Services → Stack Infrastructure: rule 2 joins them to STACK's way/1059036248 | Baxtel, Stack: NVA02A, NVA02B and NVA02C |
+| way/1210421871 (5635 South Avenue, Boardman) | dropped: Carrier Services Group's telecom-equipment warehouse | Carrier Services Group |
+| way/1238705019 (Involta Independence) | name "Ark Independence", operator Ark Data Centers; street 7300 East Pleasant Valley Road (`set`) | Baxtel, Ark: Independence |
+| way/1276518687 (Digital Realty IAD55) | street 22588 Fitness Court → 22588 Relocation Drive | Loudoun County, address points |
+| way/1343774537 (CloudHQ's LC campus, joined by rule 9) | renamed "CloudHQ LC Campus", "CloudHQ Ashburn Campus" an osm_name alias | CloudHQ, LC Campus |
+| way/1081973944 (QTS San Antonio II) | street 8635 → 8535 Potranco Road | QTS, San Antonio |
+| way/1387391200, way/909455922, way/1292897241 to way/1292897243 (True North Data Centers) | operator True North Data Solutions → Compass Datacenters: rule 1 takes Compass IAD IE (way/1387391201) into the polygon; renamed "Compass Loudoun County I", "True North Data Centers" an osm_name alias | Dgtl Infra, 2022-03-09; OpenStreetMap way 1387391200 |
+| way/1483070134 (Project Cardinal, Yorkville) | the under-construction observation of the planned outlines replaced by the approval of 2025-11-10 (Ordinance No. 2025-78); the land is still farmed | United City of Yorkville |
+| way/1486780799 (Aligned DFW-04) | street 401 → 601 North Star Road | Texas Department of Licensing and Regulation, TABS2025024707 |
+| way/1539603380 (32 container-sized buildings, Venango County) | `out_of_scope` for the whole cluster: the Scrubgrass bitcoin mine | explore Clarion, 2026-06-02 |
+| way/1547829412 (Lonestar Dream -Tarbush Site) | `out_of_scope` for the whole cluster: a bitcoin-mining hosting site | Bitcoin Magazine, 2024-04-03 |
+| way/1558344919 (unnamed, 50 NW Point Boulevard, Elk Grove Village) | OSM's operating observation replaced by construction start 2024: Aligned's ORD-03 | Baxtel, Aligned: ORD-03 |
+
+The importer rules of fix round 6 make eight of the owner's corrections without an entry (an
+entry would change nothing, and a join, alone or name that is true already stops the run): the
+process server and QES Computers (the strong-word gate), Lumen in St. George (a house), Encompass's
+teleport (a telecom site), PowerHouse CTP-02 (under construction), way 45583037 apart from Equinix
+DC14 (rule 7), and the names "Aligned IAD-01 and IAD-02" and "Digital Realty Silicon Valley SJC31
+and SJC37". Not entered: way/1019812125 (EdgeConneX POR03 at 6501 NE Bennett Street, under
+construction per the correction: the only page that says so, datacenterHawk's, refuses the
+project's user agent and has no Wayback copy; EdgeConneX's own page calls POR03 planned and
+Baxtel lists it as fully operational with expansion in progress, so it stays as tagged).
+
 ## 10. Known limits
 
 - **Bounding-box containment in saved inputs.** A response saved before 2026-10-09's second
@@ -997,11 +1049,12 @@ Lenoir campus by rule 2, which names the record "Google Lenoir Data Center").
 - **OSM's own errors.** An operator tag that outlived a sale, a tenant's name on a building it
   left, or a data center tag on a clinic is what OSM says; the scope screen and the rules catch
   some, and a reviewer corrects the rest with a cited entry (section 9). Twelve entries on
-  2026-10-09; the seed check's other stale tags (SEGRA, Charlotte) have no source that states
-  the present, so they stay as tagged. Since fix round 6 an entry can also give a status or
-  correct the record's events, so the pre-check's stale statuses (Microsoft East Point, EdgeCore
-  AS02, Crane PDX01, Prime SJC03, Lambda's Kansas City building, EdgeConneX POR03 and others) are
-  the reviewers' to enter with a cited source; until then they stay as tagged.
+  2026-10-09, 38 more (and two of them replaced) in fix round 6; the seed check's other stale
+  tags (SEGRA, Charlotte) have no source that states the present, so they stay as tagged. Since
+  fix round 6 an entry can also give a status or correct the record's events, so the pre-check's
+  stale statuses (Microsoft East Point, EdgeCore AS02, Crane PDX01, Prime SJC03, Lambda's Kansas
+  City building, EdgeConneX POR03 and others) are the reviewers' to enter with a cited source;
+  until then they stay as tagged.
 - **A reviewer's join is not checked.** A `join` bypasses the operator guard and the county
   regions, so a wrong one can merge two operators' buildings; `atlas validate` catches only a
   record whose point lies outside its county, not a wrong campus.
@@ -1171,9 +1224,19 @@ from Equinix DC14; Lakeside Technology Center held; Digital Loudoun Plaza with A
 IAD-13, and CloudHQ's LC campus, one record each; "Aligned IAD-01 and IAD-02" and "Digital Realty
 Silicon Valley SJC31 and SJC37" renamed. No record of the sample that the review judged right
 changes. The NTT VA8 entry's name is a `conflict` item until the owner's entry for way 1560827941
-lands. A second run on the same store leaves every candidate unchanged, and `atlas validate`
-passes.
+lands (section 9: fix round 6 names it NTT VA9). A second run on the same store leaves every
+candidate unchanged, and `atlas validate` passes.
 
 The cited-correction keys of section 9 (`join`, `alone`, `status`, `expect` and `corrections`)
 change nothing while no entry uses them: the same run with the committed overrides gives
 byte-identical records and review items, and the receipt gains the corrections counts, all 0.
+
+With fix round 6's entries (section 9), the same input with the run's own time (`--now
+2026-10-13T04:09:42Z`) gives 1,014 clusters, 964 records (870 in scope: 933 operating, 24 under
+construction, 5 announced, 2 permitted), 50 clusters held, 94 records out of scope and 212 / 31
+review items. The receipt counts 20 corrected records, 29 record ops, 2 out of scope and 2
+`importer_gap` Fixes: the tenants Amazon Web Services and Rackspace, which the importer does not
+read from a joined building's operator tag. A scratch checker finds each record by its OSM ref and
+confirms all 48 of the owner's OSM corrections (47 made, by an entry or a rule, and EdgeConneX
+POR03 left as tagged), `atlas validate` passes, and a second run on the same store leaves every
+candidate unchanged.

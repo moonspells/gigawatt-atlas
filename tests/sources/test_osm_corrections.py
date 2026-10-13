@@ -17,11 +17,19 @@ from typing import Any
 import pytest
 from pydantic import HttpUrl
 
-from atlas.dissolve import Bounds, Cluster, DissolveNote, DissolveResult, OsmObject, dissolve
+from atlas.dissolve import (
+    GENERIC_NAME_WORDS,
+    Bounds,
+    Cluster,
+    DissolveNote,
+    DissolveResult,
+    OsmObject,
+    dissolve,
+)
 from atlas.geo.counties import CountyIndex
 from atlas.net import FetchError
 from atlas.schema.record import FacilityRecord
-from atlas.schema.rollup import is_expanding
+from atlas.schema.rollup import is_expanding, period_start
 from atlas.sources.base import (
     Candidate,
     ImportContext,
@@ -30,7 +38,20 @@ from atlas.sources.base import (
     ReviewItem,
     merge_import,
 )
-from atlas.sources.corrections import human_confidence
+from atlas.sources.corrections import (
+    AddAlias,
+    AddEvent,
+    AddParty,
+    FirstReportOp,
+    Observe,
+    Rename,
+    RenameParty,
+    ReplaceEvent,
+    SetParty,
+    SetValue,
+    fuzzy_date,
+    human_confidence,
+)
 from atlas.sources.osm import (
     ElementOverride,
     OsmImporter,
@@ -42,6 +63,7 @@ from atlas.sources.osm import (
     load_overrides,
 )
 from atlas.store import RecordStore
+from atlas.text import find_personal_data, normalize_name
 from atlas.validate import validate_record
 
 MakeContext = Callable[..., ImportContext]
@@ -704,3 +726,118 @@ def test_an_alone_element_splits_a_stored_record(
     assert (counts["new"], counts["updated"], counts["conflicts"]) == (1, 1, 0)
     ntt = [r for r in store.load().values() if r.external_ids["osm"][0].startswith("way/3256")]
     assert sorted(r.external_ids["osm"] for r in ntt) == [["way/32560290"], ["way/32560292"]]
+
+
+# ---------------------------------------------------------------------------- the committed file
+
+REPO_OVERRIDES = Path(__file__).resolve().parents[2] / "config" / "overrides" / "osm.json"
+# The review PR the corrections of fix round 6 were decided on.
+REVIEW_PR = "https://github.com/moonspells/gigawatt-atlas/pull/2"
+# Words a written name or organization need not find in its quote: generic words, connectors and
+# words of a company's legal or trading name ("DXC Technology" is "DXC" on its own page).
+_UNQUOTED = GENERIC_NAME_WORDS | {"to", "technology", "technologies", "infrastructure", "group"}
+# Street suffixes and directions as pages abbreviate them.
+_STREET_WORDS = {
+    "rd": "road",
+    "dr": "drive",
+    "st": "street",
+    "ave": "avenue",
+    "blvd": "boulevard",
+    "ct": "court",
+    "pkwy": "parkway",
+    "cir": "circle",
+    "ln": "lane",
+    "e": "east",
+    "w": "west",
+    "n": "north",
+    "s": "south",
+}
+
+
+def _street(text: str) -> str:
+    return " ".join(_STREET_WORDS.get(w, w) for w in normalize_name(text).split())
+
+
+def _quoted(value: str, quote: str, publisher: str) -> bool:
+    """Every word of a written name or organization is in the quote, or names its publisher (an
+    operator's own page names its sites without its own name)."""
+    have = set(normalize_name(quote).split()) | set(normalize_name(publisher).split())
+    return set(normalize_name(value).split()) - _UNQUOTED <= have
+
+
+def _written(op: Any) -> list[str]:
+    """The names and organizations an op writes."""
+    if isinstance(op, Rename):
+        return [op.base]
+    if isinstance(op, AddAlias):
+        return [op.name]
+    if isinstance(op, SetParty):
+        return list(op.names)
+    if isinstance(op, AddParty | RenameParty):
+        return [op.name if isinstance(op, AddParty) else op.to]
+    return []
+
+
+def _dated(op: Any) -> list[str]:
+    """The dates an op gives a happened event."""
+    if isinstance(op, AddEvent):
+        return [] if op.planned else [op.as_of]
+    if isinstance(op, Observe | FirstReportOp):
+        return [op.as_of]
+    if isinstance(op, ReplaceEvent) and op.set.as_of is not None and not op.set.planned:
+        return [op.set.as_of]
+    return []
+
+
+def test_every_committed_correction_is_cited() -> None:
+    """mechanism §11.6 for config/overrides/osm.json: each Fix has its full citation (the quote at
+    most 300 characters, read no later than now and on or before the day it was reviewed, no later
+    than today; an archive_url is the Wayback snapshot of source_url; no person's details); the
+    values it writes are in its quote (a street or postcode as the page writes it, the words of a
+    name or organization, also of a fix-round-6 element decision); every happened event's date is
+    no later than today and its year is in the quote, the page's date or the URL. Each Fix of fix
+    round 6 links the review PR."""
+    entries = load_overrides(REPO_OVERRIDES)
+    now = datetime.now(UTC)
+    fixes = 0
+    for ref, ov in entries.items():
+        if ov.decides and ov.reviewed_at >= date(2026, 10, 10):
+            # The entries of fix round 6: the names and operators they give are in their quote.
+            for key in ("name", "operator"):
+                value = getattr(ov, key)
+                if key in ov.model_fields_set and value is not None:
+                    assert _quoted(value, ov.quote, ov.publisher), (ref, value)
+        for i, fix in enumerate(ov.corrections):
+            fixes += 1
+            where = (ref, i)
+            assert 0 < len(fix.quote) <= 300 and fix.retrieved_at <= now, where
+            assert fix.retrieved_at.date() <= fix.reviewed_at <= now.date(), where
+            for text in (fix.quote, fix.reason, fix.publisher):
+                assert find_personal_data(text) == [], where
+            if fix.archive_url is not None:
+                assert str(fix.archive_url).startswith("https://web.archive.org/web/"), where
+                assert str(fix.archive_url).endswith(str(fix.source_url)), where
+            if fix.reviewed_at >= date(2026, 10, 10):
+                assert str(fix.issue_url) == REVIEW_PR, where
+            for op in fix.ops:
+                if isinstance(op, SetValue) and op.path == "/location/street" and op.value:
+                    assert _street(str(op.value)) in _street(fix.quote), (where, op.value)
+                if isinstance(op, SetValue) and op.path == "/location/postcode" and op.value:
+                    assert str(op.value) in fix.quote, (where, op.value)
+                for value in _written(op):
+                    assert _quoted(value, fix.quote, fix.publisher), (where, value)
+                for as_of in _dated(op):
+                    assert period_start(fuzzy_date(as_of)) <= now.date(), (where, as_of)
+                    year = as_of[:4]
+                    dated = fix.published_at is not None and str(fix.published_at.year) == year
+                    assert year in fix.quote or dated or year in str(fix.source_url), (where, as_of)
+    assert fixes >= 1
+
+
+def test_the_quoted_words_rule() -> None:
+    """The committed-file test's reading of "in the quote": words, not spelling or legal form."""
+    assert _quoted("NTT Sacramento CA1 to CA3", "Sacramento CA1 Data Center Sacramento CA3", "NTT")
+    assert _quoted("DXC Technology", "Concurrently, DXC, through its subsidiary", "The Register")
+    assert not _quoted("Zayo Baltimore", "Crown Castle Baltimore", "PeeringDB")
+    assert _street("22588 Relocation Drive") in _street("22588 RELOCATION DR, STERLING")
+    assert _street("601 North Star Road") not in _street("401 North Star Rd.")

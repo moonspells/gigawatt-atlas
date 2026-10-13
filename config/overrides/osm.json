@@ -9,6 +9,84 @@
     "source_type": "commercial_aggregator",
     "source_url": "https://baxtel.com/data-center/datacanopy-san-francisco"
   },
+  "node/10910879064": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "base": "Digital Realty ORD10",
+            "from": "Digital Realty Lakeside Technology Center",
+            "op": "rename"
+          }
+        ],
+        "publisher": "Baxtel",
+        "quote": "Digital Realty: ORD10 Year Built: 1999 Floors: 8 Ownership: Digital Realty Trust owns the building.",
+        "reason": "The building is Digital Realty's ORD10; OpenStreetMap names its outline by the landmark name, which the joined record would take",
+        "retrieved_at": "2026-10-13T03:30:58Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "commercial_aggregator",
+        "source_url": "https://baxtel.com/data-center/digital-realty-ord10"
+      },
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "kind": "osm_name",
+            "name": "Lakeside Technology Center",
+            "op": "add_alias"
+          }
+        ],
+        "publisher": "OpenStreetMap contributors",
+        "quote": "clli CHCGIL name Lakeside Technology Center source Bing telecom data_center",
+        "reason": "OpenStreetMap's name of the building, the Lakeside Technology Center, stays an alias of ORD10",
+        "retrieved_at": "2026-10-13T03:31:28Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "open_dataset",
+        "source_url": "https://www.openstreetmap.org/way/156520409"
+      }
+    ],
+    "expect": {
+      "name": "Digital Realty ORD10"
+    },
+    "join": "way/156520409",
+    "publisher": "Baxtel",
+    "quote": "Digital Realty: ORD10 Year Built: 1999 Floors: 8 Ownership: Digital Realty Trust owns the building.",
+    "reason": "Digital Realty's ORD10 is the whole 8-floor building it owns at 350 East Cermak Road, which OpenStreetMap draws as way/156520409, the Lakeside Technology Center at the same address: the node and the way are one facility",
+    "retrieved_at": "2026-10-13T03:30:58Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "commercial_aggregator",
+    "source_url": "https://baxtel.com/data-center/digital-realty-ord10"
+  },
+  "node/10910879065": {
+    "expect": {
+      "operator": "Centersquare"
+    },
+    "name": "Chicago (Cermak) ORD1",
+    "operator": "Csquare",
+    "publisher": "Csquare",
+    "quote": "Chicago (Cermak) ORD1 Data Center Located in the heart of the Chicago Financial District on the 4th, 7th and 8th floor of an 8-story building",
+    "reason": "Centersquare now trades as Csquare (csquare.com, © 2026 Csquare); its Chicago page lists this suite at 350 East Cermak Road as Chicago (Cermak) ORD1",
+    "retrieved_at": "2026-10-13T03:31:41Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "company_release",
+    "source_url": "https://www.csquare.com/data-centers/chicago"
+  },
+  "node/14156477686": {
+    "expect": {
+      "name": "Equinix Ashburn DC18"
+    },
+    "publisher": "Baxtel",
+    "quote": "Equinix: DC18 Year Planned: 2027 Equinix intends to build its DC-18 data center in Loudoun County, Virginia",
+    "reason": "Equinix DC18 at 44690 Performance Circle is planned for 2027, not operating as the node's bare telecom=data_center reads",
+    "retrieved_at": "2026-10-13T03:36:01Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "commercial_aggregator",
+    "source_url": "https://baxtel.com/data-center/equinix-dc18",
+    "status": "announced"
+  },
   "node/3732415309": {
     "operator": "1547 Critical Systems Realty",
     "publisher": "1547 Critical Systems Realty",
@@ -18,6 +96,106 @@
     "reviewed_at": "2026-10-09",
     "source_type": "company_release",
     "source_url": "https://www.1547realty.com/data-center/portland-or-ptor1/"
+  },
+  "node/9669340912": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": [
+              "Crown Castle Fiber"
+            ],
+            "names": [
+              "Zayo"
+            ],
+            "op": "set_party",
+            "role": "operator"
+          }
+        ],
+        "publisher": "Crown Castle",
+        "quote": "We’ve sold our Fiber Solutions business to Zayo and our Small Cell and Venue solutions business to Arium Networks.",
+        "reason": "Crown Castle sold its Fiber Solutions business, which ran this Crown Castle Fiber site at 111 Market Place, to Zayo; the node's operator tag predates the sale",
+        "retrieved_at": "2026-10-13T03:30:43Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "company_release",
+        "source_url": "https://www.crowncastle.com/directory-page",
+        "title": "Directory Page | Crown Castle"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "base": "Zayo Baltimore - 111 Market Pl",
+            "from": "Crown Castle Baltimore",
+            "old_as_alias": "former_name",
+            "op": "rename"
+          }
+        ],
+        "publisher": "PeeringDB",
+        "quote": "\"org_name\": \"Zayo Group\", \"campus_id\": null, \"name\": \"Zayo Baltimore - 111 Market Pl\"",
+        "reason": "PeeringDB lists Zayo's facility at 111 Market Place, the node's address, as Zayo Baltimore - 111 Market Pl; the Crown Castle name stays an alias",
+        "retrieved_at": "2026-10-13T03:30:15Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "community_report",
+        "source_url": "https://www.peeringdb.com/api/fac?city=Baltimore&state=MD"
+      }
+    ]
+  },
+  "way/1000784035": {
+    "expect": {
+      "name": "AWS",
+      "operator": "Amazon Web Services"
+    },
+    "name": null,
+    "operator": "Stack Infrastructure",
+    "publisher": "Baxtel",
+    "quote": "9750 Hornbaker Road Operational Fully operational facility Operated by: Northern Virginia Metro Virginia State Mid-Atlantic Region United States Country North America Region Americas Region Stack: NVA02A Campus: Stack: Manassas NVA02 Campus",
+    "reason": "Baxtel lists STACK's halls NVA02A to NVA02C at 9750 Hornbaker Road, built 2023, on its Manassas NVA02 campus with 9590 Hornbaker Road (way/1059036248); OpenStreetMap's halls at 9730, 9740 and 9750 carry its tenant as operator and the name AWS",
+    "retrieved_at": "2026-10-13T03:40:51Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "commercial_aggregator",
+    "source_url": "https://baxtel.com/data-center/stack-nva02a"
+  },
+  "way/1059030596": {
+    "expect": {
+      "name": "AWS",
+      "operator": "Amazon Web Services"
+    },
+    "name": null,
+    "operator": "Stack Infrastructure",
+    "publisher": "Baxtel",
+    "quote": "9750 Hornbaker Rd Operational Fully operational facility Operated by: Northern Virginia Metro Virginia State Mid-Atlantic Region United States Country North America Region Americas Region Stack: NVA02B Campus: Stack: Manassas NVA02 Campus",
+    "reason": "Baxtel lists STACK's halls NVA02A to NVA02C at 9750 Hornbaker Road, built 2023, on its Manassas NVA02 campus with 9590 Hornbaker Road (way/1059036248); OpenStreetMap's halls at 9730, 9740 and 9750 carry its tenant as operator and the name AWS",
+    "retrieved_at": "2026-10-13T03:41:02Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "commercial_aggregator",
+    "source_url": "https://baxtel.com/data-center/stack-nva02b"
+  },
+  "way/1081973944": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": "8635 Potranco Road",
+            "op": "set",
+            "path": "/location/street",
+            "value": "8535 Potranco Road"
+          }
+        ],
+        "publisher": "QTS",
+        "quote": "Location 8535 Potranco Road, San Antonio, Texas 78251",
+        "reason": "QTS gives its San Antonio campus's address as 8535 Potranco Road; OpenStreetMap's 8635 on the building is off by 100",
+        "retrieved_at": "2026-10-13T03:43:06Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "company_release",
+        "source_url": "https://q.com/data-centers/san-antonio/"
+      }
+    ]
   },
   "way/1188691868": {
     "name": "NTT VA8",
@@ -29,16 +207,462 @@
     "source_type": "commercial_aggregator",
     "source_url": "https://baxtel.com/data-center/ntt-va8"
   },
+  "way/1210421871": {
+    "drop": true,
+    "expect": {
+      "name": "Carrier Services Group"
+    },
+    "publisher": "Carrier Services Group",
+    "quote": "Based in Youngstown, OH we have over 600,000 sq. feet of warehouse space in North America dedicated to plug-in inventory and EF&I services. Carrier Services Group, Inc. 5635 South Avenue Youngstown, OH 44512 USA",
+    "reason": "5635 South Avenue is the warehouse of Carrier Services Group, which resells and repairs telecom equipment, not a site that houses computing equipment (07 §2.2)",
+    "retrieved_at": "2026-10-13T03:42:09Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "company_release",
+    "source_url": "https://www.csgroupint.com/"
+  },
+  "way/1238705019": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": null,
+            "op": "set",
+            "path": "/location/street",
+            "value": "7300 East Pleasant Valley Road"
+          }
+        ],
+        "publisher": "Baxtel",
+        "quote": "7300 E Pleasant Valley Road Operational Fully operational facility Operated by: Cleveland Metro Ohio State Midwest US Region United States Country North America Region Americas Region Ark: Independence Year Built: 2017",
+        "reason": "The way has no address; Baxtel gives Ark: Independence's as 7300 E Pleasant Valley Road",
+        "retrieved_at": "2026-10-13T03:42:18Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "commercial_aggregator",
+        "source_url": "https://baxtel.com/data-center/ark-independence"
+      }
+    ],
+    "expect": {
+      "name": "Involta Independence"
+    },
+    "name": "Ark Independence",
+    "operator": "Ark Data Centers",
+    "publisher": "Baxtel",
+    "quote": "7300 E Pleasant Valley Road Operational Fully operational facility Operated by: Cleveland Metro Ohio State Midwest US Region United States Country North America Region Americas Region Ark: Independence Year Built: 2017",
+    "reason": "Involta now trades as Ark Data Centers; Baxtel lists its Independence data center at 7300 E Pleasant Valley Road (PeeringDB facility 12235, 25 m from the way) as Ark: Independence",
+    "retrieved_at": "2026-10-13T03:42:18Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "commercial_aggregator",
+    "source_url": "https://baxtel.com/data-center/ark-independence"
+  },
+  "way/1276518687": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": "22588 Fitness Court",
+            "op": "set",
+            "path": "/location/street",
+            "value": "22588 Relocation Drive"
+          }
+        ],
+        "publisher": "Loudoun County",
+        "quote": "22588 RELOCATION DR, STERLING",
+        "reason": "Loudoun County's address point inside the building is 22588 Relocation Drive; the county has no 22588 Fitness Court (its one Fitness Court address, 22585, lies outside the way)",
+        "retrieved_at": "2026-10-13T03:42:33Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "government_record",
+        "source_url": "https://logis.loudoun.gov/gis/rest/services/COL/LandRecords/MapServer/2/query?geometry=-77.4360,38.9905,-77.4320,38.9935&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=FULL_ADDRESS&returnGeometry=true&outSR=4326&f=json"
+      }
+    ]
+  },
+  "way/1280340215": {
+    "expect": {
+      "name": "AWS",
+      "operator": "Amazon Web Services"
+    },
+    "name": null,
+    "operator": "Stack Infrastructure",
+    "publisher": "Baxtel",
+    "quote": "9750 Hornbaker Rd Operational Fully operational facility Operated by: Northern Virginia Metro Virginia State Mid-Atlantic Region United States Country North America Region Americas Region Stack: NVA02C Campus: Stack: Manassas NVA02 Campus",
+    "reason": "Baxtel lists STACK's halls NVA02A to NVA02C at 9750 Hornbaker Road, built 2023, on its Manassas NVA02 campus with 9590 Hornbaker Road (way/1059036248); OpenStreetMap's halls at 9730, 9740 and 9750 carry its tenant as operator and the name AWS",
+    "retrieved_at": "2026-10-13T03:41:08Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "commercial_aggregator",
+    "source_url": "https://baxtel.com/data-center/stack-nva02c"
+  },
+  "way/1292897241": {
+    "expect": {
+      "operator": "True North Data Solutions"
+    },
+    "operator": "Compass Datacenters",
+    "publisher": "Dgtl Infra",
+    "quote": "Compass Datacenters, a hyperscale data center developer and operator in the United States and Canada, through its entity Compass Datacenters IAD I LLC and via a project named True North Data",
+    "reason": "True North Data is Compass Datacenters' project for its Loudoun County I campus, the site polygon's halls on Thunderball Drive, where Compass's own IAD IE (way/1387391201) stands inside the polygon; operator=True North Data Solutions names the project",
+    "retrieved_at": "2026-10-13T03:43:15Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "trade_press",
+    "source_url": "https://dgtlinfra.com/compass-datacenters-loudoun-county-true-north-data/"
+  },
+  "way/1292897242": {
+    "expect": {
+      "operator": "True North Data Solutions"
+    },
+    "operator": "Compass Datacenters",
+    "publisher": "Dgtl Infra",
+    "quote": "Compass Datacenters, a hyperscale data center developer and operator in the United States and Canada, through its entity Compass Datacenters IAD I LLC and via a project named True North Data",
+    "reason": "True North Data is Compass Datacenters' project for its Loudoun County I campus, the site polygon's halls on Thunderball Drive, where Compass's own IAD IE (way/1387391201) stands inside the polygon; operator=True North Data Solutions names the project",
+    "retrieved_at": "2026-10-13T03:43:15Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "trade_press",
+    "source_url": "https://dgtlinfra.com/compass-datacenters-loudoun-county-true-north-data/"
+  },
+  "way/1292897243": {
+    "expect": {
+      "operator": "True North Data Solutions"
+    },
+    "operator": "Compass Datacenters",
+    "publisher": "Dgtl Infra",
+    "quote": "Compass Datacenters, a hyperscale data center developer and operator in the United States and Canada, through its entity Compass Datacenters IAD I LLC and via a project named True North Data",
+    "reason": "True North Data is Compass Datacenters' project for its Loudoun County I campus, the site polygon's halls on Thunderball Drive, where Compass's own IAD IE (way/1387391201) stands inside the polygon; operator=True North Data Solutions names the project",
+    "retrieved_at": "2026-10-13T03:43:15Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "trade_press",
+    "source_url": "https://dgtlinfra.com/compass-datacenters-loudoun-county-true-north-data/"
+  },
+  "way/1343774537": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "base": "CloudHQ LC Campus",
+            "from": "CloudHQ Ashburn Campus",
+            "old_as_alias": "osm_name",
+            "op": "rename"
+          }
+        ],
+        "publisher": "CloudHQ",
+        "quote": "CloudHQ’s LC campus is located in the heart of Ashburn and the center of the internet. With planned customer critical IT load of over 1.7 GWs spread among fourteen data centers, the LC campus is perfectly designed for opportunities of all sizes and complexity.",
+        "reason": "CloudHQ calls its fourteen-building Ashburn campus, LC1 to LC14, the LC campus; OpenStreetMap's site polygon name 'CloudHQ Ashburn Campus' stays an alias",
+        "retrieved_at": "2026-10-13T03:42:49Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "company_release",
+        "source_url": "https://cloudhq.com/campus/lc-campus/",
+        "title": "CloudHQ LC Campus"
+      }
+    ]
+  },
   "way/138643160": {
+    "expect": {
+      "name": "LexisNexus Springfield"
+    },
     "name": "5C Data Centers CMH01",
     "operator": "5C Data Centers",
     "publisher": "Baxtel",
-    "quote": "Update: 5C Data Centers acquired the former LexisNexis Springfield facility at 601 Benjamin Drive in mid-2024 and is redeveloping it as CMH01.",
-    "reason": "The way's name 'LexisNexus Springfield' (sic) names the former owner: Baxtel's page for 601 Benjamin Drive, the way's address, says 5C Data Centers bought the facility in mid-2024 and is redeveloping it as CMH01.",
-    "retrieved_at": "2026-10-09T21:36:01Z",
-    "reviewed_at": "2026-10-09",
+    "quote": "5C Data Centers, a Canadian operator, acquired a live data center and plans to develop it into a campus named CMH01.",
+    "reason": "The way's name 'LexisNexus Springfield' (sic) names the former owner: Baxtel's CMH01 page for 601 Benjamin Dr, the way's address, says 5C Data Centers acquired the live data center there and is developing a campus named CMH01",
+    "retrieved_at": "2026-10-13T03:32:51Z",
+    "reviewed_at": "2026-10-13",
     "source_type": "commercial_aggregator",
-    "source_url": "https://baxtel.com/data-center/lexisnexus-springfield"
+    "source_url": "https://baxtel.com/data-center/5cdc-columbus-cmh01"
+  },
+  "way/1387391200": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "base": "Compass Loudoun County I",
+            "from": "Compass Datacenters True North Data Centers",
+            "op": "rename"
+          }
+        ],
+        "published_at": "2022-03-10T02:00:00Z",
+        "publisher": "Dgtl Infra",
+        "quote": "Specifically, Compass Datacenters’ campus, which is branded as Loudoun County I",
+        "reason": "Compass Datacenters brands the True North Data campus Loudoun County I",
+        "retrieved_at": "2026-10-13T03:43:15Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "trade_press",
+        "source_url": "https://dgtlinfra.com/compass-datacenters-loudoun-county-true-north-data/"
+      },
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "kind": "osm_name",
+            "name": "True North Data Centers",
+            "op": "add_alias"
+          }
+        ],
+        "publisher": "OpenStreetMap contributors",
+        "quote": "\"name\":\"True North Data Centers\",\"operator\":\"True North Data Solutions\"",
+        "reason": "OpenStreetMap's name of the site polygon, True North Data Centers (Compass's project name), stays an alias of Loudoun County I",
+        "retrieved_at": "2026-10-13T03:52:34Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "open_dataset",
+        "source_url": "https://api.openstreetmap.org/api/0.6/way/1387391200.json"
+      }
+    ],
+    "expect": {
+      "operator": "True North Data Solutions"
+    },
+    "operator": "Compass Datacenters",
+    "publisher": "Dgtl Infra",
+    "quote": "Compass Datacenters, a hyperscale data center developer and operator in the United States and Canada, through its entity Compass Datacenters IAD I LLC and via a project named True North Data",
+    "reason": "True North Data is Compass Datacenters' project for its Loudoun County I campus, the site polygon's halls on Thunderball Drive, where Compass's own IAD IE (way/1387391201) stands inside the polygon; operator=True North Data Solutions names the project",
+    "retrieved_at": "2026-10-13T03:43:15Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "trade_press",
+    "source_url": "https://dgtlinfra.com/compass-datacenters-loudoun-county-true-north-data/"
+  },
+  "way/1483070134": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2025-11-10",
+            "event": "approved",
+            "op": "add_event",
+            "status": "permitted"
+          }
+        ],
+        "publisher": "United City of Yorkville",
+        "quote": "requesting an amendment to an annexation agreement for the Project Cardinal data center project approved November 10, 2025 via Ordinance No. 2025-78 to extend the closing notice deadline from July 1, 2026 to December 31, 2027.",
+        "reason": "Yorkville's City Council approved the Project Cardinal data center by Ordinance No. 2025-78 on 2025-11-10; OpenStreetMap's outlines were drawn from the city's development plans",
+        "retrieved_at": "2026-10-13T03:43:46Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "government_record",
+        "source_url": "https://www.yorkville.il.us/941/Project-Cardinal-Data-Center-Campus-Anne"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "event": "other",
+              "status": "under_construction"
+            },
+            "op": "remove_event"
+          }
+        ],
+        "publisher": "United City of Yorkville",
+        "quote": "The land is currently undeveloped and used for farming.",
+        "reason": "The city says the site is still farmland, so nothing is under construction as the planned outlines read",
+        "retrieved_at": "2026-10-13T03:43:46Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "government_record",
+        "source_url": "https://www.yorkville.il.us/941/Project-Cardinal-Data-Center-Campus-Anne"
+      }
+    ]
+  },
+  "way/1486780799": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": "401 North Star Road",
+            "op": "set",
+            "path": "/location/street",
+            "value": "601 North Star Road"
+          }
+        ],
+        "publisher": "Texas Department of Licensing and Regulation",
+        "quote": "Facility Name: DFW04 Location Address: 601 North Star Rd. Plano, TX 75074",
+        "reason": "Texas's registration of the DFW04 project, like Aligned's own Dallas page, gives DFW-04 at 601 North Star Road, not OpenStreetMap's 401",
+        "retrieved_at": "2026-10-13T03:44:08Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "government_record",
+        "source_url": "https://www.tdlr.texas.gov/TABS/Search/Print/TABS2025024707"
+      }
+    ]
+  },
+  "way/1539603380": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "op": "out_of_scope"
+          }
+        ],
+        "published_at": "2026-06-02T11:20:00Z",
+        "publisher": "explore Clarion",
+        "quote": "Bitfarms defined Scrubgrass as a high-performance computing (HPC) data center development site in Kennerdell that also contains a waste-to-energy facility and is still being used for bitcoin mining.",
+        "reason": "The 32 container-sized structures beside the Scrubgrass waste-coal plant are its bitcoin mine, still mining; 07 §2.2 admits a crypto site once converted to or marketed as a data center, and its HPC campus is still planned",
+        "retrieved_at": "2026-10-13T03:44:18Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.exploreclarion.com/local/2026/06/02/scrubgrass-could-become-areas-largest-ai-data-center-campus-866965/"
+      }
+    ]
+  },
+  "way/1547829412": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "op": "out_of_scope"
+          }
+        ],
+        "published_at": "2024-04-03T18:00:00Z",
+        "publisher": "Bitcoin Magazine",
+        "quote": "which was founded in 2013 and operates 19 mining facilities across North America, Europe and Central Asia, has entered into a strategic hosting arrangement with Lonestar Dream, developer of immersion cooling systems for bitcoin mining devices, to run the Tarbush operation.",
+        "reason": "Lonestar Dream's Tarbush site hosts Genesis Digital Assets' bitcoin miners; no source shows it converted to or marketed for computing (07 §2.2)",
+        "retrieved_at": "2026-10-13T03:44:39Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://bitcoinmagazine.com/business/genesis-digital-assets-leverages-renewables-bitcoin-mining-texas"
+      }
+    ]
+  },
+  "way/155739337": {
+    "expect": {
+      "name": "Aligned Energy Data Center"
+    },
+    "name": "Aligned PHX-01/02/03",
+    "operator": "Aligned Data Centers",
+    "publisher": "Aligned Data Centers",
+    "quote": "PHX-01/02/03 Data Center 2500 W Union Hills Drive, Phoenix, AZ 85027 Campus Overview: 55-acre campus",
+    "reason": "Aligned Energy is Aligned Data Centers' former name: the way's website leads to Aligned's Phoenix page, which lists 2500 W Union Hills Drive, the way's address, as PHX-01/02/03",
+    "retrieved_at": "2026-10-13T03:33:00Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "company_release",
+    "source_url": "https://aligneddc.com/phoenix-data-centers/"
+  },
+  "way/1558344919": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2024",
+            "event": "construction_start",
+            "op": "add_event",
+            "status": "under_construction"
+          },
+          {
+            "match": {
+              "event": "other",
+              "status": "operating"
+            },
+            "op": "remove_event"
+          }
+        ],
+        "publisher": "Baxtel",
+        "quote": "Construction of the first data center has commenced in 2024, with an estimated completion in late 2028.",
+        "reason": "The unnamed building stands at 50 NW Point Boulevard, Elk Grove Village, where Aligned builds ORD-03: construction began in 2024 and should end in late 2028, so it is not operating as its tag reads",
+        "retrieved_at": "2026-10-13T03:44:50Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "commercial_aggregator",
+        "source_url": "https://baxtel.com/data-center/aligned-ord-03"
+      }
+    ]
+  },
+  "way/1560827941": {
+    "expect": {
+      "name": "NTT VA8"
+    },
+    "name": "NTT VA9",
+    "publisher": "Baxtel",
+    "quote": "Under Construction New facility under construction Operated by: Ashburn: Data Center Alley Metro Northern Virginia Metro Virginia State Mid-Atlantic Region United States Country North America Region Americas Region NTT: VA9",
+    "reason": "NTT VA8 is 44710 Gigabit Plaza (way/1188691868's entry); Baxtel's VA9, under construction for 2027, has its map point 40 m from this building under construction at 44725 (its address reads 44470): NTT VA9",
+    "retrieved_at": "2026-10-13T03:38:28Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "commercial_aggregator",
+    "source_url": "https://baxtel.com/data-center/ntt-va9"
+  },
+  "way/190868312": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "base": "NTT Sacramento CA1 to CA3",
+            "from": "NTT RagingWire",
+            "old_as_alias": "former_name",
+            "op": "rename"
+          }
+        ],
+        "publisher": "NTT",
+        "quote": "Discover our Sacramento data centers Sacramento CA1 Data Center Sacramento CA2 Data Center Sacramento CA3 Data Center",
+        "reason": "NTT names the campus's three buildings Sacramento CA1, CA2 and CA3; RagingWire, the name OpenStreetMap still gives them, is a retired brand",
+        "retrieved_at": "2026-10-13T03:32:30Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "company_release",
+        "source_url": "https://services.global.ntt/en-us/services-and-products/global-data-centers/global-locations/americas/sacramento-data-centers"
+      }
+    ],
+    "expect": {
+      "name": "RagingWire CA3"
+    },
+    "join": "way/32560290",
+    "publisher": "NTT",
+    "quote": "CA3, one of three data centers on our 52.7MW campus, is powered by 100% green energy.",
+    "reason": "RagingWire CA3 is one of the three data centers of NTT's Sacramento campus with CA1 and CA2 (ways 32560292 and 32560290), 720 m away, beyond every dissolve rule",
+    "retrieved_at": "2026-10-13T03:32:41Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "company_release",
+    "source_url": "https://services.global.ntt/en-us/services-and-products/global-data-centers/global-locations/americas/sacramento-ca-3-data-center"
+  },
+  "way/220518160": {
+    "expect": {
+      "name": "Digital Realty Data Center",
+      "operator": "Digital Realty"
+    },
+    "name": null,
+    "operator": null,
+    "publisher": "Mapletree Industrial Trust",
+    "quote": "Backfilled previously vacant 2055 East Technology Circle, Tempe with a 13-year lease",
+    "reason": "Mapletree Industrial Trust owns 2055 East Technology Circle (Digital Realty sold a portfolio of 12 data centers to Mapletree in January 2020) and leased the vacant building again in FY25/26; no source names today's operator",
+    "retrieved_at": "2026-10-13T03:35:28Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "company_release",
+    "source_url": "https://links.sgx.com/1.0.0/corporate-announcements/CYUAG4IG4R00RAHL/890022_20260522_Investor%20Presentation%20May%202026.pdf"
+  },
+  "way/279410762": {
+    "expect": {
+      "operator": "Cyxtera"
+    },
+    "name": "EWR2",
+    "operator": "Csquare",
+    "publisher": "Csquare",
+    "quote": "EWR2 300 JFK Blvd East Weehawken, NJ 07086 View map online Quick Facts • • • • 1919 Park Avenue Weehawken, NJ 07086",
+    "reason": "Csquare (formerly Cyxtera, then Centersquare) lists 300 JFK Blvd East and 1919 Park Avenue, this way's address, together as its Weehawken data center EWR2",
+    "retrieved_at": "2026-10-13T03:36:13Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "company_release",
+    "source_url": "https://www.csquare.com/hubfs/Centersquare%20website/docs/Csquare-EWR-SpecSheet.pdf"
+  },
+  "way/279410766": {
+    "expect": {
+      "operator": "Digital Realty"
+    },
+    "name": "EWR2",
+    "operator": "Csquare",
+    "publisher": "Csquare",
+    "quote": "EWR2 300 JFK Blvd East Weehawken, NJ 07086 View map online Quick Facts • • • • 1919 Park Avenue Weehawken, NJ 07086",
+    "reason": "Csquare lists 300 JFK Blvd East, this way's address, and 1919 Park Avenue together as its Weehawken data center EWR2; Digital Realty's New York metro no longer lists EWR10",
+    "retrieved_at": "2026-10-13T03:36:13Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "company_release",
+    "source_url": "https://www.csquare.com/hubfs/Centersquare%20website/docs/Csquare-EWR-SpecSheet.pdf"
   },
   "way/293211687": {
     "operator": "Sabey Data Centers",
@@ -49,6 +673,79 @@
     "reviewed_at": "2026-10-09",
     "source_type": "community_report",
     "source_url": "https://www.peeringdb.com/api/fac/4226"
+  },
+  "way/300969615": {
+    "corrections": [
+      {
+        "basis": "importer_gap",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "name": "Amazon Web Services",
+            "op": "add_party",
+            "role": "tenant"
+          }
+        ],
+        "publisher": "OpenStreetMap contributors",
+        "quote": "name Amazon IAD-6 operator Amazon Web Services operator:short AWS",
+        "reason": "Amazon IAD-6 and IAD-13, Buildings C and E of Digital Realty's Digital Loudoun Plaza (owner=Digital Realty), are run by Amazon Web Services; the joined record names it as the tenant, not the operator",
+        "retrieved_at": "2026-10-13T03:45:01Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "open_dataset",
+        "source_url": "https://www.openstreetmap.org/way/300969615"
+      }
+    ]
+  },
+  "way/318069356": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": "87501",
+            "op": "set",
+            "path": "/location/postcode",
+            "value": "87505"
+          }
+        ],
+        "publisher": "New Mexico Department of Information Technology",
+        "quote": "Delivery Address 715 Alta Vista Street, Santa Fe, NM 87505",
+        "reason": "The Department of Information Technology, whose data center is in the Simms building at 715 Alta Vista Street, gives the building's ZIP code as 87505, not OpenStreetMap's 87501",
+        "retrieved_at": "2026-10-13T03:36:58Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "government_record",
+        "source_url": "https://www.doit.nm.gov/about"
+      }
+    ]
+  },
+  "way/336387583": {
+    "expect": {
+      "name": "Baltimore Technology Park"
+    },
+    "name": "Baltimore (BAL)",
+    "operator": "TierPoint",
+    "publisher": "TierPoint",
+    "quote": "Baltimore (BAL) 1401 Russell Street Baltimore, MD 21230",
+    "reason": "Baltimore Technology Park is TierPoint's Baltimore data center BAL, at 1401 Russell Street, the way's address",
+    "retrieved_at": "2026-10-13T03:37:08Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "company_release",
+    "source_url": "https://www.tierpoint.com/data-centers/maryland/baltimore/"
+  },
+  "way/377345296": {
+    "expect": {
+      "operator": "Centersquare"
+    },
+    "name": "Elk Grove Village ORD2",
+    "operator": "Csquare",
+    "publisher": "Csquare",
+    "quote": "Elk Grove Village ORD2 Data Center Our Elk Grove Village data center is only 3 miles from O’Hare International Airport in a 2-story purpose-built building.",
+    "reason": "Centersquare now trades as Csquare (centersquaredc.com leads to csquare.com); its Chicago page lists the Elk Grove Village building at 2425 Busse Road as ORD2",
+    "retrieved_at": "2026-10-13T03:31:41Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "company_release",
+    "source_url": "https://www.csquare.com/data-centers/chicago"
   },
   "way/396296733": {
     "name": "Csquare Lynnwood SEA3",
@@ -82,15 +779,53 @@
     "source_type": "commercial_aggregator",
     "source_url": "https://baxtel.com/data-center/verizon-santa-ana"
   },
+  "way/460050155": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "base": "Equinix Ashburn",
+            "from": "Equinix DC1, DC2, DC4 and 10 more",
+            "op": "rename"
+          }
+        ],
+        "published_at": "2020-11-17T13:01:00Z",
+        "publisher": "Equinix",
+        "quote": "Businesses Increasingly Utilizing Equinix Ashburn Campus as Key Component of their Digital Infrastructure",
+        "reason": "Equinix calls the joined campus its Ashburn campus; a list of three of its fourteen buildings does not name it",
+        "retrieved_at": "2026-10-13T03:35:43Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "company_release",
+        "source_url": "https://investor.equinix.com/news-events/press-releases/detail/80/equinix-invests-200-million-in-washington-d-c-area-data"
+      }
+    ],
+    "expect": {
+      "name": "Equinix DC10"
+    },
+    "join": "way/234722029",
+    "publisher": "Equinix",
+    "quote": "Equinix's newest Washington, D.C. area data centers are part of Equinix's data center campus in Ashburn, VA",
+    "reason": "Equinix's release on opening DC21 (Filigree Court cluster) and DC15 (this cluster) says both are part of its Ashburn campus; the two clusters, 710 m apart on Beaumeade Circle, are one campus",
+    "retrieved_at": "2026-10-13T03:35:43Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "company_release",
+    "source_url": "https://investor.equinix.com/news-events/press-releases/detail/80/equinix-invests-200-million-in-washington-d-c-area-data"
+  },
   "way/460212563": {
-    "operator": "Centersquare",
-    "publisher": "Baxtel",
-    "quote": "Cyxtera's BR1 site in Burbank was acquired via a $2.8 billion transaction to acquire 57 datacenters from CenturyLink.",
-    "reason": "The way's operator=Centurylink (owner=Digital Realty) is out of date: Baxtel's page 'Centersquare: Burbank BR1', at 3015 Winona Avenue in the Digital Realty building, says CenturyLink's site passed to Cyxtera in 2017 and that Cyxtera's sites were rebranded Centersquare in April 2024.",
-    "retrieved_at": "2026-10-09T13:18:55Z",
-    "reviewed_at": "2026-10-09",
-    "source_type": "commercial_aggregator",
-    "source_url": "https://baxtel.com/data-center/centersquare-burbank-br1"
+    "expect": {
+      "operator": "Centurylink"
+    },
+    "name": "BUR10",
+    "operator": "Digital Realty",
+    "publisher": "Digital Realty",
+    "quote": "Los Angeles BUR10 3015 Winona Avenue, Burbank, CA 91504 82,500 ft 2",
+    "reason": "Cyxtera, now Csquare, left 3015 Winona Avenue (Csquare's Los Angeles page lists only Irvine LAX3 and LAX5); Digital Realty, the building's owner, lists it as its own data center BUR10",
+    "retrieved_at": "2026-10-13T03:37:19Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "company_release",
+    "source_url": "https://www.digitalrealty.com/data-centers/americas/los-angeles"
   },
   "way/487170215": {
     "operator": "Serverfarm",
@@ -101,6 +836,70 @@
     "reviewed_at": "2026-10-09",
     "source_type": "commercial_aggregator",
     "source_url": "https://baxtel.com/data-center/serverfarm-houston-htx1"
+  },
+  "way/597835788": {
+    "expect": {
+      "operator": "Stream"
+    },
+    "operator": null,
+    "publisher": "Stream Data Centers",
+    "quote": "DFW IV 3300 Essex Drive Richardson, Texas 75082 Product Type: Private Data Center Status: Fully Leased 20,000 SF data center | 10,000 SF data hall Redevelopment of warehouse into data center and subsequent sale to real estate investment trust",
+    "reason": "Stream developed DFW IV at 3300 Essex Drive, the way's address, and sold it to a real estate investment trust in 2011, so operator=Stream is out of date; no source names today's operator",
+    "retrieved_at": "2026-10-13T03:37:28Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "company_release",
+    "source_url": "https://www.streamdatacenters.com/locations/dallas-data-centers/"
+  },
+  "way/597876719": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "base": "Digital Realty Dallas",
+            "from": "Digital Realty Dallas DFW18",
+            "op": "rename"
+          }
+        ],
+        "publisher": "Digital Realty",
+        "quote": "Dallas DFW25 Located in the epicenter of North Dallas’ high technology corridor on our 69-acre Digital Dallas campus, this facility is offers over 100,000 square feet of space and access to over 60 network service providers. Request a tour DFW25 1215 Integrity Drive, Richardson, TX 75081",
+        "reason": "The tenant's building name breaks the campus's common name; Digital Realty's Dallas campus keeps its name",
+        "retrieved_at": "2026-10-13T03:37:49Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "company_release",
+        "source_url": "https://www.digitalrealty.com/data-centers/americas/dallas/dfw25"
+      },
+      {
+        "basis": "importer_gap",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "name": "Rackspace",
+            "op": "add_party",
+            "role": "tenant"
+          }
+        ],
+        "publisher": "Baxtel",
+        "quote": "In 2012, US hosting company Rackspace signed a long-term lease for more than 58,000 sq ft of raised floor space at Digital Realty Trust's data center campus in Richardson, Texas (Dallas metro).",
+        "reason": "Rackspace, the operator OpenStreetMap gives 1215 Integrity Drive, leases the building on Digital Realty's campus: it is the joined record's tenant",
+        "retrieved_at": "2026-10-13T03:38:17Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "commercial_aggregator",
+        "source_url": "https://baxtel.com/data-center/rackspace-richardson-dfw3"
+      }
+    ],
+    "expect": {
+      "operator": "Rackspace"
+    },
+    "join": "way/597876730",
+    "publisher": "Digital Realty",
+    "quote": "Dallas DFW25 Located in the epicenter of North Dallas’ high technology corridor on our 69-acre Digital Dallas campus, this facility is offers over 100,000 square feet of space and access to over 60 network service providers. Request a tour DFW25 1215 Integrity Drive, Richardson, TX 75081",
+    "reason": "1215 Integrity Drive, Rackspace's DFW3, is Digital Realty's DFW25 on its Digital Dallas campus with DFW18 (way/597876730), 42 m away: the way's operator tag names the tenant",
+    "retrieved_at": "2026-10-13T03:37:49Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "company_release",
+    "source_url": "https://www.digitalrealty.com/data-centers/americas/dallas/dfw25"
   },
   "way/635022480": {
     "name": null,
@@ -113,6 +912,114 @@
     "source_type": "commercial_aggregator",
     "source_url": "https://baxtel.com/data-center/ascent-atlanta-atl1"
   },
+  "way/747985149": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2026-08",
+            "event": "approved",
+            "op": "add_event",
+            "status": "permitted"
+          },
+          {
+            "match": {
+              "event": "other",
+              "status": "operating"
+            },
+            "op": "remove_event"
+          }
+        ],
+        "published_at": "2026-08-13T21:49:00Z",
+        "publisher": "KAUZ News Channel 6",
+        "quote": "Another data center is coming to Wichita Falls after the Planning and Zoning Commission approved a conditional-use request for an existing building on Airport Drive.",
+        "reason": "Wichita Falls' Planning and Zoning Commission approved DataNovaX's data center in the former grocery store and call center at 2236 Airport Drive in August 2026: approved, not operating as the way's tag reads",
+        "retrieved_at": "2026-10-13T03:39:06Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.newschannel6now.com/2026/08/13/datanovax-data-center-approved-airport-drive-wichita-falls/"
+      }
+    ]
+  },
+  "way/818167571": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": "68106",
+            "op": "set",
+            "path": "/location/postcode",
+            "value": "68102"
+          }
+        ],
+        "publisher": "1623 Farnam",
+        "quote": "1623 Farnam Street, Suite 860 Omaha, NE 68102",
+        "reason": "The facility's own site gives 1623 Farnam Street the ZIP code 68102; OpenStreetMap's 68106 dates from a 2020 edit",
+        "retrieved_at": "2026-10-13T03:39:21Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "company_release",
+        "source_url": "https://www.1623farnam.com/"
+      }
+    ]
+  },
+  "way/818790301": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": [],
+            "names": [
+              "DXC Technology"
+            ],
+            "op": "set_party",
+            "role": "operator"
+          },
+          {
+            "from": [],
+            "names": [
+              "DXC Technology"
+            ],
+            "op": "set_party",
+            "role": "owner"
+          }
+        ],
+        "publisher": "DXC Technology",
+        "quote": "Concurrently, DXC, through its data center co-location services subsidiary, will acquire a New Jersey data center from Credit Suisse.",
+        "reason": "DXC Technology bought Credit Suisse's New Jersey data center, the Clifton building, in 2019 and runs it under a co-location agreement with the bank",
+        "retrieved_at": "2026-10-13T03:50:31Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "company_release",
+        "source_url": "https://dxc.com/newsroom/05132019",
+        "title": "DXC Technology Expands Data Center Infrastructure Services in North America Through Co-Location Services Agreement with Credit Suisse (USA), Inc."
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "base": "DXC Technology Clifton Data Center",
+            "from": "Credit Suisse: Clifton Data Center",
+            "old_as_alias": "osm_name",
+            "op": "rename"
+          }
+        ],
+        "published_at": "2019-05-14T15:08:00Z",
+        "publisher": "The Register",
+        "quote": "data centre in Clifton, New Jersey, previously owned by the US division of investment bank Credit Suisse. The facility will continue serving the bank under a managed colocation agreement with DXC that could last for the next 13 years, and maybe even longer.",
+        "reason": "The Clifton building is DXC's since 2019, with Credit Suisse as its colocation client, so the name of Credit Suisse's data center is out of date; OpenStreetMap's name stays an alias",
+        "retrieved_at": "2026-10-13T03:39:30Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "trade_press",
+        "source_url": "https://www.theregister.com/on-prem/2019/05/14/do-xpect-custard-creams-dxc-buys-cosy-new-jersey-data-centre-moves-in-with-credit-suisse/1416154"
+      }
+    ]
+  },
   "way/903642490": {
     "drop": true,
     "publisher": "FamilySearch",
@@ -122,5 +1029,18 @@
     "reviewed_at": "2026-10-09",
     "source_type": "company_release",
     "source_url": "https://locations.familysearch.org/en/us/id/montpelier/661-washington-st"
+  },
+  "way/909455922": {
+    "expect": {
+      "operator": "True North Data Solutions"
+    },
+    "operator": "Compass Datacenters",
+    "publisher": "Dgtl Infra",
+    "quote": "Compass Datacenters, a hyperscale data center developer and operator in the United States and Canada, through its entity Compass Datacenters IAD I LLC and via a project named True North Data",
+    "reason": "True North Data is Compass Datacenters' project for its Loudoun County I campus, the site polygon's halls on Thunderball Drive, where Compass's own IAD IE (way/1387391201) stands inside the polygon; operator=True North Data Solutions names the project",
+    "retrieved_at": "2026-10-13T03:43:15Z",
+    "reviewed_at": "2026-10-13",
+    "source_type": "trade_press",
+    "source_url": "https://dgtlinfra.com/compass-datacenters-loudoun-county-true-north-data/"
   }
 }

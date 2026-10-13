@@ -44,11 +44,35 @@ def importer_args(overrides: Path = REPO_OVERRIDES) -> argparse.Namespace:
     return parser.parse_args(["--pnnl", str(PNNL_FIX4), "--overrides", str(overrides)])
 
 
+# The element decisions of config/overrides/osm.json: an entry with none has only corrections.
+DECISIONS = frozenset({"drop", "name", "operator", "join", "alone", "status"})
+
+
+def committed_on(fixture: Path, tmp_path: Path) -> Path:
+    """The committed entries for the elements the fixture has, as an overrides file, without
+    their corrections and expect guards. The fixture was copied before fix round 6: its entries
+    name elements (and join targets) it does not have, their Fixes are dated after the test
+    clock, and their guards read the seed input; the whole file is checked on the seed input
+    (docs/sources/osm-pnnl.md section 9) and by test_osm_corrections.py."""
+    doc = json.loads(fixture.read_text(encoding="utf-8"))
+    have = {f"{e['type']}/{e['id']}" for e in doc["elements"]}
+    entries: dict[str, object] = {}
+    for ref, entry in json.loads(REPO_OVERRIDES.read_text(encoding="utf-8")).items():
+        kept = {k: v for k, v in entry.items() if k not in ("corrections", "expect")}
+        if ref in have and kept.get("join", ref) in have and DECISIONS & set(kept):
+            entries[ref] = kept
+    path = tmp_path / "committed-osm.json"
+    path.write_text(json.dumps(entries), encoding="utf-8")
+    return path
+
+
 @pytest.fixture
-def run(make_test_context: MakeContext) -> ImportResult:
-    """The importer on the fixture with the committed overrides, as `atlas import osm --input
-    ... --pnnl ...` runs it (every element config/overrides/osm.json names is in the fixture)."""
-    return OsmImporter().run(make_test_context(input_path=FIX4), importer_args())
+def run(make_test_context: MakeContext, tmp_path: Path) -> ImportResult:
+    """The importer on the fixture with the committed overrides of its elements, as `atlas import
+    osm --input ... --pnnl ...` runs it (committed_on)."""
+    return OsmImporter().run(
+        make_test_context(input_path=FIX4), importer_args(committed_on(FIX4, tmp_path))
+    )
 
 
 def record(result: ImportResult, ref: str) -> FacilityRecord:
@@ -361,10 +385,13 @@ def test_the_committed_overrides_correct_stale_tags(run: ImportResult) -> None:
     assert vita.canonical_name == "Data center (Chesterfield County, VA)"
     assert vita.aliases == []
     burbank = record(run, "way/460212563")
-    assert burbank.canonical_name == "Centersquare data center (Los Angeles County, CA)"
+    # Fix round 6's correction gwa-01m4hfqn6fkzdjcvdv6545x0m4: Digital Realty runs it as BUR10.
+    assert burbank.canonical_name == "Digital Realty BUR10 (Los Angeles County, CA)"
     gi = record(run, "way/635022480")
     assert gi.canonical_name == "GI Partners data center (Fulton County, GA)"
-    assert run.metrics["overrides"] == 12  # seven more of fix round 5 (test_osm_fix5.py)
+    # Seven more of fix round 5 (test_osm_fix5.py), and Equinix DC18's status of fix round 6
+    # (correction gwa-01m4hfqn4bwmzj62gstjhxcern), the one new entry for an element of the fixture.
+    assert run.metrics["overrides"] == 13
 
 
 def write(tmp_path: Path, entries: Mapping[str, object]) -> Path:
@@ -421,9 +448,9 @@ def test_a_malformed_override_is_an_error(
         load_overrides(write(tmp_path, entries))
 
 
-def test_apply_overrides_replaces_and_removes_tags() -> None:
+def test_apply_overrides_replaces_and_removes_tags(tmp_path: Path) -> None:
     objects, _ = parse_overpass(json.loads(FIX4.read_text(encoding="utf-8")))
-    entries = load_overrides(REPO_OVERRIDES)
+    entries = load_overrides(committed_on(FIX4, tmp_path))
     kept, dropped = apply_overrides(objects, entries)
     by_ref = {o.ref: o for o in kept}
     assert [o.ref for o in dropped] == ["way/903642490"]  # the Family History Center
@@ -436,15 +463,20 @@ def test_apply_overrides_replaces_and_removes_tags() -> None:
 
 
 def test_every_committed_override_is_cited() -> None:
-    """Each entry names its source and the verbatim quote that states the correction, when it
-    was read and reviewed, and why; a page that refuses automated clients is cited with the
-    snapshot read. No entry holds a person's details."""
+    """Each entry's element decisions name their source and the verbatim quote that states the
+    correction, when it was read and reviewed, and why; a page that refuses automated clients is
+    cited with the snapshot read. No entry holds a person's details. An entry with only
+    corrections has no top-level citation: each Fix cites its own page (test_osm_corrections.py
+    checks them)."""
     raw = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
     entries = load_overrides(REPO_OVERRIDES)
     assert len(entries) == len(raw) >= 1
     now = datetime.now(UTC)
     for ref, ov in entries.items():
         assert re.match(r"^(node|way|relation)/\d+$", ref)
+        if not ov.decides:
+            assert ov.corrections and not set(raw[ref]) & {"reason", "source_url", "quote"}, ref
+            continue
         for key in ("reason", "source_url", "publisher", "quote", "retrieved_at", "reviewed_at"):
             assert raw[ref].get(key), (ref, key)
         assert 0 < len(ov.quote) <= 300 and ov.retrieved_at <= now, ref
