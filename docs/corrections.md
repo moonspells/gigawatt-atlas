@@ -362,6 +362,10 @@ against its own citation, so CI catches a value its quote does not state before 
   in the quote of the entry's Fix that supports `/location/county_fips`);
 - every date of an event that has happened is no later than today, and its year is in the quote,
   the page's `published_at` or the URL, or `YEAR_ELSEWHERE` says how the page gives it;
+- an announced event (one an `add_event` adds, or a `replace_event` retypes or redates) quotes
+  the plan: a quote that reports a purchase, a sale or a transfer also states a data center plan,
+  as AI GridWatch reads a property deal (CoreWeave Lancaster's Fix quotes the data centers
+  proposed in the printing plants, not the investors' purchase of them);
 - the file is canonical JSON (sorted keys, 2-space indent, a final newline).
 
 An exception must still be needed (its value is not in the quote verbatim, its year not in the

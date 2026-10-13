@@ -203,6 +203,23 @@
         "reviewed_at": "2026-10-13",
         "source_type": "news",
         "source_url": "https://herald-zeitung.com/news/guadalupe-county-oks-data-center-tax-abatements-development-agreement/article_51cd3ee7-759e-4536-a7ae-f8d1b3b0f589.html"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "op": "flag"
+          }
+        ],
+        "published_at": "2026-04-30T14:33:00-05:00",
+        "publisher": "Herald-Zeitung",
+        "quote": "Commissioners OK’d the development for 706 acres of land for Cloudburst Texas LLC on Tuesday, allowing the company to construct a data center facility in northern Guadalupe County, bordering Hays County.",
+        "reason": "The Herald-Zeitung puts the 706-acre development of 2026 in northern Guadalupe County, and Community Impact, the row's source, says the 96-acre site of 2025 straddles Hays and Guadalupe counties: the record keeps the importer's Hays County until a reviewer settles the county",
+        "retrieved_at": "2026-10-13T04:26:24Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://herald-zeitung.com/news/guadalupe-county-oks-data-center-tax-abatements-development-agreement/article_51cd3ee7-759e-4536-a7ae-f8d1b3b0f589.html"
       }
     ]
   },

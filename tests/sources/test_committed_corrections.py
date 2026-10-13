@@ -191,6 +191,20 @@ def dated(fix_: Fix) -> list[str]:
     return out
 
 
+def announces(fix_: Fix) -> bool:
+    """Whether a Fix's ops give an announced event: one they add, or one a replace_event makes
+    an announcement (a retype) or dates anew."""
+    return any(
+        (isinstance(op, AddEvent) and op.event == "announced")
+        or (
+            isinstance(op, ReplaceEvent)
+            and (op.set.event or op.match.event) == "announced"
+            and (op.set.event is not None or op.set.as_of is not None)
+        )
+        for op in fix_.ops
+    )
+
+
 def stops(fix_: Fix) -> bool:
     """Whether a Fix's ops give a paused, denied or cancelled status: an event they add, or one a
     replace_event changes, by its new status or by the stopped status or event its match names
@@ -268,6 +282,24 @@ def test_every_committed_correction_is_cited(file: str, counties: CountyIndex) -
     assert fixes > 0
 
 
+def test_an_announcement_quotes_the_plan() -> None:
+    """entries-5 (review of fix round 6): an announced event is a public statement that a project
+    is planned (07 §2.3), so a Fix that gives one quotes the plan. A quote that reports a
+    purchase, a sale or a transfer also states a data center plan, as AI GridWatch reads a row's
+    property deal (aigridwatch.property_deal: a deal states no plan): CoreWeave Lancaster's Fix
+    quotes the data centers proposed in the printing plants, not the plants' purchase."""
+    announcements = 0
+    for file in FILES:
+        for key, corrections in entries(file).items():
+            for i, fix_ in enumerate(corrections):
+                if not announces(fix_):
+                    continue
+                announcements += 1
+                deal = aigridwatch._PROPERTY_RE.search(fix_.quote)
+                assert deal is None or aigridwatch._PLAN_RE.search(fix_.quote), (file, key, i)
+    assert announcements > 0
+
+
 def test_the_osm_element_decisions_of_fix_round_6_are_quoted() -> None:
     """The names and operators that the element decisions of fix round 6 give are in their quote,
     read by words (an operator's own page names its sites without its own name). The decisions'
@@ -341,3 +373,53 @@ def test_stops_names_every_stopped_status(op: dict[str, Any], expected: bool) ->
         ]
     )
     assert stops(parsed) is expected
+
+
+@pytest.mark.parametrize(
+    ("op", "expected"),
+    [
+        ({"op": "add_event", "event": "announced", "status": "announced", "as_of": "2025"}, True),
+        ({"op": "add_event", "event": "approved", "status": "permitted", "as_of": "2025"}, False),
+        # DC Blox's redate of its announcement; Google Botetourt's first report retyped to one.
+        (
+            {"op": "replace_event", "match": {"event": "announced"}, "set": {"as_of": "2026-04"}},
+            True,
+        ),
+        (
+            {
+                "op": "replace_event",
+                "match": {"event": "first_reported"},
+                "set": {"event": "announced", "as_of": "2025-06-24"},
+            },
+            True,
+        ),
+        # STACK Berry Hill's announcement that is a first report, and a note, announce nothing.
+        (
+            {
+                "op": "replace_event",
+                "match": {"event": "announced"},
+                "set": {"event": "first_reported"},
+            },
+            False,
+        ),
+        ({"op": "replace_event", "match": {"event": "announced"}, "set": {"note": "per X"}}, False),
+    ],
+)
+def test_announces_names_every_announcement(op: dict[str, Any], expected: bool) -> None:
+    """entries-5: the Fixes test_an_announcement_quotes_the_plan reads, by what their ops give."""
+    (parsed,) = FIXES.validate_python(
+        [
+            {
+                "source_url": "https://example.org/a",
+                "publisher": "Example News",
+                "source_type": "news",
+                "quote": "a quote",
+                "basis": "upstream_error",
+                "reason": "The reviewer read the cited page",
+                "retrieved_at": "2026-10-10T12:00:00Z",
+                "reviewed_at": "2026-10-10",
+                "ops": [op],
+            }
+        ]
+    )
+    assert announces(parsed) is expected

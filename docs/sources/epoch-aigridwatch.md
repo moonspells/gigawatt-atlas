@@ -1177,7 +1177,7 @@ corrections:
 | `yerington-monarch-data-center` | first report 2025-07, proposed: the Planning Commission's recommendation of July 8 (was 2026-07-14) | Nevada Business Exchange |
 | `stokes-county-project-delta` | approved 2026-09-14: permitted | WUNC |
 | `platte-county-wy-site-layer-4` | approved 2026-09-02: permitted | Cowboy State Daily |
-| `cloudburst-san-marcos-tx` | acreage withheld (96 acres, about 220 and 706 disagree); the Hays County location is the importer's | Herald-Zeitung |
+| `cloudburst-san-marcos-tx` | acreage withheld (96 acres, about 220 and 706 disagree); the Hays County location is the importer's, and a `flag` files a `conflict` item that leaves the county open (the Herald-Zeitung puts the 706 acres in northern Guadalupe County, Community Impact the 96-acre site across both counties) | Herald-Zeitung (both) |
 | `microsoft-cheyenne-expansion` | `release: ["stage"]`; announced 2026-04-14, approved 2026-07-13: permitted, without the stage's operating observation; Laramie County is the importer's | Microsoft; County 17 |
 | `vermaland-la-osa-pinal-az` | first report 2025-07, proposed (the rezoning requests presented to the county); denied 2026-08-26, `local_denial` | KVOA; KJZZ |
 | `kearney-data-center-ne` | first report 2026-08-18, proposed (the conditional use permit application); approved 2026-09-08: permitted; Buffalo County at county precision, without the city (the site is outside Kearney's limits) | Central Nebraska Today; Rock 101.5; KSNB |
@@ -1195,11 +1195,11 @@ report in the row: a reviewer's pause, denial or approval would have dated it, s
 gives the earliest report found that names the project as a cited `first_report`. Two parts of
 the corrections are not expressible: Kearney's dead link stays among the record's sources (the
 row names it; no op removes a source, and it supports no value), and no review item marks
-CloudBurst's withheld acreage (its correction entry does). On the fifth seed's saved inputs,
-offline, after the Epoch AI import into an empty store: 162 AI GridWatch records (the two
-releases), of which exactly these 23 change, 278 review items (280 before the Epoch AI entries
-of the same round, whose Amazon Ridgeland and CoreWeave Muskogee records no longer disagree with
-their twins' stage; [Sixth fix round](#sixth-fix-round-2026-10-13-epoch-ai)), `atlas validate` 0
+CloudBurst's withheld acreage (its correction entry does; its `flag` item is about the county).
+On the fifth seed's saved inputs, offline, after the Epoch AI import into an empty store: 162 AI
+GridWatch records (the two releases), of which exactly these 23 change, 279 review items with
+CloudBurst's flag (281 before the Epoch AI entries of the same round, whose Amazon Ridgeland and
+CoreWeave Muskogee records no longer disagree with their twins' stage; [Sixth fix round](#sixth-fix-round-2026-10-13-epoch-ai)), `atlas validate` 0
 issues, and a second run `unchanged`. `tests/sources/test_committed_corrections.py` checks every
 committed Fix ([corrections.md](../corrections.md), "Checks on the committed files"); the
 fixture runs read none of the entries (`tests/fixtures/aigridwatch/overrides-none.json`), since
@@ -1258,8 +1258,8 @@ and a first report a reviewer found earlier than a committed `first_report` part
 part's event (`replace_event`), the part's report kept in `field_meta` conflicts. On the fifth
 seed's saved inputs, offline, into an empty store: 73 Epoch records, of which exactly these 21
 change; 17 review items (18 before: CoreWeave Lancaster's first-report conflict is resolved),
-and the corrected records' items carry `data.corrected_by`; AI GridWatch afterwards files 278 items
-(280 before: its Amazon Ridgeland and CoreWeave Muskogee twins no longer disagree with the Epoch
+and the corrected records' items carry `data.corrected_by`; AI GridWatch afterwards files 279 items
+(281 before: its Amazon Ridgeland and CoreWeave Muskogee twins no longer disagree with the Epoch
 records' status); `atlas validate` 0 issues, and a second run `unchanged`.
 
 | Site | Correction | Source |
@@ -1279,7 +1279,7 @@ records' status); `atlas validate` 0 issues, and a second run `unchanged`.
 | Vantage TX1 | first report 2023-08-31, announced (was Epoch's 2023-12-15 row): a `first_report` op, which replaces the round-5 TDLR `first_report` part (an entry has one or the other) | the San Antonio Report on Vantage's land purchase |
 | CoreWeave Dalton 1 & 2 | 30 MW IT, "delivered 30 megawatts into service" (Epoch's 28 MW IT and 40 MW in conflicts) | Core Scientific's Q1 2026 remarks |
 | Anthropic Barber Lake | tenant Cipher Digital (was Cipher Mining) | TheEnergyMag on the rebrand |
-| CoreWeave Lancaster Greenfield site | announced and first reported 2025-02-19 (was 2025-07-15) | WITF (LNP) on Machine Investment Group's announcement |
+| CoreWeave Lancaster Greenfield site | announced and first reported 2025-02-19 (was 2025-07-15) | WITF (LNP): the data centers proposed in the printing plants Machine Investment Group bought (the quote states the plan, not the purchase) |
 | CoreWeave Muskogee OK | operating, observed 2026-07-15 (Epoch's planned 2026-12 row removed; a campus); 70 MW IT | SynMax's thermal drone pass; Core Scientific's groundbreaking release |
 | Google Cedar Rapids | first report 2024-02-12 (was 2024-03-21) | the Corridor Business Journal; KCRG ties it to Google |
 | OpenAI Stargate Michigan | first report 2025-09-10 (was 2025-10) | Planet Detroit on the rezoning vote; the Project Mitten application ties it to the site |

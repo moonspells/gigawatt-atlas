@@ -461,3 +461,35 @@ def test_a_cited_first_report_lifts_the_hold_of_a_removed_first_report(run: Run)
     alias = {"op": "add_alias", "name": "Digital Gateway", "kind": "press_name"}
     rec = record(run({GATEWAY: {"corrections": [fix(alias)]}}, PROJECTS), GATEWAY)
     assert rec.dates["first_reported"].value == "2023-12-13"
+
+
+def test_cloudburst_s_county_is_flagged_for_a_reviewer(run: Run, counties: CountyIndex) -> None:
+    """entries-4 (review of fix round 6): the committed CloudBurst entry withholds the acreage on
+    the Herald-Zeitung's word, which puts the 706-acre development in northern Guadalupe County,
+    while the record keeps the Hays County the importer gives (Community Impact, the row's
+    source, says the site straddles both counties). Its flag files that open question as a
+    conflict item with the page's URL and quote, and changes nothing else: the page is cited
+    once, for the acreage. The committed Fixes were read after the fixture's day, so they are
+    dated on that day here."""
+    pid = "cloudburst-san-marcos-tx"
+    committed = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))[pid]["corrections"]
+    day = {"retrieved_at": "2026-10-09T05:00:00Z", "reviewed_at": "2026-10-09"}
+    fixes = [{**f, **day} for f in committed]
+    (url,) = {f["source_url"] for f in fixes}
+    result = run({pid: {"corrections": fixes}})
+    rec = record(result, pid)
+    loc = rec.location
+    assert (loc.county_fips, loc.county_name, loc.precision) == ("48209", "Hays", "county")
+    assert rec.site.acreage is None
+    (cited,) = [s for s in rec.sources if str(s.url) == url]
+    assert rec.field_meta["/site/acreage"].source_ids == [cited.id]
+    assert cited.quote is not None and "Guadalupe County" in cited.quote
+    assert [c.pointer for c in rec.corrections] == ["/site/acreage"]
+    (item,) = [i for i in items(result, pid) if i.kind == "conflict"]
+    assert item.reason.startswith("flagged by ")
+    assert f"aigridwatch.json entry '{pid}' (reviewed 2026-10-09): " in item.reason
+    (flag,) = [f for f in fixes if f["ops"] == [{"op": "flag"}]]
+    assert flag["reason"] in item.reason
+    assert (item.data["source_url"], item.data["quote"]) == (url, cited.quote)
+    assert [i.kind for i in items(result, pid)] == ["county_mismatch", "conflict"]
+    assert validate_record(rec, counties=counties, today=TODAY) == []
