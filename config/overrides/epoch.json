@@ -24,6 +24,106 @@
   },
   "Amazon Ridgeland": {
     "city": "Ridgeland",
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2024-01-25",
+            "from": "2024-02-24",
+            "op": "first_report",
+            "status": "announced"
+          }
+        ],
+        "published_at": "2024-01-25T20:45:06.530000+00:00",
+        "publisher": "Amazon",
+        "quote": "AWS will establish multiple data center complexes in two Madison County industrial parks",
+        "reason": "AWS announced its two Madison County data center complexes, one of them this Ridgeland site, on 2024-01-25, before Epoch's first row (2024-02-24).",
+        "retrieved_at": "2026-10-13T03:37:31Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "company_release",
+        "source_url": "https://www.aboutamazon.com/news/aws/aws-10-billion-investment-mississippi"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "event": {
+              "as_of": "2024-01-25",
+              "event": "first_reported"
+            },
+            "op": "support"
+          }
+        ],
+        "published_at": "2024-07-27T21:10:00+00:00",
+        "publisher": "Vicksburg Daily News",
+        "quote": "The second: an additional 786 acres in Ridgeland on the Costas property, located along the southern tip of Madison County near Tougaloo College, on the corner of Highland Colony Parkway and West County Line Road.",
+        "reason": "Ties AWS's announcement to this site: the second of its two Madison County complexes is the Ridgeland property at Highland Colony Parkway and West County Line Road, the site of the permit Epoch cites.",
+        "retrieved_at": "2026-10-13T03:37:56Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://vicksburgnews.com/aws-plans-10-billion-data-center-investment-in-mississippi/"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2026-05-15",
+              "event": "energized"
+            },
+            "op": "remove_event"
+          },
+          {
+            "as_of": "2026-06-09",
+            "op": "observe",
+            "status": "under_construction"
+          },
+          {
+            "from": 228.0,
+            "op": "set",
+            "path": "/capacity/it_mw",
+            "value": null
+          },
+          {
+            "from": 273.0,
+            "op": "set",
+            "path": "/capacity/facility_mw",
+            "value": null
+          },
+          {
+            "from": 8637096000.0,
+            "op": "set",
+            "path": "/money/investment_usd",
+            "value": null
+          },
+          {
+            "from": "estimate",
+            "op": "set",
+            "path": "/money/investment_basis",
+            "value": null
+          },
+          {
+            "from": 2025,
+            "op": "set",
+            "path": "/money/currency_year",
+            "value": null
+          }
+        ],
+        "published_at": "2026-06-09T13:00:00+00:00",
+        "publisher": "Mississippi Today (republished by OurTupelo)",
+        "quote": "The Ridgeland site is in the early stages of construction",
+        "reason": "Amazon told Mississippi Today on 2026-06-09 that the Ridgeland site is in the early stages of construction (only Canton operates), so Epoch's estimate of 2026-05-15 that Buildings 1-4 operate, and the capacity and cost it gives them, are not published.",
+        "retrieved_at": "2026-10-13T03:37:12Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://ourtupelo.com/where-do-amazons-data-centers-in-mississippi-stand-company-offers-details-on-project-status-water-and-energy-footprint/",
+        "states_status": "under_construction"
+      }
+    ],
     "county_fips": "28089",
     "note": "Epoch's address does not geocode (the parser finds no city in it). Its second Selected Source, the state air permit review summary for this site (JAN200, 1626 County Line Road), places the facility in Ridgeland, Madison County, Mississippi.",
     "precision": "locality",
@@ -37,6 +137,28 @@
   "Anthropic Barber Lake": {
     "archive_url": "https://web.archive.org/web/20261004081703/https://www.globenewswire.com/news-release/2025/09/25/3156107/0/en/Cipher-Mining-Signs-168-MW-10-Year-AI-Hosting-Agreement-with-Fluidstack.html",
     "city": "Colorado City",
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": "Cipher Mining",
+            "op": "rename_party",
+            "role": "tenant",
+            "to": "Cipher Digital"
+          }
+        ],
+        "publisher": "TheEnergyMag",
+        "quote": "Cipher Mining said it has rebranded as Cipher Digital (NASDAQ: CIFR)",
+        "reason": "Epoch's party Cipher Mining renamed itself Cipher Digital in February 2026 (same company, NASDAQ: CIFR).",
+        "retrieved_at": "2026-10-13T03:43:37Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "trade_press",
+        "source_url": "https://www.theenergymag.com/news/2026-02-24/cipher-digital-ai-bitcoin",
+        "title": "Cipher Mining Rebrands as Cipher Digital to Double Down on AI Data Center Leases"
+      }
+    ],
     "note": "Epoch gives no address. Its first Selected Source, the site owner's release, read through its Wayback Machine snapshot because globenewswire.com refuses automated clients, places the Barber Lake site in Colorado City, Texas.",
     "precision": "locality",
     "publisher": "Cipher Mining",
@@ -69,6 +191,45 @@
     "source_url": "https://www.epw.senate.gov/public/_cache/files/d/d/ddb47040-2070-4947-b9e4-33ebdeec63b2/8E78983C37084D41FBF7C84A1316686A668FC405556F6995C9CA8E3253FC8386.letter-to-epa-re-xai.pdf",
     "state_abbr": "TN"
   },
+  "CoreWeave Dalton 1 & 2": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": 28.0,
+            "op": "set",
+            "path": "/capacity/it_mw",
+            "phase": "coreweave-dalton-1-2",
+            "value": 30
+          },
+          {
+            "from": 40.0,
+            "op": "set",
+            "path": "/capacity/facility_mw",
+            "phase": "coreweave-dalton-1-2",
+            "value": null
+          },
+          {
+            "from": null,
+            "op": "set",
+            "path": "/capacity/mw_as_stated",
+            "phase": "coreweave-dalton-1-2",
+            "value": "delivered 30 megawatts into service"
+          }
+        ],
+        "publisher": "Core Scientific",
+        "quote": "At Dalton Phase 1, we likewise achieved full site handover and delivered 30 megawatts into service.",
+        "reason": "Core Scientific's Q1 2026 remarks (2026-05-06) count Dalton Phase 1, the building Epoch tracks, among its billable capacity: 30 MW in service. Epoch's 28 MW IT and 40 MW are its model and stay in field_meta conflicts.",
+        "retrieved_at": "2026-10-13T03:39:55Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "company_release",
+        "source_url": "https://d1io3yog0oux5.cloudfront.net/_fda3a1f2f1890adaa7ac6c4d9d310971/corescientific/db/1085/11268/prepared_remarks/1Q26+Prepared+Remarks.pdf",
+        "title": "First Quarter 2026 Earnings Conference Call Prepared Remarks"
+      }
+    ]
+  },
   "CoreWeave Denton TX": {
     "city": "Denton",
     "note": "Epoch's address is in Denton, only its postal city. Core Scientific's page for this site (8171 Jim Christal Rd), one of Epoch's Selected Sources, places the data center in Denton, Texas. No county is named.",
@@ -92,9 +253,63 @@
       "retrieved_at": "2026-10-09T21:57:59Z",
       "source_type": "company_release",
       "source_url": "https://ir.applieddigital.com/news-events/press-releases/detail/157/applied-digital-delivers-second-building-at-polaris-forge-1"
-    }
+    },
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": 175.0,
+            "op": "set",
+            "path": "/capacity/it_mw",
+            "phase": "coreweave-ellendale-nd",
+            "value": 250
+          },
+          {
+            "from": "175 MW now live",
+            "op": "set",
+            "path": "/capacity/mw_as_stated",
+            "phase": "coreweave-ellendale-nd",
+            "value": "fully operational critical IT load at Polaris Forge 1 to 250 MW"
+          }
+        ],
+        "published_at": "2026-10-02T08:00:00-04:00",
+        "publisher": "Applied Digital",
+        "quote": "The milestone completes Building 2’s full 150 MW of critical IT load and brings fully operational critical IT load at Polaris Forge 1 to 250 MW.",
+        "reason": "Applied Digital's release of 2026-10-02: Building 2 is fully in service and the operational critical IT load of Polaris Forge 1, this campus, is 250 MW (175 MW on 2026-07-01, the capacity cited until now).",
+        "retrieved_at": "2026-10-13T03:38:15Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "company_release",
+        "source_url": "https://ir.applieddigital.com/news-events/press-releases/detail/161/applied-digital-brings-an-additional-75-mw-of-ai",
+        "states_status": "operating"
+      }
+    ]
   },
   "CoreWeave Lancaster Greenfield site": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2025-02-19",
+            "event": "announced",
+            "note": "Machine Investment Group's announcement of AI data centers in the former printing plants, per WITF (LNP)",
+            "op": "add_event",
+            "status": "announced"
+          }
+        ],
+        "publisher": "WITF (LNP | LancasterOnline)",
+        "quote": "New York-based Machine Investment Group announced Wednesday morning that it purchased the properties at 216 Greenfield Road and 1375 Harrisburg Pike from LSC Communications.",
+        "reason": "Machine Investment Group announced its AI data centers in the former printing plants at 216 Greenfield Road on 2025-02-19, before CoreWeave's announcement (2025-07-15), which stays a later event. The cited PA DEP application dated nothing.",
+        "retrieved_at": "2026-10-13T03:43:47Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.witf.org/2025/02/19/new-owner-plans-ai-data-centers-in-former-donnelley-lsc-printing-plants-in-lancaster/",
+        "title": "New owner plans AI data centers in former Donnelley-LSC printing plants in Lancaster"
+      }
+    ],
     "first_report": {
       "note": "AI GridWatch's row 216-greenfield-road-lancaster-city-pa dates this PA DEP application 2025-05-14; PA DEP's eFACTS fails TLS verification through the project's proxy. Its status is ahead of Epoch's 2025-07-15 announcement, so a reviewer decides.",
       "published_at": "2025-05-14",
@@ -107,6 +322,65 @@
     }
   },
   "CoreWeave Muskogee OK": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2026-07-15",
+            "op": "observe",
+            "phase": "coreweave-muskogee-ok",
+            "status": "operating"
+          },
+          {
+            "match": {
+              "as_of": "2026-12",
+              "event": "energized",
+              "planned": true
+            },
+            "op": "remove_event"
+          }
+        ],
+        "published_at": "2026-07-16T20:19:08+00:00",
+        "publisher": "SynMax (Vulcan)",
+        "quote": "MSK1 DC01 is built as rows of containerized data center modules alongside large banks of heat exchangers. In the July 15 thermal pass, those exchangers read warm to hot across the full block — the facility is actively rejecting heat. That's operational",
+        "reason": "A thermal drone pass on 2026-07-15 found Core Scientific's MSK1 building (the 70 MW building Epoch tracks) operating, as Core Scientific's Q2 2026 delivery plan said; Epoch's estimate of operation by 2026-12 is superseded.",
+        "retrieved_at": "2026-10-13T03:42:22Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "commercial_aggregator",
+        "source_url": "https://blog.synmax.com/vulcan/muskogees-first-data-hall-is-already-live-at-least-two-weeks-ahead",
+        "states_status": "operating",
+        "title": "Muskogee's First Data Hall Is Already Live — At Least Two Weeks Ahead of the Reported Startup Date"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": null,
+            "op": "set",
+            "path": "/capacity/it_mw",
+            "phase": "coreweave-muskogee-ok",
+            "value": 70
+          },
+          {
+            "from": null,
+            "op": "set",
+            "path": "/capacity/mw_as_stated",
+            "phase": "coreweave-muskogee-ok",
+            "value": "approximately 70 MW of critical IT load"
+          }
+        ],
+        "publisher": "Core Scientific",
+        "quote": "The 100 MW Muskogee data center will provide approximately 70 MW of critical IT load to power the latest generation of NVIDIA GPUs, with the remaining 30 MW powering ancillary systems required to ensure optimal GPU performance.",
+        "reason": "Core Scientific gives the building Epoch tracks approximately 70 MW of critical IT load; Epoch gives no figure.",
+        "retrieved_at": "2026-10-13T03:42:50Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "company_release",
+        "source_url": "https://investors.corescientific.com/news-events/press-releases/detail/99/core-scientific-and-port-muskogee-break-ground-on-100-mw-hpc-data-center"
+      }
+    ],
     "county_fips": "40101",
     "note": "Epoch's address is in Muskogee, only its postal city. Its Oklahoma DEQ source, the draft construction permit for Core Scientific MSK1 & MSK2, locates the facility by PLSS section in Muskogee County and names no town.",
     "precision": "county",
@@ -174,6 +448,54 @@
     ]
   },
   "Google Cedar Rapids": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2024-03-21",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2024-02-12",
+              "note": "First report, per Corridor Business Journal"
+            }
+          }
+        ],
+        "published_at": "2024-02-12T19:38:20+00:00",
+        "publisher": "Corridor Business Journal",
+        "quote": "A $576 million data center project in southwest Cedar Rapids, now in the preliminary stages of planning and development, would become one of the largest economic development projects in the city’s history if it comes to fruition.",
+        "reason": "Heaviside LLC's $576 million data center proposal in southwest Cedar Rapids was reported on 2024-02-12, before KCRG's report that it is Google's (2024-03-21), which dated the first report until now. Before the council, so proposed.",
+        "retrieved_at": "2026-10-13T03:44:11Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://corridorbusiness.com/developers-propose-576-million-data-center-project-in-cedar-rapids/"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "event": {
+              "as_of": "2024-02-12",
+              "event": "first_reported"
+            },
+            "op": "support"
+          }
+        ],
+        "published_at": "2024-03-21T14:00:18.162000+00:00",
+        "publisher": "KCRG",
+        "quote": "The proposed 1,396 acre data center that would come to the southwest side of Cedar Rapids would be a Google data center, city legislators confirmed Thursday.",
+        "reason": "Ties the first report to Google: the city confirmed that the proposed data center on the southwest side, the first report's project, is Google's.",
+        "retrieved_at": "2026-10-13T03:44:23Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.kcrg.com/2024/03/21/google-data-center-coming-cedar-rapids/"
+      }
+    ],
     "first_report": {
       "note": "The city's confirmation of Google's proposed data center on the southwest side; Epoch's sources (the MISO list, the county permit application) are later. Epoch's first row is 2024-06-14.",
       "published_at": "2024-03-21T14:00:18Z",
@@ -233,6 +555,34 @@
   },
   "Google Lincoln": {
     "city": "Lincoln",
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2019-09-09",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2019-07-10",
+              "note": "First report, per KLKN-TV",
+              "status": "proposed"
+            }
+          }
+        ],
+        "published_at": "2019-07-10T05:06:35+00:00",
+        "publisher": "KLKN-TV",
+        "quote": "Plans have been filed for what appears to be a large data center just north of Lincoln. A company called Agate LLC filed the plans with the Lincoln-Lancaster County Planning Department for a data center at 56th and I-80, that would be on 590 acres of land.",
+        "reason": "Agate LLC's plans for this site were filed and reported on 2019-07-10, two months before the City Council's Use Permit 19008 for Agate, LLC (2019-09-09, Epoch's Selected Source), which dated the first report until now. A filing, so proposed.",
+        "retrieved_at": "2026-10-13T03:31:14Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.klkntv.com/large-data-center-planned-for-construction-near-lincoln/"
+      }
+    ],
     "first_report": {
       "note": "Epoch's Selected Source ('Rezoning approval'): the City Council's meeting of September 9, 2019 adopted Use Permit 19008 for Agate, LLC's data center by Highway 77 and Interstate 80. Epoch's first row is 2023-07.",
       "published_at": "2019-09-09",
@@ -256,6 +606,33 @@
   "Google Mesa": {
     "archive_url": "https://web.archive.org/web/20260704100329/https://www.datacenterdynamics.com/en/news/google-breaks-ground-on-mesa-data-center-campus-in-arizona/",
     "city": "Mesa",
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2019-07-01",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2019-06-28",
+              "note": "First report, per GovTech (East Valley Tribune)"
+            }
+          }
+        ],
+        "publisher": "GovTech (East Valley Tribune)",
+        "quote": "Technology giant Google is coming to Mesa, Ariz., lured by a tax incentive agreement to build a massive data center in the emerging Elliot Road Technology Corridor.",
+        "reason": "The East Valley Tribune's story of June 28, 2019 (republished by GovTech; its time names no zone, so only the day) reported Google's Mesa data center three days before the City of Mesa's release (2019-07-01).",
+        "retrieved_at": "2026-10-13T03:29:45Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.govtech.com/data/Google-picks-Mesa-for-giant-data-center.html",
+        "title": "Google Picks Mesa, Ariz., for Location of Giant Data Center"
+      }
+    ],
     "first_report": {
       "note": "The City of Mesa's news release ('Google looking at Mesa', July 1, 2019), on 187 acres northwest of Phoenix-Mesa Gateway Airport; Epoch's DCD source says the facility 'has been in the works since 2019'. Epoch's first row is 2023-07.",
       "published_at": "2019-07-01T19:44:00-07:00",
@@ -358,6 +735,33 @@
   },
   "Google The Dalles": {
     "city": "The Dalles",
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2021-10-19",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2021-02",
+              "note": "First report, per Columbia Community Connection"
+            }
+          }
+        ],
+        "published_at": "2021-10-19T17:14:56-07:00",
+        "publisher": "Columbia Community Connection",
+        "quote": "Five additional years have been added to the window since the initial deal was made public in February.",
+        "reason": "The page of 2021-10-19, which the record cites, says Google's two-data-center deal was first made public in February (2021); the record dated the page instead. Month only. A proposal, so proposed.",
+        "retrieved_at": "2026-10-13T03:31:22Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://columbiacommunityconnection.com/the-dalles/google/county/tax-breaks"
+      }
+    ],
     "first_report": {
       "note": "Google's two-data-center proposal on the former aluminum plant land; the location source says the 3500 River Road application followed years of negotiations on that package. Earlier than SPR 512-22 (2022-10-31), cited until 2026-10-09.",
       "published_at": "2021-10-19T17:14:56-07:00",
@@ -379,6 +783,35 @@
     "state_abbr": "OR"
   },
   "Meta Aiken": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "event": {
+              "as_of": "2023-03-22",
+              "event": "first_reported"
+            },
+            "op": "support"
+          },
+          {
+            "kind": "codename",
+            "name": "Project Sabal",
+            "op": "add_alias"
+          }
+        ],
+        "published_at": "2024-08-29T11:00:00-04:00",
+        "publisher": "Aiken Standard (Post and Courier)",
+        "quote": "The ordinances originally referred to the data center owner as Project Sabal and later as Starskey LLC.",
+        "reason": "The first report (Project Sabal's ordinance, 2023-03-22) did not name Meta; the Aiken Standard's story of Meta's announcement (2024-08-29) says Project Sabal was this data center's owner in the ordinances, and the code name becomes an alias.",
+        "retrieved_at": "2026-10-13T03:38:27Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.postandcourier.com/aikenstandard/business/meta-aiken-county-data-center-mcmaster/article_aaf0aa0c-64a8-11ef-a8f7-d389d536dea5.html",
+        "title": "Meta picks Aiken County as site for first S.C. data center"
+      }
+    ],
     "county_fips": "45003",
     "first_report": {
       "note": "Project Sabal, at Sage Mill Industrial Park, was Meta's data center under its code name (Post and Courier, 2024; Meta announced it on 2024-08-29). Epoch's first row is 2024-05-30.",
@@ -491,6 +924,80 @@
     "state_abbr": "IN"
   },
   "Meta Kuna": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "county_fips": "16001",
+            "from": {
+              "city": "Kuna",
+              "county_fips": "16001",
+              "postcode": "83634",
+              "precision": "street",
+              "street": "601 Kuna Mora Rd"
+            },
+            "op": "set_location",
+            "precision": "county",
+            "state_abbr": "ID"
+          }
+        ],
+        "publisher": "OpenStreetMap contributors",
+        "quote": "Meta Kuna Data Center",
+        "reason": "Epoch's address matched a Census street segment by Kuna's centre, 12 km west of the campus. The campus outline (this way, operator Meta) lies in Ada County and in no Census place, so the record gives Ada County and no city.",
+        "retrieved_at": "2026-10-13T03:36:56Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "open_dataset",
+        "source_url": "https://www.openstreetmap.org/way/1178649864"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2022-02-16",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2021-12-22",
+              "note": "First report, per Idaho Power Company",
+              "status": "proposed"
+            }
+          }
+        ],
+        "publisher": "Idaho Power Company (application to the Idaho PUC, IPC-E-21-42)",
+        "quote": "Application for Approval of Special Contract and Tariff Schedule 33 to Provide Electric Service to Brisbie, LLC’s Data Center Facility",
+        "reason": "Idaho Power's application of December 22, 2021 for service to Brisbie, LLC's data center (Meta's shell company for this site), before Meta's announcement of 2022-02-16, which dated the first report until now. A filing, so proposed.",
+        "retrieved_at": "2026-10-13T03:31:57Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "utility_or_iso_filing",
+        "source_url": "https://puc.idaho.gov/Fileroom/PublicFiles/ELEC/IPC/IPCE2142/CaseFiles/20211222Application.pdf"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "event": {
+              "as_of": "2021-12-22",
+              "event": "first_reported"
+            },
+            "op": "support"
+          }
+        ],
+        "published_at": "2022-02-21T14:06:00+00:00",
+        "publisher": "Data Center Knowledge",
+        "quote": "Following Meta’s announcement, it is clear that Brisbie was a shell company it used to secure the necessary arrangements for the Kuna Data Center.",
+        "reason": "Ties the first report to this site: Brisbie LLC, the customer of Idaho Power's application, was Meta's shell company for the Kuna Data Center.",
+        "retrieved_at": "2026-10-13T03:31:50Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "trade_press",
+        "source_url": "https://www.datacenterknowledge.com/hyperscalers/meta-to-build-first-data-center-in-idaho"
+      }
+    ],
     "first_report": {
       "note": "Epoch's Selected Source, footnote 1: 'On February 16, 2022 ... Meta ... and Brisbie, publicly announced' the data center (the scan's text layer reads 'ldaho'). Epoch's first row is 2022-10-03.",
       "published_at": "2022-02-16",
@@ -539,6 +1046,33 @@
   },
   "Meta Rosemount": {
     "city": "Rosemount",
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2023-09-02",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2022",
+              "note": "First report, per MPR News"
+            }
+          }
+        ],
+        "published_at": "2023-09-02T16:30:00-05:00",
+        "publisher": "MPR News",
+        "quote": "The name of the company had been considered confidential under a trade secret exemption since Xcel Energy first filed a petition with the state to provide electricity to the proposed data center last year.",
+        "reason": "MPR News of 2023-09-02 dates Xcel Energy's first petition for this data center to last year, 2022 (year only: the petition was not read); the record dated the page instead. A utility filing, so proposed.",
+        "retrieved_at": "2026-10-13T03:30:48Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.mprnews.org/story/2023/09/02/meta-plans-major-data-center-in-twin-cities-metro"
+      }
+    ],
     "first_report": {
       "note": "Earlier than Meta's own announcement (2024-03-14), which the entry cited until 2026-10-09: a pending utility filing for the Rosemount data center on UMore Park land, so proposed. Epoch's first row is 2024-05-30.",
       "published_at": "2023-09-02T16:30:00-05:00",
@@ -593,6 +1127,55 @@
     "state_abbr": "TX"
   },
   "Microsoft Fairwater Atlanta": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2022-08-12",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2022-06-27",
+              "note": "First report, per The Citizen",
+              "status": "proposed"
+            }
+          }
+        ],
+        "publisher": "The Citizen",
+        "quote": "a special called meeting of the Fayetteville City Council Thursday evening at which the only topic is to consider approval for annexation of 412 acres in the center of the county to allow development of a data center said to produce 100 jobs and a billion-dollar ultimate investment.",
+        "reason": "The pending annexation of 412 acres for a data center was public on 2022-06-27, before Urbanize Atlanta's announcement of QTS's campus (2022-08-12), which dated the first report until now; a filing before the council, so proposed.",
+        "retrieved_at": "2026-10-13T03:28:50Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://thecitizen.com/2022/06/27/opposition-arises-to-fayetteville-data-center-site-annexation/",
+        "title": "Opposition arises to Fayetteville data center site annexation"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "event": {
+              "as_of": "2022-06-27",
+              "event": "first_reported"
+            },
+            "op": "support"
+          }
+        ],
+        "publisher": "The Citizen",
+        "quote": "A portion of the current QTS acreage, along with other property totaling 1,200 acres, was annexed into the city on Aug. 1, 2013. The final step occurred June 30 when the remaining 412 acres situated on the northeast quadrant of Hwy. 54 and Tyrone Road",
+        "reason": "Ties the first report to this site: the 412 acres annexed on 2022-06-30 are the remainder of QTS's 615-acre Fayetteville site on Hwy. 54, Epoch's address.",
+        "retrieved_at": "2026-10-13T03:29:23Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://thecitizen.com/2022/09/21/state-reviewing-massive-fayetteville-data-center-plans/",
+        "title": "State reviewing massive Fayetteville data center plans"
+      }
+    ],
     "first_report": {
       "note": "The announcement of QTS's 615-acre Fayetteville campus; Epoch's own air permit application ties the site to QTS ('QTS Fayetteville I, LLC ... 1435 Highway 54 West'). Epoch's first row is 2023-04-09.",
       "published_at": "2022-08-12T13:04:21-04:00",
@@ -661,6 +1244,26 @@
         "value": "Medina County, TX"
       }
     ],
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": "48029",
+            "op": "support",
+            "path": "/location/county_fips"
+          }
+        ],
+        "publisher": "OpenStreetMap contributors",
+        "quote": "Microsoft Texas Research Park Campus",
+        "reason": "A reviewer confirms Bexar: the campus outline (this way, operator Microsoft) lies in Bexar County, as SAT40's TDLR registration states; SAT11-14's registration (Medina) stays in field_meta conflicts.",
+        "retrieved_at": "2026-10-13T03:38:52Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "open_dataset",
+        "source_url": "https://www.openstreetmap.org/way/521300038"
+      }
+    ],
     "county_fips": "48029",
     "note": "Epoch's address, 15000 Lambda Drive, San Antonio, has only a postal city. Its first Selected Source, the TDLR registration for SAT40, gives the location county as Bexar and no municipality; Epoch's other TDLR record, for SAT11-14 at the same address, gives Medina (in conflicts).",
     "precision": "county",
@@ -671,7 +1274,63 @@
     "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2023013247",
     "state_abbr": "TX"
   },
+  "Microsoft-Nebius New Jersey": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2026-Q1",
+              "event": "energized"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2025-Q4",
+              "note": "First 25 MW delivered around October 2025 and energized by mid-December 2025, per SemiAnalysis (Epoch AI's note estimated early 2026)"
+            }
+          }
+        ],
+        "published_at": "2026-06-18T15:54:24+00:00",
+        "publisher": "SemiAnalysis",
+        "quote": "~October 2025: first 25 MW delivered, seen by the installed chillers. Mid-December 2025: our December 15th capture shows the second batch of chillers still being installed. Roughly 25 MW energized against the 100 MW promised for year-end.",
+        "reason": "Epoch's note dates operation to early 2026, but the SemiAnalysis post it cites has the first 25 MW delivered around October 2025 and energized by mid-December: operation began in 2025 Q4.",
+        "retrieved_at": "2026-10-13T03:39:02Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "trade_press",
+        "source_url": "https://newsletter.semianalysis.com/p/stop-saying-half-of-2026-us-datacenter"
+      }
+    ]
+  },
   "OpenAI Stargate Abilene": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2021-12-22",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2021-12-21",
+              "note": "First report, per Trade & Industry Development"
+            }
+          }
+        ],
+        "published_at": "2021-12-21T16:40:05-06:00",
+        "publisher": "Trade & Industry Development",
+        "quote": "Taylor County and the City of Abilene have approved a project with Lancium, a Houston-based energy technology and infrastructure company, to build a large scale, renewable energy powered data center campus in Abilene and Taylor County.",
+        "reason": "The page shows Dec 22, 2021, but its own publication time is 2021-12-21T16:40:05-06:00, the day the county and city approved Lancium's campus (this site): the first report is dated 2021-12-21.",
+        "retrieved_at": "2026-10-13T03:29:36Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "trade_press",
+        "source_url": "https://www.tradeandindustrydev.com/region/texas/news/tx-lancium-build-data-center-campus-abilene-18793"
+      }
+    ],
     "county_fips": "48441",
     "first_report": {
       "note": "The page is dated Dec 22, 2021. The campus is Lancium's (the location entry's Lancium Clean Campus; Epoch's Mortenson profile: 'Lancium's hyperscale AI data center campus in Abilene'). Epoch's first row is 2024-05-31.",
@@ -694,6 +1353,53 @@
   },
   "OpenAI Stargate Michigan": {
     "archive_url": "https://web.archive.org/web/20260910192140/https://www.michigan.gov/mpsc/commission/news-releases/2025/12/18/mpsc-approves-dte-electric-energy-contracts-for-data-center",
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2025-10",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2025-09-10",
+              "note": "First report, per Planet Detroit"
+            }
+          }
+        ],
+        "published_at": "2025-09-11T22:17:44+00:00",
+        "publisher": "Planet Detroit",
+        "quote": "Saline Township officials voted down a rezoning proposal Wednesday that would make way for a data center",
+        "reason": "Related Digital's rezoning request for this Saline Township site was public by the township board's vote of Wednesday 2025-09-10, before the October 2025 air permit application that dated the first report until now. A proposal, so proposed.",
+        "retrieved_at": "2026-10-13T03:44:31Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://planetdetroit.org/2025/09/saline-denies-data-center/"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "event": {
+              "as_of": "2025-09-10",
+              "event": "first_reported"
+            },
+            "op": "support"
+          }
+        ],
+        "publisher": "Ramboll for RD Michigan Property Owner I LLC (air permit application)",
+        "quote": "RD Michigan Property Owner I LLC. (Related) is proposing to construct and operate a data center on property located in Saline Township, Michigan, otherwise known as Project Mitten",
+        "reason": "Ties the first report to this site: Related's Saline Township data center is Project Mitten, the site of Epoch's Selected Source.",
+        "retrieved_at": "2026-10-13T03:45:03Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "government_record",
+        "source_url": "https://drive.google.com/file/d/16ZucHKYmld7dLApSXNtbknOyagSn5E-r/view?usp=sharing"
+      }
+    ],
     "county_fips": "26161",
     "first_report": {
       "note": "Epoch's Selected Source, the Project Mitten air permit application narrative, dated October 2025 on its cover. Epoch's first row is 2025-12-04.",
@@ -749,6 +1455,35 @@
   },
   "OpenAI Stargate Wisconsin": {
     "city": "Port Washington",
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2025-10-22",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2025-05",
+              "note": "First report, per Milwaukee Journal Sentinel",
+              "status": "permitted"
+            }
+          }
+        ],
+        "published_at": "2025-06-11T14:39:05+00:00",
+        "publisher": "Milwaukee Journal Sentinel (on Yahoo News)",
+        "quote": "The announcement comes three weeks after the City of Port Washington's Common Council annexed and rezoned around a third of the entire 1,900-acre project site from the Town of Port Washington for an initial phase of development to be completed by 2027.",
+        "reason": "The page of 2025-06-11 dates the council's annexation and rezoning of the site three weeks earlier, May 2025, before Vantage's announcement (2025-10-22) that dated the first report until now. An approval, so permitted.",
+        "retrieved_at": "2026-10-13T03:46:07Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.yahoo.com/news/vantage-identified-operator-port-washingtons-143905168.html",
+        "title": "Vantage identified as operator for Port Washington's proposed 3.5 gigawatt data center campus"
+      }
+    ],
     "first_report": {
       "note": "The announcement of the Port Washington campus (Oct. 22, 2025), earlier than Epoch's DNR summary (December 2025) and first row (2026-01-02).",
       "published_at": "2025-10-22",
@@ -781,6 +1516,53 @@
     "state_abbr": "WI"
   },
   "QTS Cedar Rapids": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2024-12-06",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2024-09-24",
+              "note": "First report, per Corridor Business Journal"
+            }
+          }
+        ],
+        "published_at": "2024-09-25T02:04:51+00:00",
+        "publisher": "Corridor Business Journal",
+        "quote": "The project is being proposed by a Delaware developer identified as SNA LLC, but the ultimate owner and operator of the data center development hasn’t yet been publicly identified.",
+        "reason": "SNA LLC's $750 million data center proposal in southwest Cedar Rapids was reported on 2024-09-24, before MISO's list of 2024-12-06 that dated the first report until now. Before the council, so proposed.",
+        "retrieved_at": "2026-10-13T03:46:32Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://corridorbusiness.com/new-data-center-would-surpass-google-development-project-as-largest-in-cedar-rapids-history/"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "event": {
+              "as_of": "2024-09-24",
+              "event": "first_reported"
+            },
+            "op": "support"
+          }
+        ],
+        "publisher": "The Gazette",
+        "quote": "A slide shows the proposed layout of a new data center development planned for the Big Cedar Industrial Center. The development, proposed by SNA LLC, would be built along the north side of 76th Avenue in southwest Cedar Rapids.",
+        "reason": "Ties the first report to this site: SNA LLC's development is on the north side of 76th Avenue SW, Epoch's address, in The Gazette's report on the QTS campus (Epoch's Selected Source).",
+        "retrieved_at": "2026-10-13T03:46:50Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.thegazette.com/business/fast-start-to-cedar-rapids-data-center-projects/"
+      }
+    ],
     "first_report": {
       "note": "Epoch's Selected Source, 'Updated December 6, 2024'. Epoch's Gazette source names SNA LLC as the developer of the data center on the north side of 76th Avenue SW, the site's street. Epoch's first row is 2025-01-17.",
       "published_at": "2024-12-06",
@@ -829,6 +1611,29 @@
     "state_abbr": "AZ"
   },
   "Vantage TX1": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2023-08-31",
+            "event": "first_reported",
+            "note": "First report, per San Antonio Report",
+            "op": "add_event",
+            "status": "announced"
+          }
+        ],
+        "published_at": "2023-08-31T20:00:00+00:00",
+        "publisher": "San Antonio Report",
+        "quote": "In late July, Vantage purchased 57.9 acres about 7 miles to the southwest, at the Texas Research Park, beside the crossing of Omicron Drive and Theta Drive, from the UT System Board of Regents, records show.",
+        "reason": "Vantage's purchase of the TX1 land at Omicron and Theta Drive was reported on 2023-08-31, before TDLR's TX11 registration (2023-12-15, Epoch's first row). A developer's land purchase, so announced.",
+        "retrieved_at": "2026-10-13T03:39:47Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://sanantonioreport.org/san-antonio-vantage-data-centers-microsoft-west-side/"
+      }
+    ],
     "first_report": {
       "note": "Epoch's Selected Source, the TDLR registration of TX11 (14720 Omicron Dr.), the earliest dated report among its sources: the same day as Epoch's first row, so that row stays first_reported.",
       "published_at": "2023-12-15",

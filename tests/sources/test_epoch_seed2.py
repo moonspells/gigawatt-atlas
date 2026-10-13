@@ -68,7 +68,15 @@ def write_overrides(
     # An entry for a site the input does not have stops the run (fix round 6, docs/corrections.md).
     names = {clean_text(r["Name"]) for r in read_zip(CASES_ZIP)[1]}
     committed = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
-    entries = {name: entry for name, entry in committed.items() if name in names}
+    # The committed entries' corrections and expect guards (fix round 6) were read and reviewed
+    # against today's sources, after these fixture rows and their run date: fixture runs use the
+    # entries' parts without them (an entry with only corrections is left out).
+    entries = {
+        name: parts
+        for name, entry in committed.items()
+        if name in names
+        and (parts := {k: v for k, v in entry.items() if k not in ("corrections", "expect")})
+    }
     for name, (state, county_name) in TEST_COUNTIES.items():
         county = counties.by_name(state, county_name)
         assert county is not None and "state_abbr" not in entries.get(name, {})

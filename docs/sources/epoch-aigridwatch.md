@@ -760,7 +760,10 @@ change the record built from it ([corrections.md](../corrections.md); below).
   further evidence for a part is another Fix (or the `support` op on the value or event it backs);
   a resolved location conflict is a `set_location` with its own quote; an earlier report that
   only a year or a quarter dates is a `first_report` op at that precision (or a part with a
-  period `published_at`); a report that is the announcement is an `add_event` of `announced`; a
+  period `published_at`), and at a site with a committed `first_report` part a `replace_event` of
+  the part's `first_reported` event (its date, and its status where the report says another), so
+  the part keeps working and its report stays in `field_meta["/status_history"]` conflicts; a
+  report that is the announcement is an `add_event` of `announced`; a
   facility status that Epoch's rows contradict is `remove_event` of those rows' events and an
   `observe`; a codename is `add_alias`; a renamed tenant is `rename_party`; a reviewer's open
   question is a `hold` only when the record must be withheld, and otherwise no entry.
@@ -769,7 +772,10 @@ change the record built from it ([corrections.md](../corrections.md); below).
   (13 read on 2026-10-08 and 30 on 2026-10-09; later on 2026-10-09 three moved to their county
   and one to its township, below, and Meta Montgomery's source changed), 1 location conflict, 3
   timelines, 23 first reports, 1 facility status, 2 capacities and 2 milestones (the fifth fix
-  round's entries, read on 2026-10-09 at 21:44–21:59 UTC, are in the second table below). The first 13 were read on
+  round's entries, read on 2026-10-09 at 21:44–21:59 UTC, are in the second table below); since
+  the sixth fix round, 58 entries, 21 of them with cited corrections (30 Fixes, read on
+  2026-10-13; [Sixth fix round](#sixth-fix-round-2026-10-13-epoch-ai)), 2 of those with only
+  corrections (Microsoft-Nebius New Jersey, CoreWeave Dalton 1 & 2). The first 13 were read on
   2026-10-08 (Google Kansas City East, OpenAI Stargate Michigan and AWS New Albany re-read the same
   day for a quote that states the place):
 
@@ -1174,6 +1180,52 @@ a record file does not last, since the next import overwrites it. The file holds
   states: those sites wait in review for a cited override (33 on 2026-10-08, 2 since the
   overrides of 2026-10-09), and AI GridWatch's rows for them are imported meanwhile (no Epoch
   record holds them).
+
+## Sixth fix round, 2026-10-13 (Epoch AI)
+
+The owner's 22 reviewed corrections of Epoch AI records (the seed PR's review), as cited
+`corrections` in `config/overrides/epoch.json`: 21 applied, 1 not applied. Every Fix cites a page
+fetched on 2026-10-13 (03:28–03:46 UTC) with a quote found verbatim in it, the review's date and
+PR, and its `basis`. The committed parts stay as they were: a correction extends the site's entry,
+and a first report a reviewer found earlier than a committed `first_report` part redates the
+part's event (`replace_event`), the part's report kept in `field_meta` conflicts. On the fifth
+seed's saved inputs, offline, into an empty store: 73 Epoch records, of which exactly these 21
+change; 17 review items (18 before: CoreWeave Lancaster's first-report conflict is resolved),
+and the corrected records' items carry `data.corrected_by`; AI GridWatch afterwards files 278 items
+(280 before: its Amazon Ridgeland and CoreWeave Muskogee twins no longer disagree with the Epoch
+records' status); `atlas validate` 0 issues, and a second run `unchanged`.
+
+| Site | Correction | Source |
+|---|---|---|
+| Microsoft Fairwater Atlanta | first report 2022-06-27, proposed (was 2022-08-12, announced) | The Citizen on the pending annexation of 412 acres; its 2022-09-21 story ties them to QTS's site |
+| OpenAI Stargate Abilene | first report 2021-12-21 (was 2021-12-22) | Trade & Industry Development's own publication time |
+| Google Mesa | first report 2019-06-28 (was 2019-07-01) | the East Valley Tribune, republished by GovTech |
+| Meta Rosemount | first report 2022, a year (was 2023-09-02) | MPR News: Xcel's first petition "last year" |
+| Google Lincoln | first report 2019-07-10, proposed (was 2019-09-09, permitted) | KLKN-TV on Agate LLC's filed plans |
+| Google The Dalles | first report 2021-02, a month (was 2021-10-19) | Columbia Community Connection: the deal "made public in February" |
+| Meta Kuna | Ada County, county precision (was a Census street point 12 km off, Kuna); first report 2021-12-22, proposed (was 2022-02-16, announced) | the campus's OpenStreetMap outline (way 1178649864); Idaho Power's IPC-E-21-42 application, tied to Meta by Data Center Knowledge |
+| Amazon Ridgeland | under construction (Epoch's 2026-05-15 operating row removed, its capacity and cost withheld; a project again); first report 2024-01-25, announced | Mississippi Today (OurTupelo) on Amazon's statement; AWS's Mississippi announcement, tied to the Ridgeland property by the Vicksburg Daily News |
+| CoreWeave Ellendale ND | 250 MW critical IT (was 175 MW) | Applied Digital, 2026-10-02 |
+| Meta Aiken | the first report's identifying source; alias Project Sabal (codename) | the Aiken Standard (Post and Courier), 2024-08-29 |
+| Microsoft SAT40 | Bexar County confirmed (no value change); Medina stays in conflicts | the campus's OpenStreetMap outline (way 521300038) |
+| Microsoft-Nebius New Jersey | operating since 2025-Q4 (was 2026-Q1) | SemiAnalysis, the source Epoch's note cites |
+| Vantage TX1 | first report 2023-08-31, announced (was Epoch's 2023-12-15 row) | the San Antonio Report on Vantage's land purchase |
+| CoreWeave Dalton 1 & 2 | 30 MW IT, "delivered 30 megawatts into service" (Epoch's 28 MW IT and 40 MW in conflicts) | Core Scientific's Q1 2026 remarks |
+| Anthropic Barber Lake | tenant Cipher Digital (was Cipher Mining) | TheEnergyMag on the rebrand |
+| CoreWeave Lancaster Greenfield site | announced and first reported 2025-02-19 (was 2025-07-15) | WITF (LNP) on Machine Investment Group's announcement |
+| CoreWeave Muskogee OK | operating, observed 2026-07-15 (Epoch's planned 2026-12 row removed; a campus); 70 MW IT | SynMax's thermal drone pass; Core Scientific's groundbreaking release |
+| Google Cedar Rapids | first report 2024-02-12 (was 2024-03-21) | the Corridor Business Journal; KCRG ties it to Google |
+| OpenAI Stargate Michigan | first report 2025-09-10 (was 2025-10) | Planet Detroit on the rezoning vote; the Project Mitten application ties it to the site |
+| OpenAI Stargate Wisconsin | first report 2025-05, permitted (was 2025-10-22, announced) | the Journal Sentinel (on Yahoo News): the council's annexation and rezoning three weeks before 2025-06-11 |
+| QTS Cedar Rapids | first report 2024-09-24 (was 2024-12-06) | the Corridor Business Journal; The Gazette ties SNA LLC to 76th Avenue |
+| OpenAI Stargate Milam | not applied: the Austin Business Journal page (2025-05-12) refuses the project's client and the Wayback Machine could not be reached, so no quote was read | |
+
+The `basis` follows the checker's verdicts: `out_of_date` where the cited sources were right
+when written, `upstream_error` where a cited value was wrong (Epoch's note, the address's Census
+point, a first report the cited page itself dates earlier, an earlier entry's date). No Fix is an
+`importer_gap`. A county that an OpenStreetMap outline gives is named in the Fix's reason (the
+element's tags name the campus, not the county); `tests/sources/test_epoch_corrections.py` checks
+every committed Fix (mechanism §11.6).
 
 ## Fifth fix round, 2026-10-09 (Epoch AI)
 
