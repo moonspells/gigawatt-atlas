@@ -1182,11 +1182,13 @@ the corrections are not expressible: Kearney's dead link stays among the record'
 row names it; no op removes a source, and it supports no value), and no review item marks
 CloudBurst's withheld acreage (its correction entry does). On the fifth seed's saved inputs,
 offline, after the Epoch AI import into an empty store: 162 AI GridWatch records (the two
-releases), of which exactly these 23 change, 280 review items, `atlas validate` 0 issues, and a
-second run `unchanged`. `tests/sources/test_aigridwatch_corrections.py` checks every committed
-Fix (mechanism §11.6); the fixture runs read none of the entries
-(`tests/fixtures/aigridwatch/overrides-none.json`), since every one carries corrections read
-after the fixtures.
+releases), of which exactly these 23 change, 278 review items (280 before the Epoch AI entries
+of the same round, whose Amazon Ridgeland and CoreWeave Muskogee records no longer disagree with
+their twins' stage; [Sixth fix round](#sixth-fix-round-2026-10-13-epoch-ai)), `atlas validate` 0
+issues, and a second run `unchanged`. `tests/sources/test_committed_corrections.py` checks every
+committed Fix ([corrections.md](../corrections.md), "Checks on the committed files"); the
+fixture runs read none of the entries (`tests/fixtures/aigridwatch/overrides-none.json`), since
+every one carries corrections read after the fixtures.
 
 ## Limits (M1)
 
@@ -1274,8 +1276,9 @@ The `basis` follows the checker's verdicts: `out_of_date` where the cited source
 when written, `upstream_error` where a cited value was wrong (Epoch's note, the address's Census
 point, a first report the cited page itself dates earlier, an earlier entry's date). No Fix is an
 `importer_gap`. A county that an OpenStreetMap outline gives is named in the Fix's reason (the
-element's tags name the campus, not the county); `tests/sources/test_epoch_corrections.py` checks
-every committed Fix (mechanism §11.6).
+element's tags name the campus, not the county); `tests/sources/test_committed_corrections.py`
+checks every committed Fix ([corrections.md](../corrections.md), "Checks on the committed
+files").
 
 ## Fifth fix round, 2026-10-09 (Epoch AI)
 

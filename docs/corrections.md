@@ -4,7 +4,9 @@ How a reviewer's decision about a record is written down, applied on every impor
 shared code is `atlas/sources/corrections.py` (the `Fix` model, the record ops, `apply_fixes`,
 `check_entries`) and `merge_import` in `atlas/sources/base.py`; `tests/sources/test_corrections.py`
 tests both. The decisions live in `config/overrides/{source}.json`, one file per importer
-(`osm.json`, `epoch.json`, `aigridwatch.json`), and go through a reviewed PR like any other change.
+(`osm.json`, `epoch.json`, `aigridwatch.json`), and go through a reviewed PR like any other change;
+`tests/sources/test_committed_corrections.py` checks their citations
+([below](#checks-on-the-committed-files)).
 
 Records are rebuilt from their sources on every run, and a seed run on an empty store gives them
 new ids, so an entry is keyed by the source's own key: an OSM ref (`way/818167571`), an Epoch AI
@@ -251,6 +253,37 @@ no op expresses them.
 `records_corrected`, `corrections_held`, `corrections_out_of_scope` and
 `corrections_importer_gap`, in all three importers' receipts. `overrides_used` and
 `overrides_unused` stay; an unused entry now stops the run, so `overrides_unused` is always 0.
+
+## Checks on the committed files
+
+The import checks each entry against its input on every run;
+`tests/sources/test_committed_corrections.py` checks every Fix of the three committed files
+against its own citation, so CI catches a value its quote does not state before any run:
+
+- the citation: every field of the table above but `archive_url`, `title`, `published_at` and
+  `states_status`; a quote of at most 300 characters, read before now; `reviewed_at` on or
+  after that day and no later than today; the review PR of its round (PR #2 for fix round 6);
+  no personal data in the quote, reason, publisher or title; an `archive_url` that is the
+  Wayback snapshot of `source_url`; a paused, denied or cancelled status only from a gate 6
+  source type;
+- what the ops write is verbatim in the quote: a `set` value (a number as `230`, not `230.0`), a
+  base name, an alias, an organization, and a `set_location`'s city, municipality, street,
+  postcode and county name. A value the page states another way is listed in the test's
+  `STATED_OTHERWISE` with its reading: `words` (each word of a name in the atlas's form is in
+  the quote or the publisher's name: "NTT Sacramento CA1 to CA3" from NTT's page of its
+  Sacramento sites), `street` (abbreviations spelled out: Rd, Dr, E), `reason` (the county that
+  a cited OpenStreetMap element's outline gives, named in the Fix's reason) or `entry` (a county
+  in the quote of the entry's Fix that supports `/location/county_fips`);
+- every date of an event that has happened is no later than today, and its year is in the quote,
+  the page's `published_at` or the URL, or `YEAR_ELSEWHERE` says how the page gives it;
+- the file is canonical JSON (sorted keys, 2-space indent, a final newline).
+
+An exception must still be needed (its value is not in the quote verbatim, its year not in the
+page), so neither list keeps a stale one. The names and operators of OSM's element
+decisions of fix round 6 are read by words too. The importers' fixture tests run the entries'
+mechanics on inputs older than the entries: they strip the committed `corrections` and `expect`
+(OSM, Epoch AI) or read no committed entry (AI GridWatch), and give each test the corrections it
+tests.
 
 ## Guidance
 

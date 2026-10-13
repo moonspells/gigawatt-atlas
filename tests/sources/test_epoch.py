@@ -451,7 +451,7 @@ def test_every_committed_override_is_cited(counties: CountyIndex) -> None:
         for i, conflict in enumerate(ov.conflicts if ov is not None else []):
             check_citation(f"{name} conflict {i}", raw[name]["conflicts"][i], conflict)
         # An entry may have only corrections, each a cited Fix (fix round 6; checked by
-        # test_epoch_corrections.py::test_every_committed_correction_is_cited).
+        # test_committed_corrections.py::test_every_committed_correction_is_cited).
         assert entry.citations() or entry.corrections, name
 
 

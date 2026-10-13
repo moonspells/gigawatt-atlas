@@ -1,18 +1,18 @@
 """The cited corrections and guards of config/overrides/epoch.json (fix round 6; docs/corrections.md,
 docs/sources/epoch-aigridwatch.md "Overrides policy"): corrections applied to the campus record
 right after it is built, expect, entries the input does not have, a first report given as a part
-or as an op, year and quarter first reports, the shared confidence table of the legacy parts,
-and the citation of every committed Fix (mechanism §11.6). The sites are the fixture ZIPs'; the
-corrections are the reviewers' kind (Amazon Ridgeland's operating row that is not, Meta Aiken's
-codename), cited to an example page. tests/sources/test_corrections.py tests the shared ops
-themselves."""
+or as an op, year and quarter first reports, and the shared confidence table of the legacy
+parts. The sites are the fixture ZIPs'; the corrections are the reviewers' kind (Amazon
+Ridgeland's operating row that is not, Meta Aiken's codename), cited to an example page.
+tests/sources/test_corrections.py tests the shared ops themselves, and
+tests/sources/test_committed_corrections.py the citation of every committed Fix."""
 
 from __future__ import annotations
 
 import argparse
 import json
 from collections.abc import Callable
-from datetime import UTC, date, datetime
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -21,25 +21,8 @@ import pytest
 from atlas.geo.counties import CountyIndex
 from atlas.net import FetchError
 from atlas.schema.record import FacilityRecord
-from atlas.schema.rollup import period_start
 from atlas.sources.base import ImportContext, ImportResult, ReviewItem
-from atlas.sources.corrections import (
-    AddAlias,
-    AddEvent,
-    AddParty,
-    FirstReportOp,
-    Fix,
-    Observe,
-    Rename,
-    RenameParty,
-    ReplaceEvent,
-    SetLocation,
-    SetParty,
-    SetValue,
-    fuzzy_date,
-)
 from atlas.sources.epoch import IMPORTER, SiteOverride, clean_text, load_overrides, read_zip
-from atlas.text import find_personal_data
 from atlas.validate import validate_record
 
 MakeContext = Callable[..., ImportContext]
@@ -389,110 +372,3 @@ def test_a_legacy_part_takes_the_shared_source_adjustment(run: Run) -> None:
     assert record(run(entries), MILAM).field_meta["/location"].confidence == 0.90  # company
     entries[MILAM]["source_type"] = "commercial_aggregator"
     assert record(run(entries), MILAM).field_meta["/location"].confidence == 0.75
-
-
-# ---------------------------------------------------------------------------- the committed file
-
-# The year of a committed correction's date is in its quote, its published_at or its URL, except
-# where the page gives the date another way; each exception says how, and stays only while needed.
-YEAR_ELSEWHERE = {
-    ("Google Mesa", 0): "GovTech's byline dates the story June 28, 2019, with a time in no zone",
-    ("Meta Rosemount", 0): "the page of 2023-09-02 dates Xcel's first petition to 'last year'",
-}
-FIX_KEYS = (
-    "source_url",
-    "publisher",
-    "source_type",
-    "quote",
-    "retrieved_at",
-    "basis",
-    "reason",
-    "reviewed_at",
-    "issue_url",
-)
-REVIEWS = "https://github.com/moonspells/gigawatt-atlas/"
-WAYBACK = "https://web.archive.org/web/"
-OSM_ELEMENT = ("https://www.openstreetmap.org/way/", "https://www.openstreetmap.org/node/")
-
-
-def written(fix_: Fix, counties: CountyIndex) -> tuple[list[str], list[str]]:
-    """What a Fix's ops write into the record, as text: the values its quote must state, and the
-    places a cited OpenStreetMap element gives by its geometry (its reason names them)."""
-    stated: list[str] = []
-    places: list[str] = []
-    for op in fix_.ops:
-        if isinstance(op, SetValue) and op.value is not None:
-            value = op.value
-            stated.append(f"{value:g}" if isinstance(value, int | float) else str(value))
-        elif isinstance(op, Rename):
-            stated.append(op.base)
-        elif isinstance(op, AddAlias | AddParty):
-            stated.append(op.name)
-        elif isinstance(op, SetParty):
-            stated += op.names
-        elif isinstance(op, RenameParty):
-            stated.append(op.to)
-        elif isinstance(op, SetLocation):
-            named = [p for p in (op.city, op.municipality) if p is not None]
-            county = counties.get(op.county_fips) if op.county_fips is not None else None
-            if county is not None:
-                named.append(f"{county.name} County")
-            from_geometry = str(fix_.source_url).startswith(OSM_ELEMENT)
-            (places if from_geometry else stated).extend(named)
-    return stated, places
-
-
-def dated(fix_: Fix) -> list[str]:
-    """The dates of the events a Fix's ops add or redate, other than planned ones."""
-    out: list[str] = []
-    for op in fix_.ops:
-        if (isinstance(op, AddEvent) and not op.planned) or isinstance(op, Observe | FirstReportOp):
-            out.append(op.as_of)
-        elif isinstance(op, ReplaceEvent) and op.set.as_of is not None and not op.set.planned:
-            out.append(op.set.as_of)
-    return out
-
-
-def test_every_committed_correction_is_cited(counties: CountyIndex) -> None:
-    """Each Fix of config/overrides/epoch.json (mechanism §11.6): its citation fields, a verbatim
-    quote of at most 300 characters read before now, a decision on or after that day and no
-    later than today, the review it came from, no personal data, a Wayback snapshot of the page
-    when it refused the project's client. The values it writes are in its quote (a county that a
-    cited OpenStreetMap element's outline gives is named in its reason), and every date it gives
-    is no later than today, its year in the quote, the page's date or the URL. The file is
-    canonical JSON."""
-    text = REPO_OVERRIDES.read_text(encoding="utf-8")
-    raw = json.loads(text)
-    assert text == json.dumps(raw, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
-    now, today = datetime.now(UTC), date.today()
-    elsewhere: set[tuple[str, int]] = set()
-    fixes = 0
-    for name, entry in load_overrides(REPO_OVERRIDES).items():
-        for i, fix_ in enumerate(entry.corrections):
-            fixes += 1
-            where = (name, i)
-            for key in FIX_KEYS:
-                assert raw[name]["corrections"][i].get(key), (where, key)
-            assert 0 < len(fix_.quote) <= 300 and fix_.retrieved_at <= now, where
-            assert fix_.retrieved_at.astimezone(UTC).date() <= fix_.reviewed_at <= today, where
-            assert str(fix_.issue_url).startswith(REVIEWS), where
-            assert find_personal_data(fix_.quote) == find_personal_data(fix_.reason) == [], where
-            if fix_.archive_url is not None:
-                assert str(fix_.archive_url).startswith(WAYBACK), where
-                assert str(fix_.archive_url).endswith(str(fix_.source_url)), where
-            stated, places = written(fix_, counties)
-            for value in stated:
-                assert value in fix_.quote, (where, value)
-            for place in places:
-                assert place in fix_.reason, (where, place)
-            for as_of in dated(fix_):
-                assert period_start(fuzzy_date(as_of)) <= today, (where, as_of)
-                year = as_of[:4]
-                published = fix_.published_at is not None and fix_.published_at.year == int(year)
-                found = year in fix_.quote or year in str(fix_.source_url) or published
-                if where in YEAR_ELSEWHERE:
-                    assert not found, (where, "the exception is no longer needed")
-                    elsewhere.add(where)
-                else:
-                    assert found, (where, as_of)
-    assert elsewhere == set(YEAR_ELSEWHERE) and fixes > 0

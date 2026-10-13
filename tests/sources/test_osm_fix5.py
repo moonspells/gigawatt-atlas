@@ -62,7 +62,7 @@ def committed_on(fixture: Path, tmp_path: Path) -> Path:
     their corrections and expect guards. The fixture was copied before fix round 6: its entries
     name elements (and join targets) it does not have, their Fixes are dated after the test
     clock, and their guards read the seed input; the whole file is checked on the seed input
-    (docs/sources/osm-pnnl.md section 9) and by test_osm_corrections.py."""
+    (docs/sources/osm-pnnl.md section 9) and by test_committed_corrections.py."""
     doc = json.loads(fixture.read_text(encoding="utf-8"))
     have = {f"{e['type']}/{e['id']}" for e in doc["elements"]}
     entries: dict[str, object] = {}

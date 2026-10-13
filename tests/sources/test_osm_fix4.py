@@ -53,7 +53,7 @@ def committed_on(fixture: Path, tmp_path: Path) -> Path:
     their corrections and expect guards. The fixture was copied before fix round 6: its entries
     name elements (and join targets) it does not have, their Fixes are dated after the test
     clock, and their guards read the seed input; the whole file is checked on the seed input
-    (docs/sources/osm-pnnl.md section 9) and by test_osm_corrections.py."""
+    (docs/sources/osm-pnnl.md section 9) and by test_committed_corrections.py."""
     doc = json.loads(fixture.read_text(encoding="utf-8"))
     have = {f"{e['type']}/{e['id']}" for e in doc["elements"]}
     entries: dict[str, object] = {}
@@ -466,8 +466,8 @@ def test_every_committed_override_is_cited() -> None:
     """Each entry's element decisions name their source and the verbatim quote that states the
     correction, when it was read and reviewed, and why; a page that refuses automated clients is
     cited with the snapshot read. No entry holds a person's details. An entry with only
-    corrections has no top-level citation: each Fix cites its own page (test_osm_corrections.py
-    checks them)."""
+    corrections has no top-level citation: each Fix cites its own page
+    (test_committed_corrections.py checks them)."""
     raw = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
     entries = load_overrides(REPO_OVERRIDES)
     assert len(entries) == len(raw) >= 1
