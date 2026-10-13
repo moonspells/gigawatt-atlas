@@ -115,7 +115,9 @@ stops with a `FetchError` naming each failure, and `atlas import` exits 1.
 
 The response is kept at `.cache/atlas/raw/overpass/{sha256}.json`. The receipt's input `overpass`
 records the endpoint that answered, `upstream_version` = `timestamp_osm_base`, and license
-`ODbL-1.0`. With `--input`, the URL is the first configured endpoint and `retrieved_at` is `--now`.
+`ODbL-1.0`. With `--input`, the URL is the first configured endpoint and `retrieved_at` is
+`--input-retrieved-at` (when the saved file was fetched), else `--now`; a local `--pnnl` file's
+too.
 
 ## 3. Objects
 
@@ -776,7 +778,8 @@ shows the decision; no item is dropped.
 The receipt `data/imports/osm.json` has the metrics `objects`, `clusters`, `held` (clusters held
 for review, with no record), `out_of_scope`, `unit_parse`, `skipped`, `overrides` (the entries
 applied), the corrections counts (`corrections_entries`, `corrections_ops`, `records_corrected`,
-`corrections_held`, `corrections_out_of_scope`, `corrections_importer_gap`; docs/corrections.md),
+`corrections_held`, `corrections_flagged`, `corrections_out_of_scope`,
+`corrections_importer_gap`; docs/corrections.md),
 and with PNNL `pnnl_rows`,
 `pnnl_matched`, `pnnl_matched_by_id`, `pnnl_matched_by_name`, `pnnl_on_held` and
 `pnnl_match_rate`.

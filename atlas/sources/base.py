@@ -18,7 +18,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Protocol, TypeGuard
 from urllib.parse import unquote, urlsplit
 
 from pydantic import AwareDatetime, Field, HttpUrl, JsonValue
@@ -252,6 +252,9 @@ class ImportResult:
 class ImportContext:
     """What an importer may use. Tests build one with the make_test_context fixture.
 
+    now is the run's clock. input_retrieved_at (`--input-retrieved-at`) is when the local input
+    files were fetched, for a replay of saved inputs (load_input); without it, now.
+
     The Census place polygons and county-subdivision Gazetteer are not committed: places() and
     gazetteer() find them in cache_dir/reference/census/ or download them there on first use
     (atlas.geo.reference), unless the caller passes them (tests pass the small samples).
@@ -275,15 +278,19 @@ class ImportContext:
         places: PlaceIndex | None = None,
         gazetteer: Gazetteer | None = None,
         offline: bool = False,
+        input_retrieved_at: datetime | None = None,
     ) -> None:
         if now.tzinfo is None:
             raise ValueError("ImportContext.now must be timezone-aware")
+        if input_retrieved_at is not None and input_retrieved_at.tzinfo is None:
+            raise ValueError("ImportContext.input_retrieved_at must be timezone-aware")
         self.now = now
         self.today = today
         self.records = records
         self.http = http
         self.cache_dir = cache_dir
         self.input_path = input_path
+        self.input_retrieved_at = input_retrieved_at
         self.user_agent = user_agent
         self.new_id = new_id
         self.offline = offline
@@ -397,7 +404,8 @@ def load_input(
     """Read one upstream file and describe it.
 
     The file comes from path if given, else from ctx.input_path (--input) unless use_ctx_input is
-    False; a local file's retrieved_at is ctx.now. Otherwise fetch() is called and the raw bytes
+    False; a local file's retrieved_at is ctx.input_retrieved_at (`--input-retrieved-at`, when
+    the saved files were fetched), else ctx.now. Otherwise fetch() is called and the raw bytes
     are kept at ctx.raw_path(name, sha256, ext).
     """
     local = path if path is not None else (ctx.input_path if use_ctx_input else None)
@@ -407,7 +415,7 @@ def load_input(
         snapshot = InputSnapshot(
             name=name,
             url=HttpUrl(url),
-            retrieved_at=ctx.now,
+            retrieved_at=ctx.input_retrieved_at or ctx.now,
             sha256=digest,
             bytes=len(data),
             license=license,
@@ -444,6 +452,25 @@ def _comparable(record: FacilityRecord) -> dict[str, JsonValue]:
         for source in sources:
             if isinstance(source, dict):
                 source.pop("retrieved_at", None)
+    return doc
+
+
+def _observation(value: object) -> TypeGuard[dict[str, JsonValue]]:
+    """True for a corrections[] summary of an `other` event (an observation)."""
+    return isinstance(value, dict) and value.get("event") == "other" and "as_of" in value
+
+
+def _undated(c: Correction) -> dict[str, JsonValue]:
+    """A correction without the date of the observation it removed or changed (in `old`, and in
+    `new` when the op kept that date). OSM dates its observations with each snapshot and AI
+    GridWatch its undated stages with each file, so the same decision on a later input can name
+    a later date: it is the same decision, and the history must not grow by one entry a week."""
+    doc = record_json(c)
+    old, new = doc["old"], doc["new"]
+    if _observation(old):
+        if _observation(new) and new["as_of"] == old["as_of"]:
+            doc["new"] = {k: v for k, v in new.items() if k != "as_of"}
+        doc["old"] = {k: v for k, v in old.items() if k != "as_of"}
     return doc
 
 
@@ -516,14 +543,18 @@ def merge_import(
        counted as merged). A record held below blocks the join (a conflict). A candidate of a
        reviewed split (Candidate.split_from) takes the merged record that holds that value and
        unmerges it; without one, it matches only records whose values all lie within its own, so
-       the record that still lists the value is left to drop it on its own update. One record is
-       an update; none is new.
+       the record that still lists the value is left to drop it on its own update. A withdrawn
+       join is reversed the same way: a candidate with no join or split whose values are exactly
+       a merged record's takes that record back and unmerges it, when the record it is merged
+       into still holds those values (as a join's merge leaves it) and no other candidate of
+       this run holds any of them. One record is an update; none is new.
     3. New records get ctx.new_id() and ctx.now timestamps. A match whose review.state is not
        "machine" is held (held_human_reviewed), and so is a merged one (held_merged). Otherwise the
        candidate keeps the stored id, created_at, review, merged_into and every external_ids key
        it does not own; its corrections are the stored ones followed by those of the candidate
        the stored record does not have yet (append-only, so an override's history reaches the
-       stored record). If nothing but timestamps and sources[*].retrieved_at changed, the record
+       stored record; one that differs from a stored one only by the date of the observation it
+       removed or changed is the same decision, _undated). If nothing but timestamps and sources[*].retrieved_at changed, the record
        is unchanged and not rewritten; else updated_at and last_verified_at become ctx.now. A
        candidate an override holds has scope out_of_scope, so its stored record is unpublished.
     4. Every record to be written must pass validate_record, or it becomes an "invalid" item.
@@ -553,6 +584,29 @@ def merge_import(
 
     def values_of(rid: str) -> set[str]:
         return set(stored[rid].external_ids.get(importer.match_key, []))
+
+    holding: dict[str, set[int]] = {}  # match value -> the candidates of this run that hold it
+    for i, held in enumerate(result.candidates):
+        for v in held.match_values:
+            holding.setdefault(v, set()).add(i)
+
+    def withdrawn(i: int, candidate: Candidate) -> str | None:
+        """The merged record a withdrawn join leaves (07 §6.6 step 7). A join's merge leaves the
+        survivor holding the merged record's values; when a candidate with no join or split of
+        its own has exactly those values, and no other candidate of this run holds any of them
+        (the survivor's candidate no longer does), the join is gone, and the merge is reversed
+        as a split would reverse it. A merge a reviewer made by hand, into a record that does not
+        hold the values (another source's record), stays."""
+        mine = set(candidate.match_values)
+        if candidate.joined or candidate.split_from is not None:
+            return None
+        if any(holding.get(v, set()) - {i} for v in mine):
+            return None
+        for rid in sorted(set().union(*(holders.get(v, set()) for v in mine))):
+            survivor = stored[rid].merged_into
+            if survivor in stored and values_of(rid) == mine and mine <= values_of(survivor):
+                return rid
+        return None
 
     counts = dict.fromkeys(COUNT_KEYS, 0)
     counts["candidates"] = len(result.candidates)
@@ -622,19 +676,25 @@ def merge_import(
             counts["merged"] += 1
             to_write.append(merged)
 
-    for candidate in result.candidates:
+    for n, candidate in enumerate(result.candidates):
         key = candidate.match_values[0]
         mine = set(candidate.match_values)
         seen_ids.update(*(holders.get(v, set()) for v in candidate.match_values))
         matched = sorted(set().union(*(index.get(v, set()) for v in candidate.match_values)))
-        unmerge = False
+        unmerge: str | None = None  # why the merged record is taken back
         if candidate.split_from is not None:
             split = candidate.split_from
             merged_holders = sorted(r for r in holders.get(split, set()) if stored[r].merged_into)
             if merged_holders:
-                matched, unmerge = merged_holders, True
+                matched = merged_holders
+                unmerge = f"a reviewed split takes {split} out of that record"
             else:
                 matched = [r for r in matched if values_of(r) <= mine]
+        elif (left := withdrawn(n, candidate)) is not None:
+            matched = [left]
+            more = len(mine) - 1
+            unmerge = f"no reviewed join brings {key}{f' and {more} more' if more else ''} into "
+            unmerge += "that record any more"
         others: list[str] = []
         if (
             len(matched) > 1
@@ -726,8 +786,9 @@ def merge_import(
             }
             external_ids.update(incoming.external_ids)
             corrections = list(existing.corrections)
+            decided = [_undated(c) for c in existing.corrections]
             for c in incoming.corrections:
-                if c not in corrections:
+                if c not in corrections and _undated(c) not in decided:
                     corrections.append(c)
             if unmerge:
                 corrections.append(
@@ -736,8 +797,7 @@ def merge_import(
                         pointer="/merged_into",
                         old=existing.merged_into,
                         new=None,
-                        reason=f"unmerged from {existing.merged_into}: a reviewed split takes "
-                        f"{candidate.split_from} out of that record",
+                        reason=f"unmerged from {existing.merged_into}: {unmerge}",
                     )
                 )
             final = incoming.model_copy(

@@ -53,7 +53,7 @@ def _aware(value: str) -> datetime:
     except ValueError as e:
         raise argparse.ArgumentTypeError(f"not an ISO 8601 date-time: {value!r}") from e
     if parsed.tzinfo is None:
-        raise argparse.ArgumentTypeError(f"--now needs a time zone (for example ...Z): {value!r}")
+        raise argparse.ArgumentTypeError(f"needs a time zone (for example ...Z): {value!r}")
     return parsed
 
 
@@ -77,6 +77,13 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
         "default: the copy in --cache-dir, downloaded on first use",
     )
     parser.add_argument("--now", type=_aware, default=None, help="ISO 8601 with a time zone")
+    parser.add_argument(
+        "--input-retrieved-at",
+        type=_aware,
+        default=None,
+        help="with --input: when the saved input files were fetched (ISO 8601 with a time zone), "
+        "the receipt's and the sources' retrieved_at; default: --now",
+    )
     parser.add_argument("--dry-run", action="store_true", help="write nothing")
     parser.add_argument(
         "--offline", action="store_true", help="refuse every network request (inputs from files)"
@@ -91,6 +98,22 @@ def _run(args: argparse.Namespace) -> int:
 
     importer: Importer = args.importer
     now: datetime = (args.now or datetime.now(UTC)).astimezone(UTC)
+    fetched: datetime | None = args.input_retrieved_at
+    if fetched is not None:
+        fetched = fetched.astimezone(UTC)
+        if args.input is None:
+            print(
+                "--input-retrieved-at is the fetch time of --input files: give --input",
+                file=sys.stderr,
+            )
+            return 2
+        if fetched > now:
+            print(
+                f"--input-retrieved-at {fetched.isoformat()} is after the run's now "
+                f"({now.isoformat()})",
+                file=sys.stderr,
+            )
+            return 2
     store = RecordStore(args.records)
     try:
         records = store.load()
@@ -113,6 +136,7 @@ def _run(args: argparse.Namespace) -> int:
             counties_path=args.counties,
             places_path=args.places,
             offline=args.offline,
+            input_retrieved_at=fetched,
         )
         try:
             result = importer.run(ctx, args)

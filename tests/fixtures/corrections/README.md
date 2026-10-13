@@ -1,6 +1,6 @@
 # Corrections fixture
 
-`seed-records.json`, used by `tests/sources/test_corrections.py`, holds 19 records the seed
+`seed-records.json`, used by `tests/sources/test_corrections.py`, holds 23 records the seed
 imports built, keyed by `{match key}:{value}` (`osm:way/818167571`,
 `epoch_name:Amazon Ridgeland`, `aigridwatch_id:king-of-prussia-mlp-pa`). They are the records of
 the owner's corrections that the shared correction mechanism (`atlas/sources/corrections.py`,
@@ -19,6 +19,12 @@ importer really gives.
   `osm:way/793622740` (then "Aligned IAD-02"), `aigridwatch_id:amazon-bridgefield-ashburn-va`
   (its announcement not yet read as the first report), `aigridwatch_id:microsoft-cheyenne-expansion`
   and `aigridwatch_id:sarasota-county-moratorium-fl` (both now held by the importer).
+- 4 records come from the stage-4 seed run of fix round 6 (its importer rules and mechanism,
+  before the round's entries, on the same saved inputs), for the review of that round:
+  `osm:way/95349317` (CyrusOne Cincinnati-Lebanon, a campus with an operating and an
+  under-construction phase), `epoch_name:CoreWeave Dalton 1 & 2` and
+  `epoch_name:CoreWeave Ellendale ND` (phase capacities, Ellendale's from a cited capacity part)
+  and `aigridwatch_id:kearney-data-center-ne` (AI GridWatch's own point at Kearney).
 - Each record is copied whole, field for field, as `atlas` wrote it (its random id included). The
   text was checked: it names organizations only, no private individual.
 

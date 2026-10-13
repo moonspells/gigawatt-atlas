@@ -73,8 +73,12 @@ A Fix does not load, and the import stops, when a key or an op is unknown, a val
 type, a citation field is missing, the quote is empty or longer than 300 characters, the quote,
 reason, publisher, title or an op's text has a control or invisible character or looks like an
 email address or phone number (records hold organizations only, 07 §5.3), or a paused, denied or
-cancelled `add_event` or `observe` cites a source that is not a government record, regulator,
-utility or ISO filing, SEC filing, company release, trade press or news (07 §6.4 gate 6).
+cancelled status cites a source that is not a government record, regulator, utility or ISO
+filing, SEC filing, company release, trade press or news (07 §6.4 gate 6): an `add_event` or
+`observe` of that status, or a `replace_event` that makes the Fix the only source of one (a new
+stopped status, or a new date of an event its match names as denied, paused, withdrawn or
+cancelled, or by that status). When the op is applied, a `replace_event` whose event ends up
+stopped with a new date or status is checked again, whatever its match names.
 `check_fix_dates` stops it when `reviewed_at`, `published_at` or a non-planned event date is after
 today, or `retrieved_at` after now.
 
@@ -90,16 +94,17 @@ fuzzy date as its value string (`"2026-08"`).
 | op | Fields | Stale when | Effect |
 |---|---|---|---|
 | `hold` | `kind`: `conflict` (default), `unknown_status`, `possible_duplicate`, `unverified_upstream` | never | `scope` becomes `out_of_scope` (never published; a stored record is unpublished), and a review item of `kind` gives the reason, URL and quote. On a record already out of scope, only the item. |
+| `flag` | `kind`: as for `hold` | never | Files a review item of `kind` with the Fix's reason, URL and quote, and changes nothing else: no source, no `corrections[]` entry. A question the reviewer leaves open about a record that stays published (CloudBurst's county, which its sources give two ways). A flag on a key for which no record was built stops the run, like every op but `hold` and `out_of_scope`. |
 | `out_of_scope` | none | never | The same with an `out_of_scope` item: a decision (07 §2.2), not a doubt. For a whole site of many elements; OSM's element `drop` takes one element out instead. |
-| `set` | `path`, `phase` (optional), `from`, `value` (null removes) | the value is not `from` | Sets one value. The paths are `/location/street`, `/location/postcode`, `/capacity/{it_mw, facility_mw, utility_request_mw, backup_generation_mw, mw_as_stated}`, `/site/{acreage, building_sqft, building_count}`, `/money/{investment_usd, investment_basis, currency_year}`, `/purpose` and `/dates/expected_in_service` (a fuzzy date string). With `phase`, `path` is a `/capacity/...` path of that phase. City, county and coordinates change only through `set_location`; ids, the status, the event dates, sources, external ids and review never. |
+| `set` | `path`, `phase` (optional), `from`, `value` (null removes) | the value is not `from` | Sets one value. The paths are `/location/street`, `/location/postcode`, `/capacity/{it_mw, facility_mw, utility_request_mw, backup_generation_mw, mw_as_stated}`, `/site/{acreage, building_sqft, building_count}`, `/money/{investment_usd, investment_basis, currency_year}`, `/purpose` and `/dates/expected_in_service` (a fuzzy date string). With `phase`, `path` is a `/capacity/...` path of that phase, whose own sources count as the old value's (below). City, county and coordinates change only through `set_location`; ids, the status, the event dates, sources, external ids and review never. |
 | `rename` | `from` (the base name now), `base`, `old_as_alias` (an alias kind, optional) | the base name is not `from` | The base name: the place suffix stays derived. With `old_as_alias`, the old base becomes an alias citing the sources that supported the name. An alias that equals the new base is dropped. |
 | `add_alias` / `remove_alias` | `name`, `kind` / `name` | the alias exists / is absent | Adds it, citing the Fix / removes it. |
 | `set_party` | `role`, `from` (the names now), `names` | the names are not `from` | Replaces the role's organizations, each citing the Fix; `[]` removes them all. |
 | `add_party` / `remove_party` | `role`, `name` | present / absent | Adds one, citing the Fix / removes one. |
 | `rename_party` | `role`, `from`, `to` | no organization is named `from` | Renames it; it cites its old sources (they support the role) and the Fix (the name). |
-| `set_location` | `from` (some location fields as they are now), `state_abbr`, `county_fips`, `city`, `municipality`, `lat`, `lon`, `precision`, `place_check`, `street`, `postcode` | a `from` field differs | Places the record by Epoch's override rules (`place_location`, 07 §6.5): a county at its centroid, a city at its Gazetteer place, a municipality at its county subdivision, a point checked against the county or state. A county names no city. Street and postcode only at street precision or better; otherwise they, `geometry_ref` and `parcel_apns` are cleared. |
+| `set_location` | `from` (some location fields as they are now), `state_abbr`, `county_fips`, `city`, `municipality`, `lat`, `lon`, `precision`, `place_check`, `street`, `postcode` | a `from` field differs | Places the record by Epoch's override rules (`place_location`, 07 §6.5): a county at its centroid, a city at its Gazetteer place, a municipality at its county subdivision, a point checked against the county or state. A county names no city. Street and postcode only at street precision or better; otherwise they, `geometry_ref` and `parcel_apns` are cleared. A point the record has already (the same `lat` and `lon`) keeps its `geocode_method` and its sources: only the fields the op changes go to the Fix. |
 | `add_event` | `event`, `status`, `as_of`, `phase`, `planned` (default false), `note`, `status_reason` | an event with the same event, date and phase exists | Adds the event, citing the Fix. `status_reason` only with a paused, denied or cancelled status, and only when the record ends with that status. |
-| `replace_event` | `match`, `set` {`event`, `status`, `as_of`, `planned`, `note`} | not exactly one event matches | Changes it in place. A new date or status makes the Fix its only source, and the old event goes to `field_meta["/status_history"]` conflicts; a retype (an announcement that is a first report, an event that is only an observation, `other`) keeps its sources and adds the Fix. |
+| `replace_event` | `match`, `set` {`event`, `status`, `as_of`, `planned`, `note`} | not exactly one event matches | Changes it in place. A new date or status makes the Fix its only source (so a paused, denied or cancelled result needs a gate 6 source), and the old event goes to `field_meta["/status_history"]` conflicts; a retype (an announcement that is a first report, an event that is only an observation, `other`) keeps its sources and adds the Fix. |
 | `remove_event` | `match` | not exactly one event matches | Removes it; it is kept in `field_meta["/status_history"]` conflicts with its sources. |
 | `observe` | `status`, `as_of` (required: the day the page shows the status), `phase` | the same observation exists | Adds an `other` event: it sets the status and dates nothing. |
 | `first_report` | `from` (`dates.first_reported` now, or null), `as_of`, `status` (`announced`, `proposed` or `permitted`) | `from` differs, or `as_of` is not earlier than every dated event | The record's first-report events become `other`, and a `first_reported` event citing the Fix is added. A wrong first-report date is corrected with `replace_event`, not with this op. It is the cited first report the importers' first-report checks ask for: it lifts AI GridWatch's first-report hold and clears Epoch AI's first-report `unknown_status` item, so an Epoch entry has this op or a `first_report` part, not both, and an AI GridWatch entry this op or the uncited `first_reported`. |
@@ -131,10 +136,11 @@ For each Fix, `apply_fixes` works on the record's JSON:
    `published_at` when it had none. Citing the OSM way's own URL reuses the element's source;
    Epoch's SemiAnalysis link (s7 of Microsoft-Nebius New Jersey) takes the Fix's quote. Otherwise
    a new source `s{n+1}` is added. The same URL with another quote is another source.
-2. **What it supports.** `set`, `rename` (`/canonical_name`), `set_location` (`/location`) and
-   `support` add their pointer to the source's `supports`. Events, aliases and organizations cite
-   it in their own `source_ids` (07 §3.3 rule b). A phase's capacity is `/phases/{i}/capacity/...`;
-   phases are never reordered.
+2. **What it supports.** `set`, `rename` (`/canonical_name`), `set_location` (`/location`, or
+   each field it changes when the point stays) and `support` add their pointer to the source's
+   `supports`. Events, aliases and organizations cite it in their own `source_ids` (07 §3.3 rule
+   b). A phase's capacity is `/phases/{i}/capacity/...`; phases are never reordered. A page that
+   only flags is not cited: its review item carries the URL and quote.
 3. **Narrowing.** Every other source whose `supports` entry covers a corrected value has that entry
    rewritten into the values beside it, level by level (`narrow_supports`), and an entry inside the
    corrected value is dropped. AI GridWatch's `/status_history` becomes `/status_history/0`,
@@ -145,9 +151,26 @@ For each Fix, `apply_fixes` works on the record's JSON:
    correction redates its report, and never claims Epoch's own rows. So no importer source
    claims a value it does not state. A removed list item shifts the later pointers down in
    `supports` and `field_meta` (`remap_list_pointers`).
+
+   A phase's own `source_ids` support everything in it (rule b), so a `set` of a phase's capacity
+   counts them among the old value's sources: CoreWeave Dalton's 28 MW keeps Epoch AI's s1 in its
+   conflicts. A source the phase cites for its capacity alone, the one the phase's
+   `field_meta["/phases/{i}/capacity"]` names (Epoch AI's cited capacity part: Ellendale's s4 and
+   its 175 MW), no longer cites the phase: it supports the capacity values beside the corrected one
+   instead, and that `field_meta` entry goes, its conflicts (Epoch AI's modelled figures) moving
+   to the corrected value's. The phase's other `source_ids` cite the phase itself (its name, its
+   events), not the corrected capacity, which the Fix's source and `field_meta` give.
+
+   A `set_location` that keeps the record's point (the same `lat` and `lon`) keeps the method that
+   placed it and the source that gave it: Kearney's AI GridWatch coordinates stay
+   `source_coords`, with s1 supporting `/location/lat` and `/location/lon`, while the city,
+   county and precision the op changes go to the Fix, each with its own `field_meta` (the
+   importer's `field_meta["/location"]` stays, for the point). A point the op moves takes all of
+   `/location` to the Fix.
 4. **`field_meta`.** `set`, `set_party`, `set_location` and `rename` write `field_meta[pointer]`:
    `method: "human_entered"`, the Fix's source, the confidence below, and in `conflicts` the old
-   value with the sources that supported it. `set_location` replaces every key under `/location`.
+   value with the sources that supported it. `set_location` replaces every key under `/location`
+   when it moves the point, and writes one entry per changed field when it keeps it.
    A narrower key beats a broader one: AI GridWatch's `field_meta["/location"]` stays when
    `/location/postcode` gets its own entry (`is_supported` accepts either).
 5. **`record.corrections[]`**, one entry per op: `{on: reviewed_at, pointer, old, new, reason,
@@ -157,6 +180,16 @@ For each Fix, `apply_fixes` works on the record's JSON:
    `merge_import` keeps the stored ones and adds the new ones, so the history is append-only (07
    §5.4). Withdrawing a wrong correction leaves its entry: record the revert in the review PR.
 
+   OSM dates its observations with each snapshot and AI GridWatch its undated stages with each
+   file, so an observation a correction removed would come back with a later date every week,
+   and the correction's summary with it. `lost_events(record)` gives the events the stored
+   record's corrections removed or redated (`field_meta["/status_history"]` conflicts, with their
+   sources): an importer that dates an observation with its input reads them to keep the
+   observation's first-seen date, so the summary, and the record, stay the same. `merge_import`
+   also never appends an entry that differs from a stored one only by
+   the date of the observation it removed or changed (in `old`, and in `new` when the op kept the
+   date): it is the same decision.
+
 ### Confidence (07 §3.4)
 
 `human_confidence`: 0.95 for a value a reviewer entered, plus the source adjustment (government
@@ -165,12 +198,25 @@ trade press, news and open dataset 0, commercial aggregator -0.10, community rep
 0.20 when a value it replaces came from a source type higher in 07 §3.4's order (government
 record > utility or regulator filing > SEC filing > company release > trade press > news > open
 dataset > commercial aggregator > community report), clamped to 0.05 to 0.99. Ops that add
-rather than replace (`add_*`, `observe`, `first_report`, `support`) have no conflict term.
+rather than replace (`add_*`, `observe`, `first_report`, `support`) have no conflict term of
+their own.
+
+The status is a value too. When a reviewer's event decides it, `field_meta["/status"]` takes the
+conflict term from the events the ops removed or redated (`remove_event`, a `replace_event` with
+a new date or status), as OSM's element `status` takes it from the status OpenStreetMap's tags
+gave; `field_meta["/status_history"]` takes, of each event it keeps in its conflicts, the lowest
+confidence the Fix that lost it gives over that event's sources. Baxtel's status for the Elk
+Grove Village building, in place of OpenStreetMap's operating observation, is 0.65 on both
+layers; so is SynMax's operating observation for CoreWeave Muskogee, which replaces Epoch AI's
+planned operation. An added event that replaces none has no conflict term (0.85 for a commercial
+aggregator).
 
 Read literally, 07 §3.4 gives a commercial aggregator's correction of an OpenStreetMap value
-0.95 - 0.10 - 0.20 = 0.65 (medium): Baxtel naming Aligned's IAD campus. Whether a reviewer's
-decision should be exempt from the conflict term is an owner question; the code follows 07 §3.4
-as written. Epoch AI's legacy entry parts keep their own "stated" base of 0.85.
+0.95 - 0.10 - 0.20 = 0.65 (medium): Baxtel naming Aligned's IAD campus, or giving the Elk Grove
+Village building's status. Whether a reviewer's decision, of a name, a value or a status, should
+be exempt from the conflict term is an owner question; the code follows 07 §3.4 as written, on
+the record ops as on OSM's element decisions. Epoch AI's legacy entry parts keep their own
+"stated" base of 0.85.
 
 ## Derived fields
 
@@ -191,7 +237,12 @@ After the ops, the derived fields are recomputed, never patched:
    project.
 5. `field_meta["/status"]`: when the event that decides the status (the latest one, or the
    deciding phase event when the record has phases) cites a Fix's source through an event op, it
-   becomes `human_entered` with that event's sources; otherwise it stays as built.
+   becomes `human_entered` with that event's sources and the confidence above. When an op made
+   another importer event decide it (CyrusOne Cincinnati-Lebanon's operating phase removed, its
+   under-construction phase deciding), it takes that event's sources at the importer's method
+   and confidence (OSM's 0.60 `imported`), so it never names the sources of a removed event; a
+   reviewer's status entry (OSM's element `status`, `human_entered`) for the event that no
+   longer decides is dropped. Otherwise it stays as built.
 6. The record is checked against the schema and `validate_record`; any issue stops the run and
    names the entry.
 
@@ -202,8 +253,10 @@ importer. The reviewer's decision is recorded by the source's `quote_match: "hum
 
 ## Review items
 
-`hold` and `out_of_scope` file one item each, with `data: {source_url, quote, reviewed_at, basis,
-file}`. The other ops file none: the record's `corrections[]` and the PR diff show them. The items
+`hold`, `flag` and `out_of_scope` file one item each, with `data: {source_url, quote, reviewed_at,
+basis, file}`; a `flag`'s reason reads "flagged by {file} entry {key} (reviewed {date}): {reason}
+({url}); the record is published as it is, the question stays open for a reviewer". The other
+ops file none: the record's `corrections[]` and the PR diff show them. The items
 the importer files for a key whose corrections were applied get `data.corrected_by`,
 `"config/overrides/{source}.json (reviewed {date}): {reason}"` (`mark_corrected`), so the review
 page shows the decision; items are annotated, never dropped. No review kind is new.
@@ -215,9 +268,9 @@ nothing (`--dry-run` behaves the same):
 
 | When | What stops it |
 |---|---|
-| Loading | unreadable or invalid JSON; an unknown key or op; a bad type or key; a missing citation field; a quote, reason or value as above; a `set` path outside the list; `status_reason` with an active status; a stopped status from a source type gate 6 does not allow; a date after today or now; an Epoch entry with a `first_report` part and op, or an AI GridWatch entry with `first_reported` and the op; an AI GridWatch `reason` or `reviewed_at` without a release, `as_of` or `first_reported` |
+| Loading | unreadable or invalid JSON; an unknown key or op; a bad type or key; a missing citation field; a quote, reason or value as above; a `set` path outside the list; `status_reason` with an active status; a stopped status from a source type gate 6 does not allow (`add_event`, `observe`, `replace_event`); a date after today or now; an Epoch entry with a `first_report` part and op, or an AI GridWatch entry with `first_reported` and the op; an AI GridWatch `reason` or `reviewed_at` without a release, `as_of` or `first_reported` |
 | Against the input | a key the input does not have ("names X, which this input does not have"; `check_entries`), in all three files, with or without corrections; an `expect` guard the input does not meet |
-| After the build | a key with record ops other than `hold` and `out_of_scope` for which no record was built ("no record was built for X (held: ...)": the review items that name the key say why; release the check or remove the correction); a guard that does not match; an unknown phase; no event that has happened left; a name without its place suffix; a `status_reason` the final status does not have; a record that fails validation |
+| After the build | a key with record ops other than `hold` and `out_of_scope` for which no record was built ("no record was built for X (held: ...)": the review items that name the key say why; release the check or remove the correction); a guard that does not match; a `replace_event` that gives a stopped status citing the Fix alone from a source type gate 6 does not allow; an unknown phase; no event that has happened left; a name without its place suffix; a `status_reason` the final status does not have; a record that fails validation |
 
 An entry that only holds or puts out of scope a key the importer already held is fine. Failing
 closed means a weekly refresh stops until a reviewer updates an entry (a row that vanished, an
@@ -244,13 +297,23 @@ which is unmerged (`merged_into` null, with a `/merged_into` correction); withou
 candidate matches only records whose values all lie within its own, so it is new while the record
 that still lists the value drops it on its own update.
 
+Withdrawing the join reverses its merge the same way (07 §6.6 step 7). Once the `join` entry is
+gone, the element is a candidate of its own again, with no join or split: when its values are
+exactly a merged record's, the survivor still holds them (as the join's merge left it) and no
+other candidate of the run holds any of them, it takes the merged record back and unmerges it
+("unmerged from {survivor}: no reviewed join brings {value} into that record any more"), in
+either candidate order, while the survivor's own candidate drops the values on its update. Both
+facilities keep their ids and are published. A merge a reviewer made into a record that does not
+hold the values (another source's record, AI GridWatch's row into its Epoch AI twin) is no join,
+and its candidate stays `held_merged`.
+
 Duplicates across sources (an OSM campus and an Epoch AI site) wait for M4's entity resolution;
 no op expresses them.
 
 ## The receipt
 
 `correction_metrics` gives the receipt's counts: `corrections_entries`, `corrections_ops`,
-`records_corrected`, `corrections_held`, `corrections_out_of_scope` and
+`records_corrected`, `corrections_held`, `corrections_flagged`, `corrections_out_of_scope` and
 `corrections_importer_gap`, in all three importers' receipts. `overrides_used` and
 `overrides_unused` stay; an unused entry now stops the run, so `overrides_unused` is always 0.
 
@@ -265,7 +328,8 @@ against its own citation, so CI catches a value its quote does not state before 
   after that day and no later than today; the review PR of its round (PR #2 for fix round 6);
   no personal data in the quote, reason, publisher or title; an `archive_url` that is the
   Wayback snapshot of `source_url`; a paused, denied or cancelled status only from a gate 6
-  source type;
+  source type (an event an op adds, or one a `replace_event` gives or whose match names that
+  status or a denial, pause, withdrawal or cancellation);
 - what the ops write is verbatim in the quote: a `set` value (a number as `230`, not `230.0`), a
   base name, an alias, an organization, and a `set_location`'s city, municipality, street,
   postcode and county name. A value the page states another way is listed in the test's

@@ -14,11 +14,12 @@ candidate record after the build, with full provenance:
   (remap_list_pointers), so no importer source claims a value it does not state;
 - a replaced value gets field_meta with method human_entered and the 07 §3.4 confidence
   (human_confidence), the old value and its sources in conflicts; removed and replaced events
-  are kept in field_meta["/status_history"] conflicts;
-- every op adds a record.corrections[] entry with a pointer that carries no list index;
+  are kept in field_meta["/status_history"] conflicts (lost_events reads them back);
+- every op but flag adds a record.corrections[] entry with a pointer that carries no list index;
 - derived fields are recomputed, never patched: the place in canonical_name (name_suffix), the
   status and the event dates (apply_rollup), status_reason, record_type (an importer hook) and
-  field_meta["/status"] when a reviewer's event decides the status.
+  field_meta["/status"] when a reviewer's event decides the status, or when an op makes another
+  importer event decide it.
 
 Entries fail closed: a guard that no longer matches the record (an op's `from` or event match), a
 key the input no longer has, a correction for a record that was not built, or a corrected record
@@ -115,6 +116,8 @@ STOP_SOURCE_TYPES = frozenset(
         "news",
     }
 )
+# The events that give a paused, denied or cancelled status.
+STOPPED_EVENTS = frozenset({"denied", "paused", "withdrawn", "cancelled"})
 # The paths a `set` op writes, with the JSON type of the value. City, county and coordinates change
 # only through set_location (07 §6.5); ids, status, the derived dates, sources, external_ids and
 # review are never set.
@@ -147,6 +150,8 @@ _LOCATION_FIELDS = frozenset(Location.model_fields)
 
 Basis = Literal["out_of_date", "upstream_error", "importer_gap"]
 PartyRole = Literal["operator", "owner", "developer", "tenant", "filing_entities"]
+# The review items a hold or a flag files.
+ReviewKind = Literal["conflict", "unknown_status", "possible_duplicate", "unverified_upstream"]
 FuzzyStr = Annotated[str, Field(pattern=FUZZY_DATE_PATTERN)]
 
 
@@ -251,9 +256,16 @@ class Hold(AtlasModel):
     item of `kind` that gives the reviewer's doubt."""
 
     op: Literal["hold"]
-    kind: Literal["conflict", "unknown_status", "possible_duplicate", "unverified_upstream"] = (
-        "conflict"
-    )
+    kind: ReviewKind = "conflict"
+
+
+class Flag(AtlasModel):
+    """File a review item of `kind` with the Fix's reason, URL and quote, and change nothing else:
+    a question the reviewer leaves open about a record that stays published (CloudBurst's county,
+    which its sources give two ways)."""
+
+    op: Literal["flag"]
+    kind: ReviewKind = "conflict"
 
 
 class OutOfScope(AtlasModel):
@@ -430,6 +442,15 @@ class ReplaceEvent(AtlasModel):
     match: EventMatch
     set: EventChange
 
+    def gives_stopped(self) -> bool:
+        """True when, by what the op says, the event it gives is paused, denied or cancelled and
+        cites the Fix alone: a new stopped status, or a new date of an event its match names as
+        stopped. The event itself is checked again when the op is applied."""
+        if self.set.status is not None:
+            return self.set.status in STOPPED
+        named = self.match.status in STOPPED or self.match.event in STOPPED_EVENTS
+        return self.set.as_of is not None and named
+
 
 class RemoveEvent(AtlasModel):
     """Remove the one event match finds; it is kept in field_meta /status_history conflicts."""
@@ -485,6 +506,7 @@ class Support(AtlasModel):
 
 RecordOp = Annotated[
     Hold
+    | Flag
     | OutOfScope
     | SetValue
     | Rename
@@ -552,14 +574,20 @@ class Fix(AtlasModel):
         if self.retrieved_at.astimezone(UTC).date() > self.reviewed_at:
             raise ValueError("reviewed_at is before the day of retrieved_at")
         for j, op in enumerate(self.ops):
-            stopped = isinstance(op, AddEvent | Observe) and op.status in STOPPED
+            stopped = (isinstance(op, AddEvent | Observe) and op.status in STOPPED) or (
+                isinstance(op, ReplaceEvent) and op.gives_stopped()
+            )
             if stopped and self.kind not in STOP_SOURCE_TYPES:
-                raise ValueError(
-                    f"ops[{j}]: a paused, denied or cancelled status needs a government, "
-                    "regulator, utility or ISO, SEC, company, trade press or news source, not "
-                    f"{self.kind} (07 §6.4 gate 6)"
-                )
+                raise ValueError(f"ops[{j}]: {gate_6(self.kind)}")
         return self
+
+
+def gate_6(kind: str) -> str:
+    """Why a Fix of source type kind cannot give a paused, denied or cancelled status."""
+    return (
+        "a paused, denied or cancelled status needs a government, regulator, utility or ISO, SEC, "
+        f"company, trade press or news source, not {kind} (07 §6.4 gate 6)"
+    )
 
 
 FIXES = TypeAdapter(list[Fix])
@@ -866,7 +894,7 @@ def place_location(
 
 @dataclass(frozen=True)
 class Applied:
-    """The corrected record and the review items its hold and out_of_scope ops file."""
+    """The corrected record and the review items its hold, flag and out_of_scope ops file."""
 
     record: FacilityRecord
     review: list[ReviewItem]
@@ -968,6 +996,15 @@ class _Patch:
         self.postal_city = postal_city
         self.review: list[ReviewItem] = []
         self.event_sids: set[str] = set()
+        # The source types of the events the ops removed or redated (07 §3.4's conflict term for
+        # field_meta /status and /status_history), and the event that decided the status as
+        # built, with its field_meta (rebuilt when an op makes another importer event decide).
+        self.replaced: set[str] = set()
+        try:
+            self.decided_seq: int | None = deciding_event(record).seq
+        except RollupError:
+            self.decided_seq = None
+        self.status_meta: dict[str, Any] | None = self.doc["field_meta"].get("/status")
         self.stop_reason: tuple[Status, StatusReason, str] | None = None
         self.key = ""
         self.where = where
@@ -1056,16 +1093,21 @@ class _Patch:
         raise self.fail(f"the record has no phase {phase!r}")
 
     def lost_event(self, fix: Fix, sid: str, e: Mapping[str, Any]) -> None:
-        """Keep a removed or redated event in field_meta /status_history conflicts."""
+        """Keep a removed or redated event in field_meta /status_history conflicts. The entry's
+        confidence is the lowest 07 §3.4 gives a Fix over the sources of an event it lost."""
+        kinds = self.kinds(e["source_ids"])
+        self.replaced.update(kinds)
+        confidence = human_confidence(fix.kind, kinds)
         meta = self.doc["field_meta"].setdefault(
             "/status_history",
             {
-                "confidence": human_confidence(fix.kind),
+                "confidence": confidence,
                 "method": "human_entered",
                 "source_ids": [],
                 "conflicts": [],
             },
         )
+        meta["confidence"] = min(meta["confidence"], confidence)
         if sid not in meta["source_ids"]:
             meta["source_ids"] = sorted([*meta["source_ids"], sid], key=_sid_key)
         meta["conflicts"].append(
@@ -1121,6 +1163,14 @@ class _Patch:
                     f"held by {entry}: {fix.reason} ({fix.source_url}); kept with scope "
                     "out_of_scope until a reviewer resolves it",
                 )
+        elif isinstance(op, Flag):
+            entry = f"{self.file} entry {self.key!r} (reviewed {fix.reviewed_at})"
+            self.item(
+                fix,
+                op.kind,
+                f"flagged by {entry}: {fix.reason} ({fix.source_url}); the record is published "
+                "as it is, the question stays open for a reviewer",
+            )
         elif isinstance(op, SetValue):
             self.set_value(fix, sid, op)
         elif isinstance(op, Rename):
@@ -1159,17 +1209,49 @@ class _Patch:
         elif isinstance(op, Support):
             self.support(fix, sid, op)
 
+    def phase_capacity(self, k: int, pointer: str, sid: str) -> tuple[set[str], list[Any]]:
+        """Before a `set` of pointer, a capacity value of phase k: the sources of the value it
+        replaces, and the conflicts the phase's capacity field_meta kept.
+
+        The phase's source_ids support everything in it (07 §3.3 rule b), so they are the old
+        value's sources too. A source the phase cites for its capacity alone (the one its
+        field_meta /phases/k/capacity names: Epoch AI's cited capacity part) no longer cites
+        the phase; it supports the capacity values beside pointer instead, and that field_meta
+        goes (its conflicts, Epoch AI's modelled figures, move to the corrected value's). So no
+        source claims a corrected capacity it does not state."""
+        phase: dict[str, Any] = self.doc["phases"][k]
+        losers = set(phase["source_ids"])
+        base = f"/phases/{k}/capacity"
+        built = self.doc["field_meta"].pop(base, None)
+        if built is None:
+            return losers, []
+        losers.update(built["source_ids"])
+        alone = [s for s in built["source_ids"] if s in phase["source_ids"] and s != sid]
+        phase["source_ids"] = [s for s in phase["source_ids"] if s not in alone]
+        beside = [
+            child
+            for name, value in sorted(phase["capacity"].items())
+            if value is not None and (child := f"{base}/{escape(name)}") != pointer
+        ]
+        for s in alone:
+            for child in beside:
+                self.supports(s, child)
+        return losers, list(built["conflicts"])
+
     def set_value(self, fix: Fix, sid: str, op: SetValue) -> None:
+        k: int | None = None
         if op.phase is None:
             pointer = semantic = op.path
         else:
-            pointer = f"/phases/{self.phase_index(op.phase)}{op.path}"
+            k = self.phase_index(op.phase)
+            pointer = f"/phases/{k}{op.path}"
             semantic = f"/phases/{escape(op.phase)}{op.path}"
         found, current = resolve(self.doc, pointer)
         old = _projection(current) if found else None
         if old != op.from_:
             raise self.stale(f"{pointer} is {old!r}, not {op.from_!r}")
-        losers = self.take_over(pointer, sid)
+        phase_losers, moved = (set(), []) if k is None else self.phase_capacity(k, pointer, sid)
+        losers = sorted((set(self.take_over(pointer, sid)) | phase_losers) - {sid}, key=_sid_key)
         parent_pointer, leaf = pointer.rsplit("/", 1)
         _, parent = resolve(self.doc, parent_pointer)
         if not isinstance(parent, dict):
@@ -1184,6 +1266,7 @@ class _Patch:
         if op.value is not None:
             self.supports(sid, pointer)
         self.meta(pointer, fix, sid, losers, old)
+        self.doc["field_meta"][pointer]["conflicts"] += moved
         self.note(fix, semantic, old, op.value)
 
     def rename(self, fix: Fix, sid: str, op: Rename) -> None:
@@ -1268,14 +1351,29 @@ class _Patch:
             "geometry_ref": None,
             "parcel_apns": [],
         }
+        same_point = (new["lat"], new["lon"]) == (location.get("lat"), location.get("lon"))
+        if same_point:
+            # The point stays, and so does the method that placed it (AI GridWatch's own
+            # coordinates for Kearney): the source that gave it keeps supporting it.
+            new["geocode_method"] = location.get("geocode_method")
         old = {k: v for k, v in location.items() if new.get(k, v) != v}
         if not old:
             raise self.stale("the record is at the place set_location gives already")
         changed = {k: new[k] for k in old}
-        losers = self.take_over("/location", sid)
-        location.update(new)
-        self.supports(sid, "/location")
-        self.meta("/location", fix, sid, losers, old or None)
+        if not same_point:
+            losers = self.take_over("/location", sid)
+            location.update(new)
+            self.supports(sid, "/location")
+            self.meta("/location", fix, sid, losers, old)
+        else:
+            # Only the fields the op changes go to the Fix, each with its own field_meta.
+            taken = {k: self.take_over(f"/location/{escape(k)}", sid) for k in sorted(old)}
+            location.update(new)
+            for k, field_losers in taken.items():
+                pointer = f"/location/{escape(k)}"
+                if _has_claim(self.doc, pointer):
+                    self.supports(sid, pointer)
+                self.meta(pointer, fix, sid, field_losers, old[k])
         self.note(fix, "/location", old, changed)
 
     def add_event(self, fix: Fix, sid: str, op: AddEvent | Observe | FirstReportOp) -> None:
@@ -1379,6 +1477,8 @@ class _Patch:
                 f"{event['as_of']['value']} is after today ({self.today}) but not planned"
             )
         if event["as_of"] != before["as_of"] or event["status"] != before["status"]:
+            if event["status"] in STOPPED and fix.kind not in STOP_SOURCE_TYPES:
+                raise self.fail(gate_6(fix.kind))
             self.lost_event(fix, sid, before)
             event["source_ids"] = [sid]
         else:
@@ -1437,14 +1537,27 @@ class _Patch:
         decided = deciding_event(record)
         cited = [s for s in decided.source_ids if s in self.event_sids]
         out = record_json(record) | update
+        built = self.status_meta
         if cited:
+            # 07 §3.4 as written: the conflict term when an event the ops removed or redated
+            # came from a higher-priority source type (an owner question, docs/corrections.md).
             kinds = {s.id: s.source_type for s in record.sources}
             out["field_meta"]["/status"] = {
-                "confidence": max(human_confidence(kinds[s]) for s in cited),
+                "confidence": max(human_confidence(kinds[s], self.replaced) for s in cited),
                 "method": "human_entered",
                 "source_ids": list(decided.source_ids),
                 "conflicts": [],
             }
+        elif decided.seq != self.decided_seq and built is not None:
+            # An importer event decides now: its sources, at the importer's method and
+            # confidence. A reviewer's status (OSM's element `status`) no longer applies.
+            if built["method"] == "human_entered":
+                out["field_meta"].pop("/status", None)
+            else:
+                out["field_meta"]["/status"] = built | {
+                    "source_ids": list(decided.source_ids),
+                    "conflicts": [],
+                }
         try:
             record = FacilityRecord.model_validate(out)
         except ValidationError as e:
@@ -1476,7 +1589,7 @@ def apply_fixes(
     Fix's ops in order, so a second op on a value it changed must name the new value in `from`.
 
     file names the overrides file in messages; source and external_id (default: the entry's
-    key) go on the review items that hold and out_of_scope ops file. record_type, when given,
+    key) go on the review items that hold, flag and out_of_scope ops file. record_type, when given,
     recomputes record_type from the corrected record (Epoch: campus once a building operates);
     postal_city is the city of the source's postal address, for set_location's place check.
     A guard that does not match, or a corrected record that fails validate_record, raises
@@ -1497,7 +1610,9 @@ def apply_fixes(
     for key, fixes in entries:
         patch.key = key
         for i, fix in enumerate(fixes):
-            sid = _cite(patch.doc, fix)
+            # A Fix that only flags changes nothing, so the record does not cite its page: the
+            # review item carries its URL and quote.
+            sid = "" if all(isinstance(op, Flag) for op in fix.ops) else _cite(patch.doc, fix)
             for j, op in enumerate(fix.ops):
                 patch.where = f"{file} entry {key!r}: corrections[{i}].ops[{j}] ({op.op})"
                 patch.apply(fix, sid, op)
@@ -1512,6 +1627,50 @@ def _names_key(item: ReviewItem, key: str) -> bool:
     if item.external_id == key:
         return True
     return any(v == key or (isinstance(v, list) and key in v) for v in item.data.values())
+
+
+class LostEvent(AtlasModel):
+    """An event a cited correction removed from a record, or the event as it was before
+    replace_event changed its date or status, with the record's ids of the sources that gave
+    it."""
+
+    event: EventType
+    status: Status
+    as_of: FuzzyDate
+    phase_id: str | None
+    planned: bool
+    source_ids: list[str]
+
+
+def lost_events(record: FacilityRecord) -> list[LostEvent]:
+    """The events the stored record's corrections removed or redated, from
+    field_meta["/status_history"] conflicts (a conflict that is no event summary is skipped).
+
+    OSM dates its observations with each snapshot and AI GridWatch its undated stages with each
+    file. Once a correction has removed such an observation, status_history no longer has it, so
+    an importer that keeps an observation's first-seen date reads it here too: the rebuilt
+    observation keeps the date, and the correction's summary, and with it the record, is the same
+    on every run."""
+    meta = record.field_meta.get("/status_history")
+    out: list[LostEvent] = []
+    for conflict in meta.conflicts if meta is not None else []:
+        value = conflict.get("value")
+        as_of = value.get("as_of") if isinstance(value, dict) else None
+        if not isinstance(value, dict) or not isinstance(as_of, str):
+            continue
+        try:
+            out.append(
+                LostEvent.model_validate(
+                    {
+                        **value,
+                        "as_of": fuzzy_date(as_of),
+                        "source_ids": conflict.get("source_ids") or [],
+                    }
+                )
+            )
+        except ValidationError:
+            continue
+    return out
 
 
 def has_first_report(fixes: Iterable[Fix]) -> bool:
@@ -1602,8 +1761,8 @@ def mark_corrected(
 
 def correction_metrics(entries: Mapping[str, Sequence[Fix]], *, corrected: int) -> dict[str, int]:
     """The receipt's counts of the overrides file's corrections: entries with corrections, ops,
-    records corrected (corrected, from the importer), hold and out_of_scope ops, and Fixes whose
-    basis is importer_gap (each needs an importer fix; the count should fall to 0)."""
+    records corrected (corrected, from the importer), hold, flag and out_of_scope ops, and Fixes
+    whose basis is importer_gap (each needs an importer fix; the count should fall to 0)."""
     fixes = [fix for fs in entries.values() for fix in fs]
     ops = [op for fix in fixes for op in fix.ops]
     return {
@@ -1611,6 +1770,7 @@ def correction_metrics(entries: Mapping[str, Sequence[Fix]], *, corrected: int) 
         "corrections_ops": len(ops),
         "records_corrected": corrected,
         "corrections_held": sum(1 for op in ops if isinstance(op, Hold)),
+        "corrections_flagged": sum(1 for op in ops if isinstance(op, Flag)),
         "corrections_out_of_scope": sum(1 for op in ops if isinstance(op, OutOfScope)),
         "corrections_importer_gap": sum(1 for fix in fixes if fix.basis == "importer_gap"),
     }

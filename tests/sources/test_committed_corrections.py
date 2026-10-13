@@ -20,7 +20,9 @@ from atlas.geo.counties import CountyIndex
 from atlas.schema.rollup import STOPPED, period_start
 from atlas.sources import aigridwatch, epoch, osm
 from atlas.sources.corrections import (
+    FIXES,
     STOP_SOURCE_TYPES,
+    STOPPED_EVENTS,
     AddAlias,
     AddEvent,
     AddParty,
@@ -190,10 +192,19 @@ def dated(fix_: Fix) -> list[str]:
 
 
 def stops(fix_: Fix) -> bool:
-    """Whether a Fix's ops give a paused, denied or cancelled status."""
+    """Whether a Fix's ops give a paused, denied or cancelled status: an event they add, or one a
+    replace_event changes, by its new status or by the stopped status or event its match names
+    (a new date of a denial makes the Fix its only source)."""
     return any(
         (isinstance(op, AddEvent | Observe) and op.status in STOPPED)
-        or (isinstance(op, ReplaceEvent) and op.set.status in STOPPED)
+        or (
+            isinstance(op, ReplaceEvent)
+            and (
+                op.set.status in STOPPED
+                or op.match.status in STOPPED
+                or op.match.event in STOPPED_EVENTS
+            )
+        )
         for op in fix_.ops
     )
 
@@ -281,3 +292,52 @@ def test_the_readings_of_a_value_stated_otherwise() -> None:
     assert not _quoted("Zayo Baltimore", "Crown Castle Baltimore", "PeeringDB")
     assert _street("22588 Relocation Drive") in _street("22588 RELOCATION DR, STERLING")
     assert _street("601 North Star Road") not in _street("401 North Star Rd.")
+
+
+@pytest.mark.parametrize(
+    ("op", "expected"),
+    [
+        ({"op": "add_event", "event": "denied", "status": "denied", "as_of": "2026-08"}, True),
+        ({"op": "observe", "status": "paused", "as_of": "2026-08"}, True),
+        (
+            {"op": "add_event", "event": "approved", "status": "permitted", "as_of": "2026-08"},
+            False,
+        ),
+        (
+            {"op": "replace_event", "match": {"event": "denied"}, "set": {"as_of": "2026-08-13"}},
+            True,
+        ),
+        (
+            {"op": "replace_event", "match": {"status": "cancelled"}, "set": {"note": "per X"}},
+            True,
+        ),
+        (
+            {"op": "replace_event", "match": {"event": "other"}, "set": {"status": "paused"}},
+            True,
+        ),
+        (
+            {"op": "replace_event", "match": {"event": "announced"}, "set": {"as_of": "2026"}},
+            False,
+        ),
+    ],
+)
+def test_stops_names_every_stopped_status(op: dict[str, Any], expected: bool) -> None:
+    """mechanism-2 (review of fix round 6): the committed-files check of gate 6 counts a
+    replace_event whose match names a stopped status or event, so a redate of a denial from a
+    source gate 6 does not allow fails CI too."""
+    (parsed,) = FIXES.validate_python(
+        [
+            {
+                "source_url": "https://example.org/a",
+                "publisher": "Example News",
+                "source_type": "news",
+                "quote": "a quote",
+                "basis": "upstream_error",
+                "reason": "The reviewer read the cited page",
+                "retrieved_at": "2026-10-10T12:00:00Z",
+                "reviewed_at": "2026-10-10",
+                "ops": [op],
+            }
+        ]
+    )
+    assert stops(parsed) is expected

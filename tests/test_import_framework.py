@@ -450,6 +450,79 @@ def test_atlas_import_discovers_and_runs_an_importer(
     assert main(["import", "zzdummy", "--now", "2026-10-12T12:00:00", "--offline"]) == 2
 
 
+def test_input_retrieved_at_dates_saved_inputs(
+    tmp_path: Path, make_test_context: MakeContext, fixed_now: datetime
+) -> None:
+    """epoch-agw-5 (review of fix round 6): a replay of saved inputs gives their fetch time, not
+    the run's clock, as retrieved_at: --input and an importer's own local file (OSM's --pnnl)."""
+    local = tmp_path / "rows.json"
+    local.write_bytes(b"[1, 2]")
+    fetched = datetime(2026, 10, 9, 9, 51, 55, tzinfo=UTC)
+    ctx = make_test_context(input_path=local, input_retrieved_at=fetched)
+    for path in (None, local):
+        _, snap = load_input(
+            ctx,
+            name="dummy",
+            url="https://example.org/rows.json",
+            license="CC0-1.0",
+            ext="json",
+            fetch=lambda: pytest.fail("must not fetch"),
+            path=path,
+            use_ctx_input=path is None,
+        )
+        assert snap.retrieved_at == fetched != ctx.now == fixed_now
+    with pytest.raises(ValueError, match="input_retrieved_at must be timezone-aware"):
+        make_test_context(input_retrieved_at=datetime(2026, 10, 9))
+
+
+def test_atlas_import_input_retrieved_at(
+    discovered_importer: Path, tmp_repo: Path, repo_root: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """epoch-agw-5: `--input-retrieved-at` with --input is the receipt's retrieved_at; the run's
+    clock stays --now. Without --input, after --now or without a time zone it is a usage error
+    and nothing is written."""
+    rows = tmp_repo / "rows.json"
+    rows.write_text(json.dumps([{"key": "k1", "name": "Example One (TX)"}]), encoding="utf-8")
+    receipts = tmp_repo / "data" / "imports"
+    common = [
+        "--records",
+        str(tmp_repo / "data" / "records"),
+        "--review-dir",
+        str(tmp_repo / "review" / "queue"),
+        "--receipts-dir",
+        str(receipts),
+        "--cache-dir",
+        str(tmp_repo / ".cache"),
+        "--counties",
+        str(repo_root / "reference" / "census" / "cb_2025_us_county_500k.zip"),
+        "--now",
+        "2026-10-13T05:07:34Z",
+        "--offline",
+    ]
+    for when, err in (
+        ("2026-10-13T06:00:00Z", "is after the run's now"),
+        ("2026-10-09T09:51:55", "needs a time zone"),
+    ):
+        argv = ["import", "zzdummy", "--input", str(rows), "--input-retrieved-at", when, *common]
+        assert main(argv) == 2
+        assert err in capsys.readouterr().err
+    argv = ["import", "zzdummy", "--input-retrieved-at", "2026-10-09T09:51:55Z", *common]
+    assert main(argv) == 2
+    assert "give --input" in capsys.readouterr().err
+    assert not (receipts / "zzdummy.json").exists()
+
+    fetched = "2026-10-09T11:51:55+02:00"
+    argv = ["import", "zzdummy", "--input", str(rows), "--input-retrieved-at", fetched, *common]
+    assert main(argv) == 0
+    receipt = json.loads((receipts / "zzdummy.json").read_text(encoding="utf-8"))
+    assert receipt["inputs"][0]["retrieved_at"] == "2026-10-09T09:51:55Z"
+    assert receipt["ran_at"] == "2026-10-13T05:07:34Z"
+    # Without it, a local input's retrieved_at is --now, as before.
+    assert main(["import", "zzdummy", "--input", str(rows), *common]) == 0
+    receipt = json.loads((receipts / "zzdummy.json").read_text(encoding="utf-8"))
+    assert receipt["inputs"][0]["retrieved_at"] == "2026-10-13T05:07:34Z"
+
+
 # ---------------------------------------------------------------------------- source types
 
 

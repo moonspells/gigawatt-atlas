@@ -239,7 +239,8 @@ def make_test_context(
     """Build an ImportContext for importer tests.
 
     Keyword overrides: any ImportContext argument (now, today, records, http, cache_dir,
-    input_path, user_agent, new_id, counties, places, places_path, gazetteer, offline), plus
+    input_path, input_retrieved_at, user_agent, new_id, counties, places, places_path, gazetteer,
+    offline), plus
     handler= (an httpx.MockTransport handler; the default answers 404) and resolver= (the default
     resolves every host to 93.184.216.34). places and gazetteer default to the samples (unless
     places_path is given, or None is passed to load the Census files the way an import does).

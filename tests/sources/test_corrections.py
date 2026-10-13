@@ -44,6 +44,7 @@ from atlas.sources.corrections import (
     check_fix_dates,
     correction_metrics,
     human_confidence,
+    lost_events,
     mark_corrected,
     name_suffix,
     narrow_supports,
@@ -1646,6 +1647,7 @@ def test_mark_corrected_and_metrics() -> None:
         "corrections_ops": 3,
         "records_corrected": 1,
         "corrections_held": 1,
+        "corrections_flagged": 0,  # the flag op of the round-6 review (entries-4)
         "corrections_out_of_scope": 1,
         "corrections_importer_gap": 1,
     }
@@ -1885,3 +1887,453 @@ def test_candidate_join_and_split_values(make_record: MakeRecord) -> None:
         Candidate(("a",), record, joined=("b",))
     with pytest.raises(ValueError, match="split_from must be one of"):
         Candidate(("a",), record, split_from="b")
+
+
+# ---------------------------------------------------------------------------- the review of round 6
+# Each test is a confirmed finding of the review of fix round 6 (its id first), on its reproduction.
+
+WICHITA = fix(
+    "https://www.newschannel6now.com/2026/08/13/datanovax-data-center-approved/",
+    "the Planning and Zoning Commission approved a conditional-use request",
+    {"op": "remove_event", "match": {"event": "other", "status": "operating"}},
+    {"op": "add_event", "event": "approved", "status": "permitted", "as_of": "2026-08"},
+)
+KOP_REDATE = fix(
+    "https://www.fox29.com/news/upper-merion-board-supervisors-denies",
+    "denied all five proposed data center sites by MLP Ventures on Thursday, August 13.",
+    {
+        "op": "replace_event",
+        "match": {"event": "denied", "as_of": "2026-08-14"},
+        "set": {"as_of": "2026-08-13"},
+    },
+)
+
+
+def test_lost_events_reads_what_corrections_removed(correct: Correct) -> None:
+    """mechanism-0: the events a stored record's corrections removed or redated, with their
+    sources, from field_meta /status_history conflicts (an importer keeps an observation's
+    first-seen date by them)."""
+    assert lost_events(seed("osm:way/747985149")) == []
+    removed = correct(seed("osm:way/747985149"), WICHITA).record
+    (lost,) = lost_events(removed)
+    assert (lost.event, lost.status, lost.phase_id, lost.planned, lost.source_ids) == (
+        "other",
+        "operating",
+        None,
+        False,
+        ["s1"],
+    )
+    assert (lost.as_of.value, lost.as_of.precision) == ("2026-10-09", "day")
+    redated = correct(seed("aigridwatch_id:king-of-prussia-mlp-pa"), KOP_REDATE).record
+    assert [(e.event, e.as_of.value, e.source_ids) for e in lost_events(redated)] == [
+        ("denied", "2026-08-14", ["s1"])
+    ]
+    # A conflict that is no event summary is not an event.
+    d = doc(removed)
+    d["field_meta"]["/status_history"]["conflicts"].append({"value": "x", "source_ids": ["s1"]})
+    assert lost_events(FacilityRecord.model_validate(d)) == [lost]
+
+
+def test_a_later_snapshot_gives_the_same_correction(
+    tmp_repo: Path, make_test_context: MakeContext, correct: Correct
+) -> None:
+    """mechanism-0: OSM dates its observation with each snapshot, so the same remove_event on a
+    later snapshot summarises an event of a later date. Once the importer keeps the observation's
+    first-seen date from lost_events, the record is unchanged; and merge_import's union never
+    appends the same decision with a later observation date (corrections[] stays as it was)."""
+
+    def snapshot(day: str, stored: FacilityRecord | None = None) -> Candidate:
+        d = doc(seed("osm:way/747985149"))
+        d["external_ids"]["dummy_id"] = ["w"]
+        d["status_history"][0]["as_of"] = {"value": day, "precision": "day"}
+        if stored is not None:  # the importer keeps the first-seen date (osm, aigridwatch)
+            (first,) = [e for e in lost_events(stored) if e.status == "operating"]
+            d["status_history"][0]["as_of"] = first.as_of.model_dump()
+        return Candidate(("w",), correct(FacilityRecord.model_validate(d), WICHITA).record)
+
+    store = RecordStore(tmp_repo / "data" / "records")
+    ctx = make_test_context(now=LATER, today=LATER.date())
+    receipt, _ = merge(tmp_repo, ctx, [snapshot("2026-10-09")])
+    assert receipt.counts["new"] == 1
+    ((rid, week1),) = store.load().items()
+    receipt, _ = merge(tmp_repo, ctx, [snapshot("2026-10-16", week1)])
+    assert receipt.counts["unchanged"] == 1
+    # An importer that dates the observation anew: the record changes (its conflict's date), the
+    # history does not grow.
+    receipt, _ = merge(tmp_repo, ctx, [snapshot("2026-10-23")])
+    after = store.load()[rid]
+    assert receipt.counts["updated"] == 1
+    assert after.corrections == week1.corrections and len(after.corrections) == 2
+    (lost,) = lost_events(after)
+    assert lost.as_of.value == "2026-10-23"
+
+
+@pytest.mark.parametrize("b_first", [False, True])
+def test_a_withdrawn_join_unmerges(
+    tmp_repo: Path, make_record: MakeRecord, make_test_context: MakeContext, b_first: bool
+) -> None:
+    """mechanism-1: a reviewed join merged b's record into a's on a populated store; the
+    reviewer withdraws the join, so b's element is a candidate of its own again. b's record is
+    taken back and unmerged, in either candidate order: both facilities keep their ids and their
+    own values, and both are published."""
+    store, older, younger = joined_store(tmp_repo, make_record, make_test_context)
+    ctx = make_test_context(now=LATER, today=LATER.date())
+    receipt, _ = merge(tmp_repo, ctx, [candidate(make_record, "a", "b", joined=("b",))])
+    assert receipt.counts["merged"] == 1
+    plain = [
+        candidate(make_record, "a", canonical_name="A (Ashburn, VA)"),
+        candidate(make_record, "b", canonical_name="B (Ashburn, VA)"),
+    ]
+    if b_first:
+        plain.reverse()
+    receipt, review = merge(tmp_repo, ctx, plain)
+    assert (receipt.counts["updated"], receipt.counts["conflicts"], receipt.counts["held"]) == (
+        2,
+        0,
+        0,
+    )
+    assert review == []
+    after = store.load()
+    assert set(after) == {older.id, younger.id}
+    a, b = after[older.id], after[younger.id]
+    assert (a.canonical_name, a.external_ids["dummy_id"], a.merged_into) == (
+        "A (Ashburn, VA)",
+        ["a"],
+        None,
+    )
+    assert (b.canonical_name, b.external_ids["dummy_id"], b.merged_into) == (
+        "B (Ashburn, VA)",
+        ["b"],
+        None,
+    )
+    assert (b.corrections[-1].pointer, b.corrections[-1].old, b.corrections[-1].new) == (
+        "/merged_into",
+        older.id,
+        None,
+    )
+    assert b.corrections[-1].reason == (
+        f"unmerged from {older.id}: no reviewed join brings b into that record any more"
+    )
+    assert a.scope == b.scope == "in_scope"
+    for _ in range(2):
+        receipt, review = merge(tmp_repo, ctx, plain)
+        assert receipt.counts["unchanged"] == 2 and review == []
+
+
+def test_a_merge_into_a_record_without_the_values_stays(
+    tmp_repo: Path, make_record: MakeRecord, make_test_context: MakeContext
+) -> None:
+    """mechanism-1's guard: a merge a reviewer made into another source's record (which holds
+    none of this importer's values) is no join to withdraw: the candidate stays held."""
+    store = RecordStore(tmp_repo / "data" / "records")
+    epoch = make_record(external_ids={"epoch_name": ["X"]})
+    merged = make_record(external_ids={"dummy_id": ["b"]}, merged_into=epoch.id)
+    store.write(epoch)
+    store.write(merged)
+    ctx = make_test_context(now=LATER, today=LATER.date())
+    receipt, review = merge(tmp_repo, ctx, [candidate(make_record, "b")])
+    assert receipt.counts["held"] == 1 and [i.kind for i in review] == ["held_merged"]
+    assert store.load()[merged.id].merged_into == epoch.id
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"match": {"event": "denied"}, "set": {"as_of": "2026-08-13"}},
+        {"match": {"status": "denied", "as_of": "2026-08-14"}, "set": {"as_of": "2026-08-13"}},
+        {
+            "match": {"event": "first_reported"},
+            "set": {"event": "cancelled", "status": "cancelled"},
+        },
+    ],
+)
+def test_gate_6_holds_for_replace_event_at_load(change: dict[str, Any]) -> None:
+    """mechanism-2: a replace_event that gives a paused, denied or cancelled status citing the
+    Fix alone (a new stopped status, or a new date of a stopped event) needs a gate 6 source."""
+    op = {"op": "replace_event", **change}
+    for kind in ("community_report", "commercial_aggregator"):
+        with pytest.raises(ValidationError, match=re.escape("(07 §6.4 gate 6)")):
+            FIXES.validate_python([with_op(op, source_type=kind)])
+    FIXES.validate_python([with_op(op, source_type="news")])
+    # A retype or a note keeps the event's sources: no gate.
+    FIXES.validate_python(
+        [with_op({**op, "set": {"note": "per the minutes"}}, source_type="community_report")]
+    )
+
+
+def test_gate_6_holds_for_replace_event_when_applied(correct: Correct) -> None:
+    """mechanism-2: King of Prussia's denial as an observation (an `other` event): the match names
+    no stopped status, so only the event itself shows the redate gives a denial citing the Fix
+    alone, when the op is applied."""
+    d = doc(seed("aigridwatch_id:king-of-prussia-mlp-pa"))
+    d["status_history"][1]["event"] = "other"
+    record = FacilityRecord.model_validate(d)
+    redate = {
+        "op": "replace_event",
+        "match": {"event": "other", "as_of": "2026-08-14"},
+        "set": {"as_of": "2026-08-13"},
+    }
+    reddit = "https://www.reddit.com/r/kingofprussia/comments/x/"
+    with pytest.raises(FetchError, match=re.escape("not community_report (07 §6.4 gate 6)")):
+        correct(record, fix(reddit, "voted it down", redate, source_type="community_report"))
+    assert correct(record, fix(reddit, "voted it down", redate)).record.status == "denied"
+    noted = correct(
+        seed("aigridwatch_id:king-of-prussia-mlp-pa"),
+        fix(
+            reddit,
+            "voted it down",
+            {"op": "replace_event", "match": {"event": "denied"}, "set": {"note": "Per the vote"}},
+            source_type="community_report",
+        ),
+    ).record
+    assert events(noted)[1] == ("denied", "denied", "2026-08-14", None, ["s1", "s3"])
+
+
+def test_removing_the_deciding_event_rebuilds_the_status_meta(correct: Correct) -> None:
+    """mechanism-3: CyrusOne Cincinnati-Lebanon's operating phase decides its status. A
+    remove_event of that observation leaves the under-construction phase to decide it, and
+    field_meta /status follows: the importer's method and confidence, the new event's sources."""
+    before = seed("osm:way/95349317")
+    assert meta(before, "/status") == {
+        "confidence": 0.6,
+        "method": "imported",
+        "source_ids": ["s3", "s4"],
+        "conflicts": [],
+    }
+    remove = fix(
+        "https://example.org/cyrusone",
+        "the operating hall is not built yet",
+        {
+            "op": "remove_event",
+            "match": {"event": "other", "status": "operating", "phase": "osm-operating"},
+        },
+    )
+    rec = correct(before, remove).record
+    assert rec.status == "under_construction"
+    assert events(rec) == [
+        ("other", "under_construction", "2026-10-09", "osm-under_construction", ["s5", "s6"])
+    ]
+    assert meta(rec, "/status") == {
+        "confidence": 0.6,
+        "method": "imported",
+        "source_ids": ["s5", "s6"],
+        "conflicts": [],
+    }
+    # A reviewer's status (OSM's element `status`) for the event that no longer decides goes.
+    d = doc(before)
+    d["field_meta"]["/status"]["method"] = "human_entered"
+    assert "/status" not in correct(FacilityRecord.model_validate(d), remove).record.field_meta
+
+
+def test_a_status_correction_has_the_conflict_term(correct: Correct) -> None:
+    """mechanism-4, entries-2: 07 §3.4 as written on the record ops as on OSM's element status
+    (an owner question): a commercial aggregator's status over an event from an open dataset is
+    0.95 - 0.10 - 0.20 = 0.65, in field_meta /status and /status_history."""
+    baxtel = {"publisher": "Baxtel", "source_type": "commercial_aggregator"}
+    # Elk Grove Village: Baxtel over OpenStreetMap's operating observation.
+    rec = correct(
+        seed("osm:way/747985149"),
+        fix(
+            "https://baxtel.com/data-center/elk-grove",
+            "under construction",
+            {"op": "remove_event", "match": {"event": "other", "status": "operating"}},
+            {"op": "observe", "status": "under_construction", "as_of": "2026-09"},
+            **baxtel,
+        ),
+    ).record
+    assert rec.status == "under_construction"
+    assert meta(rec, "/status")["confidence"] == human_confidence(
+        "commercial_aggregator", ["open_dataset"]
+    )
+    assert (meta(rec, "/status")["confidence"], meta(rec, "/status_history")["confidence"]) == (
+        0.65,
+        0.65,
+    )
+    # CoreWeave Muskogee: SynMax's observation in place of Epoch AI's planned operation.
+    phase = "coreweave-muskogee-ok"
+    rec = correct(
+        seed("epoch_name:CoreWeave Muskogee OK"),
+        fix(
+            "https://www.synmax.com/vulcan/muskogee",
+            "operating",
+            {"op": "observe", "status": "operating", "phase": phase, "as_of": "2026-07-15"},
+            {"op": "remove_event", "match": {"event": "energized", "planned": True}},
+            publisher="SynMax",
+            source_type="commercial_aggregator",
+        ),
+    ).record
+    assert (rec.status, meta(rec, "/status")["confidence"]) == ("operating", 0.65)
+    assert meta(rec, "/status_history")["confidence"] == 0.65
+    # An observation that replaces no event has no conflict term (add ops).
+    rec = correct(
+        seed("osm:way/747985149"),
+        fix(
+            "https://baxtel.com/data-center/elk-grove",
+            "under construction",
+            {"op": "observe", "status": "under_construction", "as_of": "2026-10-10"},
+            **baxtel,
+        ),
+    ).record
+    assert meta(rec, "/status")["confidence"] == 0.85 and "/status_history" not in rec.field_meta
+
+
+def test_a_phase_capacity_keeps_the_replaced_sources(
+    correct: Correct, counties: CountyIndex
+) -> None:
+    """entries-1: a phase's source_ids support everything in it (07 §3.3 rule b). Dalton's 28 MW
+    and 40 MW are Epoch AI's, its phase's s1: the conflicts keep s1. Ellendale's 175 MW comes from
+    the cited capacity part s4, which the phase cites for its capacity alone: s4 no longer cites
+    the phase (it supports the capacity value beside the corrected one), and the part's
+    field_meta goes, its conflicts with the corrected value's."""
+    core = {"publisher": "Core Scientific", "source_type": "company_release"}
+    phase = "coreweave-dalton-1-2"
+    rec = correct(
+        seed("epoch_name:CoreWeave Dalton 1 & 2"),
+        fix(
+            "https://investors.corescientific.com/news-events/1q26-prepared-remarks",
+            "At Dalton Phase 1, we likewise achieved full site handover and delivered 30 megawatts",
+            {"op": "set", "phase": phase, "path": "/capacity/it_mw", "from": 28.0, "value": 30},
+            {
+                "op": "set",
+                "phase": phase,
+                "path": "/capacity/facility_mw",
+                "from": 40.0,
+                "value": None,
+            },
+            **core,
+        ),
+    ).record
+    replaced = "replaced by a cited correction"
+    assert meta(rec, "/phases/0/capacity/it_mw")["conflicts"] == [
+        {"value": 28.0, "source_ids": ["s1"], "note": replaced}
+    ]
+    assert meta(rec, "/phases/0/capacity/facility_mw")["conflicts"] == [
+        {"value": 40.0, "source_ids": ["s1"], "note": replaced}
+    ]
+    assert rec.phases[0].source_ids == ["s1"]  # Epoch AI's row: the phase itself
+
+    phase = "coreweave-ellendale-nd"
+    before = seed("epoch_name:CoreWeave Ellendale ND")
+    assert before.phases[0].source_ids == ["s1", "s4"]
+    modelled = meta(before, "/phases/0/capacity")["conflicts"]
+    assert [c["source_ids"] for c in modelled] == [["s1"]]
+    url = "https://ir.applieddigital.com/news-events/press-releases/detail/polaris-forge-1"
+    quote = "fully operational critical IT load at Polaris Forge 1 to 250 MW"
+    rate = {"op": "set", "phase": phase, "path": "/capacity/it_mw", "from": 175.0, "value": 250}
+    words = {
+        "op": "set",
+        "phase": phase,
+        "path": "/capacity/mw_as_stated",
+        "from": "175 MW now live",
+        "value": quote,
+    }
+    half = correct(before, fix(url, quote, rate, publisher="Applied Digital")).record
+    assert half.phases[0].source_ids == ["s1"]
+    assert source(half, "s4")["supports"] == ["/phases/0/capacity/mw_as_stated"]
+    assert "/phases/0/capacity" not in half.field_meta
+    assert meta(half, "/phases/0/capacity/it_mw")["conflicts"] == [
+        {"value": 175.0, "source_ids": ["s1", "s4"], "note": replaced},
+        *modelled,
+    ]
+    full = correct(before, fix(url, quote, rate, words, publisher="Applied Digital")).record
+    assert source(full, "s4")["supports"] == []
+    assert source(full, "s5")["supports"] == [
+        "/phases/0/capacity/it_mw",
+        "/phases/0/capacity/mw_as_stated",
+    ]
+    assert meta(full, "/phases/0/capacity/mw_as_stated")["conflicts"] == [
+        {"value": "175 MW now live", "source_ids": ["s1", "s4"], "note": replaced}
+    ]
+    assert valid(full, counties)
+
+
+def test_set_location_keeps_the_point_its_source_gives(
+    correct: Correct, counties: CountyIndex
+) -> None:
+    """entries-3: Kearney is outside the city: the record names Buffalo County, at AI
+    GridWatch's own point. The point and the method that placed it stay AI GridWatch's (s1 still
+    supports lat and lon); only the fields the op changes go to the Fix."""
+    before = seed("aigridwatch_id:kearney-data-center-ne")
+    assert (before.location.geocode_method, before.location.precision) == (
+        "source_coords",
+        "locality",
+    )
+    rec = correct(
+        before,
+        fix(
+            "https://www.ksnblocal4.com/2026/08/21/kearney-planning-commission/",
+            "Because Tech oNE Crossing is outside Kearney city limits",
+            {
+                "op": "set_location",
+                "from": {"city": "Kearney", "county_fips": None},
+                "state_abbr": "NE",
+                "county_fips": "31019",
+                "lat": 40.7,
+                "lon": -99.08,
+                "precision": "county",
+            },
+        ),
+    ).record
+    loc = rec.location
+    assert (loc.lat, loc.lon, loc.geocode_method, loc.precision, loc.city, loc.county_fips) == (
+        40.7,
+        -99.08,
+        "source_coords",
+        "county",
+        None,
+        "31019",
+    )
+    s1 = source(rec, "s1")["supports"]
+    assert {"/location/lat", "/location/lon", "/location/state_abbr"} <= set(s1)
+    assert not any(p in s1 for p in ("/location", "/location/city", "/location/county_fips"))
+    assert source(rec, "s3")["supports"] == ["/location/county_fips", "/location/county_name"]
+    assert meta(rec, "/location") == meta(before, "/location")  # AI GridWatch's, for the point
+    assert meta(rec, "/location/city") == {
+        "confidence": 0.95,
+        "method": "human_entered",
+        "source_ids": ["s3"],
+        "conflicts": [
+            {"value": "Kearney", "source_ids": ["s1"], "note": "replaced by a cited correction"}
+        ],
+    }
+    assert rec.corrections[-1].old == {
+        "city": "Kearney",
+        "county_fips": None,
+        "county_name": None,
+        "precision": "locality",
+    }
+    assert valid(rec, counties)
+
+
+def test_flag_files_an_item_and_changes_nothing(correct: Correct) -> None:
+    """entries-4: a flag files a review item with the Fix's reason, URL and quote and changes
+    nothing else (the record does not cite a page that only flags); counted in the receipt."""
+    key = "cloudburst-san-marcos-tx"
+    before = seed("aigridwatch_id:burkhalter-road-statesboro-ga")
+    url = "https://herald-zeitung.com/news/cloudburst"
+    quote = "a data center facility in northern Guadalupe County, bordering Hays County"
+    applied = correct(before, fix(url, quote, {"op": "flag"}), key=key)
+    assert record_json(applied.record) == record_json(before)
+    (item,) = applied.review
+    assert (item.source, item.kind, item.external_id, item.record_id) == (
+        "test",
+        "conflict",
+        key,
+        None,
+    )
+    assert item.reason == (
+        f"flagged by {FILE} entry '{key}' (reviewed 2026-10-10): {REASON} ({url}); the record is "
+        "published as it is, the question stays open for a reviewer"
+    )
+    assert item.data == {
+        "source_url": url,
+        "quote": quote,
+        "reviewed_at": "2026-10-10",
+        "basis": "upstream_error",
+        "file": FILE,
+    }
+    (parsed,) = FIXES.validate_python([fix(url, quote, {"op": "flag", "kind": "unknown_status"})])
+    assert correction_metrics({key: [parsed]}, corrected=0)["corrections_flagged"] == 1
+    # A flag about a record the importer did not build is stale, like any op but hold.
+    with pytest.raises(FetchError, match="no record was built"):
+        check_entries({key: [parsed]}, present={key}, built=set(), review=[], file=FILE)
