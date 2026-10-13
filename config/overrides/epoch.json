@@ -789,8 +789,34 @@
         "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
         "ops": [
           {
-            "event": {
+            "match": {
               "as_of": "2023-03-22",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2023-03",
+              "note": "First report, per Aiken Standard"
+            }
+          }
+        ],
+        "published_at": "2023-03-22T23:56:00Z",
+        "publisher": "Aiken Standard (on Yahoo News)",
+        "quote": "Earlier this month, the panel unanimously approved the third reading of an ordinance to convey a limited warranty deed to Starskey LLC for a county-owned portion of Honeyberry Drive in Sage Mill Industrial Park.",
+        "reason": "The first report's page of 2023-03-22 dates the council's third reading of the ordinance conveying Sage Mill land to Starskey LLC, acting for Project Sabal, earlier that month: the first report is March 2023, not the page's own date.",
+        "retrieved_at": "2026-10-13T15:51:17Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.yahoo.com/news/project-sabal-result-investment-least-235600718.html",
+        "title": "Project Sabal would result in an investment of at least $800 million in Aiken County"
+      },
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "event": {
+              "as_of": "2023-03",
               "event": "first_reported"
             },
             "op": "support"
@@ -804,7 +830,7 @@
         "published_at": "2024-08-29T11:00:00-04:00",
         "publisher": "Aiken Standard (Post and Courier)",
         "quote": "The ordinances originally referred to the data center owner as Project Sabal and later as Starskey LLC.",
-        "reason": "The first report (Project Sabal's ordinance, 2023-03-22) did not name Meta; the Aiken Standard's story of Meta's announcement (2024-08-29) says Project Sabal was this data center's owner in the ordinances, and the code name becomes an alias.",
+        "reason": "The first report (Aiken County's ordinances for Project Sabal and Starskey LLC, March 2023) did not name Meta; the Aiken Standard's story of Meta's announcement (2024-08-29) says the ordinances named this data center's owner Project Sabal and later Starskey LLC, and the code name becomes an alias.",
         "retrieved_at": "2026-10-13T03:38:27Z",
         "reviewed_at": "2026-10-13",
         "source_type": "news",

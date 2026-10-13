@@ -815,7 +815,7 @@ change the record built from it ([corrections.md](../corrections.md); below).
   and one to its township, below, and Meta Montgomery's source changed), 1 location conflict, 3
   timelines, 23 first reports, 1 facility status, 2 capacities and 2 milestones (the fifth fix
   round's entries, read on 2026-10-09 at 21:44–21:59 UTC, are in the second table below); since
-  the sixth fix round, 58 entries, 21 of them with cited corrections (30 Fixes, read on
+  the sixth fix round, 58 entries, 21 of them with cited corrections (31 Fixes, read on
   2026-10-13; [Sixth fix round](#sixth-fix-round-2026-10-13-epoch-ai)), 2 of those with only
   corrections (Microsoft-Nebius New Jersey, CoreWeave Dalton 1 & 2). The first 13 were read on
   2026-10-08 (Google Kansas City East, OpenAI Stargate Michigan and AWS New Albany re-read the same
@@ -1336,6 +1336,15 @@ point, a first report the cited page itself dates earlier, an earlier entry's da
 element's tags name the campus, not the county); `tests/sources/test_committed_corrections.py`
 checks every committed Fix ([corrections.md](../corrections.md), "Checks on the committed
 files").
+
+The re-check of the corrected records (reviewed 2026-10-13, PR #2) changes one entry. The page
+was read with the project's user agent on 2026-10-13 (15:51 UTC), and its quote was found
+verbatim in it:
+
+| Site | Correction | Source |
+|---|---|---|
+| Meta Aiken | first report 2023-03, a month (was 2023-03-22, the page's own date). The first report's own page dates the council's third reading of the ordinance conveying Sage Mill land to Starskey LLC (acting for Project Sabal) "earlier this month". A `replace_event` Fix (`basis` upstream_error) now comes before the Post and Courier Fix, whose `support` matches 2023-03; the part's report stays in `field_meta` conflicts | the Aiken Standard (on Yahoo News), 2023-03-22 |
+| OpenAI Stargate Milam | still not applied. The Real Deal's page of 2025-06-10 (SB Energy's $3 billion campus outside Rosebud) refuses the project's user agent. Its Wayback snapshot of 2026-03-20 could not be reached, so no quote was read | |
 
 ## Fifth fix round, 2026-10-09 (Epoch AI)
 
