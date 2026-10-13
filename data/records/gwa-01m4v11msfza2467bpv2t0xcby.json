@@ -1,0 +1,368 @@
+{
+  "aliases": [
+    {
+      "kind": "codename",
+      "name": "Stargate",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  ],
+  "buildings": [],
+  "canonical_name": "OpenAI Stargate Michigan (Washtenaw County, MI)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [
+    {
+      "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+      "new": {
+        "as_of": "2025-09-10",
+        "event": "first_reported",
+        "phase_id": null,
+        "planned": false,
+        "status": "proposed"
+      },
+      "old": {
+        "as_of": "2025-10",
+        "event": "first_reported",
+        "phase_id": null,
+        "planned": false,
+        "status": "proposed"
+      },
+      "on": "2026-10-13",
+      "pointer": "/status_history",
+      "reason": "Related Digital's rezoning request for this Saline Township site was public by the township board's vote of Wednesday 2025-09-10, before the October 2025 air permit application that dated the first report until now. A proposal, so proposed."
+    },
+    {
+      "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+      "new": {
+        "as_of": "2025-09-10",
+        "event": "first_reported",
+        "phase_id": null,
+        "planned": false,
+        "status": "proposed"
+      },
+      "old": {
+        "as_of": "2025-09-10",
+        "event": "first_reported",
+        "phase_id": null,
+        "planned": false,
+        "status": "proposed"
+      },
+      "on": "2026-10-13",
+      "pointer": "/status_history",
+      "reason": "Ties the first report to this site: Related's Saline Township data center is Project Mitten, the site of Epoch's Selected Source."
+    }
+  ],
+  "created_at": "2026-10-13T16:20:12Z",
+  "dates": {
+    "construction_start": {
+      "precision": "day",
+      "value": "2025-12-04"
+    },
+    "first_reported": {
+      "precision": "day",
+      "value": "2025-09-10"
+    }
+  },
+  "evidence_level": "reported",
+  "external_ids": {
+    "epoch_name": [
+      "OpenAI Stargate Michigan"
+    ]
+  },
+  "field_meta": {
+    "/location": {
+      "confidence": 0.95,
+      "conflicts": [],
+      "method": "stated",
+      "source_ids": [
+        "s2"
+      ]
+    },
+    "/status_history": {
+      "confidence": 0.75,
+      "conflicts": [
+        {
+          "note": "Related Digital's rezoning request for this Saline Township site was public by the township board's vote of Wednesday 2025-09-10, before the October 2025 air permit application that dated the first re",
+          "source_ids": [
+            "s4"
+          ],
+          "value": {
+            "as_of": "2025-10",
+            "event": "first_reported",
+            "phase_id": null,
+            "planned": false,
+            "status": "proposed"
+          }
+        }
+      ],
+      "method": "human_entered",
+      "source_ids": [
+        "s7"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4v11msfza2467bpv2t0xcby",
+  "incentives": [],
+  "last_verified_at": "2026-10-13T16:20:12Z",
+  "location": {
+    "city": null,
+    "county_fips": "26161",
+    "county_name": "Washtenaw",
+    "geocode_method": "county_centroid",
+    "geometry_ref": null,
+    "lat": 42.253833,
+    "lon": -83.837494,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "county",
+    "state_abbr": "MI",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": [
+      {
+        "name": "Oracle",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      },
+      {
+        "name": "OpenAI",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ]
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "project",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "Epoch AI",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/capacity",
+        "/cooling",
+        "/money",
+        "/status_history/1",
+        "/status_history/2"
+      ],
+      "text_sha256": null,
+      "title": "AI data centers",
+      "url": "https://epoch.ai/data/ai-data-centers"
+    },
+    {
+      "archive_url": "https://web.archive.org/web/20260910192140/https://www.michigan.gov/mpsc/commission/news-releases/2025/12/18/mpsc-approves-dte-electric-energy-contracts-for-data-center",
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "Michigan Public Service Commission",
+      "quote": "The Michigan Public Service Commission today conditionally approved an application from DTE Electric Co. for approval of special contracts to supply power for a Washtenaw County data center",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-08T20:16:25Z",
+      "source_type": "court_or_regulator",
+      "supports": [
+        "/location"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://www.michigan.gov/mpsc/commission/news-releases/2025/12/18/mpsc-approves-dte-electric-energy-contracts-for-data-center"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "related-digital.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Related Digital website for this site",
+      "url": "https://www.related-digital.com/michigan"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": null,
+      "published_at": null,
+      "publisher": "Ramboll for RD Michigan Property Owner I LLC (air permit application)",
+      "quote": "RD Michigan Property Owner I LLC. (Related) is proposing to construct and operate a data center on property located in Saline Township, Michigan, otherwise known as Project Mitten",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-13T03:45:03Z",
+      "source_type": "government_record",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Air Permitting, calls the site Project Mitten, includes site map",
+      "url": "https://drive.google.com/file/d/16ZucHKYmld7dLApSXNtbknOyagSn5E-r/view?usp=sharing"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": null,
+      "published_at": null,
+      "publisher": "mi-psc.my.site.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "DTE Electric’s contract approval",
+      "url": "https://mi-psc.my.site.com/sfc/servlet.shepherd/version/download/068cs00001MH71XAAT"
+    },
+    {
+      "archive_url": null,
+      "id": "s6",
+      "license": null,
+      "published_at": null,
+      "publisher": "thesalinebarn.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Website with more details for locals about the site",
+      "url": "https://www.thesalinebarn.com/"
+    },
+    {
+      "archive_url": null,
+      "id": "s7",
+      "license": null,
+      "published_at": "2025-09-11T22:17:44Z",
+      "publisher": "Planet Detroit",
+      "quote": "Saline Township officials voted down a rezoning proposal Wednesday that would make way for a data center",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-13T03:44:31Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://planetdetroit.org/2025/09/saline-denies-data-center/"
+    }
+  ],
+  "status": "under_construction",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2025-09-10"
+      },
+      "event": "first_reported",
+      "note": "First report, per Planet Detroit",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s4",
+        "s7"
+      ],
+      "status": "proposed"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2025-12-04"
+      },
+      "event": "construction_start",
+      "note": "Land clearing begins for the entire site",
+      "phase_id": null,
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "under_construction"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2028-12-31"
+      },
+      "event": "energized",
+      "note": "Buildings 1-3 operational. Based on when maximum power load will be provided by DTE energy (Dec 2027), which can be extended by a year. Source, page 3",
+      "phase_id": null,
+      "planned": true,
+      "seq": 3,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-13T16:20:12Z"
+}
