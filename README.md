@@ -45,7 +45,8 @@ Lint and types: `uv run ruff check .`, `uv run ruff format --check .` and `uv ru
 atlas/                 the pipeline (Python package)
   schema/              record and org models, status rollup, claim pointers, JSON Schema export
   sources/             importers (osm, epoch, aigridwatch) and the PNNL join; base.py is the
-                       framework every importer plugs into
+                       framework every importer plugs into, corrections.py the cited record
+                       corrections they share (docs/corrections.md)
   geo/                 state FIPS codes, DuckDB spatial, the Census county index
   commands/            one module per CLI command
   validate.py          the 07 §3.6 rules
@@ -54,9 +55,11 @@ atlas/                 the pipeline (Python package)
   geocode.py           Census Geocoder, Gazetteer and county fallbacks
   publish.py r2.py     the release builder and the R2 uploader
   net.py safezip.py    guarded HTTP and ZIP handling for untrusted upstream files
-config/overrides/      cited location and timeline overrides (epoch.json), reviewer releases
-                       of held AI GridWatch rows (aigridwatch.json) and reviewers' decisions
-                       on OSM elements (osm.json, docs/sources/osm-pnnl.md section 9)
+config/overrides/      the reviewers' cited decisions, one file per importer (osm.json,
+                       epoch.json, aigridwatch.json), keyed by the source's own key: what the
+                       source says before the build (OSM element decisions, Epoch AI locations
+                       and timelines, releases of held AI GridWatch rows) and corrections,
+                       cited ops on the record built from it (docs/corrections.md)
 data/records/          one canonical JSON file per record ({id}.json)
 data/orgs.json         organizations (gwo- ids)
 data/imports/          import receipts
@@ -68,13 +71,14 @@ reference/census/      Census boundary and Gazetteer files (see reference/README
                        polygons and county subdivisions are downloaded on first use instead)
 schema/                the generated JSON Schema
 r2/                    the R2 CORS rules (docs/r2-setup.md)
-docs/                  sources, crosswalk, publishing and R2 runbooks
+docs/                  sources, crosswalk, corrections, publishing and R2 runbooks
 tests/                 pytest suite and fixtures
 ```
 
 ## Documentation
 
 - [docs/status-crosswalk.md](docs/status-crosswalk.md): how upstream statuses map to the eight Atlas statuses
+- [docs/corrections.md](docs/corrections.md): the reviewers' cited corrections in `config/overrides/`, and how they are applied
 - [docs/sources/osm-pnnl.md](docs/sources/osm-pnnl.md): the OpenStreetMap and PNNL seed
 - [docs/sources/epoch-aigridwatch.md](docs/sources/epoch-aigridwatch.md): the Epoch AI and AI GridWatch importers
 - [docs/publishing.md](docs/publishing.md): release layout and the publish workflow

@@ -103,6 +103,7 @@ from atlas.schema.record import (
 )
 from atlas.schema.rollup import ACTIVE_ORDER, RollupError, apply_rollup, period_start
 from atlas.sources.base import Candidate, ImportResult, ReviewItem, classify_source, load_input
+from atlas.sources.corrections import fuzzy_date, place_location
 from atlas.text import clean_text as _clean_text
 from atlas.text import find_personal_data, strip_invisible
 
@@ -316,14 +317,6 @@ _GENERIC_HOSTS = frozenset(
 )
 PHASE_NAME = "{name} (buildings tracked by Epoch AI)"
 UNTRACKED_PHASE_NAME = "{name} (buildings Epoch AI does not track)"
-
-
-def fuzzy_date(value: str) -> FuzzyDate:
-    """A FuzzyDate from its value alone: YYYY-MM-DD, YYYY-MM, YYYY-Qn or YYYY."""
-    precision = (
-        "quarter" if "Q" in value else {10: "day", 7: "month", 4: "year"}.get(len(value), "day")
-    )
-    return FuzzyDate.model_validate({"value": value, "precision": precision})
 
 
 def epoch_error(message: str) -> FetchError:
@@ -1098,104 +1091,17 @@ def place_override(
     gazetteer: Gazetteer,
     postal_city: str | None = None,
 ) -> Placed:
-    """The location an override describes, checked like `atlas validate` rule 5 would; a point
-    never lies outside the county the entry names, at any precision (as in atlas.geocode).
-
-    A county entry names no city or municipality, since the county's point need not lie in it
-    (AWS Berwick's Luzerne County point is in Rice township, its campus in Salem Township). A
-    municipality (a township, a New England town) is placed at its county subdivision's Gazetteer
-    point in the entry's county, at `locality`. A city that is also postal_city, the city of
-    Epoch's address, counts only with place_check: the postal city is only near the site."""
-    from atlas.geocode import (
-        COUNTY_CHECKED_PRECISIONS,
-        POINT_IN_POLYGON_PRECISIONS,
-        normalize_place,
-    )
-
-    def bad(why: str) -> FetchError:
-        return epoch_error(f"config/overrides/epoch.json entry {name!r}: {why}")
-
-    county = counties.get(ov.county_fips) if ov.county_fips else None
-    if ov.county_fips and (county is None or county.state_abbr != ov.state_abbr):
-        raise bad(f"county_fips {ov.county_fips} is not a county of {ov.state_abbr}")
-    if ov.precision == "county" and (ov.city or ov.municipality):
-        raise bad(
-            "a county entry names no city or municipality: the county's point need not lie in "
-            "it (give precision locality to place the site at the municipality)"
-        )
-    if (
-        ov.precision == "locality"
-        and ov.city
-        and postal_city
-        and normalize_place(ov.city) == normalize_place(postal_city)
-        and ov.place_check is None
-    ):
-        raise bad(
-            f"{ov.city!r} is also the postal city of Epoch's address, which is only near the site "
-            "(07 §6.5): say in place_check how the site was found inside the city's Census place "
-            "polygon, or place it at the county a source states"
-        )
-    lat, lon = ov.lat, ov.lon
-    if (lat is None) != (lon is None):
-        raise bad("set both lat and lon, or neither")
-    method: str | None = "manual"
-    what = f"({lat}, {lon})"
-    if lat is None or lon is None:
-        if ov.precision == "county" and county is not None:
-            lat, lon = counties.centroid(county.fips)
-            method = "county_centroid"
-        elif ov.precision == "locality" and ov.city:
-            hit = gazetteer.place(ov.state_abbr, ov.city)
-            if hit is None:
-                raise bad(f"no Gazetteer place {ov.city!r} in {ov.state_abbr}")
-            lat, lon = hit[0], hit[1]
-            method = "gazetteer"
-            what = f"the Gazetteer place {ov.city!r}"
-        elif ov.precision == "locality" and ov.municipality:
-            if county is None:
-                raise bad(
-                    "a municipality needs county_fips: the same name is used in many counties"
-                )
-            sub = gazetteer.cousub_entry(ov.state_abbr, ov.municipality, county.fips)
-            if sub is None:
-                raise bad(
-                    f"no Gazetteer county subdivision {ov.municipality!r} in county {county.fips}"
-                )
-            lat, lon = sub.lat, sub.lon
-            method = "gazetteer"
-            what = f"the Gazetteer county subdivision {ov.municipality!r}"
-        elif ov.precision in ("state", "unknown"):
-            method = None
-        elif ov.precision == "county":
-            raise bad("precision county needs county_fips (or lat and lon)")
-        elif ov.precision == "locality":
-            raise bad("precision locality needs city or municipality (or lat and lon)")
-        else:
-            raise bad(f"precision {ov.precision} needs lat and lon")
-    elif ov.precision in POINT_IN_POLYGON_PRECISIONS and county is None:
-        county = counties.lookup(lat, lon)
-    if lat is not None and lon is not None:
-        if ov.precision in COUNTY_CHECKED_PRECISIONS:
-            if county is None or not counties.contains(county.fips, lat, lon):
-                raise bad(f"({lat}, {lon}) is not inside the county")
-        elif not counties.in_state(ov.state_abbr, lat, lon):
-            raise bad(f"({lat}, {lon}) is not inside {ov.state_abbr}")
-        elif county is not None and not counties.contains(county.fips, lat, lon):
-            # A record never names a county its point lies outside of (the geocode chain's rule).
-            raise bad(f"{what} is not inside county {county.fips}")
-    location = {
-        "lat": lat,
-        "lon": lon,
-        "precision": ov.precision,
-        "city": ov.city,
-        "municipality": ov.municipality,
-        "county_name": county.name if county else None,
-        "county_fips": county.fips if county else None,
-        "state_abbr": ov.state_abbr,
-        "geocode_method": method,
-    }
-    where = (
-        ov.city or ov.municipality or (gazetteer.county_full_name(county.fips) if county else None)
+    """The location an override describes, by atlas.sources.corrections.place_location (07 §6.5):
+    checked like `atlas validate` rule 5 would, a point never outside the county the entry names;
+    a county entry names no city or municipality; a municipality is placed at its county
+    subdivision's Gazetteer point; a city that is also postal_city, the city of Epoch's address,
+    counts only with place_check."""
+    location, where = place_location(
+        ov,
+        where=f"config/overrides/epoch.json entry {name!r}",
+        counties=counties,
+        gazetteer=gazetteer,
+        postal_city=postal_city,
     )
     return Placed(location, where, override_confidence(ov), "override", ov)
 

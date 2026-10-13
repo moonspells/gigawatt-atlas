@@ -119,6 +119,16 @@ def rollup_status(record: FacilityRecord) -> Status:
     return max(deciding.values(), key=event_key).status
 
 
+def deciding_event(record: FacilityRecord) -> StatusEvent:
+    """The event rollup_status takes the status from: the latest non-planned event, or, with
+    phases, the latest of the phases' deciding events that has the rolled-up status."""
+    deciding = _phase_deciding_events(record) if record.phases else {}
+    if not deciding:
+        return latest_event(record)
+    status = rollup_status(record)
+    return max((e for e in deciding.values() if e.status == status), key=event_key)
+
+
 def derive_dates(record: FacilityRecord) -> dict[str, FuzzyDate]:
     """The dates derived from non-planned events. Keys without a matching event are absent."""
     events = sorted(_actual(record), key=event_key)

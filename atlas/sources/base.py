@@ -25,7 +25,7 @@ from pydantic import AwareDatetime, Field, HttpUrl, JsonValue
 
 from atlas import __version__
 from atlas.jsonio import dumps_compact, dumps_pretty, record_json, write_text
-from atlas.schema.record import PLACEHOLDER_ID, AtlasModel, FacilityRecord, SourceType
+from atlas.schema.record import PLACEHOLDER_ID, AtlasModel, Correction, FacilityRecord, SourceType
 from atlas.validate import validate_record
 
 if TYPE_CHECKING:
@@ -62,6 +62,7 @@ COUNT_KEYS = (
     "held",
     "invalid",
     "conflicts",
+    "merged",
     "removed_upstream",
     "review",
 )
@@ -217,14 +218,26 @@ class ImportReceipt(AtlasModel):
 
 @dataclass(frozen=True)
 class Candidate:
-    """One record an importer proposes. match_values are its external_ids[match_key] values."""
+    """One record an importer proposes. match_values are its external_ids[match_key] values.
+
+    joined: the match values a reviewed join brought into this record (config/overrides, for
+    example OSM's `join`), so stored records that each hold some of them are merged into one
+    (merge_import) instead of being a conflict. split_from: the match value a reviewed split took
+    out of another record (OSM's `alone`), so the record that still lists it is not this one.
+    """
 
     match_values: tuple[str, ...]
     record: FacilityRecord
+    joined: tuple[str, ...] = ()
+    split_from: str | None = None
 
     def __post_init__(self) -> None:
         if not self.match_values:
             raise ValueError("a candidate needs at least one match value")
+        if not set(self.joined) <= set(self.match_values):
+            raise ValueError("a candidate's joined values must be among its match values")
+        if self.split_from is not None and self.split_from not in self.match_values:
+            raise ValueError("a candidate's split_from must be one of its match values")
 
 
 @dataclass
@@ -493,16 +506,28 @@ def merge_import(
 ) -> tuple[ImportReceipt, list[ReviewItem]]:
     """Merge an import into the store; return the receipt and every review item, sorted.
 
-    1. Stored records are indexed by external_ids[importer.match_key].
-    2. A candidate matching more than one record is a conflict; one record is an update; none is new.
+    1. Stored records are indexed by external_ids[importer.match_key]. A value that a merged
+       record and a record that is not merged both hold goes to the one that is not merged: the
+       survivor of a merge also holds the values of the records merged into it.
+    2. A candidate matching more than one record is a conflict, unless a reviewed join brought its
+       values together (Candidate.joined) and every record's values lie within the candidate's:
+       then the record created first (then the smallest id) survives and takes the candidate, and
+       each other one gets merged_into the survivor and a /merged_into correction (07 §6.6,
+       counted as merged). A record held below blocks the join (a conflict). A candidate of a
+       reviewed split (Candidate.split_from) takes the merged record that holds that value and
+       unmerges it; without one, it matches only records whose values all lie within its own, so
+       the record that still lists the value is left to drop it on its own update. One record is
+       an update; none is new.
     3. New records get ctx.new_id() and ctx.now timestamps. A match whose review.state is not
        "machine" is held (held_human_reviewed), and so is a merged one (held_merged). Otherwise the
-       candidate keeps the stored id, created_at, review, corrections, merged_into and every
-       external_ids key it does not own. If nothing but timestamps and sources[*].retrieved_at
-       changed, the record is unchanged and not rewritten; else updated_at and last_verified_at
-       become ctx.now.
+       candidate keeps the stored id, created_at, review, merged_into and every external_ids key
+       it does not own; its corrections are the stored ones followed by those of the candidate
+       the stored record does not have yet (append-only, so an override's history reaches the
+       stored record). If nothing but timestamps and sources[*].retrieved_at changed, the record
+       is unchanged and not rewritten; else updated_at and last_verified_at become ctx.now. A
+       candidate an override holds has scope out_of_scope, so its stored record is unpublished.
     4. Every record to be written must pass validate_record, or it becomes an "invalid" item.
-    5. Stored records with match_key values that no candidate matched get "removed_upstream".
+    5. Stored records with match_key values that no candidate holds get "removed_upstream".
        Records are never deleted (07 §2.1).
     6. Unless dry_run: changed records, review/queue/{s}.jsonl for every s in
        importer.review_sources (rewritten, sorted, empty when there is nothing) and
@@ -517,10 +542,17 @@ def merge_import(
             )
 
     stored = store.load()
-    index: dict[str, set[str]] = {}
+    holders: dict[str, set[str]] = {}
     for rid, record in stored.items():
         for value in record.external_ids.get(importer.match_key, []):
-            index.setdefault(value, set()).add(rid)
+            holders.setdefault(value, set()).add(rid)
+    index = {
+        value: {r for r in rids if stored[r].merged_into is None} or rids
+        for value, rids in holders.items()
+    }
+
+    def values_of(rid: str) -> set[str]:
+        return set(stored[rid].external_ids.get(importer.match_key, []))
 
     counts = dict.fromkeys(COUNT_KEYS, 0)
     counts["candidates"] = len(result.candidates)
@@ -550,10 +582,88 @@ def merge_import(
             )
         )
 
+    def merge_others(key: str, survivor: str, others: list[str]) -> None:
+        """Rewrite each record of others as merged into survivor (07 §6.6)."""
+        for rid in others:
+            other = stored[rid]
+            note = Correction(
+                on=ctx.today,
+                pointer="/merged_into",
+                old=None,
+                new=survivor,
+                reason=f"merged into {survivor}: a reviewed join brings its {importer.match_key} "
+                "values into that record (07 §6.6)",
+            )
+            merged = other.model_copy(
+                update={
+                    "merged_into": survivor,
+                    "corrections": [*other.corrections, note],
+                    "updated_at": ctx.now,
+                }
+            )
+            merged = FacilityRecord.model_validate(record_json(merged))
+            claimed[rid] = key
+            issues = validate_record(merged, counties=counties, today=ctx.today)
+            if issues:
+                counts["invalid"] += 1
+                flag(
+                    "invalid",
+                    f"{len(issues)} validation issue(s); not merged into {survivor}",
+                    external_id=key,
+                    record_id=rid,
+                    data={
+                        "issues": [
+                            {"rule": i.rule, "pointer": i.pointer, "message": i.message}
+                            for i in issues
+                        ]
+                    },
+                )
+                continue
+            counts["merged"] += 1
+            to_write.append(merged)
+
     for candidate in result.candidates:
         key = candidate.match_values[0]
+        mine = set(candidate.match_values)
+        seen_ids.update(*(holders.get(v, set()) for v in candidate.match_values))
         matched = sorted(set().union(*(index.get(v, set()) for v in candidate.match_values)))
-        seen_ids.update(matched)
+        unmerge = False
+        if candidate.split_from is not None:
+            split = candidate.split_from
+            merged_holders = sorted(r for r in holders.get(split, set()) if stored[r].merged_into)
+            if merged_holders:
+                matched, unmerge = merged_holders, True
+            else:
+                matched = [r for r in matched if values_of(r) <= mine]
+        others: list[str] = []
+        if (
+            len(matched) > 1
+            and candidate.joined
+            and not unmerge
+            and all(values_of(r) <= mine for r in matched)
+        ):
+            blocked = [
+                r
+                for r in matched
+                if stored[r].review.state != "machine" or stored[r].merged_into is not None
+            ]
+            if blocked:
+                counts["conflicts"] += 1
+                flag(
+                    "conflict",
+                    f"a reviewed join brings {len(matched)} records together, but "
+                    f"{', '.join(blocked)} is reviewed or merged: merge them in a reviewed PR",
+                    external_id=key,
+                    record_id=None,
+                    data={
+                        "record_ids": list(matched),
+                        "match_values": list(candidate.match_values),
+                    },
+                )
+                continue
+            survivor = min(matched, key=lambda r: (stored[r].created_at, r))
+            others = [r for r in matched if r != survivor]
+            matched = [survivor]
         if len(matched) > 1:
             counts["conflicts"] += 1
             flag(
@@ -565,7 +675,7 @@ def merge_import(
             )
             continue
         earlier = {claimed_values[v] for v in candidate.match_values if v in claimed_values}
-        if earlier or (matched and matched[0] in claimed):
+        if earlier or any(r in claimed for r in (*matched, *others)):
             counts["conflicts"] += 1
             flag(
                 "conflict",
@@ -599,7 +709,7 @@ def merge_import(
                 )
                 claimed[existing.id] = key
                 continue
-            if existing.merged_into is not None:
+            if existing.merged_into is not None and not unmerge:
                 counts["held"] += 1
                 flag(
                     "held_merged",
@@ -615,6 +725,21 @@ def merge_import(
                 if k not in importer.owned_external_keys
             }
             external_ids.update(incoming.external_ids)
+            corrections = list(existing.corrections)
+            for c in incoming.corrections:
+                if c not in corrections:
+                    corrections.append(c)
+            if unmerge:
+                corrections.append(
+                    Correction(
+                        on=ctx.today,
+                        pointer="/merged_into",
+                        old=existing.merged_into,
+                        new=None,
+                        reason=f"unmerged from {existing.merged_into}: a reviewed split takes "
+                        f"{candidate.split_from} out of that record",
+                    )
+                )
             final = incoming.model_copy(
                 update={
                     "id": existing.id,
@@ -622,8 +747,8 @@ def merge_import(
                     "updated_at": existing.updated_at,
                     "last_verified_at": existing.last_verified_at,
                     "review": existing.review,
-                    "corrections": existing.corrections,
-                    "merged_into": existing.merged_into,
+                    "corrections": corrections,
+                    "merged_into": None if unmerge else existing.merged_into,
                     "external_ids": external_ids,
                 }
             )
@@ -632,6 +757,7 @@ def merge_import(
                 claimed[existing.id] = key
                 for v in candidate.match_values:
                     claimed_values[v] = existing.id
+                merge_others(key, existing.id, others)
                 continue
             final = final.model_copy(update={"updated_at": ctx.now, "last_verified_at": ctx.now})
             outcome = "updated"
@@ -669,6 +795,7 @@ def merge_import(
         for v in candidate.match_values:
             claimed_values[v] = final.id
         to_write.append(final)
+        merge_others(key, final.id, others)
 
     for rid in sorted(stored):
         values = stored[rid].external_ids.get(importer.match_key, [])

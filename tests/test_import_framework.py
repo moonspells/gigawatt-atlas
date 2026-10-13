@@ -160,6 +160,8 @@ def test_apply_import_outcomes(
         "held": 2,
         "invalid": 1,
         "conflicts": 1,
+        # Fix round 6 (docs/corrections.md): a reviewed join's merged records are counted.
+        "merged": 0,
         "removed_upstream": 1,
         "review": 6,
     }

@@ -21,7 +21,8 @@ if TYPE_CHECKING:
     from atlas.sources.base import Importer
 
 MAX_REVIEW_PRINTED = 20
-_SKIP_MODULES = frozenset({"base"})
+# Modules of atlas.sources that hold shared code, not an importer.
+_SKIP_MODULES = frozenset({"base", "corrections"})
 
 
 def discover_importers() -> dict[str, Importer]:
