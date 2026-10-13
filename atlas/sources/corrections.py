@@ -630,9 +630,20 @@ def _has_claim(doc: Any, pointer: str) -> bool:
     return True
 
 
-def _narrow_entry(doc: Any, entry: str, pointer: str) -> list[str]:
-    """A supports entry that covers pointer, rewritten into its siblings at each level down to
-    pointer, keeping the ones that hold a value that needs support."""
+def _cites(node: Any, child: str, sid: str) -> bool:
+    """False for an item of a list whose items cite their own sources (events, aliases,
+    organizations) when the item does not cite sid: the source states nothing about it."""
+    if not isinstance(node, list):
+        return True
+    item = node[int(child)]
+    return not (isinstance(item, dict) and "source_ids" in item) or sid in item["source_ids"]
+
+
+def _narrow_entry(doc: Any, entry: str, pointer: str, sid: str) -> list[str]:
+    """A supports entry of source sid that covers pointer, rewritten into its siblings at each
+    level down to pointer, keeping the ones that hold a value that needs support and, in a list
+    whose items cite their own sources, only the items that cite sid (a source of one event that
+    supported /status_history keeps that event, not the importer's other events)."""
     out: list[str] = []
     here = entry
     for token in split(pointer)[len(split(entry)) :]:
@@ -644,7 +655,9 @@ def _narrow_entry(doc: Any, entry: str, pointer: str) -> list[str]:
         out += [
             child
             for c in children
-            if c != token and _has_claim(doc, child := f"{here}/{escape(c)}")
+            if c != token
+            and _cites(node, c, sid)
+            and _has_claim(doc, child := f"{here}/{escape(c)}")
         ]
         here = f"{here}/{escape(token)}"
     return out
@@ -663,7 +676,7 @@ def narrow_supports(doc: dict[str, Any], pointer: str, *, keep: str | None = Non
         for entry in source["supports"]:
             if entry and is_under(pointer, entry):
                 hit = True
-                new += _narrow_entry(doc, entry, pointer)
+                new += _narrow_entry(doc, entry, pointer, source["id"])
             elif entry and is_under(entry, pointer):
                 hit = True
             else:

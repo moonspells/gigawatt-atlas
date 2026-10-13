@@ -137,7 +137,10 @@ For each Fix, `apply_fixes` works on the record's JSON:
    rewritten into the values beside it, level by level (`narrow_supports`), and an entry inside the
    corrected value is dropped. AI GridWatch's `/status_history` becomes `/status_history/0`,
    `/status_history/1` when a third event is added; Epoch's `/parties` becomes `/parties/tenant/1`
-   when tenant 0 is renamed; OSM's s1 loses `/canonical_name` on a rename. So no importer source
+   when tenant 0 is renamed; OSM's s1 loses `/canonical_name` on a rename. In a list whose items
+   cite their own sources (events, aliases, organizations), only the items that cite the source are
+   kept: an Epoch first report's source, which supported `/status_history`, keeps no event once a
+   correction redates its report, and never claims Epoch's own rows. So no importer source
    claims a value it does not state. A removed list item shifts the later pointers down in
    `supports` and `field_meta` (`remap_list_pointers`).
 4. **`field_meta`.** `set`, `set_party`, `set_location` and `rename` write `field_meta[pointer]`:
