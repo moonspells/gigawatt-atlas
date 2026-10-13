@@ -1796,12 +1796,18 @@ def _location(
 def _starts_with_operator(base: str, operator: str, short: str | None) -> bool:
     """True when base already names the operator: it starts with the operator, its
     operator:short, or the operator's first word (normalized, on word boundaries), or with that
-    word misspelt by one letter ("CyrusOne Data Center Campus" for operator "CyrysOne")."""
+    word misspelt by one letter ("CyrusOne Data Center Campus" for operator "CyrysOne"), or with
+    the operator's words as a phrase, legal suffixes dropped, one character apart over the whole
+    phrase ("Date Center West - Eugene" for operator "Data Center West, Inc.": one_edit's length
+    limit is the phrase's, so a short first word misspelt counts once the words after it match)."""
     words = normalize_name(base).split()
     for candidate in (operator, short):
         tokens = normalize_name(candidate).split() if candidate else []
         if tokens and words[: len(tokens)] == tokens:
             return True
+    phrase = normalize_org(operator).split()
+    if len(words) >= len(phrase) > 1 and one_edit(" ".join(words[: len(phrase)]), " ".join(phrase)):
+        return True
     first = normalize_name(operator).split()[:1]
     return bool(first) and bool(words) and (words[:1] == first or one_edit(words[0], first[0]))
 
@@ -1956,6 +1962,52 @@ def _series_name(
     return None
 
 
+_NAMED_MEMBER_KINDS = ("building", "point")  # the members whose names name a campus together
+
+
+def _numbered_name(name: str, words: frozenset[str]) -> bool:
+    """True for a name that says which site it means only by its number: specific_name finds no
+    word of its own, it has a word of the operator, and it ends in a number or a code with one
+    ("Microsoft Data Center 1"). Such names name a campus only as a series."""
+    keys = normalize_name(name).split()
+    tokens = _name_tokens(name)
+    return (
+        specific_name(name, words) is None
+        and any(w in words for w in keys)
+        and bool(tokens)
+        and _SERIES_SUFFIX_RE.match(tokens[-1]) is not None
+    )
+
+
+def _members_name(
+    members: Sequence[OsmObject], words: frozenset[str], operators: frozenset[str]
+) -> tuple[str, list[OsmObject]] | None:
+    """(the name several named members give a campus, the members it comes from), or None: by
+    campus_name of the specific names (specific_name), or by _series_name when they are no
+    siblings as they stand; else by the series of the names that differ only by their number
+    (_numbered_name)."""
+    specific = [m for m in members if specific_name(m.name, words)]
+    by_key = {normalize_name(m.name or ""): m for m in specific}
+    if len(by_key) >= 2:
+        named = sorted(by_key.values(), key=lambda m: ref_key(m.ref))
+        found = campus_name([m.name or "" for m in named], words, operators)
+        if found is not None:
+            return found, [m for m in specific if normalize_name(m.name or "") in by_key]
+        retried = _series_name(named, words, operators)
+        if retried is not None:
+            found, giving = retried
+            keys = {normalize_name(m.name or "") for m in giving}
+            return found, [m for m in specific if normalize_name(m.name or "") in keys]
+    numbered = [m for m in members if _numbered_name(m.name or "", words)]
+    by_number = {normalize_name(m.name or ""): m for m in numbered}
+    if len(by_number) >= 2:
+        named = sorted(by_number.values(), key=lambda m: ref_key(m.ref))
+        found = campus_name([m.name or "" for m in named], words, operators, series_first=True)
+        if found is not None:
+            return found, [m for m in numbered if normalize_name(m.name or "") in by_number]
+    return None
+
+
 def _base_name(
     rep: OsmObject,
     ordered: Sequence[OsmObject],
@@ -1968,9 +2020,12 @@ def _base_name(
       site), one whose name is not a development's codename ("Project ..."), then one that is
       not planned, then the largest (Meta New Albany Data Center, not Meta LCO 3 Project; Google
       Lenoir Data Center, not Google Project Cardinal). A container's name comes last.
-    - Else, several named buildings name the campus by campus_name ("PowerHouse Pacific"), or
-      when their names are no siblings as they stand, by _series_name (without a leading
-      operator, or without a name that is only words of another's).
+    - Else, several named buildings name the campus (_members_name): by campus_name ("PowerHouse
+      Pacific"), or when their names are no siblings as they stand, by _series_name (without a
+      leading operator, or without a name that is only words of another's), or when their names
+      are only the operator, generic words and a number (_numbered_name), as a series ("Microsoft
+      Data Center 1 to 3", not its first building's name). When the buildings name none, the
+      named points take part like buildings (DartPoints' two nodes: "DartPoints Baton Rouge").
     - Else the representative's name (unless it is tagged with another primary use, the USPO
       Terminal Annex: then the most common name of a member without one, "CoreSite - LA2"), else
       the most common member name.
@@ -1989,18 +2044,14 @@ def _base_name(
             ),
         )
         return area.name, [area]
-    buildings = [m for m in own if m.kind == "building" and m.name and specific_name(m.name, words)]
-    by_key = {normalize_name(m.name or ""): m for m in buildings}
-    if len(by_key) >= 2:
-        named = sorted(by_key.values(), key=lambda m: ref_key(m.ref))
-        found = campus_name([m.name or "" for m in named], words, operators)
+    named = [m for m in own if m.kind in _NAMED_MEMBER_KINDS and m.name]
+    buildings = [m for m in named if m.kind == "building"]
+    # Buildings alone first: a point's name may break their series (the node "Equinix Ashburn
+    # DC18" among Equinix DC1 to DC22).
+    for members in (buildings, named) if len(named) > len(buildings) else (buildings,):
+        found = _members_name(members, words, operators)
         if found is not None:
-            return found, [m for m in buildings if normalize_name(m.name or "") in by_key]
-        retried = _series_name(named, words, operators)
-        if retried is not None:
-            found, giving = retried
-            keys = {normalize_name(m.name or "") for m in giving}
-            return found, [m for m in buildings if normalize_name(m.name or "") in keys]
+            return found
     base = (
         (rep.name if rep.other_use is None else None)
         or _most_common(m.name for m in own)

@@ -1,8 +1,8 @@
 # OpenStreetMap test fixtures
 
 `overpass-sample.json`, `overpass-cases.json`, `overpass-seed-check.json`, `overpass-fix4.json`,
-`overpass-fix5.json` and `overpass-fix6.json` are small extracts of OpenStreetMap data for the
-tests of `atlas/sources/osm.py` and `atlas/dissolve.py`.
+`overpass-fix5.json`, `overpass-fix6.json` and `overpass-fix7.json` are small extracts of
+OpenStreetMap data for the tests of `atlas/sources/osm.py` and `atlas/dissolve.py`.
 
 **© OpenStreetMap contributors. Available under the Open Database License 1.0
 (<https://www.openstreetmap.org/copyright>).** The elements and their tags are verbatim; only the
@@ -186,3 +186,19 @@ NVA04C's node, which is a record of its own here instead of a member of STACK's 
 | One campus tied two ways, another operator between | CloudHQ Ashburn Campus way 1343774537 with LC1 to LC3 (ways 794147654, 794147655, 1443187163); LC4 to LC14 (nodes 14201428241 to 14201428243, ways 1381994242, 1560822516 to 1560822519, 1560822523); STACK NVA04C node 14189562575 |
 | A code word beside a series | Aligned IAD-01 way 793622740, IAD-02 way 1088241977, "IAD" way 1088241982 |
 | Names that differ by a leading operator, and the campus nearby | Digital Realty Silicon Valley SJC37 way 1314012931 and Silicon Valley SJC31 way 209087373; Digital Realty Silicon Valley SJC10, SJC11, SJC15, SJC16, SJC29, SJC30 (ways 209073641, 209076412, 209073649, 209073653, 209073657, 209073647) |
+
+## `overpass-fix7.json`
+
+15 elements copied verbatim, one per line under the `version`, `generator` and `osm3s` header,
+from the same response as `overpass-fix6.json` (the Overpass response of 2026-10-09,
+`osm3s.timestamp_osm_base` 2026-10-09T09:47:46Z, which the seed imports read). Elements are sorted
+by type and id. Each group is a campus whose name a naming rule of fix round 7 changes
+(`tests/sources/test_osm_fix7.py`). Without PNNL and without overrides, and with the Census files,
+the importer gives these clusters the same members, base names and statuses as on the full input;
+the place in the name is the county where the test place index has no place:
+
+| Case | Elements |
+|---|---|
+| Buildings named only by the operator, generic words and a number | Microsoft Data Center 1 relation 19787207, 2 way 1447029365, 3 way 1561752474 |
+| Named points that name their campus like buildings | DartPoints Baton Rouge 1 and 2 (nodes 14124761022, 14124760832); Digital Fortress - Portland 2 and 3 (nodes 13746843367, 13746843368); Lumen McLean 1 way 239147373 and Lumen McLean node 9669639033; NTT VA10 way 1561771299 and VA11 node 13154826379; EdgeConnex - DEN02 way 918943458 and EdgeConneX - DEN01 node 14212611951 |
+| A name that starts with the operator misspelt by one letter | Date Center West - Eugene node 13748859030 and way 967131562 (Medford), operator Data Center West, Inc. |
