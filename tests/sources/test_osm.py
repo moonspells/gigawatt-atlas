@@ -989,7 +989,7 @@ def test_importer_is_discovered() -> None:
     assert importer.match_key == "osm"
     assert importer.owned_external_keys == ("osm", "pnnl_im3")
     assert importer.review_sources == ("osm", "pnnl")
-    assert importer.version == "4"  # 4: fix round 5 (campus joins, citations, IT above input)
+    assert importer.version == "5"  # 5: fix round 6 (scope words, houses, teleports, rule 9)
 
 
 def parse_args(*argv: str) -> argparse.Namespace:

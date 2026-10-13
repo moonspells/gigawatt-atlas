@@ -61,6 +61,13 @@ later), the sources it rejected for the location (`conflicts`, into field_meta a
 and the status a cited page states (`states_status`): a record whose status differs is held for
 review, so its own sources never contradict it unseen.
 
+An entry may carry cited `corrections` (atlas.sources.corrections, docs/corrections.md): record
+ops applied to the campus record right after it is built, before its review items, each Fix
+citing its own page; a cited first_report op then clears the first-report doubt as a
+`first_report` part does. Its `expect` guard names the site's CSV fields as the reviewer read
+them. An entry whose site the CSV no longer names, whose guard the row no longer meets, or whose
+corrections find no record or no longer match it stops the run.
+
 Importing this module does no I/O.
 """
 
@@ -85,6 +92,7 @@ from pydantic import (
     HttpUrl,
     TypeAdapter,
     ValidationError,
+    field_validator,
     model_validator,
 )
 
@@ -103,6 +111,20 @@ from atlas.schema.record import (
 )
 from atlas.schema.rollup import ACTIVE_ORDER, RollupError, apply_rollup, period_start
 from atlas.sources.base import Candidate, ImportResult, ReviewItem, classify_source, load_input
+from atlas.sources.corrections import (
+    SOURCE_ADJUSTMENT,
+    Fix,
+    SetLocation,
+    apply_fixes,
+    check_entries,
+    check_expect,
+    check_fix_dates,
+    correction_metrics,
+    fuzzy_date,
+    has_first_report,
+    mark_corrected,
+    place_location,
+)
 from atlas.text import clean_text as _clean_text
 from atlas.text import find_personal_data, strip_invisible
 
@@ -128,15 +150,8 @@ MAX_LINK_SOURCES = 5
 NOTE_MAX = 200
 CONFIDENCE = 0.70
 # A location an override cites with a verbatim quote: 07 §3.4 "stated, exact quote" (0.85) plus the
-# source adjustment for the cited source's type.
+# source adjustment for the cited source's type (the shared table, corrections.SOURCE_ADJUSTMENT).
 OVERRIDE_CONFIDENCE = 0.85
-SOURCE_ADJUSTMENT: dict[str, float] = {
-    "government_record": 0.10,
-    "court_or_regulator": 0.10,
-    "utility_or_iso_filing": 0.07,
-    "sec_filing": 0.07,
-    "company_release": 0.05,
-}
 
 SITE_COLUMNS = (
     "Name",
@@ -288,7 +303,9 @@ _MW_HEDGE_RE = re.compile(
     r"|\bcould\b|\bshould\b|\bplann\w*",
     re.I,
 )
-_MONTH_VALUE = r"^[0-9]{4}-(0[1-9]|1[0-2])$"
+# A first report's date when the page gives no day: a year, a quarter or a month ("last year":
+# 2022; "made public in February": 2021-02).
+_PERIOD_VALUE = r"^[0-9]{4}(?:-(?:0[1-9]|1[0-2]|Q[1-4]))?$"
 # A date in a Selected Source's link text or URL: a reviewer checks whether it reports the site
 # earlier than Epoch's first row ("(Jan 23, 2024)", ".../2024/03/hello-rosemount/").
 _TITLE_DATE_RE = re.compile(_DATE, re.I)
@@ -316,14 +333,6 @@ _GENERIC_HOSTS = frozenset(
 )
 PHASE_NAME = "{name} (buildings tracked by Epoch AI)"
 UNTRACKED_PHASE_NAME = "{name} (buildings Epoch AI does not track)"
-
-
-def fuzzy_date(value: str) -> FuzzyDate:
-    """A FuzzyDate from its value alone: YYYY-MM-DD, YYYY-MM, YYYY-Qn or YYYY."""
-    precision = (
-        "quarter" if "Q" in value else {10: "day", 7: "month", 4: "year"}.get(len(value), "day")
-    )
-    return FuzzyDate.model_validate({"value": value, "precision": precision})
 
 
 def epoch_error(message: str) -> FetchError:
@@ -398,20 +407,32 @@ class FirstReport(Citation):
     starts with what its imagery shows, not with the first public report): published_at is the
     report's date as the page states it (the page's own date or time, the date it gives for an
     earlier public announcement, "On February 16, 2022 ... publicly announced", or a month,
-    "2025-12", when the page gives only that), status what it reports (announced, proposed or
-    permitted). It dates first_reported when it is earlier than every event of a timeline that
-    dates the facility; an entry that is not earlier records that a reviewer checked the site's
-    sources, and Epoch's first row stays first_reported. source_url may be the entry's location
-    source, a Selected Source or another page."""
+    "2025-12", a quarter, "2025-Q4", or a year, "2022" for "last year" on a 2023 page, when the
+    page gives only that), status what it reports (announced, proposed or permitted). It dates
+    first_reported when it is earlier than every event of a timeline that dates the facility; an
+    entry that is not earlier records that a reviewer checked the site's sources, and Epoch's
+    first row stays first_reported. source_url may be the entry's location source, a Selected
+    Source or another page."""
 
-    published_at: AwareDatetime | date | Annotated[str, Field(pattern=_MONTH_VALUE)]
+    published_at: AwareDatetime | date | Annotated[str, Field(pattern=_PERIOD_VALUE)]
     status: Literal["announced", "proposed", "permitted"]
+
+    @field_validator("published_at", mode="before")
+    @classmethod
+    def _not_a_number(cls, value: Any) -> Any:
+        """A number, or a string of digits other than a year, would read as a Unix time (2024 is
+        1970-01-01T00:33:44Z); a year stays the period string."""
+        if isinstance(value, bool | int | float) or (
+            isinstance(value, str) and value.isdigit() and len(value) != 4
+        ):
+            raise ValueError("published_at is a date, a time or a period, not a number")
+        return value
 
     @property
     def as_of(self) -> dict[str, str]:
         p = self.published_at
         if isinstance(p, str):
-            return {"value": p, "precision": "month"}
+            return fuzzy_date(p).model_dump()
         return {
             "value": (p.date() if isinstance(p, datetime) else p).isoformat(),
             "precision": "day",
@@ -419,7 +440,7 @@ class FirstReport(Citation):
 
     @property
     def day(self) -> date:
-        """The first day of the report's date (its month for a month)."""
+        """The first day of the report's date (of its month, quarter or year for a period)."""
         return period_start(FuzzyDate.model_validate(self.as_of))
 
 
@@ -466,7 +487,12 @@ _LOCATION_KEYS = frozenset(LocationOverride.model_fields)
 class SiteOverride(AtlasModel):
     """One entry of config/overrides/epoch.json, keyed by Epoch's site name: a location (its
     fields at the top level of the entry), and any of timeline, first_report, facility_status,
-    capacity and milestones (each with its own citation)."""
+    capacity and milestones (each with its own citation), which change what Epoch says before the
+    record is built; and corrections, the cited record ops applied to the record built from the
+    site (atlas.sources.corrections; each Fix cites its own page). expect ({column: value, or
+    null for an empty cell}) is a guard: the site's data_centers.csv row must have these values,
+    or the run stops. An entry has a part or corrections; a first_report part and a first_report
+    op exclude each other."""
 
     location: LocationOverride | None = None
     timeline: TimelineOverride | None = None
@@ -474,6 +500,8 @@ class SiteOverride(AtlasModel):
     facility_status: FacilityStatus | None = None
     capacity: CapacityOverride | None = None
     milestones: list[Milestone] = Field(default_factory=list)
+    expect: dict[Annotated[str, Field(min_length=1)], str | None] = Field(default_factory=dict)
+    corrections: list[Fix] = Field(default_factory=list)
 
     @model_validator(mode="before")
     @classmethod
@@ -488,10 +516,15 @@ class SiteOverride(AtlasModel):
     @model_validator(mode="after")
     def _not_empty(self) -> Self:
         parts = (self.location, self.timeline, self.first_report, self.facility_status)
-        if not (any(parts) or self.capacity or self.milestones):
+        if not (any(parts) or self.capacity or self.milestones or self.corrections):
             raise ValueError(
-                "an entry needs a location, timeline, first_report, facility_status, capacity "
-                "or milestones"
+                "an entry needs a location, timeline, first_report, facility_status, capacity, "
+                "milestones or corrections"
+            )
+        if self.first_report is not None and has_first_report(self.corrections):
+            raise ValueError(
+                "an entry has a first_report part or a first_report op in its corrections, not "
+                "both: one cited first report per site"
             )
         return self
 
@@ -1098,104 +1131,17 @@ def place_override(
     gazetteer: Gazetteer,
     postal_city: str | None = None,
 ) -> Placed:
-    """The location an override describes, checked like `atlas validate` rule 5 would; a point
-    never lies outside the county the entry names, at any precision (as in atlas.geocode).
-
-    A county entry names no city or municipality, since the county's point need not lie in it
-    (AWS Berwick's Luzerne County point is in Rice township, its campus in Salem Township). A
-    municipality (a township, a New England town) is placed at its county subdivision's Gazetteer
-    point in the entry's county, at `locality`. A city that is also postal_city, the city of
-    Epoch's address, counts only with place_check: the postal city is only near the site."""
-    from atlas.geocode import (
-        COUNTY_CHECKED_PRECISIONS,
-        POINT_IN_POLYGON_PRECISIONS,
-        normalize_place,
-    )
-
-    def bad(why: str) -> FetchError:
-        return epoch_error(f"config/overrides/epoch.json entry {name!r}: {why}")
-
-    county = counties.get(ov.county_fips) if ov.county_fips else None
-    if ov.county_fips and (county is None or county.state_abbr != ov.state_abbr):
-        raise bad(f"county_fips {ov.county_fips} is not a county of {ov.state_abbr}")
-    if ov.precision == "county" and (ov.city or ov.municipality):
-        raise bad(
-            "a county entry names no city or municipality: the county's point need not lie in "
-            "it (give precision locality to place the site at the municipality)"
-        )
-    if (
-        ov.precision == "locality"
-        and ov.city
-        and postal_city
-        and normalize_place(ov.city) == normalize_place(postal_city)
-        and ov.place_check is None
-    ):
-        raise bad(
-            f"{ov.city!r} is also the postal city of Epoch's address, which is only near the site "
-            "(07 §6.5): say in place_check how the site was found inside the city's Census place "
-            "polygon, or place it at the county a source states"
-        )
-    lat, lon = ov.lat, ov.lon
-    if (lat is None) != (lon is None):
-        raise bad("set both lat and lon, or neither")
-    method: str | None = "manual"
-    what = f"({lat}, {lon})"
-    if lat is None or lon is None:
-        if ov.precision == "county" and county is not None:
-            lat, lon = counties.centroid(county.fips)
-            method = "county_centroid"
-        elif ov.precision == "locality" and ov.city:
-            hit = gazetteer.place(ov.state_abbr, ov.city)
-            if hit is None:
-                raise bad(f"no Gazetteer place {ov.city!r} in {ov.state_abbr}")
-            lat, lon = hit[0], hit[1]
-            method = "gazetteer"
-            what = f"the Gazetteer place {ov.city!r}"
-        elif ov.precision == "locality" and ov.municipality:
-            if county is None:
-                raise bad(
-                    "a municipality needs county_fips: the same name is used in many counties"
-                )
-            sub = gazetteer.cousub_entry(ov.state_abbr, ov.municipality, county.fips)
-            if sub is None:
-                raise bad(
-                    f"no Gazetteer county subdivision {ov.municipality!r} in county {county.fips}"
-                )
-            lat, lon = sub.lat, sub.lon
-            method = "gazetteer"
-            what = f"the Gazetteer county subdivision {ov.municipality!r}"
-        elif ov.precision in ("state", "unknown"):
-            method = None
-        elif ov.precision == "county":
-            raise bad("precision county needs county_fips (or lat and lon)")
-        elif ov.precision == "locality":
-            raise bad("precision locality needs city or municipality (or lat and lon)")
-        else:
-            raise bad(f"precision {ov.precision} needs lat and lon")
-    elif ov.precision in POINT_IN_POLYGON_PRECISIONS and county is None:
-        county = counties.lookup(lat, lon)
-    if lat is not None and lon is not None:
-        if ov.precision in COUNTY_CHECKED_PRECISIONS:
-            if county is None or not counties.contains(county.fips, lat, lon):
-                raise bad(f"({lat}, {lon}) is not inside the county")
-        elif not counties.in_state(ov.state_abbr, lat, lon):
-            raise bad(f"({lat}, {lon}) is not inside {ov.state_abbr}")
-        elif county is not None and not counties.contains(county.fips, lat, lon):
-            # A record never names a county its point lies outside of (the geocode chain's rule).
-            raise bad(f"{what} is not inside county {county.fips}")
-    location = {
-        "lat": lat,
-        "lon": lon,
-        "precision": ov.precision,
-        "city": ov.city,
-        "municipality": ov.municipality,
-        "county_name": county.name if county else None,
-        "county_fips": county.fips if county else None,
-        "state_abbr": ov.state_abbr,
-        "geocode_method": method,
-    }
-    where = (
-        ov.city or ov.municipality or (gazetteer.county_full_name(county.fips) if county else None)
+    """The location an override describes, by atlas.sources.corrections.place_location (07 §6.5):
+    checked like `atlas validate` rule 5 would, a point never outside the county the entry names;
+    a county entry names no city or municipality; a municipality is placed at its county
+    subdivision's Gazetteer point; a city that is also postal_city, the city of Epoch's address,
+    counts only with place_check."""
+    location, where = place_location(
+        ov,
+        where=f"config/overrides/epoch.json entry {name!r}",
+        counties=counties,
+        gazetteer=gazetteer,
+        postal_city=postal_city,
     )
     return Placed(location, where, override_confidence(ov), "override", ov)
 
@@ -1471,7 +1417,8 @@ def first_report_review(
     """The review item a first_reported date calls for: it is Epoch AI's first observation, the
     site has no cited `first_report` entry (whose author checked its sources), and a Selected
     Source may date an earlier report: a TDLR TABS registration (its Registration Date), or a
-    date in a link's text or URL earlier than the observation."""
+    date in a link's text or URL earlier than the observation. A cited first_report correction
+    clears it too: its event is then the earliest, and no first observation dates the record."""
     if override is not None and override.first_report is not None:
         return None
     first = record.dates.get("first_reported")
@@ -1960,6 +1907,14 @@ def coverage_review(
     return None
 
 
+def epoch_record_type(record: FacilityRecord) -> Literal["campus", "project"]:
+    """A record's type as campus_record gives it, read from its events: a campus once a building
+    operates (a non-planned operating event), else a project. apply_fixes recomputes it after the
+    corrections, so a record whose operating event a correction removes is a project again."""
+    operating = any(not e.planned and e.status == "operating" for e in record.status_history)
+    return "campus" if operating else "project"
+
+
 def first_reported_event(record: FacilityRecord) -> StatusEvent | None:
     """The event that dates first_reported: the earliest non-planned event that is not `other`."""
     dated = [e for e in record.status_history if not e.planned and e.event != "other"]
@@ -1995,10 +1950,12 @@ def record_reviews(
     earlier report; a note that dates the start of operation in words the importer cannot read;
     Epoch's modelled capacity against the MW its note states (held back), or a cited capacity
     older than Epoch's latest figures; the location's rejected conflicting sources; a cited
-    source that states another status than the record's; and a cited milestone not applied."""
+    source (of an entry part or a correction) that states another status than the record's; and
+    a cited milestone not applied."""
     out: list[tuple[str, str, dict[str, Any]]] = []
     primary = members[0][0]
     override = overrides.get(primary.name)
+    entries = [o for s, _ in members if (o := overrides.get(s.name)) is not None]
     doubt = first_report_review(record, members, override)
     if doubt is not None:
         out.append(("unknown_status", *doubt))
@@ -2085,9 +2042,9 @@ def record_reviews(
                 },
             )
         )
-    for site, _rows in members:
-        entry = overrides.get(site.name)
-        for cit in entry.citations() if entry is not None else []:
+    for ov in entries:
+        pages: list[Citation | Fix] = [*ov.citations(), *ov.corrections]
+        for cit in pages:
             if cit.states_status is not None and cit.states_status != record.status:
                 out.append(
                     (
@@ -2130,7 +2087,7 @@ class EpochImporter:
     match_key = "epoch_name"
     owned_external_keys = ("epoch_name",)
     review_sources = ("epoch",)
-    version = "5"
+    version = "6"
     help = "Epoch AI Frontier Data Centers (CC BY 4.0): US sites with dated timelines"
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
@@ -2149,7 +2106,11 @@ class EpochImporter:
     def run(self, ctx: ImportContext, args: argparse.Namespace) -> ImportResult:
         from atlas.geocode import CensusGeocoder, Gazetteer, GeocoderError, parse_address
 
-        overrides = load_overrides(getattr(args, "overrides", OVERRIDES_PATH))
+        overrides_path: Path = getattr(args, "overrides", OVERRIDES_PATH)
+        overrides = load_overrides(overrides_path)
+        file = str(overrides_path)
+        for name, entry in overrides.items():
+            check_fix_dates(name, entry.corrections, file=file, today=ctx.today, now=ctx.now)
 
         def fetch_zip() -> FetchResult:
             from atlas.net import fetch
@@ -2168,6 +2129,15 @@ class EpochImporter:
         zip_path = ctx.input_path or ctx.raw_path(self.name, snapshot.sha256, "zip")
         _, site_rows, raw_timeline = read_zip(zip_path)
         timelines = timeline_rows(raw_timeline)
+        # An entry is per site name, in every country (check_entries, after the build, stops the
+        # run for one the CSV no longer names); one whose expect guard its row no longer meets
+        # stops it before anything is geocoded.
+        names = {clean_text(r["Name"]) for r in site_rows}
+        for row in site_rows:
+            name = clean_text(row["Name"])
+            if (guarded := overrides.get(name)) is not None and guarded.expect:
+                cells = {col: clean_text(value) or None for col, value in row.items()}
+                check_expect(name, guarded.expect, cells, file=file, what="site's CSV row")
 
         census = (
             None if getattr(args, "no_geocode", False) else CensusGeocoder(ctx.http, ctx.cache_dir)
@@ -2177,13 +2147,23 @@ class EpochImporter:
         # places and a postal city's point; Epoch states no town or township, so it needs the
         # county subdivisions (downloaded on first use) only for an override that names one.
         places = ctx.places() if census is not None else None
-        townships = any(o.location and o.location.municipality for o in overrides.values())
+        townships = any(
+            (o.location and o.location.municipality)
+            or any(
+                isinstance(op, SetLocation) and op.municipality
+                for fix in o.corrections
+                for op in fix.ops
+            )
+            for o in overrides.values()
+        )
         gazetteer = ctx.gazetteer() if townships else Gazetteer.load()
         counties = ctx.counties()
         retrieved_at = snapshot.retrieved_at.isoformat()
 
         candidates: list[Candidate] = []
         review: list[ReviewItem] = []
+        filed: list[ReviewItem] = []  # the items the corrections' hold and out_of_scope ops file
+        fixes_of: dict[str, list[Fix]] = {}
         methods: Counter[str] = Counter()
         us_sites = 0
 
@@ -2307,6 +2287,31 @@ class EpochImporter:
             except (ValidationError, RollupError) as e:
                 flag("invalid", primary, "the row does not map to a valid record", error=str(e))
                 continue
+            # The member sites' corrections, in CSV order, on the record as built.
+            found = [
+                (s.name, o.corrections)
+                for s, _ in members
+                if (o := overrides.get(s.name)) is not None and o.corrections
+            ]
+            if found:
+                parsed = parse_address(site.address) if site.address else None
+                applied = apply_fixes(
+                    record,
+                    found,
+                    file=file,
+                    source=self.name,
+                    today=ctx.today,
+                    counties=counties,
+                    gazetteer=gazetteer,
+                    external_id=primary,
+                    record_type=epoch_record_type,
+                    postal_city=parsed.city if parsed is not None else None,
+                )
+                record = applied.record
+                filed.extend(applied.review)
+                applied_fixes = [fix for _, fs in found for fix in fs]
+                fixes_of.update(dict.fromkeys((s.name for s, _ in members), applied_fixes))
+                coverages["corrected"] += 1
             cited_status = (
                 coverage.observed and override is not None and override.facility_status is not None
             )
@@ -2366,9 +2371,20 @@ class EpochImporter:
             "missing_location": sum(1 for i in review if i.kind == "missing_location"),
             "geocode_failed": sum(1 for i in review if i.kind == "geocode_failed"),
         }
-        names = {clean_text(r["Name"]) for r in site_rows}  # every country: an entry is per name
+        # The items about a corrected record say so; an entry with record ops whose record was not
+        # built (its site held, or out of the US) stops the run.
+        review = mark_corrected(review, fixes_of, file=file) + filed
+        entries = {name: entry.corrections for name, entry in overrides.items()}
+        check_entries(
+            entries,
+            present=names,
+            built={v for c in candidates for v in c.match_values},
+            review=review,
+            file=file,
+        )
         metrics["overrides_used"] = sum(1 for n in overrides if n in names)
         metrics["overrides_unused"] = sum(1 for n in overrides if n not in names)
+        metrics.update(correction_metrics(entries, corrected=coverages["corrected"]))
         for method, n in sorted(methods.items()):
             metrics[f"location_{method}"] = n
         if census is not None:

@@ -1,6 +1,7 @@
 # AI GridWatch fixtures
 
-Four small subsets of the AI GridWatch data center project tracker, and four Census samples:
+Six small subsets of the AI GridWatch data center project tracker, an empty overrides file, and
+four Census samples:
 
 - `projects.json`, used by `tests/sources/test_aigridwatch.py`: one row per stage;
 - `seed-2026-10-08.json`, used by `tests/sources/test_aigridwatch_seed.py`: rows of the
@@ -9,6 +10,13 @@ Four small subsets of the AI GridWatch data center project tracker, and four Cen
   seed import (2026-10-09) that its record checks found mapped wrongly;
 - `check3-2026-10-08.json`, used by `tests/sources/test_aigridwatch_check3.py`: rows of the fourth
   seed import (2026-10-09) that its record checks found mapped wrongly;
+- `fix6-2026-10-08.json`, used by `tests/sources/test_aigridwatch_fix6.py`: rows of the fifth seed
+  import that the importer rules of fix round 6 change, and rows they must leave as they are;
+- `fix7-2026-10-08.json`, used by `tests/sources/test_aigridwatch_fix7.py`: the row of the round 6
+  seed that the importer rules of fix round 7 change;
+- `overrides-none.json`, an empty overrides file: the fixture runs read none of the committed
+  entries of `config/overrides/aigridwatch.json` (fix round 6's cited corrections, read after
+  these fixtures and their run dates; a release there goes with its corrections);
 - `places/agw_places.zip` and `gazetteer/agw_cousubs.zip`: the Census place polygons and county
   subdivisions those rows' points and localities need (below), and `places/agw_places_check3.zip`
   and `gazetteer/agw_cousubs_check3.zip` for `check3-2026-10-08.json`.
@@ -103,6 +111,38 @@ License: Creative Commons Attribution 4.0 International (CC BY 4.0),
   hearing, three of Andover's entries, Smithfield's 2026-08-12 coverage, three of Matrix's,
   Tonganoxie's and BCG's protests, Red Oak's 2026-06-23 withdrawal, Riverjump's 2026-09-02 column
   and Berry Hill's 2026-07-21 vote.
+
+## fix6-2026-10-08.json: what was taken and what was changed
+
+- Source: the same file as `check3-2026-10-08.json` (generated 2026-10-08, sha256
+  `16330d941c519db1db0747666e3ce319344571b2be0079535f0e5284a4ccab47`), as the fifth seed import
+  read it. The top-level metadata is copied unchanged; `count` and `verified_count` are the
+  subset's (12 and 12).
+- 12 projects, field for field except as listed: Sarasota County (Cattleman Road), Tulare County,
+  Inver Grove Heights, QTS Dane County, Kearney, T5@ATL IV (Palmetto), Microsoft Cheyenne
+  Expansion, Flexential Kaufman County, Amazon Bridgefield Tech Center, CloudBurst San Marcos,
+  Applied Digital Harwood and DataBank Project Indo (Cartersville).
+- Every `events` list is kept whole but for two entries that name people and that no test reads:
+  CloudBurst's coverage of 2026-03-23 and DataBank's of 2026-07-07. With the Census files and
+  `--without-epoch`, the importer gives the same records and review items for these rows as for
+  the full rows (checked on the seed's inputs), but for Bridgefield's property-deal item, which
+  quotes its edited entry.
+- Personal names are taken out, so the fixture names no individual: Palmetto's mayor in T5's
+  2026-03-01 entry; Loudoun's economic development director and the Algonkian district supervisor
+  in Bridgefield's entries of 2026-03-17, 2026-07-31 and 2026-08-04; the Hays County judge in
+  CloudBurst's 2025-04-01 entry; Wyoming's governor in Cheyenne's 2010-03-05 entry; and
+  Cartersville's city planner in DataBank's 2026-06-25 entry (each replaced by the role).
+
+## fix7-2026-10-08.json: what was taken and what was changed
+
+- Source: the same file as `fix6-2026-10-08.json` (generated 2026-10-08), as the round 6 seed
+  import read it. The top-level metadata is copied unchanged; `count` and `verified_count` are the
+  subset's (1 and 1).
+- 1 project, field for field except as listed: Google West Memphis (`google-west-memphis-ar`), with
+  every `events` entry. It has no coordinates; with `--without-epoch` it is held for review, as on
+  the seed's inputs.
+- Personal names are taken out: Arkansas's governor in the 2025-10-02 announcement entry (replaced
+  by the role).
 
 ## places/agw_places.zip
 

@@ -36,6 +36,10 @@ from atlas.validate import validate_record
 
 SAMPLES = Path(__file__).resolve().parents[1] / "fixtures" / "aigridwatch"
 CHECK3 = SAMPLES / "check3-2026-10-08.json"
+# Fixture runs read no entry of the committed config/overrides/aigridwatch.json: its entries are
+# the reviewers' cited corrections of fix round 6 (a release there goes with its corrections),
+# read against today's sources after these fixtures and their run date (docs/corrections.md).
+NO_ENTRIES = SAMPLES / "overrides-none.json"
 COUSUBS = SAMPLES / "gazetteer" / "agw_cousubs_check3.zip"
 NOW = datetime(2026, 10, 9, 9, 52, 35, tzinfo=UTC)
 TODAY = NOW.date()
@@ -85,7 +89,7 @@ def run(
     overrides: Path | None = None,
     path: Path = CHECK3,
 ) -> ImportResult:
-    args = argparse.Namespace(without_epoch=True)
+    args = argparse.Namespace(without_epoch=True, overrides=NO_ENTRIES)
     if overrides is not None:
         args.overrides = overrides
     return IMPORTER.run(make_context(input_path=path), args)
@@ -224,7 +228,9 @@ def test_a_virginia_independent_city_is_its_own_county(
     assert va4.location.precision == "locality"
 
 
-def test_a_county_inside_a_compound_parenthesis_is_read(check3: ImportResult) -> None:
+def test_a_county_inside_a_compound_parenthesis_is_read(
+    check3: ImportResult, make_context: MakeContext, tmp_path: Path
+) -> None:
     # "Berry Hill (Pittsylvania County / Danville)" names Pittsylvania County (n42).
     loc = parse_locality("Berry Hill (Pittsylvania County / Danville)", "VA")
     assert (loc.place, loc.county_texts, loc.hint) == (
@@ -232,7 +238,13 @@ def test_a_county_inside_a_compound_parenthesis_is_read(check3: ImportResult) ->
         ("Pittsylvania County",),
         "Danville",
     )
-    stack = records(check3)["stack-berry-hill-pittsylvania-va"]
+    # Owner's correction gwa-01m4hfr0pzx7pp6mt8ptap6rm7: Berry Hill is held (its approval is an
+    # incentive); released here, its location is the one under test.
+    assert "stack-berry-hill-pittsylvania-va" not in records(check3)
+    released = tmp_path / "aigridwatch.json"
+    release = {"release": ["stage"], "reason": "test", "reviewed_at": "2026-10-09"}
+    released.write_text(json.dumps({"stack-berry-hill-pittsylvania-va": release}), encoding="utf-8")
+    stack = records(run(make_context, overrides=released))["stack-berry-hill-pittsylvania-va"]
     assert (stack.location.county_name, stack.location.county_fips) == ("Pittsylvania", "51143")
     assert (
         stack.canonical_name == "STACK Infrastructure Berry Hill megasite (Pittsylvania County, VA)"

@@ -53,12 +53,34 @@ def run(make_test_context: MakeContext) -> ImportResult:
     )
 
 
+# The element decisions of config/overrides/osm.json: an entry with none has only corrections.
+DECISIONS = frozenset({"drop", "name", "operator", "join", "alone", "status"})
+
+
+def committed_on(fixture: Path, tmp_path: Path) -> Path:
+    """The committed entries for the elements the fixture has, as an overrides file, without
+    their corrections and expect guards. The fixture was copied before fix round 6: its entries
+    name elements (and join targets) it does not have, their Fixes are dated after the test
+    clock, and their guards read the seed input; the whole file is checked on the seed input
+    (docs/sources/osm-pnnl.md section 9) and by test_committed_corrections.py."""
+    doc = json.loads(fixture.read_text(encoding="utf-8"))
+    have = {f"{e['type']}/{e['id']}" for e in doc["elements"]}
+    entries: dict[str, object] = {}
+    for ref, entry in json.loads(REPO_OVERRIDES.read_text(encoding="utf-8")).items():
+        kept = {k: v for k, v in entry.items() if k not in ("corrections", "expect")}
+        if ref in have and kept.get("join", ref) in have and DECISIONS & set(kept):
+            entries[ref] = kept
+    path = tmp_path / "committed-osm.json"
+    path.write_text(json.dumps(entries), encoding="utf-8")
+    return path
+
+
 @pytest.fixture
-def run4(make_test_context: MakeContext) -> ImportResult:
-    """The importer on the fix4 fixture with the committed overrides (every element they name is
-    there)."""
+def run4(make_test_context: MakeContext, tmp_path: Path) -> ImportResult:
+    """The importer on the fix4 fixture with the committed overrides of its elements
+    (committed_on)."""
     return OsmImporter().run(
-        make_test_context(input_path=FIX4), importer_args(PNNL_FIX4, REPO_OVERRIDES)
+        make_test_context(input_path=FIX4), importer_args(PNNL_FIX4, committed_on(FIX4, tmp_path))
     )
 
 
@@ -181,16 +203,14 @@ def test_a_series_split_further_apart_is_a_review_item(run: ImportResult) -> Non
     assert item.data["other"] == "way/32560290"
     assert "'RagingWire CA3' continues the series of 'RagingWire CA2', 720 m apart" in item.reason
     lc = record(run, "way/1343774537")
-    assert lc != record(run, "way/1560822523")
+    # Owner's correction gwa-01m4hfqpdz4tepn3b5d6473r4n: the LC campus is one record (rule 9).
+    assert lc == record(run, "way/1560822523")
     assert lc.canonical_name.startswith("CloudHQ Ashburn Campus (")
-    lc4 = record(run, "way/1560822523")
-    reps = {rep_ref(lc), rep_ref(lc4)}
-    (pair,) = [
+    assert not [
         i
         for i in run.review
-        if i.kind == "possible_duplicate" and {i.external_id, i.data.get("other")} == reps
+        if i.kind == "possible_duplicate" and rep_ref(lc) in (i.external_id, i.data.get("other"))
     ]
-    assert "may be one campus" in pair.reason
 
 
 def test_an_unnamed_building_in_one_operators_row_joins_it(run: ImportResult) -> None:
@@ -293,9 +313,9 @@ def test_a_pnnl_row_with_another_building_number_is_a_conflict(run: ImportResult
 def test_one_numbered_name_with_two_statuses_is_an_item(
     make_test_context: MakeContext, tmp_path: Path
 ) -> None:
-    """n13: with the override that gives way 1188691868 its name NTT VA8 back, way 1560827941,
-    under construction, is still called NTT VA8 in OpenStreetMap; Baxtel puts VA9 at another
-    address, so no override renames it, and a reviewer gets an item."""
+    """n13: with the override that gives way 1188691868 its name NTT VA8 back, and without one
+    for way 1560827941 (fix round 6 names it NTT VA9), way 1560827941, under construction, is
+    still called NTT VA8 in OpenStreetMap, and a reviewer gets an item."""
     entry = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))["way/1188691868"]
     path = tmp_path / "osm.json"
     path.write_text(json.dumps({"way/1188691868": entry}), encoding="utf-8")

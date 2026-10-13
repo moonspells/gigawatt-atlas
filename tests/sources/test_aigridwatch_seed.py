@@ -39,6 +39,10 @@ from atlas.validate import validate_record
 SEED = Path(__file__).resolve().parents[1] / "fixtures" / "aigridwatch" / "seed-2026-10-08.json"
 MakeContext = Callable[..., ImportContext]
 SAMPLES = Path(__file__).resolve().parents[1] / "fixtures" / "aigridwatch"
+# Fixture runs read no entry of the committed config/overrides/aigridwatch.json: its entries are
+# the reviewers' cited corrections of fix round 6 (a release there goes with its corrections),
+# read against today's sources after these fixtures and their run date (docs/corrections.md).
+NO_ENTRIES = SAMPLES / "overrides-none.json"
 
 
 @pytest.fixture(scope="module")
@@ -78,7 +82,7 @@ def row(pid: str) -> dict[str, Any]:
 def run(
     make_test_context: MakeContext, *, overrides: Path | None = None, path: Path = SEED
 ) -> ImportResult:
-    args = argparse.Namespace(without_epoch=True)
+    args = argparse.Namespace(without_epoch=True, overrides=NO_ENTRIES)
     if overrides is not None:
         args.overrides = overrides
     return IMPORTER.run(make_test_context(input_path=path), args)
@@ -525,11 +529,12 @@ def test_the_overrides_file_is_checked(make_test_context: MakeContext, tmp_path:
             run(make_test_context, overrides=write_overrides(tmp_path, entries))
     with pytest.raises(FetchError, match="cannot read"):
         run(make_test_context, overrides=tmp_path / "missing.json")
-    result = run(
-        make_test_context,
-        overrides=write_overrides(
-            tmp_path,
-            {"no-such-row": {"release": ["id"], "reason": "r", "reviewed_at": "2026-10-09"}},
-        ),
-    )
-    assert (result.metrics["overrides_used"], result.metrics["overrides_unused"]) == (0, 1)
+    # An entry for a row the file does not have stops the run (fix round 6, docs/corrections.md).
+    with pytest.raises(FetchError, match="names 'no-such-row', which this input does not have"):
+        run(
+            make_test_context,
+            overrides=write_overrides(
+                tmp_path,
+                {"no-such-row": {"release": ["id"], "reason": "r", "reviewed_at": "2026-10-09"}},
+            ),
+        )

@@ -96,6 +96,15 @@ GeocodeMethod = Literal[
     "source_coords", "osm", "census_geocoder", "gazetteer", "county_centroid", "manual"
 ]
 DatePrecision = Literal["day", "month", "quarter", "year"]
+AliasKind = Literal[
+    "codename",
+    "press_name",
+    "permit_name",
+    "filing_llc",
+    "osm_name",
+    "former_name",
+    "phase_name",
+]
 
 _DAY_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 _MONTH_RE = re.compile(r"^[0-9]{4}-[0-9]{2}$")
@@ -203,15 +212,7 @@ class Alias(AtlasModel):
     """Another name for the facility."""
 
     name: str
-    kind: Literal[
-        "codename",
-        "press_name",
-        "permit_name",
-        "filing_llc",
-        "osm_name",
-        "former_name",
-        "phase_name",
-    ]
+    kind: AliasKind
     source_ids: list[SourceId] = Field(default_factory=list)
 
 

@@ -25,6 +25,7 @@ from typing import Any
 import pytest
 
 from atlas.geo.counties import CountyIndex
+from atlas.net import FetchError
 from atlas.schema.record import FacilityRecord
 from atlas.sources.base import ImportContext, ImportResult
 from atlas.sources.epoch import (
@@ -32,11 +33,13 @@ from atlas.sources.epoch import (
     IMPORTER,
     Site,
     TimelineRow,
+    clean_text,
     event_note,
     noted_announcements,
     operation_period,
     operation_review,
     parse_period,
+    read_zip,
     selected_date,
     stated_capacity,
     status_events,
@@ -74,7 +77,18 @@ def row(day: str, text: str, operational: float | None = 0) -> TimelineRow:
 def write_overrides(
     tmp_path: Path, counties: CountyIndex, *, edit: Callable[[dict[str, Any]], None] | None = None
 ) -> Path:
-    entries = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
+    # An entry for a site the input does not have stops the run (fix round 6, docs/corrections.md).
+    names = {clean_text(r["Name"]) for r in read_zip(CASES_ZIP)[1]}
+    committed = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
+    # The committed entries' corrections and expect guards (fix round 6) were read and reviewed
+    # against today's sources, after these fixture rows and their run date: fixture runs use the
+    # entries' parts without them (an entry with only corrections is left out).
+    entries = {
+        name: parts
+        for name, entry in committed.items()
+        if name in names
+        and (parts := {k: v for k, v in entry.items() if k not in ("corrections", "expect")})
+    }
     for name, (state, county_name) in TEST_COUNTIES.items():
         county = counties.by_name(state, county_name)
         assert county is not None and "state_abbr" not in entries.get(name, {})
@@ -168,16 +182,96 @@ def test_a_cited_report_earlier_than_the_imagery_dates_first_reported(fix5: Impo
     assert items(fix5, "Microsoft SAT14") == []
 
 
-def test_an_entry_that_is_not_earlier_keeps_epochs_observation(fix5: ImportResult) -> None:
+# Vantage TX1's entry of fix round 5: TDLR's registration of TX11, which is not earlier.
+TX1_TDLR = {
+    "note": "Epoch's Selected Source, the TDLR registration of TX11 (14720 Omicron Dr.), the "
+    "earliest dated report among its sources: the same day as Epoch's first row, so that row stays "
+    "first_reported.",
+    "published_at": "2023-12-15",
+    "publisher": "Texas Department of Licensing and Regulation",
+    "quote": "Project #: TABS2024007561 Registration Date: 12/15/2023",
+    "retrieved_at": "2026-10-09T21:50:20Z",
+    "source_type": "government_record",
+    "source_url": TDLR + "TABS2024007561",
+    "status": "proposed",
+}
+
+
+def test_an_entry_that_is_not_earlier_keeps_epochs_observation(
+    make_test_context: MakeContext, tmp_path: Path, counties: CountyIndex, fix5: ImportResult
+) -> None:
     # Vantage TX1: TDLR registered TX11 on 12/15/2023, the day of Epoch's first row; the entry
     # records that check, and the row stays first_reported, its note saying what it is.
-    tx1 = records(fix5)["Vantage TX1"]
+    # epoch-agw-1 (review of fix round 6): the committed entry is now a cited first_report op
+    # (the San Antonio Report, 2023-08-31) without this part, and fixture runs leave the
+    # corrections out, so the test gives the part itself; without it Epoch's first observation
+    # gets its item.
+    def tdlr(entries: dict[str, Any]) -> None:
+        entries["Vantage TX1"]["first_report"] = TX1_TDLR
+
+    result = run(make_test_context, write_overrides(tmp_path, counties, edit=tdlr))
+    tx1 = records(result)["Vantage TX1"]
     assert dates(tx1)["first_reported"] == "2023-12-15"
     first = first_event(tx1)
     assert first.source_ids == ["s1"] and first.note is not None
     assert first.note.startswith(FIRST_OBSERVATION)
     assert first.note.endswith("Land clearing begins for both Building 1 & Building 2")
-    assert items(fix5, "Vantage TX1") == []
+    assert items(result, "Vantage TX1") == []
+    assert [kind for kind, _ in items(fix5, "Vantage TX1")] == ["unknown_status"]
+
+
+def test_vantage_tx1s_first_report_is_a_cited_first_report_op(
+    make_test_context: MakeContext, tmp_path: Path, counties: CountyIndex
+) -> None:
+    """epoch-agw-1 (review of fix round 6): the San Antonio Report dates Vantage TX1's first report
+    (2023-08-31, the land purchase) before Epoch's first row. The committed correction is a
+    first_report op, so its guards hold (from, earlier than every dated event, one cited first
+    report per site): an add_event of a first_reported event, which would skip them, does not
+    load. The committed Fix was read after the fixture's day, so it is dated on that day here."""
+    (cited,) = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))["Vantage TX1"]["corrections"]
+    cited |= {"retrieved_at": "2026-10-09T05:00:00Z", "reviewed_at": "2026-10-09"}
+
+    def corrected(*ops: dict[str, Any], part: bool = False) -> Path:
+        def edit(entries: dict[str, Any]) -> None:
+            entries["Vantage TX1"]["corrections"] = [{**cited, "ops": list(ops) or cited["ops"]}]
+            if part:
+                entries["Vantage TX1"]["first_report"] = TX1_TDLR
+
+        return write_overrides(tmp_path, counties, edit=edit)
+
+    result = run(make_test_context, corrected())
+    tx1 = records(result)["Vantage TX1"]
+    assert dates(tx1)["first_reported"] == "2023-08-31"
+    first = first_event(tx1)
+    assert (first.event, first.status, first.note) == (
+        "first_reported",
+        "announced",
+        "First report, per San Antonio Report",
+    )
+    assert str(source(tx1, first.source_ids[0]).url) == cited["source_url"]
+    # Epoch's first row stays as it is, and its first-observation item is cleared.
+    (row1,) = [e for e in tx1.status_history if e.as_of.value == "2023-12-15"]
+    assert (row1.event, row1.source_ids) == ("construction_start", ["s1"])
+    assert items(result, "Vantage TX1") == []
+    later = {
+        "op": "first_report",
+        "from": "2023-12-15",
+        "as_of": "2024-06-01",
+        "status": "announced",
+    }
+    with pytest.raises(
+        FetchError, match="first report 2024-06-01 is not earlier than the record's"
+    ):
+        run(make_test_context, corrected(later))
+    added = {
+        "op": "add_event",
+        "event": "first_reported",
+        "status": "announced",
+        "as_of": "2024-06-01",
+    }
+    for part in (False, True):
+        with pytest.raises(FetchError, match="add_event: a first report is the first_report op"):
+            run(make_test_context, corrected(added, part=part))
 
 
 def test_a_tdlr_registration_without_an_entry_is_held_for_review(

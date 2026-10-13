@@ -12,16 +12,18 @@ verified project becomes a `project` record at `locality` precision:
   in it (check_place: the Census place polygons, and for a township its Gazetteer point and area);
 - a city or municipality is never named when the row's note or event log puts the site outside
   it ("north of Yerington", "near Fredericksburg", "annexation into City of Burgin"): the record
-  names the county and keeps the point at county precision (outside_phrase); a row without
+  names the county and keeps the point at county precision (outside_phrase; for a row placed at
+  that place's Gazetteer point, the county that holds the point); a row without
   coordinates whose locality names no county is placed in the county its note and log state ("in
   Stafford County"), and a Virginia independent city is its own county;
 - status_history is built from the milestone dates (announced, rezoning filed, a hearing a
   decision on its day or an event of its day says was held, a decision; an approval only when
   the row names it a land-use approval or a permit), read as the row explains them: an announced
   date the row calls an LLC's registration is no announcement and one it calls a filing is the
-  filing; a rezoning_filed date that is an inquiry, a report or the municipality's own act is no
-  filing, and the row's own earlier filing dates the application; a vote around midnight is
-  dated by its meeting. A first_reported event comes from the row's event log when its first
+  filing, and one whose entries report only a property deal is the first report; a
+  rezoning_filed date that is an inquiry, a report or the municipality's own act is no filing,
+  and the row's own earlier filing dates the application; a vote around midnight is dated by its
+  meeting. A first_reported event comes from the row's event log when its first
   report can be told (first_report), before the announced date too; entries citing placeholder
   links date nothing. A date on the 1st of a month is
   read at month precision, one on January 1 as its year. The derived `stage` goes through the
@@ -32,7 +34,10 @@ verified project becomes a `project` record at `locality` precision:
   reached, or leaves no application under review, is held for review, and so is one whose
   earliest milestone would date its first report later than the row shows, or is a denial, a
   withdrawal or a pause; so is a row under construction whose log reports an injunction or a
-  halt, and an announced row a ban or moratorium blocks;
+  halt, a row with no filing known (announced, or a stage that implies an application) a ban or
+  moratorium blocks, and a row whose stage is ahead of its own note and log (stage_ahead: an
+  operating stage whose operation entries are an older site's, an approval that is an
+  incentive);
 - size_mw keeps its figure in mw_as_stated and becomes it_mw or utility_request_mw only when the
   row's note states that basis (07 §2.4) and no entry of its log gives the campus another figure
   on that basis; a named campus gets the acreage its log gives it; a row that is a power supply
@@ -54,7 +59,11 @@ verified project becomes a `project` record at `locality` precision:
 - a row whose id begins with another row's name (AI GridWatch shifted the ids of a block of PA DEP
   rows) is held for review, since records are matched on that id;
 - a reviewer releases a held row through config/overrides/aigridwatch.json (one entry per row
-  id, with the checks released, a reason and the review date);
+  id, with the checks released, a reason and the review date), and corrects the record built from
+  a row with cited corrections (atlas.sources.corrections), applied where the row is imported,
+  after its holds; a cited first report lifts the first-report hold, and a reviewer's event that
+  would date the first report although it reports nothing (an approval, a denial) holds the row,
+  as the row's own milestones would;
 - parties hold organizations only (07 §5.3): a person, a capacity figure ("67 MW") or a
   parenthetical note ("(parcels)", "(AWS)") is never stored as a name. The "Operator/developer"
   field is the developer; an electric utility in it is left out, and so is a developer the row
@@ -78,10 +87,10 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, HttpUrl, TypeAdapter, ValidationError, model_validator
+from pydantic import Field, HttpUrl, JsonValue, TypeAdapter, ValidationError, model_validator
 
 from atlas.crosswalk import (
     UnknownStatus,
@@ -108,6 +117,20 @@ from atlas.schema.rollup import (
     period_start,
 )
 from atlas.sources.base import Candidate, ImportResult, ReviewItem, classify_source, load_input
+from atlas.sources.corrections import (
+    Fix,
+    LostEvent,
+    apply_fixes,
+    as_dated,
+    check_entries,
+    check_expect,
+    check_fix_dates,
+    correction_metrics,
+    has_first_report,
+    lost_events,
+    mark_corrected,
+    reviewer_first_report,
+)
 from atlas.text import clean_text as _clean_text
 from atlas.text import find_personal_data
 
@@ -379,6 +402,41 @@ _LOG_GROUNDBREAKING_RE = re.compile(
     r"ongoing|began|begun|started|continu\w*)|(?:began|begun|started) construction)\b",
     re.I,
 )
+# The site reported under construction on the entry's day ("the West Memphis data center, which
+# remained under construction"; a note's "Under construction."): a milestone the stage may be
+# behind, but an observation of that day, not the start of construction. Only the words before it
+# void it ("will be", "expected to be", "not yet"): those after it may be the build's timeline
+# ("with an expected 18-24 month build timeline"); "under construction or planned" is no report.
+# The words before it must also make the row's site its subject (_own_site_under_construction).
+_LOG_UNDER_CONSTRUCTION_RE = re.compile(
+    r"\b(?:remain(?:s|ed|ing)?\s+)?under[- ]construction\b(?!\s+or\s+(?:planned|proposed)\b)",
+    re.I,
+)
+# Words before it that make its subject another site: a relative "where" (Millville's note:
+# "Millville borders Vineland, where the 300 MW DataOne/Nebius campus was already under
+# construction"), a comparison ("Unlike the West Memphis data center, ...").
+_ANOTHER_SITE_BEFORE_RE = re.compile(r"\b(?:where|unlike)\b", re.I)
+# Words between the row's last mention and it that make its subject several sites, or a count of
+# them ("other campuses", "three data centers", "among those", "with one already").
+_SEVERAL_SITES_RE = re.compile(
+    r"\b(?:other|others|another|those|these|several|multiple|many|some|both|all|one|two|three|"
+    r"four|five|six|seven|eight|nine|ten|dozens?|data[- ]?cent(?:er|re)s|datacenters|campuses|"
+    r"facilities|sites|buildings|projects)\b",
+    re.I,
+)
+# The words that may stand between the subject and it ("the facility was", "the data center, which
+# remained", "the campus is still"), and the site words that may be its subject.
+_LINKING_TAIL_RE = re.compile(
+    r"(?:\W|\b(?:which|that|is|was|are|were|has|have|had|been|being|remains?|remained|"
+    r"stays?|stayed|still|already|now|currently|also|largely|actively|well|officially|"
+    r"reportedly)\b)*$",
+    re.I,
+)
+_SITE_SUBJECT_RE = re.compile(
+    r"\b(?:data[- ]?cent(?:er|re)|datacenter|campus|facility|site|project)$", re.I
+)
+# Capitalized words that name no place or company ("the 300 MW campus", "the AI data center").
+_NOT_NAMES = frozenset({"mw", "gw", "kw", "mwh", "gwh", "ai", "it", "hpc", "llc", "inc", "us"})
 # A lawsuit that seeks to undo an approval says there is one (Wolcott: "to overturn the
 # rezoning").
 _LOG_CHALLENGED_RE = re.compile(
@@ -390,14 +448,62 @@ _LOG_CHALLENGED_RE = re.compile(
 )
 _LOG_INCOMPLETE_RE = re.compile(r"\bincomplete\b", re.I)
 _LOG_UPHELD_RE = re.compile(r"\buph(?:eld|olds?|olding)\b", re.I)
+# The places a ban shuts data centers out of, and the words after one that make it a part of the
+# place ("the city's historic district", "the city center"): a ban from a part is none adopted.
+_BAN_PLACE = r"(?:city|county|township|town|village|borough|parish)"
+_PART_OF_PLACE = r"(?:['\u2019]s\b|\s+(?:cent(?:er|re)|core|downtown)\b)"
 _LOG_MORATORIUM_RE = re.compile(
     r"\b(?:pass(?:ed|es)?|adopt(?:ed|s)?|approv(?:e|ed|es)|enact(?:ed|s)?|impos(?:e|ed|es|ing)|"
     r"vot(?:ed|es)(?:\s+[\w-]+){0,3}\s+to\s+(?:adopt|approve|pass|enact|impose))"
-    r"(?:\W+[\w'-]+){0,8}?\W+(?:moratori(?:um|a)|bans?|banning|prohibit\w*\s+data cent(?:er|re)s?"
+    r"(?:\W+[\w'-]+){0,8}?\W+(?:moratori(?:um|a)|(?:bans?|banning)\b"
+    rf"(?!\s+(?:all\s+|new\s+)?data cent(?:er|re)s?\s+from\s+the\s+{_BAN_PLACE}{_PART_OF_PLACE})"
+    r"|prohibit\w*\s+data cent(?:er|re)s?"
     r"(?:\s+as\s+a\s+use)?\s+(?:in\s+all\s+zones|(?:township|county|city|town)[- ]?wide))\b"
     r"|\b(?:removing|removed|removes) data cent(?:er|re)s? as (?:a )?permitted use\b",
     re.I,
 )
+# Words that make a vote for a moratorium no moratorium adopted: a vote to end, lift or study one,
+# or for a hearing or a report on one.
+_NOT_ADOPTED = (
+    r"(?:lift(?:s|ed|ing)?|end(?:s|ed|ing)?|repeal(?:s|ed|ing)?|rescind(?:s|ed|ing)?|"
+    r"terminat(?:e|es|ed|ing)|stud(?:y|ies|ied|ying)|hearings?|reports?|reviews?)"
+)
+# A vote for a moratorium, and a moratorium in answer ("Council voted 3-2 for 1-year moratorium",
+# "Commission voted 5-0 for 1-year moratorium", "the county responded with unanimous 1-year
+# moratorium"). Not a vote for ending, lifting or studying one ("voted 4-1 for ending the
+# moratorium", "voted 4-1 for a moratorium study", "voted for the moratorium to end"), nor one
+# that failed ("Council voting for moratorium failed 2-3").
+_LOG_MORATORIUM_VOTE_RE = re.compile(
+    r"\bvot(?:ed|es|ing)\s+(?:\d+\s*-\s*\d+\s+|unanimously\s+)?(?:for|in favor of)\s+(?:an?\s+)?"
+    rf"(?:(?!{_NOT_ADOPTED}\b)[\w-]+\s+){{0,2}}moratori(?:um|a)\b"
+    rf"(?!\s+{_NOT_ADOPTED}\b|\s+to\s+(?:end|lift|expire)\b)"
+    r"(?!(?:\s+[\w-]+){0,4}?\s+(?:fail(?:s|ed)?|was\s+defeated)\b)"
+    r"|\brespond\w*\s+with\s+(?:an?\s+)?(?:[\w-]+\s+){0,3}moratori(?:um|a)\b",
+    re.I,
+)
+# A moratorium or ban that the clause of its vote lifts or ends ("voted unanimously for lifting
+# the moratorium", "voted for the moratorium to end") is none adopted.
+_MORATORIUM_LIFTED_RE = re.compile(
+    r"\b(?:lift(?:s|ed|ing)?|end(?:s|ed|ing)?|repeal(?:s|ed|ing)?|rescind(?:s|ed|ing)?|"
+    r"terminat(?:e|es|ed|ing))\s+(?:the\s+|its\s+|a\s+)?(?:[\w-]+\s+){0,2}?"
+    r"(?:moratori(?:um|a)|ban)\b"
+    r"|\bmoratori(?:um|a)\s+(?:to\s+end|(?:was\s+|is\s+|be\s+)?(?:lifted|ended|repealed|"
+    r"rescinded))\b",
+    re.I,
+)
+# A ban written as a zoning code that shuts data centers out of the place (Palmetto: "approved a
+# rewritten industrial zoning code that permanently excludes data centers from the city"), not
+# out of a part of it ("excludes new data centers from the city's historic district", "from the
+# city center"). _LOG_MORATORIUM_RE's "bans" takes the same guard ("approved an ordinance that
+# bans data centers from the city center").
+_LOG_BAN_RE = re.compile(
+    r"\b(?:pass(?:ed|es)?|adopt(?:ed|s)?|approv(?:e|ed|es)|enact(?:ed|s)?)(?:\W+[\w'-]+){0,8}?\W+"
+    r"(?:exclud|prohibit|bann?)\w*\s+(?:all\s+|new\s+)?data cent(?:er|re)s?\s+from\s+the\s+"
+    rf"{_BAN_PLACE}\b(?!{_PART_OF_PLACE})",
+    re.I,
+)
+# Every way a log entry says a moratorium or ban on data centers was adopted (log_obstacle).
+_LOG_MORATORIUM_RES = (_LOG_MORATORIUM_RE, _LOG_MORATORIUM_VOTE_RE, _LOG_BAN_RE)
 # Words close before a moratorium that make it a demand or a draft, not an act ("residents urged
 # the board to impose a moratorium").
 _MORATORIUM_HEDGE_RE = re.compile(
@@ -1400,6 +1506,28 @@ def announcement(project: dict[str, Any]) -> Announcement:
     return Announcement(announced)
 
 
+_ANNOUNCES_RE = re.compile(r"\bannounc", re.I)
+PROPERTY_DEAL_NOTE = "A property deal the row dates as announced; it states no data center plan"
+
+
+def property_deal(project: dict[str, Any], day: AgwDate) -> str | None:
+    """The text that explains an announced day as a property deal, or None: the row's entries of
+    that day (else the note's clauses that name it) all report a purchase, a sale or a transfer
+    (_PROPERTY_RE), and none states a data center plan (_PLAN_RE) or says it announces anything.
+    Amazon Data Services "bought George Washington University's Ashburn campus for $427 million":
+    the deal's report is the project's first report, not its announcement. EdgeCore Louisa
+    "announced the land purchase ... and $17B+ phased campus plan", which stays an
+    announcement."""
+    entries, clauses = _day_texts(project, day)
+    texts = entries or clauses
+    if texts and all(
+        _PROPERTY_RE.search(t) and not _PLAN_RE.search(t) and not _ANNOUNCES_RE.search(t)
+        for t in texts
+    ):
+        return texts[0]
+    return None
+
+
 @dataclass(frozen=True)
 class Filing:
     """AI GridWatch's rezoning_filed date as the row explains it: the application_filed date to
@@ -1512,11 +1640,16 @@ def milestone_events(project: dict[str, Any], today: date) -> list[dict[str, Any
     later-stage milestone is left out (late_announcement), and so are a past hearing nothing says
     was held (hearing_held) and an approval nothing names a land-use approval or a permit
     (unnamed_approval). The announced, rezoning_filed and decided_date fields are read as the row
-    explains them (announcement, rezoning_filing, decision_day)."""
+    explains them (announcement, rezoning_filing, decision_day); an announced day the row explains
+    as a property deal (property_deal) is the first report, status announced, not an
+    announcement."""
     found: list[tuple[AgwDate, int, Status, EventType, str | None]] = []
     announced = announcement(project).day
     if announced and late_announcement(project) is None:
-        found.append((announced, 0, "announced", "announced", None))
+        if property_deal(project, announced) is None:
+            found.append((announced, 0, "announced", "announced", None))
+        else:
+            found.append((announced, 0, "announced", "first_reported", PROPERTY_DEAL_NOTE))
     filing = rezoning_filing(project)
     if filing.day:
         note = None
@@ -1587,6 +1720,57 @@ def _names_org(text: str, org: str, places: tuple[str, ...] = ()) -> bool:
         and first.casefold() not in place_words
         and bool(re.search(rf"(?<!\w){re.escape(first)}(?!\w)", text))
     )
+
+
+# An LLC an entry ties to an organization: "Google (via Groot LLC)", "Google (via subsidiary
+# Design LLC)", "Groot LLC, a Google-linked entity".
+_LLC_NAME = r"[A-Z][\w&.'-]*(?:\s+[A-Z0-9][\w&.'-]*){0,4},?\s+(?:LLC|L\.L\.C\.)"
+_ORG_WORDS = r"[A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*){0,3}"
+_TIED_LLC_RES = (
+    re.compile(
+        rf"(?P<org>{_ORG_WORDS})\s+\(\s*via\s+(?:(?:its|a|an)\s+)?(?:subsidiary\s+|affiliate\s+)?"
+        rf"(?P<llc>{_LLC_NAME})\s*\)"
+    ),
+    re.compile(
+        rf"(?P<llc>{_LLC_NAME}),\s+an?\s+(?P<org>{_ORG_WORDS})-(?:linked|affiliated|owned|"
+        r"controlled)\s+(?:entity|company)\b"
+    ),
+)
+
+
+def tied_llcs(project: dict[str, Any]) -> list[str]:
+    """The LLCs the row's own entries tie to its operator ("Google (via Groot LLC)", "Groot LLC,
+    a Google-linked entity"), other than the row's organizations: names_project counts them as
+    the project's organizations, as it does the filing LLCs (Google West Memphis: the council's
+    vote "with Groot LLC" names the project with its place, months before the PSC filing that
+    names Google)."""
+    operators = [
+        name
+        for part in split_names(clean_text(project.get("operator")), r"\s+/\s+|\s*;\s*|\s*,\s+")
+        if (name := party_name(part).name)
+    ]
+    known = {o.casefold() for o in _row_orgs(project)}
+    out: list[str] = []
+    for e in row_events(project):
+        summary = clean_text(e.get("summary"))
+        for pattern in _TIED_LLC_RES:
+            for m in pattern.finditer(summary):
+                llc = m.group("llc")
+                if (
+                    any(_names_org(m.group("org"), op) for op in operators)
+                    and llc.casefold() not in known
+                    and llc not in out
+                ):
+                    out.append(llc)
+    return out
+
+
+def _names_llc(text: str, llc: str) -> bool:
+    """Whether the text names a tied LLC (tied_llcs) by its full name as written, its suffix
+    included ("Groot LLC", "Groot, LLC"): its bare name may be a common word (The Dalles' "Design
+    LLC" names no project in "new design standards")."""
+    bare = re.sub(r",?\s+(?:LLC|L\.L\.C\.)$", "", llc)
+    return bool(re.search(rf"(?<!\w){re.escape(bare)},?\s+(?:LLC|L\.L\.C\.)(?!\w)", text))
 
 
 def _place_names(project: dict[str, Any]) -> list[str]:
@@ -1667,7 +1851,9 @@ def names_project(project: dict[str, Any], summary: str) -> ReportHow | None:
     """How an entry names the row's project: its name, a site word of the name, its acreage, its
     size_mw with a data center ("the 24 MW data center"), or one of its organizations with its
     place or a data center ("TeraWulf ... the Lansing site", "the Prime Group data center
-    project"). None when it does not."""
+    project"); an LLC the row's entries tie to its operator is one of them, named in full
+    (tied_llcs, _names_llc: West Memphis' council vote "with Groot LLC"). None when it does
+    not."""
     folded = summary.casefold()
     name = _project_name(project)
     if len(name) > 3 and name.casefold() in folded:
@@ -1700,7 +1886,10 @@ def names_project(project: dict[str, Any], summary: str) -> ReportHow | None:
     ):
         return "size"
     places = tuple(_place_names(project))
-    if any(_names_org(summary, o, places) for o in _row_orgs(project)) and (
+    if (
+        any(_names_org(summary, o, places) for o in _row_orgs(project))
+        or any(_names_llc(summary, llc) for llc in tied_llcs(project))
+    ) and (
         any(re.search(rf"(?<!\w){re.escape(p)}(?!\w)", summary, re.I) for p in places)
         or _mentions_data_center(project, summary)
     ):
@@ -1913,6 +2102,10 @@ def first_report(
     return result(None, *doubt) if doubt else filed_month()
 
 
+_SEEN_UNDER_CONSTRUCTION = "the site under construction"
+_OBSERVED_DETAIL = ", an observation that dates no start of construction"
+
+
 @dataclass(frozen=True)
 class LogMilestone:
     """A milestone the row's event log or note reports that the stage has not reached, or an
@@ -1925,6 +2118,10 @@ class LogMilestone:
     kind: str
     source: str | None
     detail: str = ""  # appended to the reason (", with no filing after it")
+    # The entry or the note reports the status on its day ("remained under construction"), which
+    # dates no start: cited, it is an `other` observation (the observe op), not a
+    # construction_start.
+    observed: bool = False
 
     def where(self) -> str:
         """ "on 2026-04-01 (event kind 'vote')", or "in its note"."""
@@ -1967,6 +2164,82 @@ def _about_the_site(project: dict[str, Any], clause: str) -> bool:
     )
 
 
+def _row_mentions(project: dict[str, Any]) -> list[re.Pattern[str]]:
+    """Patterns of the row's own names, as names_project reads them: its name and site words, its
+    organizations (their bare name, or their distinctive first word as written, as _names_org),
+    the LLCs tied to its operator (in full) and its places."""
+    out: list[re.Pattern[str]] = []
+    name = _project_name(project)
+    if len(name) > 3:
+        out.append(re.compile(re.escape(name), re.I))
+    out += [re.compile(rf"(?<!\w){re.escape(w)}(?!\w)", re.I) for w in _site_words(project)]
+    places = _place_names(project)
+    place_words = {w.casefold() for p in places for w in p.split()}
+    for org in _row_orgs(project):
+        bare = clean_text(_ORG_SUFFIX_RE.sub(" ", org)).strip(" ,.")
+        if len(bare) >= 3:
+            out.append(re.compile(rf"(?<!\w){re.escape(bare)}(?!\w)", re.I))
+        first = bare.split()[0] if bare.split() else ""
+        if (
+            len(first) >= 4
+            and first.casefold() not in _GENERIC_WORDS
+            and first.casefold() not in place_words
+        ):
+            out.append(re.compile(rf"(?<!\w){re.escape(first)}(?!\w)"))
+    for llc in tied_llcs(project):
+        bare = re.sub(r",?\s+(?:LLC|L\.L\.C\.)$", "", llc)
+        out.append(re.compile(rf"(?<!\w){re.escape(bare)},?\s+(?:LLC|L\.L\.C\.)(?!\w)"))
+    out += [re.compile(rf"(?<!\w){re.escape(p)}(?!\w)", re.I) for p in places]
+    return out
+
+
+def _row_words(project: dict[str, Any]) -> set[str]:
+    """The words of the row's name, organizations, tied LLCs, locality and state, casefolded."""
+    texts = [
+        clean_text(project.get(key))
+        for key in ("name", "operator", "owner", "tenant", "filing_llc", "locality", "state")
+    ] + tied_llcs(project)
+    return {w.casefold() for text in texts for w in re.findall(r"[A-Za-z][\w&.]*", text)}
+
+
+def _own_site_under_construction(project: dict[str, Any], before: str, *, note: bool) -> bool:
+    """Whether "under construction" after these words of a clause is said of the row's site. A
+    clause of the row's own note that starts with it is ("Under construction."). Else the words
+    before it must name the project (names_project), or the row's place with a site word for its
+    subject ("at the West Memphis data center, which remained under construction"); after the
+    row's last mention they must name no other place or company ("Google said its Omaha campus
+    remained ...") and no several sites ("other campuses", "three data centers", "among those"),
+    and end in its subject: a site word ("the facility was", "the data center, which") or, for a
+    project named, the mention itself. A relative "where" or an "unlike" before it voids it (the
+    Millville note's "Vineland, where the ... campus was already under construction")."""
+    if note and not before.strip():
+        return True
+    if _ANOTHER_SITE_BEFORE_RE.search(before):
+        return False
+    named = names_project(project, before) is not None
+    if not named and not _names_a_place(project, before):
+        return False
+    end = max(
+        (m.end() for pattern in _row_mentions(project) for m in pattern.finditer(before)), default=0
+    )
+    tail = before[end:]
+    if _SEVERAL_SITES_RE.search(tail):
+        return False
+    own = _row_words(project)
+    for i, word in enumerate(re.findall(r"[A-Za-z][\w&.]*", tail)):
+        key = word.strip(".").casefold()
+        if (
+            word[0].isupper()
+            and len(key) > 1
+            and key not in own
+            and key not in _NOT_NAMES
+            and not (i == 0 and end == 0 and key in {"the", "a", "an", "its", "this"})
+        ):
+            return False
+    rest = _LINKING_TAIL_RE.sub("", tail).strip()
+    return bool(_SITE_SUBJECT_RE.search(rest)) or (named and end > 0 and not rest)
+
+
 def log_milestone(project: dict[str, Any], status: Status, today: date) -> LogMilestone | None:
     """A milestone the event log or the note reports that an active stage has not reached: a
     denial of the project's land-use application with no filing after it (Forsyth County "voted
@@ -1976,10 +2249,13 @@ def log_milestone(project: dict[str, Any], status: Status, today: date) -> LogMi
     rezoning"), one that a lawsuit seeks to overturn (Wolcott: a suit "to overturn the
     rezoning"), and a groundbreaking or construction under way that is not the power supply's
     (Meta Lebanon's note: "groundbreaking construction reported ongoing"; its log: construction
-    disruption "during Meta campus build-out"). The kinds alone do not say it (a `vote` may go
-    either way, a `construction` entry may be another site's), so only these phrases count, and a
-    word close before them that defers, conditions or denies them voids them. The note is read
-    for all but the denial (which needs the date of the filing after it)."""
+    disruption "during Meta campus build-out"), or the site under construction (Google West
+    Memphis: the data center "remained under construction"; its note's "Under construction."),
+    an observation of the entry's day that dates no start (LogMilestone.observed). The kinds
+    alone do not say it (a `vote` may go either way, a `construction` entry may be another
+    site's), so only these phrases count, and a word close before them that defers, conditions or
+    denies them voids them. The note is read for all but the denial (which needs the date of the
+    filing after it)."""
     if status not in ACTIVE_ORDER:
         return None
     events = _log_entries(project)
@@ -2010,24 +2286,29 @@ def log_milestone(project: dict[str, Any], status: Status, today: date) -> LogMi
                 found.append(
                     ("permitted", "an approval of its land-use application, under court challenge")
                 )
-            if (
-                not _LOG_ENERGY_RE.search(clause)
-                and (
-                    _about_the_site(project, clause)
-                    or (day is None and bool(_NOTE_SUBJECT_RE.search(clause)))
-                )
-                and any(
-                    _unhedged(clause, m.start(), m.end(), 20)
-                    for m in _LOG_GROUNDBREAKING_RE.finditer(clause)
-                )
+            site = not _LOG_ENERGY_RE.search(clause) and (
+                _about_the_site(project, clause)
+                or (day is None and bool(_NOTE_SUBJECT_RE.search(clause)))
+            )
+            if site and any(
+                _unhedged(clause, m.start(), m.end(), 20)
+                for m in _LOG_GROUNDBREAKING_RE.finditer(clause)
             ):
                 found.append(("under_construction", "a groundbreaking or construction under way"))
+            elif not _LOG_ENERGY_RE.search(clause) and any(
+                _unhedged(clause, m.start(), m.start())
+                and _own_site_under_construction(project, clause[: m.start()], note=day is None)
+                for m in _LOG_UNDER_CONSTRUCTION_RE.finditer(clause)
+            ):
+                found.append(("under_construction", _SEEN_UNDER_CONSTRUCTION))
             for reported, what in found:
                 rank = ACTIVE_ORDER.index(reported)
                 if rank > ACTIVE_ORDER.index(status) and (
                     best is None or best.status is None or rank > ACTIVE_ORDER.index(best.status)
                 ):
-                    best = LogMilestone(reported, what, day, kind, source)
+                    observed = what == _SEEN_UNDER_CONSTRUCTION
+                    detail = _OBSERVED_DETAIL if observed else ""
+                    best = LogMilestone(reported, what, day, kind, source, detail, observed)
     return best
 
 
@@ -2084,21 +2365,26 @@ def log_obstacle(
     upheld (Urbana: the BZA "unanimously denies Thor's appeal, upholding city determination that
     site plan application was incomplete"), or, after its filing, a moratorium or ban on data
     centers adopted that does not exempt it (Urbana's council "passed a 12-month moratorium on new
-    data centers" three weeks after the filing). For a row at announced with no filing, a ban or
-    moratorium adopted after the project was public (`public`: the earliest date the row shows;
-    when it shows none, any) holds it too (n34: Andover's Ordinance 2026-13 banning data centers
-    township-wide). For a row under construction, an injunction or a halt of its works that no
-    later entry lifts (n34: Matrix's temporary injunction freezing construction). None
-    otherwise."""
+    data centers" three weeks after the filing; a vote for one, "Council voted 3-2 for 1-year
+    moratorium"; a zoning code that "permanently excludes data centers from the city", T5's
+    Palmetto). For a row with no filing known, at announced or at a stage that implies an
+    application (proposed: In review, Hearing scheduled, Awaiting decision), a ban or moratorium
+    adopted after the project was public (`public`: the earliest date the row shows; when it
+    shows none, any) holds it too (n34: Andover's Ordinance 2026-13 banning data centers
+    township-wide; Sarasota County's moratorium on a row In review with no filing). For a row
+    under construction, an injunction or a halt of its works that no later entry lifts (n34:
+    Matrix's temporary injunction freezing construction). None otherwise."""
     if status == "under_construction":
         return _halted(project, today)
     if status not in ("announced", "proposed"):
         return None
     filed = filing_day(project)
     since: date | None = filed.end if filed is not None else None
-    after = "after its filing"
-    if filed is None and status == "announced":
+    after, unfiled = "after its filing", ""
+    if filed is None:
         since, after = public, "after the project was public"
+        if status == "proposed":
+            unfiled = ", and the row shows no filing"
     for day, e in _log_entries(project):
         if day is not None and day.start > today:
             continue
@@ -2108,22 +2394,23 @@ def log_obstacle(
             if _LOG_INCOMPLETE_RE.search(clause) and _LOG_UPHELD_RE.search(clause):
                 what = "its application refused as incomplete, and the refusal upheld"
                 return LogMilestone(None, what, day, kind, source)
-            # For an announced row without a filing, the note's ban counts too: any ban in force
-            # blocks a project that has not applied.
+            # For a row without a filing, the note's ban counts too: any ban in force blocks a
+            # project that has not applied.
             if (
-                (filed is not None or status == "announced")
-                and (day is not None or filed is None)
+                (day is not None or filed is None)
                 and (since is None or day is None or day.start > since)
                 and not _LOG_EXEMPT_RE.search(clean_text(e.get("summary")))
+                and not _MORATORIUM_LIFTED_RE.search(clause)
                 and any(
                     _unhedged(clause, m.start(), m.end())
                     and not _MORATORIUM_HEDGE_RE.search(clause[max(0, m.start() - 40) : m.start()])
-                    for m in _LOG_MORATORIUM_RE.finditer(clause)
+                    for pattern in _LOG_MORATORIUM_RES
+                    for m in pattern.finditer(clause)
                 )
                 and not _moratorium_ended(project, day)
             ):
                 what = f"a moratorium or ban on data centers adopted {after}"
-                return LogMilestone("paused", what, day, kind, source)
+                return LogMilestone("paused", what, day, kind, source, unfiled)
     return None
 
 
@@ -2147,6 +2434,108 @@ def _moratorium_ended(project: dict[str, Any], day: AgwDate | None) -> bool:
         and _MORATORIUM_ENDED_RE.search(clean_text(e.get("summary")))
         for e in row_events(project)
     )
+
+
+# stage_ahead: an incentive, which is no approval to build (STACK Berry Hill's performance
+# agreement, Nebius Independence's tax abatement).
+_INCENTIVE_RE = re.compile(
+    r"\b(?:performance agreements?|incentives?(?: deal| agreement| package)?|(?:tax )?abatements?|"
+    r"tax (?:breaks?|exemptions?|credits?)|economic development agreements?|PILOT|"
+    r"payments? in lieu of taxes|grants?)\b",
+    re.I,
+)
+# A note that speaks only of a plan (Microsoft Cheyenne Expansion: "announced intent to acquire
+# ~3,200 acres ... for a multiyear data-center expansion"), with no word of a site built or
+# operating.
+_PLANNED_NOTE_RE = re.compile(
+    r"\b(?:intent to|intends? to|plans? to|planned|proposed|proposes|will (?:build|develop|"
+    r"construct)|seek(?:s|ing)?|expansion)\b",
+    re.I,
+)
+_BUILT_NOTE_RE = re.compile(
+    r"\b(?:operat\w*|online|opened|energi[sz]ed|live|built|under construction|broke ground|"
+    r"groundbreaking)\b",
+    re.I,
+)
+_OPERATED_KINDS = frozenset({"operational", "operation", "opening", "energized"})
+_BUILT_KINDS = frozenset({"construction", "groundbreaking"}) | _OPERATED_KINDS
+
+
+def stage_ahead(project: dict[str, Any], status: Status, today: date) -> str | None:
+    """Why the stage's status is ahead of everything the row's own note and event log say of the
+    project, or None. _record holds such a row (a `conflict` item, released with "stage") when
+    neither log_milestone nor log_obstacle found anything.
+
+    - Operating or Under construction, when every operation entry (operational, operation,
+      opening, energized; for under construction also construction and groundbreaking) dated by
+      today ends before the project was announced (its announced milestone, else its earliest
+      announcement entry), and the note speaks only of a plan: the entries report an older site
+      (Microsoft Cheyenne Expansion: operational entries of 2012 and 2021 for the existing campus,
+      the 3,200-acre expansion announced 2026-04-14). Without the note's plan the rule does not
+      apply: the fixture's operating google-bristow has later announcements that are investment
+      news.
+    - Approved, when the decision is no land-use approval (unnamed_approval), the entries or note
+      clauses of its day name an incentive (a performance agreement, an incentive deal, a tax
+      abatement or credit, a PILOT, a grant), and no entry by today and no note clause names a
+      land-use approval or a permit (STACK Berry Hill's performance agreement). An Approved stage
+      without land-use words but without an incentive either is left alone (DC Blox, EdgeCore
+      Louisa and Flexential Kaufman, which the review judged right)."""
+    if status in ("operating", "under_construction"):
+        kinds = _OPERATED_KINDS if status == "operating" else _BUILT_KINDS
+        announced = milestone_date(project, "announced")
+        if announced is None:
+            days = [
+                d
+                for e in dating_events(project)
+                if clean_text(e.get("kind")).casefold() == "announcement"
+                and (d := entry_date(e)) is not None
+            ]
+            announced = min(days, key=lambda d: d.start) if days else None
+        built = [
+            d
+            for e in dating_events(project)
+            if clean_text(e.get("kind")).casefold() in kinds
+            and (d := entry_date(e)) is not None
+            and d.start <= today
+        ]
+        note = clean_text(project.get("note"))
+        planned = bool(_PLANNED_NOTE_RE.search(note)) and not _BUILT_NOTE_RE.search(note)
+        if (
+            announced is not None
+            and built
+            and planned
+            and all(d.end < announced.start for d in built)
+        ):
+            last = max(d.end for d in built)
+            return (
+                f"its {'/'.join(sorted(kinds & {'operational', 'construction'}))} entries all "
+                f"come before the project was announced ({announced.fuzzy()['value']}; the latest "
+                f"is of {last.isoformat()}), so they report an older site, and nothing reports "
+                "this project " + ("operating" if status == "operating" else "being built")
+            )
+    if status == "permitted":
+        decided = unnamed_approval(project)
+        if decided is None:
+            return None
+        clauses = _CLAUSE_RE.split(clean_text(project.get("note")))
+        day_texts = [
+            clean_text(e.get("summary"))
+            for e in dating_events(project)
+            if (d := entry_date(e)) is not None and _same_period(d, decided)
+        ] + [c for c in clauses if _clause_of_day(c, decided)]
+        texts = [
+            clean_text(e.get("summary"))
+            for e in dating_events(project)
+            if (d := entry_date(e)) is None or d.start <= today
+        ] + clauses
+        incentive = next((m for t in day_texts if (m := _INCENTIVE_RE.search(t))), None)
+        if incentive is not None and not any(_LAND_USE_APPROVAL_RE.search(t) for t in texts):
+            return (
+                f"the approval of {decided.fuzzy()['value']} is {incentive.group(0)!r}, an "
+                "incentive, not an approval to build, and neither its note nor its event log "
+                "names a land-use approval or a permit"
+            )
+    return None
 
 
 def withdrawal_reason(project: dict[str, Any]) -> StatusReason | None:
@@ -2376,6 +2765,34 @@ def _terminal_first(events: list[dict[str, Any]]) -> dict[str, Any] | None:
 def _latest_actual(events: list[StatusEvent]) -> StatusEvent | None:
     actual = [e for e in events if not e.planned]
     return max(actual, key=event_key) if actual else None
+
+
+def first_seen(
+    existing: FacilityRecord | None, status: Status, note: str, generated_day: date
+) -> date | None:
+    """The day an earlier file first showed an undated stage, so that a weekly run does not move
+    its observation forward: the earliest stored event of the stage's status with its note that
+    cites AI GridWatch's file (a support op or a retype keeps both), or an `other` event of that
+    status citing the file that a correction removed or redated, which the stored record has only
+    among its lost events (corrections.lost_events). Without the latter the rebuilt observation
+    would take each file's date, and the correction would summarise it differently, and rewrite
+    the record, every week. A lost event keeps no note: AI GridWatch's only `other` events are its
+    stage observations, so the status and the file's source pick it. An event a correction
+    redated cites the Fix alone, so the reviewer's date is not taken for the file's."""
+    if existing is None:
+        return None
+    dataset = {s.id for s in existing.sources if str(s.url) == str(HttpUrl(DATASET_URL))}
+    stored: list[StatusEvent | LostEvent] = [e for e in existing.status_history if e.note == note]
+    stored += [e for e in lost_events(existing) if e.event == "other"]
+    days = [
+        period_start(e.as_of)
+        for e in stored
+        if not e.planned
+        and e.status == status
+        and dataset & set(e.source_ids)
+        and period_start(e.as_of) < generated_day
+    ]
+    return min(days, default=None)
 
 
 # ---------------------------------------------------------------------------- Epoch AI's sites
@@ -2831,8 +3248,9 @@ ReleaseCheck = Literal["epoch", "stage", "id", "scope", "first_report"]
 
 
 class RowRelease(AtlasModel):
-    """One entry of config/overrides/aigridwatch.json: a reviewer's decision that a check which
-    holds an AI GridWatch row is wrong for it, so the row is imported.
+    """One entry of config/overrides/aigridwatch.json, keyed by row id: a reviewer's decision that
+    a check which holds an AI GridWatch row is wrong for it, so the row is imported, and the
+    cited corrections of the record built from the row (docs/corrections.md).
 
     release names the checks: "epoch" (the Epoch AI site rules: the reviewer found the row is
     another site), "stage" (the event log's later milestone, or an obstacle, does not hold: the
@@ -2842,20 +3260,61 @@ class RowRelease(AtlasModel):
     as_of is the day the reviewer confirmed the stage of a row that has no as_of (the stage's
     observation is then noted as confirmed on that day instead of seen in the file).
     first_reported is the day the reviewer found the project first reported (the source's
-    publication day), for a row whose event log does not tell it.
-    reason says what the reviewer read; reviewed_at is when."""
+    publication day), for a row whose event log does not tell it; it cites nothing, so a new
+    entry gives a cited first_report op in its corrections instead.
+    reason says what the reviewer read and reviewed_at when: both go with release, as_of and
+    first_reported, and an entry with only corrections has neither (each Fix says why and when).
+
+    expect ({field: value, or null}) is a guard: the row's fields must have these values, or the
+    run stops. corrections are the record ops applied to the row's record where it is imported,
+    after the Epoch AI, id and stage holds (atlas.sources.corrections; each Fix cites its own
+    page). A first_report op among them lifts the first-report hold, as first_reported does; a
+    row another check holds needs that check released as well."""
 
     release: list[ReleaseCheck] = Field(default_factory=list)
     as_of: date | None = None
     first_reported: date | None = None
-    reason: str = Field(min_length=1, max_length=300)
-    reviewed_at: date
+    reason: str | None = Field(None, min_length=1, max_length=300)
+    reviewed_at: date | None = None
+    expect: dict[Annotated[str, Field(min_length=1)], JsonValue] = Field(default_factory=dict)
+    corrections: list[Fix] = Field(default_factory=list)
+
+    @property
+    def decides(self) -> bool:
+        """True when the entry releases a check or gives as_of or first_reported."""
+        return bool(self.release) or self.as_of is not None or self.first_reported is not None
+
+    @property
+    def decision(self) -> tuple[date, str]:
+        """(reviewed_at, reason) of the entry's release, as_of or first_reported."""
+        if self.reviewed_at is None or self.reason is None:
+            raise ValueError("the entry has only corrections: each Fix says why and when")
+        return self.reviewed_at, self.reason
 
     @model_validator(mode="after")
     def _releases_something(self) -> RowRelease:
-        if not self.release and self.as_of is None and self.first_reported is None:
+        if not self.decides:
+            if not self.corrections:
+                raise ValueError(
+                    "an entry releases at least one check, gives as_of or first_reported, or "
+                    "carries corrections"
+                )
+            if self.reason is not None or self.reviewed_at is not None:
+                raise ValueError(
+                    "an entry with only corrections has no reason or reviewed_at: each Fix says "
+                    "why and when"
+                )
+            return self
+        missing = [k for k in ("reason", "reviewed_at") if getattr(self, k) is None]
+        if missing:
             raise ValueError(
-                "an entry releases at least one check or gives as_of or first_reported"
+                f"a release, as_of or first_reported needs {' and '.join(missing)}: what the "
+                "reviewer read, and when"
+            )
+        if self.first_reported is not None and has_first_report(self.corrections):
+            raise ValueError(
+                "an entry gives first_reported or a first_report op in its corrections, not both: "
+                "one first report per row"
             )
         return self
 
@@ -2879,7 +3338,7 @@ def load_releases(path: Path) -> dict[str, RowRelease]:
     except ValidationError as e:
         raise agw_error(f"{resolved} is not a valid AI GridWatch overrides file: {e}") from e
     for pid, entry in releases.items():
-        if clean_text(pid) != pid or not pid or find_personal_data(entry.reason):
+        if clean_text(pid) != pid or not pid or find_personal_data(entry.reason or ""):
             raise agw_error(
                 f"{resolved}: entry {pid!r} needs a plain row id and a reason without contact details"
             )
@@ -2894,7 +3353,7 @@ class AIGridWatchImporter:
     match_key = "aigridwatch_id"
     owned_external_keys = ("aigridwatch_id",)
     review_sources = ("aigridwatch",)
-    version = "4"
+    version = "5"
     help = "AI GridWatch project tracker (CC BY 4.0): contested proposals and their milestones"
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
@@ -2913,7 +3372,9 @@ class AIGridWatchImporter:
         )
 
     def run(self, ctx: ImportContext, args: argparse.Namespace) -> ImportResult:
-        releases = load_releases(getattr(args, "overrides", OVERRIDES_PATH))
+        overrides_path: Path = getattr(args, "overrides", OVERRIDES_PATH)
+        releases = load_releases(overrides_path)
+        file = str(overrides_path)
         if not getattr(args, "without_epoch", False) and not any(
             r.external_ids.get("epoch_name") and not r.merged_into for r in ctx.records.values()
         ):
@@ -2953,6 +3414,7 @@ class AIGridWatchImporter:
                     raise agw_error(
                         f"config/overrides/aigridwatch.json entry {pid!r}: {key} is after today"
                     )
+            check_fix_dates(pid, entry.corrections, file=file, today=ctx.today, now=ctx.now)
 
         gazetteer = ctx.gazetteer()  # with the county subdivisions (downloaded on first use)
         counties = ctx.counties()
@@ -2973,6 +3435,8 @@ class AIGridWatchImporter:
         retrieved_at = snapshot.retrieved_at.isoformat()
         candidates: list[Candidate] = []
         review: list[ReviewItem] = []
+        filed: list[ReviewItem] = []  # the items the corrections' hold and out_of_scope ops file
+        fixes_of: dict[str, list[Fix]] = {}
         stats: Counter[str] = Counter()
 
         def flag(
@@ -2999,13 +3463,14 @@ class AIGridWatchImporter:
         ) -> None:
             """A check that would hold the row, released by a reviewer: noted, and imported."""
             stats["released"] += 1
+            reviewed_at, reason = release.decision
             flag(
                 kind,
                 pid,
                 f"{why}; released by config/overrides/aigridwatch.json (reviewed "
-                f"{release.reviewed_at.isoformat()}: {release.reason}), so the row is imported",
+                f"{reviewed_at.isoformat()}: {reason}), so the row is imported",
                 released=check,
-                reviewed_at=release.reviewed_at.isoformat(),
+                reviewed_at=reviewed_at.isoformat(),
                 **data,
             )
 
@@ -3136,6 +3601,10 @@ class AIGridWatchImporter:
             if not pid:
                 flag("invalid", None, "a project row has an empty id")
                 continue
+            release = releases.get(pid)
+            if release is not None and release.expect:
+                fields = {k: clean_text(v) if isinstance(v, str) else v for k, v in project.items()}
+                check_expect(pid, release.expect, fields, file=file, what="row")
             if project.get("verified") is not True:
                 stats["unverified"] += 1
                 flag(
@@ -3151,7 +3620,6 @@ class AIGridWatchImporter:
             if state not in IN_SCOPE:
                 flag("out_of_scope", pid, f"{state} is outside the 50 states and DC")
                 continue
-            release = releases.get(pid)
             free = set(release.release) if release else set()
             direct = epoch_sites.match(project, state)
             if direct is not None and direct[0] != "epoch_source":
@@ -3240,8 +3708,62 @@ class AIGridWatchImporter:
             if holds:
                 stats["held_for_review"] += 1  # the row's items stay: they say why
                 continue
+            fixes = release.corrections if release is not None else []
+            if fixes:
+                applied = apply_fixes(
+                    record,
+                    [(pid, fixes)],
+                    file=file,
+                    source=self.name,
+                    today=ctx.today,
+                    counties=counties,
+                    gazetteer=gazetteer,
+                    external_id=pid,
+                )
+                early = reviewer_first_report(record, applied.record)
+                if early is not None:
+                    # The corrections would date the first report by an event that reports no
+                    # project: held, not dated by it (check_entries then stops the run, since the
+                    # correction built nothing).
+                    stats["held_for_review"] += 1
+                    ours = as_dated(early) in {as_dated(e) for e in record.status_history}
+                    how = (
+                        f", AI GridWatch's own, which a correction in {file} leaves first (it "
+                        "removes the events before it or moves them later)"
+                        if ours
+                        else f" that a correction in {file} adds or changes"
+                    )
+                    flag(
+                        "conflict",
+                        pid,
+                        f"the earliest dated event of the corrected record would be the "
+                        f"{early.event} event of {early.as_of.value}{how}, and the row has no "
+                        "first report before it: imported, its first_reported would be that day, "
+                        "but a project is public before it is approved, built, denied or paused. "
+                        "The row is held for review, not imported: a cited first_report "
+                        "correction dates the first report",
+                        event=early.event,
+                        earliest=early.as_of.value,
+                    )
+                    continue
+                record = applied.record
+                filed.extend(applied.review)
+                fixes_of[pid] = fixes
+                stats["records_corrected"] += 1
             stats.update(row_stats)
             candidates.append(Candidate((pid,), record))
+
+        # The items about a corrected record say so; an entry with record ops whose row built no
+        # record (a hold, a row skipped) stops the run.
+        review = mark_corrected(review, fixes_of, file=file) + filed
+        entries = {pid: entry.corrections for pid, entry in releases.items()}
+        check_entries(
+            entries,
+            present=row_ids,
+            built={v for c in candidates for v in c.match_values},
+            review=review,
+            file=file,
+        )
 
         planned = sum(1 for c in candidates for e in c.record.status_history if e.planned)
         metrics: dict[str, float | int] = {
@@ -3273,6 +3795,7 @@ class AIGridWatchImporter:
                 if isinstance(p, dict) and isinstance(p.get("events"), list)
             ),
         }
+        metrics.update(correction_metrics(entries, corrected=stats["records_corrected"]))
         return ImportResult(self.name, [snapshot], candidates, review, metrics)
 
     @staticmethod
@@ -3326,6 +3849,9 @@ class AIGridWatchImporter:
         from atlas.geocode import GeocodeRequest, geocode
 
         free = set(release.release) if release else set()
+        # A cited first_report correction dates the first report after the build, so it lifts the
+        # first-report holds below as a release does (the corrected record is checked again).
+        cited_first = release is not None and has_first_report(release.corrections)
         holds: list[str] = []
 
         # Location ---------------------------------------------------------------------
@@ -3519,6 +4045,16 @@ class AIGridWatchImporter:
                 continue
             out_phrase, out_where = outside
             location[key] = None
+            if (
+                not location.get("county_fips")
+                and location.get("lat") is not None
+                and location.get("lon") is not None
+            ):
+                # The point is the place's Gazetteer point (CloudBurst "near San Marcos"): it
+                # still tells the county, as for a row with coordinates.
+                at = counties.lookup(location["lat"], location["lon"])
+                if at is not None and at.state_abbr == state:
+                    location["county_fips"], location["county_name"] = at.fips, at.name
             if location.get("county_fips"):
                 location["precision"] = "county"
             flag(
@@ -3733,6 +4269,22 @@ class AIGridWatchImporter:
                 announced=clean_text(project.get("announced")),
                 filing=explained.filing.fuzzy()["value"] if explained.filing else None,
             )
+        deal = (
+            property_deal(project, explained.day)
+            if explained.day is not None and late is None
+            else None
+        )
+        if deal is not None:
+            flag(
+                "conflict",
+                pid,
+                f"AI GridWatch's announced date ({clean_text(project.get('announced'))}) is the "
+                f"day of a property deal ({deal[:160]!r}), which states no data center plan and "
+                "announces nothing: it is imported as the project's first report, not as its "
+                "announcement, and a reviewer dates the announcement if there is one",
+                announced=clean_text(project.get("announced")),
+                entry=deal[:300],
+            )
         filing = rezoning_filing(project)
         if filing.doubt is not None:
             flag(
@@ -3814,7 +4366,7 @@ class AIGridWatchImporter:
                     "source_ids": ["s1"],
                     "note": (
                         "First report dated by a reviewer "
-                        f"({release.reviewed_at.isoformat()}, config/overrides/aigridwatch.json)"
+                        f"({release.decision[0].isoformat()}, config/overrides/aigridwatch.json)"
                     ),
                 },
                 earliest=AgwDate(release.first_reported, "day"),
@@ -3849,6 +4401,16 @@ class AIGridWatchImporter:
             )
             if release is not None and "first_report" in free:
                 released(pid, release, "first_report", "conflict", why, **doubt_data)
+            elif cited_first:
+                flag(
+                    "conflict",
+                    pid,
+                    f"{why}; a cited first_report correction in config/overrides/aigridwatch.json "
+                    "dates the first report, so the row is imported",
+                    earliest=first.earliest.fuzzy()["value"],
+                    derived=derived.isoformat(),
+                    **doubt_data,
+                )
             else:
                 holds.append("first_report")
                 flag(
@@ -3873,6 +4435,16 @@ class AIGridWatchImporter:
             )
             if release is not None and "first_report" in free:
                 released(pid, release, "first_report", "conflict", why, **doubt_data)
+            elif cited_first:
+                flag(
+                    "conflict",
+                    pid,
+                    f"{why}; a cited first_report correction in config/overrides/aigridwatch.json "
+                    "dates the first report, so the row is imported",
+                    earliest=terminal["as_of"]["value"],
+                    derived=derived.isoformat() if derived else None,
+                    **doubt_data,
+                )
             else:
                 holds.append("first_report")
                 flag(
@@ -3932,6 +4504,7 @@ class AIGridWatchImporter:
                 "event_date": log.day.fuzzy()["value"] if log.day else None,
                 "event_kind": log.kind or None,
                 "event_source": log.source,
+                **({"observation": True} if log.observed else {}),
             }
             if release is not None and "stage" in free:
                 released(pid, release, "stage", "conflict", why, **evidence)
@@ -3943,6 +4516,20 @@ class AIGridWatchImporter:
                     f"{why}: the row is held for review, not imported, rather than published "
                     "with the stage's status",
                     **evidence,
+                )
+        ahead = stage_ahead(project, status, ctx.today) if log is None else None
+        if ahead is not None:
+            why = f"AI GridWatch's stage {stage!r} ({status}) is ahead of its own row: {ahead}"
+            if release is not None and "stage" in free:
+                released(pid, release, "stage", "conflict", why, stage=stage)
+            else:
+                holds.append("stage")
+                flag(
+                    "conflict",
+                    pid,
+                    f"{why}: the row is held for review, not imported, rather than published "
+                    "with the stage's status",
+                    stage=stage,
                 )
         if status == "cancelled" and status_reason is None:
             status_reason = withdrawal_reason(project)
@@ -3963,18 +4550,8 @@ class AIGridWatchImporter:
                 # nothing (rollup.derive_dates skips it), as for an OSM tag. The first file that
                 # showed the stage keeps its date, so a weekly run does not move it.
                 note = UNDATED_STAGE_NOTE.format(stage=stage)
-                observed = AgwDate(generated_day, "day")
-                seen = [
-                    e.as_of
-                    for e in (existing.status_history if existing is not None else [])
-                    if e.event == "other"
-                    and not e.planned
-                    and e.status == status
-                    and e.note == note
-                    and period_start(e.as_of) < generated_day
-                ]
-                if seen:
-                    observed = AgwDate(period_start(min(seen, key=period_start)), "day")
+                seen = first_seen(existing, status, note, generated_day)
+                observed = AgwDate(seen or generated_day, "day")
                 stats["stage_events_undated"] += 1
             if latest is not None and observed.start < period_start(latest.as_of):
                 observed = AgwDate.of(latest.as_of)
