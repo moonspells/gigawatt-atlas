@@ -131,6 +131,7 @@ from atlas.sources.corrections import (
     human_confidence,
     lost_events,
     mark_corrected,
+    reviewer_first_report,
 )
 from atlas.text import clean_text, normalize_name, normalize_org
 from atlas.validate import EARLIEST_DATE, FUTURE_YEARS, add_years
@@ -3402,6 +3403,11 @@ def correct_candidates(
       corrections.apply_fixes, the entries in ref order: the record that holds the element after
       every hold, whatever cluster the dissolve and the joins put it in. The hold and
       out_of_scope ops' items name the cluster's representative, like the importer's own;
+    - the run stops for an entry whose corrected record's earliest dated event would be one that
+      reports no project, an approval, a construction start or the like that its ops add or
+      change (corrections.reviewer_first_report): OpenStreetMap's observations date nothing, so
+      it would be the record's first_reported. A cited first_report op, earlier than every dated
+      event, dates the first report instead;
     - the review items about a corrected record (any of its refs) get data.corrected_by
       (corrections.mark_corrected);
     - corrections.check_entries then stops the run for an entry the input does not have
@@ -3414,6 +3420,7 @@ def correct_candidates(
     candidates: list[Candidate] = []
     filed: list[ReviewItem] = []
     fixes_of: dict[str, list[Fix]] = {}
+    unreported: list[str] = []
     corrected = 0
     for candidate in built.candidates:
         found = [(ref, entries[ref]) for ref in candidate.match_values if entries.get(ref)]
@@ -3432,10 +3439,27 @@ def correct_candidates(
             gazetteer=gazetteer(),
             external_id=rep_of.get(key, key),
         )
+        early = reviewer_first_report(candidate.record, applied.record)
+        if early is not None:
+            keys = ", ".join(repr(ref) for ref, _ in found)
+            unreported.append(
+                f"{file} {'entries' if len(found) > 1 else 'entry'} {keys}: the corrected "
+                f"record's earliest dated event would be the {early.event} event of "
+                f"{early.as_of.value} that a correction adds or changes"
+            )
         candidates.append(dataclasses.replace(candidate, record=applied.record))
         filed.extend(applied.review)
         fixes = [fix for _, fs in found for fix in fs]
         fixes_of.update(dict.fromkeys(candidate.match_values, fixes))
+    if unreported:
+        # A reviewer's event never dates a first report it is not (as AI GridWatch's corrected
+        # rows): OpenStreetMap's observations date nothing, so the event would be the record's
+        # first_reported (Wichita Falls' approval of 2026-08 in fix round 6).
+        raise override_error(
+            "; ".join(unreported) + ". Imported, the record's first_reported would be that day, "
+            "but a project is public before it is approved, built, denied or paused: add a cited "
+            "first_report op (from null, earlier than every dated event) to the entry"
+        )
     review = mark_corrected(built.review, fixes_of, file=file) + filed
     check_entries(
         entries,

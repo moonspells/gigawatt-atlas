@@ -210,7 +210,9 @@ shows the project public; they read the corrected record the same way: when its 
 event is no announcement, filing or first report (an approval, a denial, a ban) and is not the
 built record's own earliest (one a correction added or changed, or one of the row's own that the
 correction leaves first by removing or moving later the events before it), the row is held until
-a cited `first_report` op dates the first report. A first report is that op, never an added
+a cited `first_report` op dates the first report. OpenStreetMap's observations date nothing, so an
+OSM entry whose earliest added event is no report stops the run until it has that op (fix round
+7). A first report is that op, never an added
 `first_reported` event, and a `replace_event` that gives one keeps it earlier than every other
 dated event. Epoch AI's record type follows its corrected events too: a campus once a non-planned
 event says a building operates, a project otherwise.

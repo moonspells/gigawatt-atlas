@@ -642,7 +642,10 @@ a building tag gets no status. Members are grouped by the resulting status.
   Falls' approval replaces OSM's operating observation, matched as `{"event": "other", "status":
   "operating"}`, never by its snapshot date). The status and dates are then rolled up again, and a
   removed or redated event stays in `field_meta["/status_history"]` conflicts
-  (docs/corrections.md).
+  (docs/corrections.md). OpenStreetMap's observations date nothing, so the first dated event of
+  an OSM record is a reviewer's, and a reviewer's event never dates a first report it is not: an
+  entry whose earliest dated event is no announcement, filing or first report stops the run until
+  it has a cited `first_report` op (section 9).
 
 ## 6. PNNL inputs
 
@@ -880,7 +883,13 @@ put it in, the entries of one record in ref order (`corrections.apply_fixes`: th
 guards and provenance are in docs/corrections.md). A correction whose guard no longer matches the
 built record stops the import, and so does one for an element whose cluster was held (no record
 was built: release the hold, by a `join` for example, or remove the correction); an entry whose
-corrections only `hold` or put out of scope an element the importer held already is fine. The
+corrections only `hold` or put out of scope an element the importer held already is fine. So does
+an entry whose corrected record's earliest dated event is one its ops add or change and is no
+announcement, filing or first report (an approval, a construction start, a denial: fix round 7,
+`corrections.reviewer_first_report`, as AI GridWatch holds such a row): it would be the record's
+`first_reported`, but a project is public before it is approved or built. The message names every
+such entry with its event and date; a cited `first_report` op (`from` null, an `as_of` before the
+first day of every dated event's period) dates the first report instead. The
 review items about a corrected record name the decision (`data.corrected_by`, section 8). A
 postcode OSM gives wrong:
 

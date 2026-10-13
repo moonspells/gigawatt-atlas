@@ -50,6 +50,7 @@ from atlas.sources.corrections import (
     narrow_supports,
     place_location,
     remap_list_pointers,
+    reviewer_first_report,
 )
 from atlas.sources.osm import OsmImporter
 from atlas.store import RecordStore
@@ -568,6 +569,64 @@ def test_remove_an_observation_and_add_an_approval(correct: Correct) -> None:
         ("/status_history", summary("other", "operating", "2026-10-09"), None),
         ("/status_history", None, summary("approved", "permitted", "2026-08")),
     ]
+    # The approval would be the first report although it reports no project: the importers
+    # stop or hold for it (fix round 7: it was published as the first report).
+    early = reviewer_first_report(seed("osm:way/747985149"), rec)
+    assert early is not None and (early.event, early.as_of.value) == ("approved", "2026-08")
+
+
+def test_a_cited_first_report_dates_what_a_reviewers_event_would_not(correct: Correct) -> None:
+    """Wichita Falls with the first report the stop asks for: DataNovaX's announcement of
+    2024-06-05, earlier than the approval; the record has no first report of its own (from
+    null)."""
+    built = seed("osm:way/747985149")
+    rec = correct(
+        built,
+        fix(
+            "https://www.newschannel6now.com/2026/08/13/datanovax-data-center-approved/",
+            "the Planning and Zoning Commission approved a conditional-use request",
+            {"op": "remove_event", "match": {"event": "other", "status": "operating"}},
+            {"op": "add_event", "event": "approved", "status": "permitted", "as_of": "2026-08"},
+        ),
+        fix(
+            "https://dallasinnovates.com/datanovax-announces-1-billion-wichita-falls-data-center/",
+            "DataNovaX announces $1 billion Wichita Falls data center",
+            {"op": "first_report", "from": None, "as_of": "2024-06-05", "status": "announced"},
+        ),
+    ).record
+    assert {k: v.value for k, v in rec.dates.items()} == {
+        "first_reported": "2024-06-05",
+        "approved": "2026-08",
+    }
+    assert rec.status == "permitted"
+    assert reviewer_first_report(built, rec) is None
+
+
+def test_the_sources_own_earliest_event_is_no_reviewers_event(correct: Correct) -> None:
+    """Epoch AI's Amazon Ridgeland starts with its own construction_start, which the importer's
+    checks have read: a correction that leaves it first adds no reviewer's event. An announcement
+    a correction adds first is a report."""
+    ridgeland = seed("epoch_name:Amazon Ridgeland")
+    named = correct(
+        ridgeland,
+        fix(
+            "https://example.com/codename",
+            "The project, code-named Project Example, is Amazon's.",
+            {"op": "add_alias", "name": "Project Example", "kind": "codename"},
+        ),
+    ).record
+    assert named.status_history[0].event == "construction_start"
+    assert reviewer_first_report(ridgeland, named) is None
+    built = seed("osm:way/747985149")
+    announced = correct(
+        built,
+        fix(
+            "https://example.com/announced",
+            "The company announced the data center.",
+            {"op": "add_event", "event": "announced", "status": "announced", "as_of": "2024-06"},
+        ),
+    ).record
+    assert reviewer_first_report(built, announced) is None
 
 
 def test_add_an_event_narrows_the_row_source(correct: Correct) -> None:

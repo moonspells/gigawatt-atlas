@@ -119,6 +119,16 @@ before it or moving them later (PW Digital Gateway's withdrawal, once its first 
 removed). The row is then held with a `conflict` item, and the run stops (its correction built
 no record) until a cited `first_report` op dates the first report.
 
+OpenStreetMap applies the same rule (`corrections.reviewer_first_report`, since fix round 7). Its
+observations date nothing, so on an OSM record every dated event is one an op added: when the
+earliest of them is no announcement, filing or first report (an approval, a construction start,
+a denial), the run stops for the entry (`atlas import osm` exits 1 and writes nothing; the message
+names every such entry, the event and its date) until the entry has a cited `first_report` op.
+Its `from` is null, since the built record has no first report, and its `as_of` must be earlier
+than every dated event: before the first day of the event's period, so a `construction_start` of
+`2024` needs a first report in 2023 or before. Round 6 published Wichita Falls' approval of
+2026-08 as its first report although DataNovaX announced the project in 2024.
+
 An event match (`match`, `event`) has `event`, `status`, `as_of`, `phase` and `planned`, and names
 at least the event or the status. OSM observations are dated with each snapshot, so match them by
 `{"event": "other", "status": ...}`, never by `as_of`, or every weekly run is stale. Match AI

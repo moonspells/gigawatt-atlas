@@ -24,7 +24,10 @@ candidate record after the build, with full provenance:
 Entries fail closed: a guard that no longer matches the record (an op's `from` or event match), a
 key the input no longer has, a correction for a record that was not built, or a corrected record
 that fails validate_record raises correction_error, a FetchError, so `atlas import` exits 1 and
-writes nothing. place_location places a cited location by Epoch's override rules (07 §6.5).
+writes nothing. reviewer_first_report finds a reviewer's event that would date a first report it
+is not (AI GridWatch then holds the row, and OpenStreetMap stops the run, until a cited
+first_report op dates it). place_location places a cited location by Epoch's override rules
+(07 §6.5).
 
 Importing this module does no I/O.
 """
@@ -61,9 +64,17 @@ from atlas.schema.record import (
     Precision,
     SourceType,
     Status,
+    StatusEvent,
     StatusReason,
 )
-from atlas.schema.rollup import STOPPED, RollupError, apply_rollup, deciding_event, period_start
+from atlas.schema.rollup import (
+    STOPPED,
+    RollupError,
+    apply_rollup,
+    deciding_event,
+    event_key,
+    period_start,
+)
 from atlas.sources.base import ReviewItem, classify_source
 from atlas.text import find_personal_data, hidden_characters, normalize_name, normalize_org
 from atlas.validate import validate_record
@@ -1702,6 +1713,43 @@ def has_first_report(fixes: Iterable[Fix]) -> bool:
     """True when a Fix has a first_report op: the cited first report the importer's first-report
     hold asks for (Epoch AI's and AI GridWatch's lift it)."""
     return any(isinstance(op, FirstReportOp) for fix in fixes for op in fix.ops)
+
+
+# The events that report a project, so that one may date its first report: an announcement, a
+# filing (as AI GridWatch's first_report reads the row's own filing) and a first report itself.
+REPORT_EVENTS = frozenset({"first_reported", "announced", "application_filed"})
+
+
+def as_dated(e: StatusEvent) -> tuple[str, str, str, str | None, bool]:
+    """What makes an event the same dated event: its type, status, date, phase and planned."""
+    return (e.event, e.status, e.as_of.value, e.phase_id, e.planned)
+
+
+def reviewer_first_report(built: FacilityRecord, corrected: FacilityRecord) -> StatusEvent | None:
+    """The event that would date a corrected record's first report although it reports no
+    project, if any: the earliest dated event (the one rollup.derive_dates dates first_reported
+    by) when it is no announcement, filing or first report (an approval, a denial, a ban, a
+    construction start) and not the built record's own earliest dated event, which the
+    importer's checks have read. That is an event the corrections added or changed (its event,
+    status or date), or one of the source's own that they leave first by removing the events
+    before it or moving them later (PW Digital Gateway's withdrawal once its first report is
+    removed). A reviewer's event never dates a first report it is not: AI GridWatch's
+    first-report checks hold a row whose first report its own milestones would date so (n41:
+    Project Riverjump's withdrawal), and hold the corrected record the same way; OpenStreetMap's
+    observations date nothing, so any such event on an OSM record is one a correction added
+    (Wichita Falls' approval of 2026-08, published as its first report in round 6), and the run
+    stops for the entry. A cited first_report op, earlier than every dated event, lifts both."""
+
+    def dated(record: FacilityRecord) -> list[StatusEvent]:
+        actual = (e for e in record.status_history if not e.planned and e.event != "other")
+        return sorted(actual, key=event_key)
+
+    corrected_dated, own = dated(corrected), dated(built)
+    if not corrected_dated or corrected_dated[0].event in REPORT_EVENTS:
+        return None
+    if own and as_dated(corrected_dated[0]) == as_dated(own[0]):
+        return None  # the source's own earliest event, which the importer's checks have read
+    return corrected_dated[0]
 
 
 def check_expect(

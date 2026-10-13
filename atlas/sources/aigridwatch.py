@@ -121,6 +121,7 @@ from atlas.sources.corrections import (
     Fix,
     LostEvent,
     apply_fixes,
+    as_dated,
     check_entries,
     check_expect,
     check_fix_dates,
@@ -128,6 +129,7 @@ from atlas.sources.corrections import (
     has_first_report,
     lost_events,
     mark_corrected,
+    reviewer_first_report,
 )
 from atlas.text import clean_text as _clean_text
 from atlas.text import find_personal_data
@@ -2610,39 +2612,6 @@ def first_seen(
     return min(days, default=None)
 
 
-# The events that report a project, so that one may date its first report: an announcement, a
-# filing (as first_report reads the row's own filing) and a first report itself.
-_REPORT_EVENTS = frozenset({"first_reported", "announced", "application_filed"})
-
-
-def _as_dated(e: StatusEvent) -> tuple[str, str, str, str | None, bool]:
-    return (e.event, e.status, e.as_of.value, e.phase_id, e.planned)
-
-
-def reviewer_first_report(built: FacilityRecord, corrected: FacilityRecord) -> StatusEvent | None:
-    """The event that would date a corrected record's first report although it reports no
-    project, if any: the earliest dated event (the one rollup.derive_dates dates first_reported
-    by) when it is no announcement, filing or first report (an approval, a denial, a ban) and not
-    the built record's own earliest dated event, which the importer's checks have read. That is
-    an event the corrections added or changed (its event, status or date), or one of the row's
-    own that they leave first by removing the events before it or moving them later (PW Digital
-    Gateway's withdrawal once its first report is removed). The importer's first-report checks
-    hold a row whose first report its own milestones would date so (n41: Project Riverjump's
-    withdrawal); the corrected record is held the same way, until a cited first_report op dates
-    the first report."""
-
-    def dated(record: FacilityRecord) -> list[StatusEvent]:
-        actual = (e for e in record.status_history if not e.planned and e.event != "other")
-        return sorted(actual, key=event_key)
-
-    corrected_dated, own = dated(corrected), dated(built)
-    if not corrected_dated or corrected_dated[0].event in _REPORT_EVENTS:
-        return None
-    if own and _as_dated(corrected_dated[0]) == _as_dated(own[0]):
-        return None  # AI GridWatch's own earliest event, which the importer's checks have read
-    return corrected_dated[0]
-
-
 # ---------------------------------------------------------------------------- Epoch AI's sites
 
 
@@ -3574,7 +3543,7 @@ class AIGridWatchImporter:
                     # project: held, not dated by it (check_entries then stops the run, since the
                     # correction built nothing).
                     stats["held_for_review"] += 1
-                    ours = _as_dated(early) in {_as_dated(e) for e in record.status_history}
+                    ours = as_dated(early) in {as_dated(e) for e in record.status_history}
                     how = (
                         f", AI GridWatch's own, which a correction in {file} leaves first (it "
                         "removes the events before it or moves them later)"

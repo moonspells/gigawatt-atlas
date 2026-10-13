@@ -616,6 +616,70 @@ def test_a_stale_correction_stops_the_run(run: Run) -> None:
         run(FIX5, {"way/597876721": {"corrections": [fix(op)]}})
 
 
+APPROVED = {"op": "add_event", "event": "approved", "status": "permitted", "as_of": "2026-08"}
+BUILT = {
+    "op": "add_event",
+    "event": "construction_start",
+    "status": "under_construction",
+    "as_of": "2024",
+}
+FIRST = {"op": "first_report", "from": None, "as_of": "2024-06-05", "status": "announced"}
+
+
+@pytest.mark.parametrize(
+    ("op", "event"),
+    [(APPROVED, "approved event of 2026-08"), (BUILT, "construction_start event of 2024")],
+)
+def test_a_reviewers_event_never_dates_a_first_report(
+    run: Run, op: dict[str, Any], event: str
+) -> None:
+    """Fix round 7 (Wichita Falls: the approval an entry added became first_reported 2026-08):
+    OpenStreetMap's observations date nothing, so an event an entry adds would date the first
+    report although it reports no project; the run stops for the entry, as AI GridWatch's
+    corrected rows are held."""
+    with pytest.raises(
+        FetchError,
+        match=rf"entry 'way/597876721': the corrected record's earliest dated event would be "
+        rf"the {event} that a correction adds or changes\. .*add a cited first_report op",
+    ):
+        run(FIX5, {"way/597876721": {"corrections": [fix(op)]}})
+
+
+def test_every_entry_the_first_report_stops_is_named(run: Run) -> None:
+    entries = {
+        "way/190868312": {"corrections": [fix(BUILT)]},
+        "way/597876721": {"corrections": [fix(APPROVED)]},
+    }
+    with pytest.raises(FetchError) as stopped:
+        run(FIX5, entries)
+    assert "entry 'way/190868312'" in str(stopped.value)
+    assert "entry 'way/597876721'" in str(stopped.value)
+
+
+def test_a_cited_first_report_dates_the_first_report(
+    run: Run, counties: CountyIndex, today: date
+) -> None:
+    """The entry the stop asks for: a first_report op, from null (an OSM record has no first
+    report of its own) and earlier than every dated event."""
+    entry = {"corrections": [fix(APPROVED), fix(FIRST, url="https://example.com/first")]}
+    result = run(FIX5, {"way/597876721": entry})
+    dallas = record(result, "way/597876721")
+    assert {k: v.value for k, v in dallas.dates.items()} == {
+        "first_reported": "2024-06-05",
+        "approved": "2026-08",
+    }
+    valid(result, counties, today)
+    stale = {**FIRST, "from": "2026-08"}
+    with pytest.raises(FetchError, match=r"dates\.first_reported is None, not '2026-08'"):
+        run(FIX5, {"way/597876721": {"corrections": [fix(APPROVED), fix(stale)]}})
+
+
+def test_an_announcement_an_entry_adds_may_date_the_first_report(run: Run) -> None:
+    op = {"op": "add_event", "event": "announced", "status": "announced", "as_of": "2024-06"}
+    dallas = record(run(FIX5, {"way/597876721": {"corrections": [fix(op)]}}), "way/597876721")
+    assert dallas.dates["first_reported"].value == "2024-06"
+
+
 def test_corrections_on_a_held_cluster_stop_the_run(run: Run) -> None:
     """The Lakeside Technology Center's building is held as a carrier hotel (fix round 6): a
     correction of its record cannot apply, but an entry that only holds it is fine."""
@@ -766,6 +830,8 @@ OBSERVED = {"event": "other", "status": "operating"}
         [
             {"op": "add_event", "event": "approved", "status": "permitted", "as_of": "2026-08"},
             {"op": "remove_event", "match": OBSERVED},
+            # Fix round 7: an added approval needs a cited first report (the run stops without).
+            FIRST,
         ],
         [{"op": "replace_event", "match": OBSERVED, "set": {"as_of": "2025"}}],
         [{"op": "support", "event": OBSERVED}],
