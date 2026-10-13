@@ -118,6 +118,8 @@ def vote(summary: str, day: str = "2026-06-26") -> dict[str, Any]:
         "The county responded with unanimous 1-year moratorium (5-0).",
         "The council approved a rewritten zoning code that permanently excludes data centers from "
         "the city.",
+        # epoch-agw-2 (review of fix round 6): words after the moratorium that are not a study.
+        "Council voted 3-2 for a 12-month moratorium on new data centers.",
     ],
 )
 def test_ban_phrases(summary: str) -> None:
@@ -137,6 +139,22 @@ def test_ban_phrases(summary: str) -> None:
         ("Residents urged the board, which voted for a moratorium study, to act.", None),
         # A ban adopted before the project was public does not block it.
         ("Council voted 3-2 for 1-year moratorium.", date(2026, 7, 1)),
+        # epoch-agw-2 (review of fix round 6): a vote to lift, end or study a moratorium, a vote
+        # that failed, and a ban on part of the place adopt no ban.
+        ("Council voted unanimously for lifting the moratorium.", None),
+        ("The board voted 4-1 for ending the moratorium.", None),
+        ("The board voted 4-1 for a moratorium study.", None),
+        ("Council voting for moratorium failed 2-3.", None),
+        (
+            "The council adopted an ordinance that excludes new data centers from the city's "
+            "historic district.",
+            None,
+        ),
+        ("The township voted for the moratorium to end.", None),
+        (
+            "The council approved a zoning code that excludes data centers from the city center.",
+            None,
+        ),
     ],
 )
 def test_no_ban(summary: str, public: date | None) -> None:

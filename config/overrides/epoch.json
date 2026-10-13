@@ -1618,9 +1618,8 @@
         "ops": [
           {
             "as_of": "2023-08-31",
-            "event": "first_reported",
-            "note": "First report, per San Antonio Report",
-            "op": "add_event",
+            "from": "2023-12-15",
+            "op": "first_report",
             "status": "announced"
           }
         ],
@@ -1633,17 +1632,7 @@
         "source_type": "news",
         "source_url": "https://sanantonioreport.org/san-antonio-vantage-data-centers-microsoft-west-side/"
       }
-    ],
-    "first_report": {
-      "note": "Epoch's Selected Source, the TDLR registration of TX11 (14720 Omicron Dr.), the earliest dated report among its sources: the same day as Epoch's first row, so that row stays first_reported.",
-      "published_at": "2023-12-15",
-      "publisher": "Texas Department of Licensing and Regulation",
-      "quote": "Project #: TABS2024007561 Registration Date: 12/15/2023",
-      "retrieved_at": "2026-10-09T21:50:20Z",
-      "source_type": "government_record",
-      "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2024007561",
-      "status": "proposed"
-    }
+    ]
   },
   "xAI QTS Atlanta": {
     "capacity": {

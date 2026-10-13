@@ -109,7 +109,8 @@ its status is not ahead of the first event's (07 §2.3):
   takes the time as `published_at`). The entry's author dates the earliest report among Epoch's
   Selected Sources (their dates and titles, TDLR registrations' Registration Date), the location
   source and other pages; an entry that is not earlier records that check, and Epoch's first row
-  stays first_reported (Vantage TX1: TDLR registered TX11 the day of Epoch's first row);
+  stays first_reported (Vantage TX1's entry of fix round 5: TDLR registered TX11 the day of
+  Epoch's first row; since fix round 6 a cited `first_report` op dates its first report earlier);
 - an announcement a quote of the entry dates ("In December 2024, Meta announced that we are
   building our largest data center to date in Richland Parish": `2024-12`, citing the page);
 - an announcement a note of Epoch's timeline dates ("their September 23, 2025 announcement",
@@ -449,7 +450,13 @@ not the date the stage began" (owner decision of 2026-10-09). Like an OSM tag's,
 sets the status and dates nothing: `derive_dates` skips `other` events, so it is never a first
 report, an operating date or a cancellation. A later file that still shows the stage keeps the
 date of the first one (the stored record's), so a weekly run rewrites nothing; a new stage is a
-new observation. The file's date is not the day AI GridWatch read a source for the row, which is
+new observation. That holds for an observation a correction removed or redated as well, which the
+stored record keeps only among its `field_meta["/status_history"]` conflicts
+(`corrections.lost_events`; they keep no note, so the status and AI GridWatch's source pick it),
+and for one a Fix's `support` cites: the correction then summarises it the same way with every
+file (Microsoft Cheyenne Expansion's `remove_event` rewrote its conflict with each `generated`
+date, and a redated observation stopped the run as stale, before fix round 6's review). An event
+a correction redated cites the Fix alone and keeps the reviewer's date. The file's date is not the day AI GridWatch read a source for the row, which is
 why it dates nothing; a reviewer who confirms the stage can give that day in
 `config/overrides/aigridwatch.json` (`as_of`). On the 2026-10-08 inputs, 145 records have a stage
 event, 42 of them dated with the file.
@@ -491,7 +498,12 @@ judged right as proposed). A vote for a moratorium ("voted 3-2 for", "voted unan
 of"), a moratorium in answer ("responded with unanimous 1-year moratorium"), and a zoning code that
 shuts data centers out of the place ("approved a rewritten industrial zoning code that permanently
 excludes data centers from the city": T5's Palmetto campus, after its filing) count as adopted, with
-the same exemption, hedge and end checks. A moratorium a later entry says ended does not ("Commission votes 3-2 against
+the same exemption, hedge and end checks. A vote for lifting, ending, repealing or studying a
+moratorium, for a hearing or a report on one, or one that failed, does not ("voted 4-1 for ending
+the moratorium", "voted 4-1 for a moratorium study", "voted for the moratorium to end", "voting for
+moratorium failed 2-3"), nor a moratorium or ban that the same clause lifts or ends, nor a code
+that shuts data centers out of a part of the place ("from the city's historic district", "from the
+city center"); fix round 6's review. A moratorium a later entry says ended does not ("Commission votes 3-2 against
 extending moratorium; moratorium expires": Leavenworth County's, for Project Bluestem). A row
 Under construction is held when its log reports an injunction or a halt of its works that no later
 entry lifts (Matrix: the judge "issues a temporary injunction freezing new construction/development
@@ -912,7 +924,7 @@ change the record built from it ([corrections.md](../corrections.md); below).
 | `unverified_upstream` | aigridwatch | `verified: false`; or event-log entries citing placeholder links (`data.entries`; they date nothing) |
 | `possible_duplicate` | aigridwatch | the row is an Epoch site (`record_id` = the Epoch record, `data.matched_by`), or may be one (`weak_link`, `nearby`, `place`, `several`, and `epoch_source` when a rule finds candidates: `record_id` empty, the candidates in `data.epoch_records`), or is AI GridWatch's copy of an Epoch site that has no record (`epoch_copy`: no record id, no candidates); no record. `data.stored_record` names an AI GridWatch record the store already holds for the row. With `data.released`, a reviewer released the row and it is imported |
 | `county_mismatch` | aigridwatch | the coordinates are not in the stated state (no record), or not in the named county (the record is placed by the locality text instead; `data.lat`/`lon` are the coordinates not used), or not shown to lie in the city or municipality the locality names (`data.place`; the record keeps the point and does not name it); or the row's note or log puts the site outside the place it names (`data.place`, `phrase`; the record names the county, at county precision); or the locality names no county and the note and log place the site in a county that does not contain its place (`data.stated_county`; the record is at that county's point) |
-| `conflict` | both | AI GridWatch: the announced date is later than a filing, hearing or decision date (the announcement is left out); the event log or note reports a later milestone than the stage, or leaves no application under review (`data.reported_status`, `event_date`, `event_kind`, `event_source`; held, no record); the row shows the project public before its earliest milestone and no first report can be dated (`data.earliest`, `derived`; held, no record); an outcome `approved` that nothing names a land-use approval or a permit (`data.decided_date`, `entry`; no `approved` event); a stage that implies an application while the note says none was made (`data.stage`, `note_says`; announced); the id starts with another row's name (`data.id_of`; held, no record); an announced date the row explains as an LLC's registration or a filing (`data.announced`, `filing`); a rezoning_filed date it explains as an inquiry, a report or the municipality's procedure, or later than its own filing (`data.rezoning_filed`, `application_filed`); a decision dated by the meeting the vote ended (`data.decided_date`, `dated`); a developer the row says is being replaced (`data.operator`; not imported); an earliest dated milestone that is a denial, a withdrawal or a pause with no first report (`data.earliest`; held); an injunction or a halt under construction, or a ban or moratorium on an announced row with no filing (`data.reported_status` paused; held); a row held as an Epoch record's twin whose stage disagrees with that record's status (`record_id` = the Epoch record, `data.stage`, `as_of`, `epoch_status`, and `support`, the milestone or event-log entry that supports the stage, if any; the stage is not applied and nothing changes); a first-report hold that a cited `first_report` correction lifts (`data.earliest`, `derived`; imported); a reviewer's event that would date the first report although it is none (`data.event`, `earliest`; held, and the run stops: [Reviewer entries](#reviewer-entries)). Epoch: Epoch's fields suggest the timeline may not date the facility (a name or cited source mentions an expansion, the name or first row names part of a site, a bitcoin miner owns or hosts the site; the reason says which; its dates and capacity are left out), or a timeline that does not date the facility has tracked buildings that are not operating and no cited facility status (its status is unknown: no record); `data.evidence` quotes the note, title or field, `data.status` is the tracked buildings' status. Also (the record is kept): Epoch's modelled capacity against the MW its note states (`data.epoch`, `stated`; only the phrase is kept), or a cited capacity older than Epoch's latest figures (`data.epoch`, `cited`); the location's cited sources disagree (`data.conflicts`); a cited source states another status than the record's (`data.source_url`, `states_status`, `status`); a cited first report whose status is ahead of the first event (`data.first_report`, `first_report_status`, `first_event`, `first_event_status`; it dates nothing); a cited milestone not applied (`data.problems`) |
+| `conflict` | both | AI GridWatch: the announced date is later than a filing, hearing or decision date (the announcement is left out); the event log or note reports a later milestone than the stage, or leaves no application under review (`data.reported_status`, `event_date`, `event_kind`, `event_source`; held, no record); the row shows the project public before its earliest milestone and no first report can be dated (`data.earliest`, `derived`; held, no record); an outcome `approved` that nothing names a land-use approval or a permit (`data.decided_date`, `entry`; no `approved` event); a stage that implies an application while the note says none was made (`data.stage`, `note_says`; announced); the id starts with another row's name (`data.id_of`; held, no record); an announced date the row explains as an LLC's registration or a filing (`data.announced`, `filing`); a rezoning_filed date it explains as an inquiry, a report or the municipality's procedure, or later than its own filing (`data.rezoning_filed`, `application_filed`); a decision dated by the meeting the vote ended (`data.decided_date`, `dated`); a developer the row says is being replaced (`data.operator`; not imported); an earliest dated milestone that is a denial, a withdrawal or a pause with no first report (`data.earliest`; held); an injunction or a halt under construction, or a ban or moratorium on a row with no filing, at announced or at an application stage (`data.reported_status` paused; held; the item adds that the row shows no filing at an application stage); a stage ahead of its own row (`data.stage`; held, or with `stage` released imported with `data.released`: Microsoft Cheyenne Expansion, STACK Berry Hill); an announced date that is a property deal (`data.announced`, `entry`; imported as the first report: Amazon Bridgefield, Google Botetourt); a row held as an Epoch record's twin whose stage disagrees with that record's status (`record_id` = the Epoch record, `data.stage`, `as_of`, `epoch_status`, and `support`, the milestone or event-log entry that supports the stage, if any; the stage is not applied and nothing changes); a first-report hold that a cited `first_report` correction lifts (`data.earliest`, `derived`; imported); a corrected record whose earliest dated event would date the first report although it is none, an event a correction adds or changes or one of the row's own that it leaves first (`data.event`, `earliest`; held, and the run stops: [Reviewer entries](#reviewer-entries)). Epoch: Epoch's fields suggest the timeline may not date the facility (a name or cited source mentions an expansion, the name or first row names part of a site, a bitcoin miner owns or hosts the site; the reason says which; its dates and capacity are left out), or a timeline that does not date the facility has tracked buildings that are not operating and no cited facility status (its status is unknown: no record); `data.evidence` quotes the note, title or field, `data.status` is the tracked buildings' status. Also (the record is kept): Epoch's modelled capacity against the MW its note states (`data.epoch`, `stated`; only the phrase is kept), or a cited capacity older than Epoch's latest figures (`data.epoch`, `cited`); the location's cited sources disagree (`data.conflicts`); a cited source states another status than the record's (`data.source_url`, `states_status`, `status`); a cited first report whose status is ahead of the first event (`data.first_report`, `first_report_status`, `first_event`, `first_event_status`; it dates nothing); a cited milestone not applied (`data.problems`) |
 | `unit_parse` | aigridwatch | `size_mw` or `acres` is not a number in range, a party field holds a capacity, the operator/developer field names an electric utility (`data.operator`; not imported), or the note gives `size_mw` as a power source's or one phase's (`data.basis`; the record is kept without it, `size_mw` only in `mw_as_stated`); or the log gives the campus other figures on the note's basis (`data.others`; only `mw_as_stated` keeps `size_mw`); or `acres` is the whole property's and the row gives its named campus another acreage (`data.acres`, `campus_acres`; that one is published) |
 | `out_of_scope` | aigridwatch | a territory (no record), or a power supply deal or generation facility (`data.phrase`; the record is kept with `scope: "out_of_scope"`) |
 | `invalid` | both | a row that does not map to a valid record |
@@ -1123,13 +1135,16 @@ record built from a row with cited `corrections` ([corrections.md](../correction
   first-report hold as `first_reported` does; the row's `conflict` item then says that a cited
   first report dates it.
 - A reviewer's events pass the importer's first-report checks. When the earliest dated event of
-  the corrected record is one an op added or changed (its event, status or date), and it is no
-  announcement, filing or first report (an approval, a denial, a ban or a pause), it would date
-  the record's `first_reported`, though the project was public before it: the row is held with a
-  `conflict` item (`data.event`, `earliest`) instead, and the run stops, since its correction
-  built no record, until a cited `first_report` op dates the first report (Kearney's council
-  approval of 2026-09-08 on a row with no dated milestone). A reviewer's announcement dates the
-  first report as AI GridWatch's does.
+  the corrected record is no announcement, filing or first report (an approval, a denial, a ban
+  or a pause) and is not the built record's own earliest dated event (which those checks have
+  read), it would date the record's `first_reported`, though the project was public before it.
+  That is an event an op added or changed (its event, status or date: Kearney's council approval
+  of 2026-09-08 on a row with no dated milestone), or one of the row's own that the ops leave
+  first by removing the events before it or moving them later (PW Digital Gateway's withdrawal
+  of 2026-04 once a correction removes its 2023-12-13 first report). The row is held with a
+  `conflict` item (`data.event`, `earliest`; the reason says which of the two) instead, and the
+  run stops, since its correction built no record, until a cited `first_report` op dates the
+  first report. A reviewer's announcement dates the first report as AI GridWatch's does.
 
 The row is then imported as any other, and while a released check would still hold it, each run
 files an item with `data.released` naming the check and the reason, so the decision stays visible;
@@ -1261,7 +1276,7 @@ records' status); `atlas validate` 0 issues, and a second run `unchanged`.
 | Meta Aiken | the first report's identifying source; alias Project Sabal (codename) | the Aiken Standard (Post and Courier), 2024-08-29 |
 | Microsoft SAT40 | Bexar County confirmed (no value change); Medina stays in conflicts | the campus's OpenStreetMap outline (way 521300038) |
 | Microsoft-Nebius New Jersey | operating since 2025-Q4 (was 2026-Q1) | SemiAnalysis, the source Epoch's note cites |
-| Vantage TX1 | first report 2023-08-31, announced (was Epoch's 2023-12-15 row) | the San Antonio Report on Vantage's land purchase |
+| Vantage TX1 | first report 2023-08-31, announced (was Epoch's 2023-12-15 row): a `first_report` op, which replaces the round-5 TDLR `first_report` part (an entry has one or the other) | the San Antonio Report on Vantage's land purchase |
 | CoreWeave Dalton 1 & 2 | 30 MW IT, "delivered 30 megawatts into service" (Epoch's 28 MW IT and 40 MW in conflicts) | Core Scientific's Q1 2026 remarks |
 | Anthropic Barber Lake | tenant Cipher Digital (was Cipher Mining) | TheEnergyMag on the rebrand |
 | CoreWeave Lancaster Greenfield site | announced and first reported 2025-02-19 (was 2025-07-15) | WITF (LNP) on Machine Investment Group's announcement |

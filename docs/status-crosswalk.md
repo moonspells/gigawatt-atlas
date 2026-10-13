@@ -207,7 +207,10 @@ is an observation of the same kind, made before the build.
 A reviewer's event never dates a first report it is not. AI GridWatch's first-report checks hold
 a row whose earliest dated milestone is a denial, a withdrawal or a pause, or is later than the row
 shows the project public; they read the corrected record the same way: when its earliest dated
-event is one a correction added or changed and it is no announcement, filing or first report (an
-approval, a denial, a ban), the row is held until a cited `first_report` op dates the first
-report. Epoch AI's record type follows its corrected events too: a campus once a non-planned
+event is no announcement, filing or first report (an approval, a denial, a ban) and is not the
+built record's own earliest (one a correction added or changed, or one of the row's own that the
+correction leaves first by removing or moving later the events before it), the row is held until
+a cited `first_report` op dates the first report. A first report is that op, never an added
+`first_reported` event, and a `replace_event` that gives one keeps it earlier than every other
+dated event. Epoch AI's record type follows its corrected events too: a campus once a non-planned
 event says a building operates, a project otherwise.

@@ -119,12 +119,14 @@ from atlas.schema.rollup import (
 from atlas.sources.base import Candidate, ImportResult, ReviewItem, classify_source, load_input
 from atlas.sources.corrections import (
     Fix,
+    LostEvent,
     apply_fixes,
     check_entries,
     check_expect,
     check_fix_dates,
     correction_metrics,
     has_first_report,
+    lost_events,
     mark_corrected,
 )
 from atlas.text import clean_text as _clean_text
@@ -417,21 +419,44 @@ _LOG_MORATORIUM_RE = re.compile(
     r"|\b(?:removing|removed|removes) data cent(?:er|re)s? as (?:a )?permitted use\b",
     re.I,
 )
+# Words that make a vote for a moratorium no moratorium adopted: a vote to end, lift or study one,
+# or for a hearing or a report on one.
+_NOT_ADOPTED = (
+    r"(?:lift(?:s|ed|ing)?|end(?:s|ed|ing)?|repeal(?:s|ed|ing)?|rescind(?:s|ed|ing)?|"
+    r"terminat(?:e|es|ed|ing)|stud(?:y|ies|ied|ying)|hearings?|reports?|reviews?)"
+)
 # A vote for a moratorium, and a moratorium in answer ("Council voted 3-2 for 1-year moratorium",
 # "Commission voted 5-0 for 1-year moratorium", "the county responded with unanimous 1-year
-# moratorium").
+# moratorium"). Not a vote for ending, lifting or studying one ("voted 4-1 for ending the
+# moratorium", "voted 4-1 for a moratorium study", "voted for the moratorium to end"), nor one
+# that failed ("Council voting for moratorium failed 2-3").
 _LOG_MORATORIUM_VOTE_RE = re.compile(
     r"\bvot(?:ed|es|ing)\s+(?:\d+\s*-\s*\d+\s+|unanimously\s+)?(?:for|in favor of)\s+(?:an?\s+)?"
-    r"(?:[\w-]+\s+){0,2}moratori(?:um|a)\b"
+    rf"(?:(?!{_NOT_ADOPTED}\b)[\w-]+\s+){{0,2}}moratori(?:um|a)\b"
+    rf"(?!\s+{_NOT_ADOPTED}\b|\s+to\s+(?:end|lift|expire)\b)"
+    r"(?!(?:\s+[\w-]+){0,4}?\s+(?:fail(?:s|ed)?|was\s+defeated)\b)"
     r"|\brespond\w*\s+with\s+(?:an?\s+)?(?:[\w-]+\s+){0,3}moratori(?:um|a)\b",
     re.I,
 )
+# A moratorium or ban that the clause of its vote lifts or ends ("voted unanimously for lifting
+# the moratorium", "voted for the moratorium to end") is none adopted.
+_MORATORIUM_LIFTED_RE = re.compile(
+    r"\b(?:lift(?:s|ed|ing)?|end(?:s|ed|ing)?|repeal(?:s|ed|ing)?|rescind(?:s|ed|ing)?|"
+    r"terminat(?:e|es|ed|ing))\s+(?:the\s+|its\s+|a\s+)?(?:[\w-]+\s+){0,2}?"
+    r"(?:moratori(?:um|a)|ban)\b"
+    r"|\bmoratori(?:um|a)\s+(?:to\s+end|(?:was\s+|is\s+|be\s+)?(?:lifted|ended|repealed|"
+    r"rescinded))\b",
+    re.I,
+)
 # A ban written as a zoning code that shuts data centers out of the place (Palmetto: "approved a
-# rewritten industrial zoning code that permanently excludes data centers from the city").
+# rewritten industrial zoning code that permanently excludes data centers from the city"), not
+# out of a part of it ("excludes new data centers from the city's historic district", "from the
+# city center").
 _LOG_BAN_RE = re.compile(
     r"\b(?:pass(?:ed|es)?|adopt(?:ed|s)?|approv(?:e|ed|es)|enact(?:ed|s)?)(?:\W+[\w'-]+){0,8}?\W+"
     r"(?:exclud|prohibit|bann?)\w*\s+(?:all\s+|new\s+)?data cent(?:er|re)s?\s+from\s+the\s+"
-    r"(?:city|county|township|town|village|borough|parish)\b",
+    r"(?:city|county|township|town|village|borough|parish)\b"
+    r"(?!['\u2019]s\b|\s+(?:cent(?:er|re)|core|downtown)\b)",
     re.I,
 )
 # Every way a log entry says a moratorium or ban on data centers was adopted (log_obstacle).
@@ -2184,6 +2209,7 @@ def log_obstacle(
                 (day is not None or filed is None)
                 and (since is None or day is None or day.start > since)
                 and not _LOG_EXEMPT_RE.search(clean_text(e.get("summary")))
+                and not _MORATORIUM_LIFTED_RE.search(clause)
                 and any(
                     _unhedged(clause, m.start(), m.end())
                     and not _MORATORIUM_HEDGE_RE.search(clause[max(0, m.start() - 40) : m.start()])
@@ -2550,32 +2576,65 @@ def _latest_actual(events: list[StatusEvent]) -> StatusEvent | None:
     return max(actual, key=event_key) if actual else None
 
 
+def first_seen(
+    existing: FacilityRecord | None, status: Status, note: str, generated_day: date
+) -> date | None:
+    """The day an earlier file first showed an undated stage, so that a weekly run does not move
+    its observation forward: the earliest stored event of the stage's status with its note that
+    cites AI GridWatch's file (a support op or a retype keeps both), or an `other` event of that
+    status citing the file that a correction removed or redated, which the stored record has only
+    among its lost events (corrections.lost_events). Without the latter the rebuilt observation
+    would take each file's date, and the correction would summarise it differently, and rewrite
+    the record, every week. A lost event keeps no note: AI GridWatch's only `other` events are its
+    stage observations, so the status and the file's source pick it. An event a correction
+    redated cites the Fix alone, so the reviewer's date is not taken for the file's."""
+    if existing is None:
+        return None
+    dataset = {s.id for s in existing.sources if str(s.url) == str(HttpUrl(DATASET_URL))}
+    stored: list[StatusEvent | LostEvent] = [e for e in existing.status_history if e.note == note]
+    stored += [e for e in lost_events(existing) if e.event == "other"]
+    days = [
+        period_start(e.as_of)
+        for e in stored
+        if not e.planned
+        and e.status == status
+        and dataset & set(e.source_ids)
+        and period_start(e.as_of) < generated_day
+    ]
+    return min(days, default=None)
+
+
 # The events that report a project, so that one may date its first report: an announcement, a
 # filing (as first_report reads the row's own filing) and a first report itself.
 _REPORT_EVENTS = frozenset({"first_reported", "announced", "application_filed"})
 
 
+def _as_dated(e: StatusEvent) -> tuple[str, str, str, str | None, bool]:
+    return (e.event, e.status, e.as_of.value, e.phase_id, e.planned)
+
+
 def reviewer_first_report(built: FacilityRecord, corrected: FacilityRecord) -> StatusEvent | None:
-    """The reviewer's event that would date a corrected record's first report although it reports
-    no project, if any: the earliest dated event (the one rollup.derive_dates dates
-    first_reported by) when the corrections added it or changed its event, status or date, and it
-    is no announcement, filing or first report (an approval, a denial, a ban). The importer's
-    first-report checks hold a row whose first report its own milestones would date so (n41:
-    Project Riverjump's withdrawal); a reviewer's event is held the same way, until a cited
-    first_report op dates the first report."""
+    """The event that would date a corrected record's first report although it reports no
+    project, if any: the earliest dated event (the one rollup.derive_dates dates first_reported
+    by) when it is no announcement, filing or first report (an approval, a denial, a ban) and not
+    the built record's own earliest dated event, which the importer's checks have read. That is
+    an event the corrections added or changed (its event, status or date), or one of the row's
+    own that they leave first by removing the events before it or moving them later (PW Digital
+    Gateway's withdrawal once its first report is removed). The importer's first-report checks
+    hold a row whose first report its own milestones would date so (n41: Project Riverjump's
+    withdrawal); the corrected record is held the same way, until a cited first_report op dates
+    the first report."""
 
-    def what(e: StatusEvent) -> tuple[str, str, str, str | None, bool]:
-        return (e.event, e.status, e.as_of.value, e.phase_id, e.planned)
+    def dated(record: FacilityRecord) -> list[StatusEvent]:
+        actual = (e for e in record.status_history if not e.planned and e.event != "other")
+        return sorted(actual, key=event_key)
 
-    dated = sorted(
-        (e for e in corrected.status_history if not e.planned and e.event != "other"),
-        key=event_key,
-    )
-    if not dated or dated[0].event in _REPORT_EVENTS:
+    corrected_dated, own = dated(corrected), dated(built)
+    if not corrected_dated or corrected_dated[0].event in _REPORT_EVENTS:
         return None
-    if what(dated[0]) in {what(e) for e in built.status_history}:
-        return None  # AI GridWatch's own event, which the importer's checks have read
-    return dated[0]
+    if own and _as_dated(corrected_dated[0]) == _as_dated(own[0]):
+        return None  # AI GridWatch's own earliest event, which the importer's checks have read
+    return corrected_dated[0]
 
 
 # ---------------------------------------------------------------------------- Epoch AI's sites
@@ -3505,18 +3564,26 @@ class AIGridWatchImporter:
                 )
                 early = reviewer_first_report(record, applied.record)
                 if early is not None:
-                    # The reviewer's event would date the first report: held, not dated by it
-                    # (check_entries then stops the run, since the correction built nothing).
+                    # The corrections would date the first report by an event that reports no
+                    # project: held, not dated by it (check_entries then stops the run, since the
+                    # correction built nothing).
                     stats["held_for_review"] += 1
+                    ours = _as_dated(early) in {_as_dated(e) for e in record.status_history}
+                    how = (
+                        f", AI GridWatch's own, which a correction in {file} leaves first (it "
+                        "removes the events before it or moves them later)"
+                        if ours
+                        else f" that a correction in {file} adds or changes"
+                    )
                     flag(
                         "conflict",
                         pid,
                         f"the earliest dated event of the corrected record would be the "
-                        f"{early.event} event of {early.as_of.value} that a correction in {file} "
-                        "adds or changes, and the row has no first report before it: imported, "
-                        "its first_reported would be that day, but a project is public before it "
-                        "is approved, built, denied or paused. The row is held for review, not "
-                        "imported: a cited first_report correction dates the first report",
+                        f"{early.event} event of {early.as_of.value}{how}, and the row has no "
+                        "first report before it: imported, its first_reported would be that day, "
+                        "but a project is public before it is approved, built, denied or paused. "
+                        "The row is held for review, not imported: a cited first_report "
+                        "correction dates the first report",
                         event=early.event,
                         earliest=early.as_of.value,
                     )
@@ -4324,18 +4391,8 @@ class AIGridWatchImporter:
                 # nothing (rollup.derive_dates skips it), as for an OSM tag. The first file that
                 # showed the stage keeps its date, so a weekly run does not move it.
                 note = UNDATED_STAGE_NOTE.format(stage=stage)
-                observed = AgwDate(generated_day, "day")
-                seen = [
-                    e.as_of
-                    for e in (existing.status_history if existing is not None else [])
-                    if e.event == "other"
-                    and not e.planned
-                    and e.status == status
-                    and e.note == note
-                    and period_start(e.as_of) < generated_day
-                ]
-                if seen:
-                    observed = AgwDate(period_start(min(seen, key=period_start)), "day")
+                seen = first_seen(existing, status, note, generated_day)
+                observed = AgwDate(seen or generated_day, "day")
                 stats["stage_events_undated"] += 1
             if latest is not None and observed.start < period_start(latest.as_of):
                 observed = AgwDate.of(latest.as_of)

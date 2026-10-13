@@ -103,19 +103,21 @@ fuzzy date as its value string (`"2026-08"`).
 | `add_party` / `remove_party` | `role`, `name` | present / absent | Adds one, citing the Fix / removes one. |
 | `rename_party` | `role`, `from`, `to` | no organization is named `from` | Renames it; it cites its old sources (they support the role) and the Fix (the name). |
 | `set_location` | `from` (some location fields as they are now), `state_abbr`, `county_fips`, `city`, `municipality`, `lat`, `lon`, `precision`, `place_check`, `street`, `postcode` | a `from` field differs | Places the record by Epoch's override rules (`place_location`, 07 §6.5): a county at its centroid, a city at its Gazetteer place, a municipality at its county subdivision, a point checked against the county or state. A county names no city. Street and postcode only at street precision or better; otherwise they, `geometry_ref` and `parcel_apns` are cleared. A point the record has already (the same `lat` and `lon`) keeps its `geocode_method` and its sources: only the fields the op changes go to the Fix. |
-| `add_event` | `event`, `status`, `as_of`, `phase`, `planned` (default false), `note`, `status_reason` | an event with the same event, date and phase exists | Adds the event, citing the Fix. `status_reason` only with a paused, denied or cancelled status, and only when the record ends with that status. |
-| `replace_event` | `match`, `set` {`event`, `status`, `as_of`, `planned`, `note`} | not exactly one event matches | Changes it in place. A new date or status makes the Fix its only source (so a paused, denied or cancelled result needs a gate 6 source), and the old event goes to `field_meta["/status_history"]` conflicts; a retype (an announcement that is a first report, an event that is only an observation, `other`) keeps its sources and adds the Fix. |
+| `add_event` | `event` (not `first_reported`: a first report is the `first_report` op), `status`, `as_of`, `phase`, `planned` (default false), `note`, `status_reason` | an event with the same event, date and phase exists | Adds the event, citing the Fix. `status_reason` only with a paused, denied or cancelled status, and only when the record ends with that status. |
+| `replace_event` | `match`, `set` {`event`, `status`, `as_of`, `planned`, `note`} | not exactly one event matches | Changes it in place. A new date or status makes the Fix its only source (so a paused, denied or cancelled result needs a gate 6 source), and the old event goes to `field_meta["/status_history"]` conflicts; a retype (an announcement that is a first report, an event that is only an observation, `other`) keeps its sources and adds the Fix. A `first_reported` event it makes or moves (a retype, a new date) must be earlier than every other dated event, as the `first_report` op's is; a note alone is not checked. |
 | `remove_event` | `match` | not exactly one event matches | Removes it; it is kept in `field_meta["/status_history"]` conflicts with its sources. |
 | `observe` | `status`, `as_of` (required: the day the page shows the status), `phase` | the same observation exists | Adds an `other` event: it sets the status and dates nothing. |
 | `first_report` | `from` (`dates.first_reported` now, or null), `as_of`, `status` (`announced`, `proposed` or `permitted`) | `from` differs, or `as_of` is not earlier than every dated event | The record's first-report events become `other`, and a `first_reported` event citing the Fix is added. A wrong first-report date is corrected with `replace_event`, not with this op. It is the cited first report the importers' first-report checks ask for: it lifts AI GridWatch's first-report hold and clears Epoch AI's first-report `unknown_status` item, so an Epoch entry has this op or a `first_report` part, not both, and an AI GridWatch entry this op or the uncited `first_reported`. |
 | `support` | `path` and `from`, or `event` (a match) | the value is not `from`, or not exactly one event matches, or the Fix already cites it | Cites the Fix for a value the record has, without changing it. |
 
 A reviewer's event goes through AI GridWatch's first-report checks like the row's own
-milestones: when the earliest dated event of the corrected record is one an op added or changed,
-and it is no announcement, filing or first report (an approval, a denial, a ban), it would date
-`first_reported` although the project was public before it. The row is then held with a
-`conflict` item, and the run stops (its correction built no record) until a cited `first_report`
-op dates the first report.
+milestones: when the earliest dated event of the corrected record is no announcement, filing or
+first report (an approval, a denial, a ban) and is not the built record's own earliest dated
+event, it would date `first_reported` although the project was public before it. That is an event
+an op added or changed, or one of the row's own that the ops leave first by removing the events
+before it or moving them later (PW Digital Gateway's withdrawal, once its first report is
+removed). The row is then held with a `conflict` item, and the run stops (its correction built
+no record) until a cited `first_report` op dates the first report.
 
 An event match (`match`, `event`) has `event`, `status`, `as_of`, `phase` and `planned`, and names
 at least the event or the status. OSM observations are dated with each snapshot, so match them by
@@ -187,7 +189,10 @@ For each Fix, `apply_fixes` works on the record's JSON:
    sources): an importer that dates an observation with its input reads them to keep the
    observation's first-seen date, so the summary, and the record, stay the same (OSM's
    `_keep_first_reported`, which also counts an observation that a `support` op or a
-   `replace_event` made cite a Fix beside OpenStreetMap's elements as OpenStreetMap's).
+   `replace_event` made cite a Fix beside OpenStreetMap's elements as OpenStreetMap's; AI
+   GridWatch's `first_seen`, which picks a lost stage observation by its status and the file's
+   source, since a lost event keeps no note, and skips an event a correction redated, which
+   cites the Fix alone).
    `merge_import` also never appends an entry that differs from a stored one only by the date of
    the observation it removed or changed (in `old`, and in `new` when the op kept the date): it is
    the same decision.
@@ -270,9 +275,9 @@ nothing (`--dry-run` behaves the same):
 
 | When | What stops it |
 |---|---|
-| Loading | unreadable or invalid JSON; an unknown key or op; a bad type or key; a missing citation field; a quote, reason or value as above; a `set` path outside the list; `status_reason` with an active status; a stopped status from a source type gate 6 does not allow (`add_event`, `observe`, `replace_event`); a date after today or now; an Epoch entry with a `first_report` part and op, or an AI GridWatch entry with `first_reported` and the op; an AI GridWatch `reason` or `reviewed_at` without a release, `as_of` or `first_reported` |
+| Loading | unreadable or invalid JSON; an unknown key or op; a bad type or key; a missing citation field; a quote, reason or value as above; a `set` path outside the list; `status_reason` with an active status; a stopped status from a source type gate 6 does not allow (`add_event`, `observe`, `replace_event`); an `add_event` of a `first_reported` event; a date after today or now; an Epoch entry with a `first_report` part and op, or an AI GridWatch entry with `first_reported` and the op; an AI GridWatch `reason` or `reviewed_at` without a release, `as_of` or `first_reported` |
 | Against the input | a key the input does not have ("names X, which this input does not have"; `check_entries`), in all three files, with or without corrections; an `expect` guard the input does not meet |
-| After the build | a key with record ops other than `hold` and `out_of_scope` for which no record was built ("no record was built for X (held: ...)": the review items that name the key say why; release the check or remove the correction); a guard that does not match; a `replace_event` that gives a stopped status citing the Fix alone from a source type gate 6 does not allow; an unknown phase; no event that has happened left; a name without its place suffix; a `status_reason` the final status does not have; a record that fails validation |
+| After the build | a key with record ops other than `hold` and `out_of_scope` for which no record was built ("no record was built for X (held: ...)": the review items that name the key say why; release the check or remove the correction); a guard that does not match; a `replace_event` that gives a stopped status citing the Fix alone from a source type gate 6 does not allow, or a `first_reported` event that is not earlier than every other dated event; an unknown phase; no event that has happened left; a name without its place suffix; a `status_reason` the final status does not have; a record that fails validation |
 
 An entry that only holds or puts out of scope a key the importer already held is fine. Failing
 closed means a weekly refresh stops until a reviewer updates an entry (a row that vanished, an
@@ -406,10 +411,14 @@ A status OSM's tag implies, corrected by a local report: `{"op": "remove_event",
 in 2026-08, with `field_meta["/status"]` citing the report instead of OSM's 0.60 "imported"; the
 removed observation stays in `field_meta["/status_history"]` conflicts.
 
-An Epoch AI site with only corrections (`config/overrides/epoch.json`), Meta Aiken: `{"op":
-"support", "event": {"event": "first_reported"}}` ties the Aiken Standard to the first report,
-and `{"op": "add_alias", "name": "Project Sabal", "kind": "codename"}` adds the codename it
-gives, citing the article.
+Corrections added to an Epoch AI entry that has parts (`config/overrides/epoch.json`), Meta
+Aiken: the entry's `first_report` part dates the first report (Project Sabal's ordinance,
+2023-03-22), and its Fix's `{"op": "support", "event": {"event": "first_reported", "as_of":
+"2023-03-22"}}` ties the Aiken Standard to that event, and `{"op": "add_alias", "name": "Project
+Sabal", "kind": "codename"}` adds the codename it gives, citing the article. An entry with only
+corrections is Microsoft-Nebius New Jersey's: `{"op": "replace_event", "match": {"event":
+"energized", "as_of": "2026-Q1"}, "set": {"as_of": "2025-Q4", "note": ...}}` dates its operation
+by SemiAnalysis.
 
 A held AI GridWatch row needs its release and its correction together (`config/overrides/
 aigridwatch.json`): `{"release": ["stage"], "reason": ..., "reviewed_at": ..., "corrections":

@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import re
 from collections.abc import Callable
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -24,7 +25,8 @@ from atlas.geo.counties import CountyIndex
 from atlas.net import FetchError
 from atlas.schema.record import FacilityRecord
 from atlas.sources.aigridwatch import IMPORTER, RowRelease, load_releases
-from atlas.sources.base import ImportContext, ImportResult, ReviewItem
+from atlas.sources.base import ImportContext, ImportResult, ReviewItem, merge_import
+from atlas.store import RecordStore
 from atlas.validate import validate_record
 
 MakeContext = Callable[..., ImportContext]
@@ -71,13 +73,14 @@ def row(pid: str, path: Path = FIX6) -> dict[str, Any]:
 @pytest.fixture
 def run(make_test_context: MakeContext, tmp_path: Path) -> Callable[..., ImportResult]:
     """The importer on a fixture on the import's day, without Epoch records, with the entries as
-    its overrides file."""
+    its overrides file (ctx: other ImportContext arguments, such as the stored records)."""
 
-    def go(entries: dict[str, Any], path: Path = FIX6) -> ImportResult:
+    def go(entries: dict[str, Any], path: Path = FIX6, **ctx: Any) -> ImportResult:
         overrides = tmp_path / "aigridwatch.json"
         overrides.write_text(json.dumps(entries), encoding="utf-8")
         args = argparse.Namespace(without_epoch=True, overrides=overrides)
-        return IMPORTER.run(make_test_context(input_path=path, now=NOW, today=TODAY), args)
+        context = make_test_context(**{"input_path": path, "now": NOW, "today": TODAY, **ctx})
+        return IMPORTER.run(context, args)
 
     return go
 
@@ -329,3 +332,132 @@ def test_a_released_milestone_still_dates_the_first_report_of_a_corrected_record
     rec = record(run({GATEWAY: entry}, without_log(tmp_path)), GATEWAY)
     assert rec.dates["first_reported"].value == "2026-04"
     assert [a.name for a in rec.aliases] == ["Digital Gateway"]
+
+
+# ---------------------------------------------------------------------------- review of round 6
+
+
+WEEK2 = datetime(2026, 10, 16, 12, 0, tzinfo=UTC)
+OBSERVED = {"event": "other", "status": "operating"}
+
+
+def generated_on(tmp_path: Path, day: str, path: Path = FIX6) -> Path:
+    """A copy of a fixture as a later file gives it: the same rows, generated on day."""
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    doc["generated"] = day
+    out = tmp_path / f"projects-{day}.json"
+    out.write_text(json.dumps(doc), encoding="utf-8")
+    return out
+
+
+def merge(
+    result: ImportResult, ctx: ImportContext, root: Path
+) -> tuple[dict[str, int], RecordStore]:
+    store = RecordStore(root / "data" / "records")
+    receipt, _ = merge_import(
+        IMPORTER,
+        result,
+        ctx,
+        store=store,
+        review_dir=root / "review" / "queue",
+        receipts_dir=root / "data" / "imports",
+    )
+    return receipt.counts, store
+
+
+@pytest.mark.parametrize(
+    "ops",
+    [
+        [{"op": "remove_event", "match": OBSERVED}, event("announced", "announced", "2026-04-14")],
+        [{"op": "replace_event", "match": OBSERVED, "set": {"as_of": "2026-09-01"}}],
+        [{"op": "support", "event": OBSERVED}],
+    ],
+    ids=["remove_event", "replace_event", "support"],
+)
+def test_a_corrected_stage_observation_is_the_same_in_every_file(
+    make_test_context: MakeContext,
+    run: Run,
+    tmp_repo: Path,
+    tmp_path: Path,
+    ops: list[dict[str, Any]],
+) -> None:
+    """mechanism-0 (review of fix round 6): AI GridWatch dates an undated stage with its file's
+    generated day, and the first file that showed it keeps that date. A correction that removes
+    the observation (Microsoft Cheyenne Expansion), redates it or cites a Fix for it summarises it
+    with that date. The rebuilt observation keeps its first-seen date also when the stored record
+    has it only among its lost events (corrections.lost_events), so the correction, and the
+    record, are the same with a later file: the next weekly run changes nothing."""
+    entries = {CHEYENNE: {"release": ["stage"], **RELEASE, "corrections": [fix(*ops)]}}
+    counts, store = merge(run(entries), make_test_context(now=NOW, today=TODAY), tmp_repo)
+    assert counts["new"] == counts["candidates"]
+    records = store.load()
+    (stored,) = [r for r in records.values() if r.external_ids["aigridwatch_id"] == [CHEYENNE]]
+    later = generated_on(tmp_path, "2026-10-15")
+    result = run(entries, later, records=records, now=WEEK2, today=WEEK2.date())
+    again = record(result, CHEYENNE)
+    assert again.status_history == stored.status_history
+    assert again.field_meta == stored.field_meta and again.corrections == stored.corrections
+    counts, store = merge(
+        result, make_test_context(records=records, now=WEEK2, today=WEEK2.date()), tmp_repo
+    )
+    assert (counts["updated"], counts["unchanged"]) == (0, counts["candidates"])
+    assert store.load()[stored.id].corrections == stored.corrections
+
+
+@pytest.mark.parametrize(
+    "op",
+    [
+        {"op": "remove_event", "match": {"event": "first_reported"}},
+        {
+            "op": "replace_event",
+            "match": {"event": "first_reported"},
+            "set": {"event": "announced", "as_of": "2026-05-01"},
+        },
+    ],
+    ids=["remove_event", "replace_event"],
+)
+def test_a_correction_that_leaves_the_rows_withdrawal_first_holds_the_row(
+    run: Run, op: dict[str, Any]
+) -> None:
+    """epoch-agw-0: PW Digital Gateway is built [first_reported 2023-12-13, withdrawn 2026-04],
+    and without its first report the importer holds it (its withdrawal would date the first
+    report: n41). A correction that removes the first report, or moves it after the withdrawal,
+    leaves the row's own withdrawal as the earliest dated event of the corrected record. The
+    withdrawal is AI GridWatch's, but not the event the importer's checks read as the earliest, so
+    the row is held the same way, and the run stops, until a cited first_report op dates the
+    first report."""
+    base = record(run({}, PROJECTS), GATEWAY)
+    assert events(base) == [
+        ("first_reported", "announced", "2023-12-13"),
+        ("withdrawn", "cancelled", "2026-04"),
+    ]
+    with pytest.raises(
+        FetchError,
+        match=f"no record was built for {GATEWAY} \\(held: conflict: "
+        + re.escape(
+            "the earliest dated event of the corrected record would be the withdrawn event of "
+            "2026-04, AI GridWatch's own, which a correction in "
+        )
+        + ".*aigridwatch.json"
+        + re.escape(
+            " leaves first (it removes the events before it or moves them later), and the row "
+            "has no first report before it"
+        ),
+    ):
+        run({GATEWAY: {"corrections": [fix(op)]}}, PROJECTS)
+
+
+def test_a_cited_first_report_lifts_the_hold_of_a_removed_first_report(run: Run) -> None:
+    # epoch-agw-0: the reviewer who removes PW Digital Gateway's first report gives a cited one.
+    remove = {"op": "remove_event", "match": {"event": "first_reported"}}
+    first = {"op": "first_report", "from": "2023-12-13", "as_of": "2024-01", "status": "announced"}
+    rec = record(run({GATEWAY: {"corrections": [fix(remove, first)]}}, PROJECTS), GATEWAY)
+    assert events(rec) == [
+        ("withdrawn", "cancelled", "2026-04"),
+        ("first_reported", "announced", "2024-01"),
+    ]
+    assert rec.dates["first_reported"].value == "2024-01" and rec.status == "cancelled"
+    # A correction that leaves the row's own earliest event first imports the row as before.
+    alias = {"op": "add_alias", "name": "Digital Gateway", "kind": "press_name"}
+    rec = record(run({GATEWAY: {"corrections": [fix(alias)]}}, PROJECTS), GATEWAY)
+    assert rec.dates["first_reported"].value == "2023-12-13"

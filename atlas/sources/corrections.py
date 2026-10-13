@@ -413,7 +413,9 @@ class SetLocation(AtlasModel):
 
 class AddEvent(AtlasModel):
     """Append a cited event. status_reason only with a paused, denied or cancelled status, and
-    only when the record's final status is that one."""
+    only when the record's final status is that one. A first report is the first_report op, whose
+    guards (from, earlier than every dated event) and count (has_first_report) an added
+    first_reported event would skip."""
 
     op: Literal["add_event"]
     event: EventType
@@ -426,6 +428,12 @@ class AddEvent(AtlasModel):
 
     @model_validator(mode="after")
     def _reason(self) -> Self:
+        if self.event == "first_reported":
+            raise ValueError(
+                "add_event: a first report is the first_report op (from, as_of, status), which "
+                "checks that it is earlier than every dated event; a wrong first-report date is "
+                "corrected with replace_event"
+            )
         if self.status_reason is not None and self.status not in STOPPED:
             raise ValueError(
                 f"add_event: status_reason {self.status_reason} is for paused, denied or "
@@ -436,7 +444,9 @@ class AddEvent(AtlasModel):
 
 class ReplaceEvent(AtlasModel):
     """Change the one event match finds. A new date or status makes the Fix the event's only
-    source (the original goes to conflicts); a retype keeps its sources and adds the Fix."""
+    source (the original goes to conflicts); a retype keeps its sources and adds the Fix. A
+    first_reported event it makes or moves (a retype to first_reported, a new date) must be
+    earlier than every other dated event, as the first_report op's is."""
 
     op: Literal["replace_event"]
     match: EventMatch
@@ -1470,12 +1480,27 @@ class _Patch:
             event["note"] = change.note
         if event == before:
             raise self.stale(f"the event {_summary(before)} has the values replace_event sets")
-        if not event["planned"] and period_start(FuzzyDate.model_validate(event["as_of"])) > (
-            self.today
-        ):
+        start = period_start(FuzzyDate.model_validate(event["as_of"]))
+        if not event["planned"] and start > self.today:
             raise self.fail(
                 f"{event['as_of']['value']} is after today ({self.today}) but not planned"
             )
+        moved = any(event[k] != before[k] for k in ("event", "as_of", "planned"))
+        if event["event"] == "first_reported" and not event["planned"] and moved:
+            later = [
+                e
+                for i, e in enumerate(self.events)
+                if i != k
+                and not e["planned"]
+                and e["event"] != "other"
+                and period_start(FuzzyDate.model_validate(e["as_of"])) <= start
+            ]
+            if later:
+                raise self.fail(
+                    f"the first report {event['as_of']['value']} is not earlier than the "
+                    f"record's {later[0]['event']} on {later[0]['as_of']['value']}: a first "
+                    "report is earlier than every dated event"
+                )
         if event["as_of"] != before["as_of"] or event["status"] != before["status"]:
             if event["status"] in STOPPED and fix.kind not in STOP_SOURCE_TYPES:
                 raise self.fail(gate_6(fix.kind))

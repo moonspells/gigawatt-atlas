@@ -2367,3 +2367,58 @@ def test_a_join_merges_only_records_in_different_parts(
     parts = (("a",), ("b",), ("c",))
     receipt, review = merge(tmp_repo, ctx, [candidate(make_record, "a", "b", "c", joined=parts)])
     assert (receipt.counts["merged"], receipt.counts["conflicts"]) == (2, 0)
+
+
+def test_add_event_gives_no_first_report() -> None:
+    """epoch-agw-1 (review of fix round 6): an added first_reported event would skip the
+    first_report op's guards (from, earlier than every dated event) and its count, which keeps an
+    Epoch first_report part and an AI GridWatch first_reported from dating a second first
+    report. A first report is the first_report op."""
+    added = {"op": "add_event", "event": "first_reported", "status": "announced", "as_of": "2024"}
+    with pytest.raises(ValidationError, match="add_event: a first report is the first_report op"):
+        FIXES.validate_python([with_op(added)])
+    FIXES.validate_python([with_op({**added, "event": "announced"})])
+
+
+@pytest.mark.parametrize(
+    ("key", "change", "refused"),
+    [
+        # Meta Aiken: first_reported 2023-03-22, construction_start 2024-05-30.
+        ("epoch_name:Meta Aiken", {"as_of": "2024-06-01"}, "construction_start on 2024-05-30"),
+        ("epoch_name:Meta Aiken", {"as_of": "2024-05-30"}, "construction_start on 2024-05-30"),
+        ("epoch_name:Meta Aiken", {"as_of": "2023-01"}, None),
+        ("epoch_name:Meta Aiken", {"note": "First report, per the county"}, None),
+        # Amazon Bridgefield: announced 2026-03-17, application_filed 2026-07-31.
+        ("aigridwatch_id:amazon-bridgefield-ashburn-va", {"event": "first_reported"}, None),
+    ],
+)
+def test_a_replace_event_that_gives_a_first_report_is_earlier_than_every_event(
+    correct: Correct, key: str, change: dict[str, Any], refused: str | None
+) -> None:
+    """epoch-agw-1: a replace_event whose result is first_reported, with a new date or a retype
+    (STACK Berry Hill's announcement that is a first report), is held to the first_report op's
+    guard: it is earlier than every other dated event. A note leaves it as it is."""
+    first = "first_reported" if key.startswith("epoch") else "announced"
+    op = {"op": "replace_event", "match": {"event": first}, "set": change}
+    url = "https://example.org/report"
+    if refused is not None:
+        with pytest.raises(FetchError, match=f"is not earlier than the record's {refused}"):
+            correct(seed(key), fix(url, "a quote", op))
+        return
+    rec = correct(seed(key), fix(url, "a quote", op)).record
+    assert events(rec)[0][0] == "first_reported"
+    assert rec.dates["first_reported"].value == events(rec)[0][2]
+
+
+def test_a_retype_to_a_first_report_after_another_event_is_refused(correct: Correct) -> None:
+    # epoch-agw-1: Amazon Bridgefield's filing (2026-07-31) is later than its announcement.
+    op = {
+        "op": "replace_event",
+        "match": {"event": "application_filed"},
+        "set": {"event": "first_reported"},
+    }
+    with pytest.raises(FetchError, match="is not earlier than the record's announced on 2026-03"):
+        correct(
+            seed("aigridwatch_id:amazon-bridgefield-ashburn-va"),
+            fix("https://example.org/report", "a quote", op),
+        )
