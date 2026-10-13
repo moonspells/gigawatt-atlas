@@ -185,10 +185,12 @@ For each Fix, `apply_fixes` works on the record's JSON:
    and the correction's summary with it. `lost_events(record)` gives the events the stored
    record's corrections removed or redated (`field_meta["/status_history"]` conflicts, with their
    sources): an importer that dates an observation with its input reads them to keep the
-   observation's first-seen date, so the summary, and the record, stay the same. `merge_import`
-   also never appends an entry that differs from a stored one only by
-   the date of the observation it removed or changed (in `old`, and in `new` when the op kept the
-   date): it is the same decision.
+   observation's first-seen date, so the summary, and the record, stay the same (OSM's
+   `_keep_first_reported`, which also counts an observation that a `support` op or a
+   `replace_event` made cite a Fix beside OpenStreetMap's elements as OpenStreetMap's).
+   `merge_import` also never appends an entry that differs from a stored one only by the date of
+   the observation it removed or changed (in `old`, and in `new` when the op kept the date): it is
+   the same decision.
 
 ### Confidence (07 §3.4)
 
@@ -284,18 +286,33 @@ empty store therefore gives one record with no `merged_into`, which is right, si
 existed before.
 
 On a populated store, `merge_import` turns a reviewed join into a 07 §6.6 merge. A candidate whose
-`Candidate.joined` names the match values a join brought in, and that matches several stored
-records each holding only values of the candidate's, updates the record created first (then the
-smallest id); every other one is rewritten with `merged_into` the survivor and a `/merged_into`
+`Candidate.joined` gives the parts a join brought together (OSM: the clusters `join_clusters`
+merged, each as its refs), and that matches several stored records each holding only values of
+the candidate's, each in parts of its own, updates the record created first (then the smallest
+id); every other one is rewritten with `merged_into` the survivor and a `/merged_into`
 correction, and counted as `merged` in the receipt. A value held by a merged record and by a
 record that is not merged belongs to the latter, so the next run matches the survivor alone. A
 record that is reviewed (or already merged) blocks the merge, which stays a `conflict` item, and
-so does a candidate without `joined` that matches several records.
+so does a candidate without `joined` that matches several records, or one with a part that holds
+the values of two of them: the source's own rules put those two together, not the reviewer (an
+OSM edit gives Equinix CH1's node Digital Realty's operator, and the dissolve takes it into the
+part of ORD10's joined campus that holds ORD10's node).
+
+A join between two elements the dissolve puts in one campus already changes nothing and stops
+the run, unless different stored records hold the two: a name or operator entry made the
+dissolve join two records of a populated store (Csquare EWR2's two buildings), which is a
+`conflict` until a join between them expresses the reviewer's merge. The part is then split where
+the target's record ends, and the records merge. The merged record still holds the target, so
+the entry stays valid on later runs; on an empty store it changes nothing again, so a reseed
+stops on it until it is removed.
 
 A split (`Candidate.split_from`, OSM's `alone`) takes back the merged record that holds the value,
 which is unmerged (`merged_into` null, with a `/merged_into` correction); without one, the
 candidate matches only records whose values all lie within its own, so it is new while the record
-that still lists the value drops it on its own update.
+that still lists the value drops it on its own update. An `alone` element that the dissolve
+leaves alone anyway is no redundant entry when a stored record that holds it is merged, or was
+(a `/merged_into` correction): it is the split that takes the record back, and it keeps the two
+apart from then on.
 
 Withdrawing the join reverses its merge the same way (07 §6.6 step 7). Once the `join` entry is
 gone, the element is a candidate of its own again, with no join or split: when its values are

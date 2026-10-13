@@ -1767,7 +1767,9 @@ def test_a_reviewed_join_merges_stored_records(
     receipt, review = merge(tmp_repo, ctx, [candidate(make_record, "a", "b")])
     assert receipt.counts["conflicts"] == 1 and [i.kind for i in review] == ["conflict"]
 
-    joined = candidate(make_record, "a", "b", joined=("b",), canonical_name="A and B (Ashburn, VA)")
+    joined = candidate(
+        make_record, "a", "b", joined=(("a",), ("b",)), canonical_name="A and B (Ashburn, VA)"
+    )
     receipt, review = merge(tmp_repo, ctx, [joined])
     assert (receipt.counts["updated"], receipt.counts["merged"], receipt.counts["conflicts"]) == (
         1,
@@ -1802,7 +1804,9 @@ def test_a_join_does_not_merge_a_reviewed_record(
         )
     )
     ctx = make_test_context(now=LATER, today=LATER.date())
-    receipt, review = merge(tmp_repo, ctx, [candidate(make_record, "a", "b", joined=("b",))])
+    receipt, review = merge(
+        tmp_repo, ctx, [candidate(make_record, "a", "b", joined=(("a",), ("b",)))]
+    )
     assert receipt.counts["conflicts"] == 1 and receipt.counts["merged"] == 0
     assert review[0].reason.endswith("is reviewed or merged: merge them in a reviewed PR")
     assert store.load()[younger.id].merged_into is None
@@ -1813,7 +1817,7 @@ def test_a_split_unmerges(
 ) -> None:
     store, older, younger = joined_store(tmp_repo, make_record, make_test_context)
     ctx = make_test_context(now=LATER, today=LATER.date())
-    merge(tmp_repo, ctx, [candidate(make_record, "a", "b", joined=("b",))])
+    merge(tmp_repo, ctx, [candidate(make_record, "a", "b", joined=(("a",), ("b",)))])
     # The reviewer splits b out again (OSM's alone): the merged record takes it back.
     split = [candidate(make_record, "a"), candidate(make_record, "b", split_from="b")]
     receipt, review = merge(tmp_repo, ctx, split)
@@ -1884,7 +1888,11 @@ def test_a_hold_unpublishes_a_stored_record(
 def test_candidate_join_and_split_values(make_record: MakeRecord) -> None:
     record = make_record(id=PLACEHOLDER_ID)
     with pytest.raises(ValueError, match="joined values must be among"):
-        Candidate(("a",), record, joined=("b",))
+        Candidate(("a",), record, joined=(("b",),))
+    with pytest.raises(ValueError, match="joined parts must be non-empty and disjoint"):
+        Candidate(("a", "b"), record, joined=(("a", "b"), ("b",)))
+    with pytest.raises(ValueError, match="joined parts must be non-empty and disjoint"):
+        Candidate(("a", "b"), record, joined=(("a",), ()))
     with pytest.raises(ValueError, match="split_from must be one of"):
         Candidate(("a",), record, split_from="b")
 
@@ -1978,7 +1986,7 @@ def test_a_withdrawn_join_unmerges(
     own values, and both are published."""
     store, older, younger = joined_store(tmp_repo, make_record, make_test_context)
     ctx = make_test_context(now=LATER, today=LATER.date())
-    receipt, _ = merge(tmp_repo, ctx, [candidate(make_record, "a", "b", joined=("b",))])
+    receipt, _ = merge(tmp_repo, ctx, [candidate(make_record, "a", "b", joined=(("a",), ("b",)))])
     assert receipt.counts["merged"] == 1
     plain = [
         candidate(make_record, "a", canonical_name="A (Ashburn, VA)"),
@@ -2337,3 +2345,25 @@ def test_flag_files_an_item_and_changes_nothing(correct: Correct) -> None:
     # A flag about a record the importer did not build is stale, like any op but hold.
     with pytest.raises(FetchError, match="no record was built"):
         check_entries({key: [parsed]}, present={key}, built=set(), review=[], file=FILE)
+
+
+def test_a_join_merges_only_records_in_different_parts(
+    tmp_repo: Path, make_record: MakeRecord, make_test_context: MakeContext
+) -> None:
+    """osm-1 (review of fix round 6): a join's candidate merges the stored records only when each
+    lies in parts of its own. a and b in one part were put together by the source's own rules
+    (an OSM edit the dissolve follows), not by the reviewer, so that stays a conflict."""
+    store = RecordStore(tmp_repo / "data" / "records")
+    for value in ("a", "b", "c"):
+        store.write(
+            make_record(external_ids={"dummy_id": [value]}, canonical_name=f"{value} (Ashburn, VA)")
+        )
+    ctx = make_test_context(now=LATER, today=LATER.date())
+    parts: tuple[tuple[str, ...], ...] = (("a", "b"), ("c",))
+    receipt, review = merge(tmp_repo, ctx, [candidate(make_record, "a", "b", "c", joined=parts)])
+    assert (receipt.counts["merged"], receipt.counts["conflicts"]) == (0, 1)
+    assert [i.reason for i in review] == ["dummy_id values match 3 records"]
+    assert all(r.merged_into is None for r in store.load().values())
+    parts = (("a",), ("b",), ("c",))
+    receipt, review = merge(tmp_repo, ctx, [candidate(make_record, "a", "b", "c", joined=parts)])
+    assert (receipt.counts["merged"], receipt.counts["conflicts"]) == (2, 0)

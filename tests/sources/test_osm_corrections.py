@@ -30,6 +30,7 @@ from atlas.sources.base import (
     InputSnapshot,
     ReviewItem,
     merge_import,
+    read_review_queue,
 )
 from atlas.sources.corrections import human_confidence
 from atlas.sources.osm import (
@@ -257,7 +258,9 @@ def test_a_join_makes_one_record_of_two_clusters(
     result = run(FIX5, entries)
     found = candidate(result, "way/190868312")
     refs = ["way/32560290", "way/32560292", "way/190868312"]
-    assert list(found.match_values) == refs and list(found.joined) == refs
+    assert list(found.match_values) == refs
+    # joined gives the join's parts (osm-1, review of fix round 6), no longer every match value.
+    assert found.joined == (("way/32560290", "way/32560292"), ("way/190868312",))
     assert found.split_from is None
     ntt = found.record
     assert ntt.canonical_name == "NTT Sacramento CA1 to CA3 (Sacramento County, CA)"
@@ -705,3 +708,208 @@ def test_an_alone_element_splits_a_stored_record(
     assert (counts["new"], counts["updated"], counts["conflicts"]) == (1, 1, 0)
     ntt = [r for r in store.load().values() if r.external_ids["osm"][0].startswith("way/3256")]
     assert sorted(r.external_ids["osm"] for r in ntt) == [["way/32560290"], ["way/32560292"]]
+
+
+# ---------------------------------------------------------------------------- review of round 6
+
+
+def edited(
+    fixture: Path,
+    path: Path,
+    *,
+    base: str | None = None,
+    tags: dict[str, dict[str, str]] | None = None,
+) -> Path:
+    """A copy of a fixture as a later snapshot gives it: timestamp_osm_base base, and the tags of
+    the elements named ({ref: {key: value}}) changed."""
+    doc = json.loads(fixture.read_text(encoding="utf-8"))
+    if base is not None:
+        doc["osm3s"]["timestamp_osm_base"] = base
+    for element in doc["elements"]:
+        changed = (tags or {}).get(f"{element['type']}/{element['id']}")
+        if changed:
+            element["tags"] = {**element["tags"], **changed}
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    return path
+
+
+def rerun(
+    run: Run,
+    make_test_context: MakeContext,
+    root: Path,
+    fixture: Path,
+    entries: dict[str, Any],
+    **ctx: Any,
+) -> tuple[dict[str, int], RecordStore]:
+    """The importer over the store at root, merged into it."""
+    records = RecordStore(root / "data" / "records").load()
+    result = run(fixture, entries, records=records, **ctx)
+    return merge(result, make_test_context(records=records, **ctx), root)
+
+
+def holding(store: RecordStore, ref: str) -> FacilityRecord:
+    """The record that is not merged and holds ref."""
+    (found,) = [
+        r for r in store.load().values() if ref in r.external_ids["osm"] and r.merged_into is None
+    ]
+    return found
+
+
+WEEK2 = datetime(2026, 10, 16, 12, 0, tzinfo=UTC)
+REFS_CA = ("way/190868312", "way/32560290")  # NTT's RagingWire CA3, and CA1 with CA2
+OBSERVED = {"event": "other", "status": "operating"}
+
+
+@pytest.mark.parametrize(
+    "ops",
+    [
+        [
+            {"op": "add_event", "event": "approved", "status": "permitted", "as_of": "2026-08"},
+            {"op": "remove_event", "match": OBSERVED},
+        ],
+        [{"op": "replace_event", "match": OBSERVED, "set": {"as_of": "2025"}}],
+        [{"op": "support", "event": OBSERVED}],
+    ],
+    ids=["remove_event", "replace_event", "support"],
+)
+def test_a_corrected_observation_is_the_same_on_every_snapshot(
+    make_test_context: MakeContext,
+    run: Run,
+    tmp_repo: Path,
+    tmp_path: Path,
+    ops: list[dict[str, Any]],
+) -> None:
+    """osm-0 (review of fix round 6): OSM dates its observation with the snapshot, and a
+    correction that removes it (Wichita Falls), redates it or cites a Fix for it summarises it
+    with that date. The rebuilt observation keeps its first-seen date (the stored conflicts,
+    lost_events; an observation a Fix supports is still OpenStreetMap's), so the correction, and
+    the record, are the same on a later snapshot."""
+    entries = {"way/190868312": {"corrections": [fix(*ops)]}}
+    counts, store = rerun(run, make_test_context, tmp_repo, FIX5, entries)
+    assert counts["new"] == 15
+    ca3 = holding(store, "way/190868312")
+    later = edited(FIX5, tmp_path / "week2.json", base="2026-10-16T09:47:46Z")
+    records = store.load()
+    result = run(later, entries, records=records, now=WEEK2, today=WEEK2.date())
+    again = record(result, "way/190868312")
+    assert again.status_history == ca3.status_history
+    assert again.field_meta == ca3.field_meta and again.corrections == ca3.corrections
+    counts, store = merge(
+        result, make_test_context(records=records, now=WEEK2, today=WEEK2.date()), tmp_repo
+    )
+    assert (counts["unchanged"], counts["updated"]) == (15, 0)
+
+
+def test_a_dissolve_merge_into_a_joined_campus_is_a_conflict(
+    make_test_context: MakeContext, run: Run, tmp_repo: Path, tmp_path: Path
+) -> None:
+    """osm-1: Digital Realty ORD10's node joins the Lakeside Technology Center (a reviewed join),
+    and Equinix CH1's node in the same building is a record of its own. When OpenStreetMap later
+    gives CH1 Digital Realty's operator, the dissolve takes it into the campus: that merge is the
+    dissolve's, inside one part of the join, so the two stored records stay as they are and a
+    reviewer gets the conflict item that the same edit gives a campus without a join."""
+    entries = {"node/10910879064": {**CITED, "join": "way/156520409"}}
+    counts, store = rerun(run, make_test_context, tmp_repo, FIX6, entries)
+    before = store.load()
+    ord10, ch1 = holding(store, "node/10910879064"), holding(store, "node/12695496267")
+    assert ord10.external_ids["osm"] == ["node/10910879064", "way/156520409"]
+    retagged = {"node/12695496267": {"operator": "Digital Realty", "operator:wikidata": "Q5275969"}}
+    later = edited(FIX6, tmp_path / "week2.json", tags=retagged)
+    records = store.load()
+    result = run(later, entries, records=records)
+    counts, store = merge(result, make_test_context(records=records), tmp_repo)
+    assert (counts["merged"], counts["conflicts"]) == (0, 1)
+    assert store.load() == before
+    (item,) = [
+        i
+        for i in read_review_queue(tmp_repo / "review" / "queue", "osm")
+        if i.kind == "conflict" and i.data.get("record_ids")
+    ]
+    assert item.reason == "osm values match 2 records"
+    assert item.data["record_ids"] == sorted([ord10.id, ch1.id])
+    # The dissolve puts CH1 with ORD10's node; the join brings that cluster and Lakeside's.
+    parts = (("node/10910879064", "node/12695496267"), ("way/156520409",))
+    assert candidate(result, "node/12695496267").joined == parts
+
+
+@pytest.mark.parametrize("undo", ["withdrawn", "alone"])
+def test_a_reviewed_join_is_undone_on_a_populated_store(
+    make_test_context: MakeContext, run: Run, tmp_repo: Path, undo: str
+) -> None:
+    """osm-2 and mechanism-1: on a populated store, NTT's CA3 joined to CA1 and CA2 merges one
+    record into the other. Withdrawing the join, or replacing it with `alone` (the documented
+    split: check_alone accepts it, since a merged record holds the element), takes the merged
+    record back: both facilities are published again with their own ids, and the next run, with
+    the same entries, changes nothing."""
+    rerun(run, make_test_context, tmp_repo, FIX5, {})
+    ca3, ca12 = (holding(RecordStore(tmp_repo / "data" / "records"), r) for r in REFS_CA)
+    join = {"way/190868312": {**CITED, "join": "way/32560290"}}
+    counts, store = rerun(run, make_test_context, tmp_repo, FIX5, join)
+    assert counts["merged"] == 1
+    (merged,) = [r for r in store.load().values() if r.merged_into is not None]
+    entries = {} if undo == "withdrawn" else {"way/190868312": {**CITED, "alone": True}}
+    for expected in ((2, 13), (0, 15)):
+        counts, store = rerun(run, make_test_context, tmp_repo, FIX5, entries)
+        assert (counts["updated"], counts["unchanged"]) == expected
+        assert (counts["new"], counts["conflicts"], counts["held"]) == (0, 0, 0)
+    after = store.load()
+    assert after[ca3.id].external_ids["osm"] == ["way/190868312"]
+    assert after[ca12.id].external_ids["osm"] == ["way/32560290", "way/32560292"]
+    for r in (after[ca3.id], after[ca12.id]):
+        assert (r.merged_into, r.scope) == (None, "in_scope")  # published (publish.py)
+    unmerged = after[merged.id].corrections[-1]
+    assert (unmerged.pointer, unmerged.old, unmerged.new) == (
+        "/merged_into",
+        merged.merged_into,
+        None,
+    )
+
+
+def test_a_join_of_two_stored_records_the_dissolve_joins_is_a_reviewed_merge(
+    make_test_context: MakeContext, run: Run, tmp_repo: Path
+) -> None:
+    """osm-3: Rackspace's DFW3 (way 597876719), 42 m from Digital Realty Dallas, is a record of
+    its own. An operator entry naming Digital Realty makes the dissolve join it to that campus,
+    which on a populated store is a conflict: the candidate matches both records. A join entry
+    between the two expresses the reviewer's merge: join_clusters accepts it, since different
+    stored records hold its refs, and merge_import merges them; the next run changes nothing. On
+    an empty store, or between refs that one stored record holds, the join still changes nothing
+    and stops the run."""
+    _, store = rerun(run, make_test_context, tmp_repo, FIX5, {})
+    dfw3, dallas = holding(store, "way/597876719"), holding(store, "way/597876730")
+    operator = {**CITED, "operator": "Digital Realty"}
+    counts, store = rerun(run, make_test_context, tmp_repo, FIX5, {"way/597876719": operator})
+    assert (counts["conflicts"], counts["merged"]) == (1, 0)
+    entries = {"way/597876719": {**operator, "join": "way/597876730"}}
+    for expected in ((1, 1, 13), (0, 0, 14)):
+        counts, store = rerun(run, make_test_context, tmp_repo, FIX5, entries)
+        assert (counts["updated"], counts["merged"], counts["unchanged"]) == expected
+        assert counts["conflicts"] == 0
+    after = store.load()
+    survivor, other = sorted((dallas, dfw3), key=lambda r: (r.created_at, r.id))
+    assert after[survivor.id].merged_into is None and after[other.id].merged_into == survivor.id
+    assert len(after[survivor.id].external_ids["osm"]) == 8
+    with pytest.raises(FetchError, match="one campus already, so the join changes nothing"):
+        run(FIX5, entries)
+    with pytest.raises(FetchError, match="one campus already, so the join changes nothing"):
+        run(FIX5, {"way/32560292": {**CITED, "join": "way/32560290"}}, records=after)
+
+
+def test_a_status_for_a_member_rule_d_regroups_is_a_decision(
+    run: Run, counties: CountyIndex, today: date
+) -> None:
+    """osm-4: PowerHouse CTP-02's hall (way 1449347339) is tagged telecom=data_center, which the
+    crosswalk reads as operating, but the construction-site rule makes the record under
+    construction and asks a reviewer whether a building operates. An entry saying the hall
+    operates answers it and changes the record, so it is no redundant entry."""
+    result = run(FIX6, {"way/1449347339": {**CITED, "status": "operating"}})
+    power = record(result, "way/1449347339")
+    assert (power.status, power.phases) == ("operating", [])
+    ((event, status, sids),) = [(e.event, e.status, e.source_ids) for e in power.status_history]
+    assert (event, status, sids) == ("other", "operating", ["s3"])
+    assert power.field_meta["/status"].method == "human_entered"
+    assert items(result, "conflict", "way/1493522242") == []  # the rule's question is answered
+    valid(result, counties, today)
+    # A member the rule leaves alone still has its tags' status (test_a_status_the_tags_give...).
+    with pytest.raises(FetchError, match="tags give operating already"):
+        run(FIX6, {"way/1227539675": {**CITED, "status": "operating"}})

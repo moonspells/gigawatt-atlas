@@ -495,10 +495,14 @@ class OsmObject:
 
 @dataclass(frozen=True)
 class Cluster:
-    """A dissolved site. members are sorted by ref_key; representative is one of them."""
+    """A dissolved site. members are sorted by ref_key; representative is one of them.
+
+    parts: for a cluster a reviewer's join made or changed (osm.join_clusters), the refs of each
+    part it brought together, which the rules alone did not join; empty otherwise."""
 
     members: tuple[OsmObject, ...]
     representative: OsmObject
+    parts: tuple[tuple[str, ...], ...] = ()
 
     @property
     def refs(self) -> tuple[str, ...]:

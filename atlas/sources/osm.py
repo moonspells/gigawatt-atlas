@@ -122,12 +122,14 @@ from atlas.sources.corrections import (
     STOP_SOURCE_TYPES,
     Fix,
     FuzzyStr,
+    LostEvent,
     apply_fixes,
     check_entries,
     check_fix_dates,
     correction_metrics,
     fuzzy_date,
     human_confidence,
+    lost_events,
     mark_corrected,
 )
 from atlas.text import clean_text, normalize_name, normalize_org
@@ -661,6 +663,19 @@ def override_name_items(
     return items
 
 
+def merged_refs(records: Mapping[str, FacilityRecord]) -> set[str]:
+    """The OSM refs of the stored records that are merged into another record, or were (a
+    /merged_into correction: a reviewed join merged them, and a split or the join's withdrawal
+    took them back)."""
+    return {
+        ref
+        for record in records.values()
+        if record.merged_into is not None
+        or any(c.pointer == "/merged_into" for c in record.corrections)
+        for ref in record.external_ids.get("osm", [])
+    }
+
+
 def check_alone(
     objects: Sequence[OsmObject],
     alone: Collection[str],
@@ -668,22 +683,49 @@ def check_alone(
     *,
     radius_m: float = DEFAULT_RADIUS_M,
     regions: Mapping[str, str | None] | None = None,
+    merged: Collection[str] = (),
 ) -> None:
     """An `alone` entry whose element the dissolve would leave in a cluster of its own anyway
     changes nothing and stops the run (the objects are dissolved once more with the alone
-    elements in)."""
+    elements in), unless a stored record that holds the element is merged into another, or was
+    (merged: merged_refs). A join exists only where no dissolve rule joins the element, so once
+    the join's merge is made, `alone` is the reviewed split that takes the record back
+    (Candidate.split_from, merge_import), and the entry keeps the two apart from then on."""
     if not alone:
         return
     found = dissolve_with_notes(objects, radius_m=radius_m, regions=regions)
     lone = sorted(
-        (c.members[0].ref for c in found.clusters if len(c.members) == 1 and c.refs[0] in alone),
+        (
+            c.members[0].ref
+            for c in found.clusters
+            if len(c.members) == 1 and c.refs[0] in alone and c.refs[0] not in merged
+        ),
         key=ref_key,
     )
     if lone:
+        it = "it" if len(lone) == 1 else "them"
         raise override_error(
-            f"{path}: alone sets {', '.join(lone)} apart, but no dissolve rule joins "
-            f"{'it' if len(lone) == 1 else 'them'} to anything; remove the entry"
+            f"{path}: alone sets {', '.join(lone)} apart, but no dissolve rule joins {it} to "
+            f"anything and no stored record of {it} was merged; remove the entry"
         )
+
+
+def _owners(
+    records: Mapping[str, FacilityRecord],
+) -> tuple[dict[str, frozenset[str]], dict[str, str]]:
+    """For each OSM ref of the stored records: the ids of the records that hold it, and the one
+    record not merged into another that holds it, when exactly one does (as merge_import's index
+    finds it)."""
+    holders: dict[str, set[str]] = {}
+    for rid, record in records.items():
+        for ref in record.external_ids.get("osm", []):
+            holders.setdefault(ref, set()).add(rid)
+    owner: dict[str, str] = {}
+    for ref, rids in holders.items():
+        live = [r for r in rids if records[r].merged_into is None]
+        if len(live) == 1:
+            owner[ref] = live[0]
+    return {ref: frozenset(rids) for ref, rids in holders.items()}, owner
 
 
 def join_clusters(
@@ -692,6 +734,7 @@ def join_clusters(
     path: Path = OVERRIDES_PATH,
     *,
     regions: Mapping[str, str | None] | None = None,
+    records: Mapping[str, FacilityRecord] | None = None,
 ) -> DissolveResult:
     """The clusters with the reviewers' joins made: for each `join` entry, in ref order, the
     clusters that hold the element and its target are merged into one, whatever the dissolve
@@ -700,8 +743,21 @@ def join_clusters(
     "join"), so the record gets a county_mismatch item; its county is still its point's. Every
     other note between two refs that now share a cluster is dropped: the two are one campus, so
     "one record may describe the other's site" and a county line that blocked a rule no longer
-    apply. A join whose two refs are in one cluster already, by the dissolve or an earlier join,
-    changes nothing and stops the run."""
+    apply.
+
+    Each cluster a join made or changed lists its parts (Cluster.parts): the clusters the joins
+    brought together, each as its refs. The candidate passes them on (Candidate.joined), so on a
+    populated store merge_import merges only stored records that lie in different parts: two
+    records that the dissolve puts in one part later (an OSM edit) were joined by its rules, not
+    by the reviewer, and stay a conflict.
+
+    A join whose two refs are in one cluster already, by the dissolve or an earlier join, changes
+    nothing and stops the run, unless different stored records (records) hold the two refs of
+    one part: the dissolve joined two records (after a name or operator entry, say), and the join
+    is the reviewer's merge of them, so the part is split where the target's record ends (its
+    refs a part of their own). Once they are merged, the merged record still holds the target,
+    so the join stays accepted on later runs.
+    """
     joins = sorted(
         ((ref, ov.join) for ref, ov in overrides.items() if ov.join is not None),
         key=lambda pair: ref_key(pair[0]),
@@ -711,6 +767,9 @@ def join_clusters(
     clusters = dissolved.clusters
     index = {m.ref: i for i, c in enumerate(clusters) for m in c.members}
     parent = list(range(len(clusters)))
+    parts = [[set(c.refs)] for c in clusters]  # each cluster's parts, split by in-cluster joins
+    touched: set[int] = set()
+    holders, owner = _owners(records or {})
 
     def find(i: int) -> int:
         while parent[i] != i:
@@ -723,25 +782,50 @@ def join_clusters(
             missing = ref if ref not in index else target
             raise override_error(f"{path} entry {ref!r}: {missing} is in no cluster to join")
         a, b = find(index[ref]), find(index[target])
-        if a == b:
+        touched.update((index[ref], index[target]))
+        if a != b:
+            parent[max(a, b)] = min(a, b)
+            if regions is not None and regions.get(ref) != regions.get(target):
+                notes.append(DissolveNote("county_line", (ref, target), "join"))
+            continue
+        part = next(p for p in parts[index[ref]] if ref in p)
+        ours, theirs = holders.get(ref), holders.get(target)
+        if target not in part or not ours or not theirs or ours == theirs:
             raise override_error(
                 f"{path} entry {ref!r}: {ref} and {target} are one campus already, so the join "
                 "changes nothing; remove it"
             )
-        parent[max(a, b)] = min(a, b)
-        if regions is not None and regions.get(ref) != regions.get(target):
-            notes.append(DissolveNote("county_line", (ref, target), "join"))
-    grouped: dict[int, list[Cluster]] = {}
-    for i, cluster in enumerate(clusters):
-        grouped.setdefault(find(i), []).append(cluster)
+        mine, other = owner.get(ref), owner.get(target)
+        if mine is not None and other is not None and mine != other:
+            split = {r for r in part if owner.get(r) == other}
+            part -= split
+            parts[index[ref]].append(split)
+    grouped: dict[int, list[int]] = {}
+    for i in range(len(clusters)):
+        grouped.setdefault(find(i), []).append(i)
     merged: list[Cluster] = []
-    for parts in grouped.values():
-        if len(parts) == 1:
-            merged.append(parts[0])
+    for group in grouped.values():
+        pieces = tuple(
+            sorted(
+                (tuple(sorted(p, key=ref_key)) for i in group for p in parts[i] if p),
+                key=lambda p: ref_key(p[0]),
+            )
+        )
+        if len(group) == 1:
+            cluster = clusters[group[0]]
+            merged.append(
+                dataclasses.replace(cluster, parts=pieces) if group[0] in touched else cluster
+            )
             continue
-        members = sorted((m for c in parts for m in c.members), key=lambda m: ref_key(m.ref))
+        members = sorted(
+            (m for i in group for m in clusters[i].members), key=lambda m: ref_key(m.ref)
+        )
         merged.append(
-            Cluster(members=tuple(members), representative=choose_representative(members))
+            Cluster(
+                members=tuple(members),
+                representative=choose_representative(members),
+                parts=pieces,
+            )
         )
     cluster_of = {m.ref: i for i, c in enumerate(merged) for m in c.members}
     kept = [
@@ -776,12 +860,18 @@ def check_statuses(
     clusters: Sequence[Cluster],
     overrides: Mapping[str, ElementOverride],
     path: Path = OVERRIDES_PATH,
+    *,
+    as_of: date,
 ) -> None:
     """Status entries that stop the run, cluster by cluster: two campus or site members that each
     give a status (which one would the other members take?), two entries of one status with
     different status_as_of (one observation per status), and an entry that gives every member it
-    decides the status the crosswalk gives it already (it changes nothing)."""
+    decides the status the build gives it already (it changes nothing): the crosswalk's, except
+    for a member the construction-site rule regroups (as_of, the snapshot date, decides it,
+    _opening_ahead): the record is then under construction, with a conflict item asking a
+    reviewer whether the building operates, and an entry is the answer, whatever its status."""
     for cluster in clusters:
+        regrouped = _opening_ahead(cluster.representative, as_of) is not None
         given = _status_entries(cluster.members, overrides)
         if not given:
             continue
@@ -810,7 +900,9 @@ def check_statuses(
             decided = [m for m in cluster.members if m.ref in given and given[m.ref][0] == entry]
             wanted = overrides[entry].status
             if all(
-                (found := osm_status(m.tags)) is not None and found.status == wanted
+                (found := osm_status(m.tags)) is not None
+                and found.status == wanted
+                and not (regrouped and found.status == "operating")
                 for m in decided
             ):
                 raise override_error(
@@ -1363,6 +1455,18 @@ def _period_after(d: FuzzyDate) -> date:
     return date(start.year + month // 12, month % 12 + 1, 1)
 
 
+def _opening_ahead(rep: OsmObject, as_of: date) -> FuzzyDate | None:
+    """The opening_date of a representative that is an area tagged as planned or being built
+    (OsmObject.planned), when it is after as_of, the snapshot date: the construction-site rule's
+    test (_construction_site_groups); else None."""
+    if rep.kind not in AREA_KINDS or not rep.planned:
+        return None
+    opening = osm_date(rep.tags.get("opening_date"), latest=add_years(as_of, FUTURE_YEARS))
+    if opening is None or _period_after(opening) <= as_of:
+        return None
+    return opening
+
+
 def _construction_site_groups(
     groups: list[_Group], rep: OsmObject, ctx: _Context, review: list[ReviewItem]
 ) -> list[_Group]:
@@ -1379,10 +1483,8 @@ def _construction_site_groups(
     its groups: Meta Cheyenne, QTS NAL1, Digital Realty IAD51 and Meta Rosemount operate on
     theirs. A status a config/overrides/osm.json entry gives is a reviewer's and is never
     regrouped (an entry on the site decides all its members)."""
-    if rep.kind not in AREA_KINDS or not rep.planned:
-        return groups
-    opening = osm_date(rep.tags.get("opening_date"), latest=ctx.latest_date)
-    if opening is None or _period_after(opening) <= ctx.as_of_date:
+    opening = _opening_ahead(rep, ctx.as_of_date)
+    if opening is None:
         return groups
     operating = [g for g in groups if g.status.status == "operating" and not g.entries]
     if not operating:
@@ -1591,8 +1693,12 @@ def _keep_first_reported(
 ) -> list[StatusEvent]:
     """Keep the earliest stored as_of of an observation (an `other` event, or the
     `first_reported` event that earlier versions wrote) with the same status that OpenStreetMap
-    gave (every source it cites is an OpenStreetMap element), so weekly runs never move it
-    forward.
+    gave (it cites OpenStreetMap elements, and nothing else unless a Fix's support op or
+    replace_event added its source), so weekly runs never move it forward. An observation a
+    correction removed or redated counts too: the stored record has it only among its lost
+    events (corrections.lost_events), and without its date the rebuilt observation would take
+    the new snapshot's, so the correction would summarise it differently, and rewrite the record,
+    every week.
 
     Neither the phase nor the source ids are compared: when a cluster gains or loses a status
     group, its events move between phase_id None and "osm-{status}", and when it gains or loses a
@@ -1610,10 +1716,11 @@ def _keep_first_reported(
     url_of = {s.id: str(s.url) for s in existing.sources}
     stored: dict[str, FuzzyDate] = {}
     reviewed: dict[tuple[str, frozenset[str | None]], FuzzyDate] = {}
-    for e in existing.status_history:
+    observed: list[StatusEvent | LostEvent] = [*existing.status_history, *lost_events(existing)]
+    for e in observed:
         if e.planned or e.event not in _OBSERVATIONS:
             continue
-        if set(e.source_ids) <= osm_ids:
+        if set(e.source_ids) <= osm_ids or set(e.source_ids) & osm_ids:
             if e.status not in stored or period_start(e.as_of) < period_start(stored[e.status]):
                 stored[e.status] = e.as_of
         elif e.event == "other" and e.source_ids:
@@ -2340,8 +2447,9 @@ def _build_one(
 
     An entry's source supports what its element decisions give: the name and the operator; the
     joined element's building entry (join); the status of the members it decides, through their
-    group's event (status). The candidate's joined names its match values when a join entry made
-    the cluster, and split_from the element an alone entry sets apart (merge_import)."""
+    group's event (status). The candidate's joined gives the parts of a cluster join entries
+    made or changed (join_clusters), and split_from the element an alone entry sets apart
+    (merge_import)."""
     rep = cluster.representative
     twins = _drawn_twice(cluster)
     ordered = [rep] + [m for m in cluster.members if m.ref != rep.ref and m.ref not in twins]
@@ -2666,12 +2774,10 @@ def _build_one(
                 "until a reviewer decides"
             )
         review.append(_review("out_of_scope", why, external_id=rep.ref))
-    refs = tuple(external_ids["osm"])
-    joined = any((ov := ctx.overrides.get(r)) is not None and ov.join for r in refs)
     return Candidate(
-        match_values=refs,
+        match_values=tuple(external_ids["osm"]),
         record=apply_rollup(record),
-        joined=refs if joined else (),
+        joined=cluster.parts,
         split_from=rep.ref if rep.ref in ctx.alone else None,
     )
 
@@ -3063,6 +3169,14 @@ def _hold_after_build(
     return _Later(held=held, items=items)
 
 
+def snapshot_date(snapshot: InputSnapshot) -> date:
+    """The day of the Overpass snapshot (osm3s.timestamp_osm_base), which dates OSM's
+    observations."""
+    if snapshot.upstream_version is None:
+        raise ValueError("the Overpass snapshot has no timestamp_osm_base")
+    return date.fromisoformat(snapshot.upstream_version[:10])
+
+
 def build_candidates(
     clusters: Sequence[Cluster],
     *,
@@ -3089,13 +3203,11 @@ def build_candidates(
     entries applied to the objects, dropped the refs they drop and alone the refs they set alone
     (each its own cluster). The entries' corrections are applied afterwards
     (correct_candidates)."""
-    if snapshot.upstream_version is None:
-        raise ValueError("the Overpass snapshot has no timestamp_osm_base")
+    as_of_date = snapshot_date(snapshot)
     if gazetteer is None:
         from atlas.geocode import Gazetteer  # the Census files load on use
 
         gazetteer = Gazetteer.load()
-    as_of_date = date.fromisoformat(snapshot.upstream_version[:10])
     stored = dict(existing or {})
     by_ref: dict[str, set[str]] = {}
     for rid, record in stored.items():
@@ -3371,7 +3483,14 @@ class OsmImporter:
         }
         radius_m = float(getattr(args, "dissolve_m", DEFAULT_RADIUS_M))
         apart = {o.ref for o in alone}
-        check_alone(objects, apart, overrides_path, radius_m=radius_m, regions=regions)
+        check_alone(
+            objects,
+            apart,
+            overrides_path,
+            radius_m=radius_m,
+            regions=regions,
+            merged=merged_refs(ctx.records),
+        )
         dissolved = join_clusters(
             dissolve_with_notes(
                 [o for o in objects if o.ref not in apart], radius_m=radius_m, regions=regions
@@ -3379,12 +3498,13 @@ class OsmImporter:
             overrides,
             overrides_path,
             regions=regions,
+            records=ctx.records,
         )
         # A container polygon that holds nothing after all is not a data center object.
         clusters = [c for c in dissolved.clusters if not all(m.container for m in c.members)]
         clusters += [Cluster(members=(o,), representative=o) for o in dropped + alone]
         clusters.sort(key=lambda c: ref_key(c.representative.ref))
-        check_statuses(clusters, overrides, overrides_path)
+        check_statuses(clusters, overrides, overrides_path, as_of=snapshot_date(overpass.snapshot))
         inputs = [overpass.snapshot]
         join: pnnl.JoinResult | None = None
         pnnl_snapshot: InputSnapshot | None = None

@@ -332,7 +332,10 @@ each `join` entry in ref order, the clusters that hold the element and its targe
 join across a county line adds a `county_line` note (rule `join`): the record keeps its
 representative's county and gets a `county_mismatch` item naming the members across the line.
 Every other note between two refs that now share a cluster is dropped, since the two are one
-campus (the "may be one campus" notes, a `county_blocked` note that would hold one side).
+campus (the "may be one campus" notes, a `county_blocked` note that would hold one side). A
+joined cluster lists its parts (`Cluster.parts`, the clusters the joins brought together), so
+that on a populated store only the merge of stored records in different parts is the reviewer's
+(section 9).
 
 Two campus objects join each other directly only when they adjoin (rule 2), by name (rule 4) or
 inside one site. Joins are
@@ -611,7 +614,13 @@ a building tag gets no status. Members are grouped by the resulting status.
 - On later runs, an observation (`other`, or a `first_reported` event an earlier version wrote)
   keeps the earliest `as_of` already stored for the same status from OpenStreetMap sources (the
   members it cites change as the cluster does), and the note names no date, so weekly runs change
-  no record. The phase is not compared: when a building under
+  no record. That holds for an observation a correction removed or redated as well, which the
+  stored record keeps only among its `field_meta["/status_history"]` conflicts
+  (`corrections.lost_events`), and for one a Fix's `support` (or a `replace_event` that keeps its
+  date) cites beside the elements: the correction then summarises the observation the same way
+  every week (Wichita Falls, Project Cardinal and Elk Grove Village's `remove_event` gave a new
+  `/status_history` correction, and rewrote the record, with each snapshot before fix round 6's
+  review). The phase is not compared: when a building under
   construction appears next to an operating campus, or later goes, the operating event moves
   between no phase and `osm-operating` but its status has not changed. A status change replaces
   the event; recording transitions as new events is the M2 diff (07 §4.2 step 5).
@@ -839,9 +848,12 @@ anything is built:
 - an `expect` guard the element's tags do not meet;
 - a decision that changes nothing: a `name` or `operator` the element has already (an operator
   entry that also removes `operator:wikidata` changes something), a `join` whose two elements are
-  in one cluster already (by the dissolve or an earlier join; joins apply in ref order), an
-  `alone` element the dissolve would leave alone anyway, a `status` the crosswalk gives every
-  member it decides already;
+  in one cluster already (by the dissolve or an earlier join; joins apply in ref order) unless
+  different stored records hold the two (below), an `alone` element the dissolve would leave
+  alone anyway unless a stored record that holds it is or was merged (below), a `status` the
+  crosswalk gives every member it decides already (a member the construction-site rule regroups,
+  section 5, is the entry's to decide, whatever status it gives: PowerHouse CTP-02's hall, tagged
+  `telecom=data_center`, operates if a source says so);
 - a `join` whose target an entry drops or sets alone, or that joins its own element;
 - two campus or site polygons of one cluster that each give a status, or two entries of one
   status in one cluster with different `status_as_of`;
@@ -898,10 +910,21 @@ corrections needs the corrected tag inside the dissolve; a stale status is an el
 the event ops (`remove_event` of OSM's observation, matched by event and status, with `add_event`
 or `observe`).
 
-On a store that holds the records already, the candidate of a joined cluster names its values in
-`Candidate.joined` and an alone element's in `split_from`, so `merge_import` merges the stored
-records into the oldest one (`merged_into`, 07 §6.6) or takes the element back out
-(docs/corrections.md); on the empty-store seed a join gives one record and no `merged_into`.
+On a store that holds the records already, the candidate of a joined cluster gives the join's
+parts in `Candidate.joined` and an alone element's ref in `split_from`, so `merge_import` merges
+the stored records into the oldest one (`merged_into`, 07 §6.6) or takes the element back out
+(docs/corrections.md); on the empty-store seed a join gives one record and no `merged_into`. Only
+stored records in different parts merge: when an OSM edit makes the dissolve take another stored
+record's element into a joined campus, the candidate stays a `conflict` item, as on a campus
+without a join. Three cases are for a populated store:
+
+- a `join` between two elements the dissolve puts in one campus already, held by different
+  stored records (a name or operator entry made the dissolve join two records, Csquare EWR2's two
+  buildings): the `conflict` the entry leaves becomes the reviewer's merge, the part split where
+  the target's record ends. On an empty store such a join changes nothing and stops the run;
+- `alone` on the element of a merged record: the split that takes it back (it stays valid once
+  the record is unmerged, and keeps the two apart);
+- withdrawing a `join`: the merged record is taken back as well (docs/corrections.md).
 
 Entries of 2026-10-09 (every one read with the project's user agent from the cited page):
 

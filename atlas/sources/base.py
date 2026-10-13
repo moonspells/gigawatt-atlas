@@ -220,21 +220,26 @@ class ImportReceipt(AtlasModel):
 class Candidate:
     """One record an importer proposes. match_values are its external_ids[match_key] values.
 
-    joined: the match values a reviewed join brought into this record (config/overrides, for
-    example OSM's `join`), so stored records that each hold some of them are merged into one
-    (merge_import) instead of being a conflict. split_from: the match value a reviewed split took
-    out of another record (OSM's `alone`), so the record that still lists it is not this one.
+    joined: the parts a reviewed join brought together into this record (config/overrides, for
+    example OSM's `join`), each as its match values, so stored records that each lie in parts of
+    their own are merged into one (merge_import) instead of being a conflict; two records in one
+    part were brought together by the source's own rules, not by the reviewer. split_from: the
+    match value a reviewed split took out of another record (OSM's `alone`), so the record that
+    still lists it is not this one.
     """
 
     match_values: tuple[str, ...]
     record: FacilityRecord
-    joined: tuple[str, ...] = ()
+    joined: tuple[tuple[str, ...], ...] = ()
     split_from: str | None = None
 
     def __post_init__(self) -> None:
         if not self.match_values:
             raise ValueError("a candidate needs at least one match value")
-        if not set(self.joined) <= set(self.match_values):
+        values = [v for part in self.joined for v in part]
+        if not all(self.joined) or len(values) != len(set(values)):
+            raise ValueError("a candidate's joined parts must be non-empty and disjoint")
+        if not set(values) <= set(self.match_values):
             raise ValueError("a candidate's joined values must be among its match values")
         if self.split_from is not None and self.split_from not in self.match_values:
             raise ValueError("a candidate's split_from must be one of its match values")
@@ -537,17 +542,19 @@ def merge_import(
        record and a record that is not merged both hold goes to the one that is not merged: the
        survivor of a merge also holds the values of the records merged into it.
     2. A candidate matching more than one record is a conflict, unless a reviewed join brought its
-       values together (Candidate.joined) and every record's values lie within the candidate's:
-       then the record created first (then the smallest id) survives and takes the candidate, and
-       each other one gets merged_into the survivor and a /merged_into correction (07 §6.6,
-       counted as merged). A record held below blocks the join (a conflict). A candidate of a
-       reviewed split (Candidate.split_from) takes the merged record that holds that value and
-       unmerges it; without one, it matches only records whose values all lie within its own, so
-       the record that still lists the value is left to drop it on its own update. A withdrawn
-       join is reversed the same way: a candidate with no join or split whose values are exactly
-       a merged record's takes that record back and unmerges it, when the record it is merged
-       into still holds those values (as a join's merge leaves it) and no other candidate of
-       this run holds any of them. One record is an update; none is new.
+       values together (Candidate.joined), every record's values lie within the candidate's and
+       no part of the join holds the values of two of the records (two records in one part were
+       brought together by the source's own rules, which a reviewer decides on): then the record
+       created first (then the smallest id) survives and takes the candidate, and each other one
+       gets merged_into the survivor and a /merged_into correction (07 §6.6, counted as merged).
+       A record held below blocks the join (a conflict). A candidate of a reviewed split
+       (Candidate.split_from) takes the merged record that holds that value and unmerges it;
+       without one, it matches only records whose values all lie within its own, so the record
+       that still lists the value is left to drop it on its own update. A withdrawn join is
+       reversed the same way: a candidate with no join or split whose values are exactly a
+       merged record's takes that record back and unmerges it, when the record it is merged into
+       still holds those values (as a join's merge leaves it) and no other candidate of this run
+       holds any of them. One record is an update; none is new.
     3. New records get ctx.new_id() and ctx.now timestamps. A match whose review.state is not
        "machine" is held (held_human_reviewed), and so is a merged one (held_merged). Otherwise the
        candidate keeps the stored id, created_at, review, merged_into and every external_ids key
@@ -584,6 +591,17 @@ def merge_import(
 
     def values_of(rid: str) -> set[str]:
         return set(stored[rid].external_ids.get(importer.match_key, []))
+
+    def apart(candidate: Candidate, matched: list[str]) -> bool:
+        """True when each part of the candidate's reviewed join holds the values of one of the
+        matched records at most, so that every merge crosses the join (07 §6.6: a reviewer's)."""
+        part_of = {v: k for k, part in enumerate(candidate.joined) for v in part}
+        holder: dict[int, str] = {}
+        for rid in matched:
+            for k in {part_of.get(v) for v in values_of(rid)}:
+                if k is None or holder.setdefault(k, rid) != rid:
+                    return False
+        return True
 
     holding: dict[str, set[int]] = {}  # match value -> the candidates of this run that hold it
     for i, held in enumerate(result.candidates):
@@ -701,6 +719,7 @@ def merge_import(
             and candidate.joined
             and not unmerge
             and all(values_of(r) <= mine for r in matched)
+            and apart(candidate, matched)
         ):
             blocked = [
                 r
