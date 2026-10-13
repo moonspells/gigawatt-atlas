@@ -1,0 +1,387 @@
+{
+  "aliases": [],
+  "buildings": [],
+  "canonical_name": "Kearney Data Center (Buffalo County, NE)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": "AI GridWatch size_mw: 368",
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [
+    {
+      "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+      "new": {
+        "as_of": "2026-08-18",
+        "event": "first_reported",
+        "phase_id": null,
+        "planned": false,
+        "status": "proposed"
+      },
+      "old": null,
+      "on": "2026-10-13",
+      "pointer": "/status_history",
+      "reason": "The earliest report found that names the project is Central Nebraska Today of 2026-08-18 (the same story as the row's dead link): Worldwide Mission Critical's conditional use permit application"
+    },
+    {
+      "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+      "new": {
+        "as_of": "2026-09-08",
+        "event": "approved",
+        "phase_id": null,
+        "planned": false,
+        "status": "permitted"
+      },
+      "old": null,
+      "on": "2026-10-13",
+      "pointer": "/status_history",
+      "reason": "AI GridWatch still shows Awaiting decision (as_of 2026-08-19); the Kearney city council approved the conditional use permit on Tuesday 2026-09-08"
+    },
+    {
+      "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+      "new": {
+        "county_fips": "31019",
+        "county_name": "Buffalo"
+      },
+      "old": {
+        "county_fips": null,
+        "county_name": null
+      },
+      "on": "2026-10-13",
+      "pointer": "/location",
+      "reason": "The project's property taxes go to Buffalo County, the county of the site, where the row's point lies; the record had no county"
+    },
+    {
+      "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+      "new": {
+        "city": null,
+        "precision": "county"
+      },
+      "old": {
+        "city": "Kearney",
+        "precision": "locality"
+      },
+      "on": "2026-10-13",
+      "pointer": "/location",
+      "reason": "The site, at Tech oNE Crossing, is outside Kearney's city limits: the record names no city, at county precision in Buffalo County (the Fix before)"
+    }
+  ],
+  "created_at": "2026-10-13T16:20:12Z",
+  "dates": {
+    "approved": {
+      "precision": "day",
+      "value": "2026-09-08"
+    },
+    "first_reported": {
+      "precision": "day",
+      "value": "2026-08-18"
+    }
+  },
+  "evidence_level": "reported",
+  "external_ids": {
+    "aigridwatch_id": [
+      "kearney-data-center-ne"
+    ]
+  },
+  "field_meta": {
+    "/location": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    },
+    "/location/city": {
+      "confidence": 0.95,
+      "conflicts": [
+        {
+          "note": "replaced by a cited correction",
+          "source_ids": [
+            "s1"
+          ],
+          "value": "Kearney"
+        }
+      ],
+      "method": "human_entered",
+      "source_ids": [
+        "s6"
+      ]
+    },
+    "/location/county_fips": {
+      "confidence": 0.95,
+      "conflicts": [],
+      "method": "human_entered",
+      "source_ids": [
+        "s5"
+      ]
+    },
+    "/location/county_name": {
+      "confidence": 0.95,
+      "conflicts": [],
+      "method": "human_entered",
+      "source_ids": [
+        "s5"
+      ]
+    },
+    "/location/precision": {
+      "confidence": 0.95,
+      "conflicts": [
+        {
+          "note": "replaced by a cited correction",
+          "source_ids": [
+            "s1"
+          ],
+          "value": "locality"
+        }
+      ],
+      "method": "human_entered",
+      "source_ids": [
+        "s6"
+      ]
+    },
+    "/status": {
+      "confidence": 0.95,
+      "conflicts": [],
+      "method": "human_entered",
+      "source_ids": [
+        "s4"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4v11yf8cdezwbebnv85abpr",
+  "incentives": [],
+  "last_verified_at": "2026-10-13T16:20:12Z",
+  "location": {
+    "city": null,
+    "county_fips": "31019",
+    "county_name": "Buffalo",
+    "geocode_method": "source_coords",
+    "geometry_ref": null,
+    "lat": 40.7,
+    "lon": -99.08,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "county",
+    "state_abbr": "NE",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [
+      {
+        "name": "Worldwide Mission Critical",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "project",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "AI GridWatch",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:52:35.702411Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/location/lat",
+        "/location/lon",
+        "/location/state_abbr",
+        "/capacity",
+        "/site",
+        "/status_history/0"
+      ],
+      "text_sha256": null,
+      "title": "AI GridWatch data center project tracker",
+      "url": "https://aigridwatch.com/projects"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "rock1015.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:52:35.702411Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://rock1015.com/2026/08/18/data-center-conditional-use-permit-to-be-discussed-at-kearney-planning-commission-meeting/"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": "2026-08-18T19:33:15Z",
+      "publisher": "Central Nebraska Today",
+      "quote": "Worldwide Mission Critical is seeking approval for a conditional use permit (CUP) for a data center, the location would be east of Antelope Ave. and south of Tech One Blvd and Global Drive.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-13T04:39:06Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://www.centralnebraskatoday.com/2026/08/18/data-center-conditional-use-permit-to-be-discussed-at-kearney-planning-commission-meeting/"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": null,
+      "published_at": "2026-09-09T14:01:18Z",
+      "publisher": "Rock 101.5 (Central Nebraska Today)",
+      "quote": "KEARNEY — A conditional use permit for a data center to be located east of Kearney received approval from the Kearney city council, with stricter regulations in place during their meeting on Tuesday, Sept. 8.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-13T04:28:51Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://rock1015.com/2026/09/09/data-center-project-gets-approval-from-kearney-city-council-with-new-stricter-regulations/"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": null,
+      "published_at": "2026-08-21T22:00:55Z",
+      "publisher": "KSNB Local4",
+      "quote": "Phase 1 is projected to generate about $20 million annually in property taxes for entities including Buffalo County, Kearney Public Schools, Central Community College and the Central Platte Natural Resources District.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-13T04:30:46Z",
+      "source_type": "news",
+      "supports": [
+        "/location/county_fips",
+        "/location/county_name"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://www.ksnblocal4.com/2026/08/21/kearney-planning-commission-recommends-approval-proposed-data-center/"
+    },
+    {
+      "archive_url": null,
+      "id": "s6",
+      "license": null,
+      "published_at": "2026-08-21T22:00:55Z",
+      "publisher": "KSNB Local4",
+      "quote": "Because Tech oNE Crossing is outside Kearney city limits, property tax revenue from the project would go to other local taxing entities rather than the city.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-13T04:30:46Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://www.ksnblocal4.com/2026/08/21/kearney-planning-commission-recommends-approval-proposed-data-center/"
+    }
+  ],
+  "status": "permitted",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-08-19"
+      },
+      "event": "other",
+      "note": "AI GridWatch stage 'Awaiting decision' as of 2026-08-19",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "proposed"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-08-18"
+      },
+      "event": "first_reported",
+      "note": "First report, per Central Nebraska Today",
+      "phase_id": null,
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s3"
+      ],
+      "status": "proposed"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-09-08"
+      },
+      "event": "approved",
+      "note": "Kearney city council approved the conditional use permit",
+      "phase_id": null,
+      "planned": false,
+      "seq": 3,
+      "source_ids": [
+        "s4"
+      ],
+      "status": "permitted"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-13T16:20:12Z"
+}

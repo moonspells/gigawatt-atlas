@@ -1,0 +1,347 @@
+{
+  "aliases": [
+    {
+      "kind": "codename",
+      "name": "Stargate",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  ],
+  "buildings": [],
+  "canonical_name": "OpenAI Stargate Wisconsin (Port Washington, WI)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [
+    {
+      "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+      "new": {
+        "as_of": "2025-05",
+        "event": "first_reported",
+        "phase_id": null,
+        "planned": false,
+        "status": "permitted"
+      },
+      "old": {
+        "as_of": "2025-10-22",
+        "event": "first_reported",
+        "phase_id": null,
+        "planned": false,
+        "status": "announced"
+      },
+      "on": "2026-10-13",
+      "pointer": "/status_history",
+      "reason": "The page of 2025-06-11 dates the council's annexation and rezoning of the site three weeks earlier, May 2025, before Vantage's announcement (2025-10-22) that dated the first report until now. An approval, so permitted."
+    }
+  ],
+  "created_at": "2026-10-13T16:20:12Z",
+  "dates": {
+    "construction_start": {
+      "precision": "day",
+      "value": "2025-12-17"
+    },
+    "first_reported": {
+      "precision": "month",
+      "value": "2025-05"
+    }
+  },
+  "evidence_level": "reported",
+  "external_ids": {
+    "epoch_name": [
+      "OpenAI Stargate Wisconsin"
+    ]
+  },
+  "field_meta": {
+    "/location": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "stated",
+      "source_ids": [
+        "s2"
+      ]
+    },
+    "/status_history": {
+      "confidence": 0.75,
+      "conflicts": [
+        {
+          "note": "The page of 2025-06-11 dates the council's annexation and rezoning of the site three weeks earlier, May 2025, before Vantage's announcement (2025-10-22) that dated the first report until now. An appro",
+          "source_ids": [
+            "s5"
+          ],
+          "value": {
+            "as_of": "2025-10-22",
+            "event": "first_reported",
+            "phase_id": null,
+            "planned": false,
+            "status": "announced"
+          }
+        }
+      ],
+      "method": "human_entered",
+      "source_ids": [
+        "s6"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4v11mtaka37s54x5p6rc3h8",
+  "incentives": [],
+  "last_verified_at": "2026-10-13T16:20:12Z",
+  "location": {
+    "city": "Port Washington",
+    "county_fips": null,
+    "county_name": null,
+    "geocode_method": "gazetteer",
+    "geometry_ref": null,
+    "lat": 43.384921,
+    "lon": -87.884134,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "locality",
+    "state_abbr": "WI",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": [
+      {
+        "name": "Oracle",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      },
+      {
+        "name": "OpenAI",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ]
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "project",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "CC-BY-4.0",
+      "published_at": null,
+      "publisher": "Epoch AI",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/aliases",
+        "/parties",
+        "/capacity",
+        "/cooling",
+        "/money",
+        "/status_history/2",
+        "/status_history/3"
+      ],
+      "text_sha256": null,
+      "title": "AI data centers",
+      "url": "https://epoch.ai/data/ai-data-centers"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": null,
+      "published_at": null,
+      "publisher": "Vantage Data Centers",
+      "quote": "Located in Port Washington just 30 minutes from Milwaukee, Wisconsin, this landmark AI campus is Vantage’s first in the Badger State.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-08T05:14:59Z",
+      "source_type": "company_release",
+      "supports": [
+        "/location"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://vantage-dc.com/data-center-locations/north-america/port-washington-wisconsin"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "drive.google.com",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:51:55.265980Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Environmental Analysis Summary",
+      "url": "https://drive.google.com/file/d/1ft2ZzqAYZtsTqMwyML4eo_EFYuclVxE6/view?usp=sharing"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": null,
+      "published_at": null,
+      "publisher": "The Daily Reporter",
+      "quote": "Denver-based Vantage Data Centers on Wednesday broke ground on its 672-acre data center campus with four buildings near Interstate 43, around 27 miles north of Milwaukee.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T21:55:12Z",
+      "source_type": "trade_press",
+      "supports": [
+        "/status_history/1"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://dailyreporter.com/2025/12/18/15-billion-vantage-data-center-breaks-ground-in-port-washington/"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": null,
+      "published_at": null,
+      "publisher": "Vantage Data Centers",
+      "quote": "OpenAI, Oracle and Vantage Data Centers, a leading global provider of hyperscale data center campuses, today announced plans to develop a data center campus outside Milwaukee in Port Washington, Wisconsin.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T21:55:15Z",
+      "source_type": "company_release",
+      "supports": [],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://vantage-dc.com/news/openai-oracle-and-vantage-data-centers-announce-stargate-data-center-site-in-wisconsin/"
+    },
+    {
+      "archive_url": null,
+      "id": "s6",
+      "license": null,
+      "published_at": "2025-06-11T14:39:05Z",
+      "publisher": "Milwaukee Journal Sentinel (on Yahoo News)",
+      "quote": "The announcement comes three weeks after the City of Port Washington's Common Council annexed and rezoned around a third of the entire 1,900-acre project site from the Town of Port Washington for an initial phase of development to be completed by 2027.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-13T03:46:07Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": "Vantage identified as operator for Port Washington's proposed 3.5 gigawatt data center campus",
+      "url": "https://www.yahoo.com/news/vantage-identified-operator-port-washingtons-143905168.html"
+    }
+  ],
+  "status": "under_construction",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "month",
+        "value": "2025-05"
+      },
+      "event": "first_reported",
+      "note": "First report, per Milwaukee Journal Sentinel",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s6"
+      ],
+      "status": "permitted"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2025-12-17"
+      },
+      "event": "construction_start",
+      "note": "Denver-based Vantage Data Centers on Wednesday broke ground on its 672-acre data center campus with four buildings near Interstate 43, around 27 miles north of Milwaukee.",
+      "phase_id": null,
+      "planned": false,
+      "seq": 2,
+      "source_ids": [
+        "s4"
+      ],
+      "status": "under_construction"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-01-02"
+      },
+      "event": "other",
+      "note": "Ground broken for the facility, land clearing begins for all buildings",
+      "phase_id": null,
+      "planned": false,
+      "seq": 3,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "under_construction"
+    },
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2028-12-31"
+      },
+      "event": "energized",
+      "note": "Building 4 and supporting facilities/buildings operational, whole facility now operational. Based on the environmental analysis (page 6) filed for the site.",
+      "phase_id": null,
+      "planned": true,
+      "seq": 4,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-13T16:20:12Z"
+}

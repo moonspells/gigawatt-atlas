@@ -1,0 +1,341 @@
+{
+  "aliases": [
+    {
+      "kind": "osm_name",
+      "name": "RagingWire CA2",
+      "source_ids": [
+        "s1"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "RagingWire CA1",
+      "source_ids": [
+        "s4"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "RagingWire CA3",
+      "source_ids": [
+        "s5"
+      ]
+    },
+    {
+      "kind": "former_name",
+      "name": "NTT RagingWire",
+      "source_ids": [
+        "s1",
+        "s4",
+        "s5"
+      ]
+    }
+  ],
+  "buildings": [
+    {
+      "name": "RagingWire CA2",
+      "phase_id": null,
+      "ref": "osm:way/32560290",
+      "sqft": null
+    },
+    {
+      "name": "RagingWire CA1",
+      "phase_id": null,
+      "ref": "osm:way/32560292",
+      "sqft": null
+    },
+    {
+      "name": "RagingWire CA3",
+      "phase_id": null,
+      "ref": "osm:way/190868312",
+      "sqft": null
+    }
+  ],
+  "canonical_name": "NTT Sacramento CA1 to CA3 (Sacramento County, CA)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [
+    {
+      "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+      "new": "NTT Sacramento CA1 to CA3 (Sacramento County, CA)",
+      "old": "NTT RagingWire (Sacramento County, CA)",
+      "on": "2026-10-13",
+      "pointer": "/canonical_name",
+      "reason": "NTT names the campus's three buildings Sacramento CA1, CA2 and CA3; RagingWire, the name OpenStreetMap still gives them, is a retired brand"
+    }
+  ],
+  "created_at": "2026-10-13T16:20:12Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "osm": [
+      "way/32560290",
+      "way/32560292",
+      "way/190868312"
+    ],
+    "pnnl_im3": [
+      "building@-121.489186,38.650432",
+      "building@-121.491946,38.650400",
+      "building@-121.498763,38.644239"
+    ]
+  },
+  "field_meta": {
+    "/canonical_name": {
+      "confidence": 0.99,
+      "conflicts": [
+        {
+          "note": "replaced by a cited correction",
+          "source_ids": [
+            "s1",
+            "s4",
+            "s5"
+          ],
+          "value": "NTT RagingWire (Sacramento County, CA)"
+        }
+      ],
+      "method": "human_entered",
+      "source_ids": [
+        "s6"
+      ]
+    },
+    "/location/county_fips": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": []
+    },
+    "/status": {
+      "confidence": 0.6,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1",
+        "s4",
+        "s5"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4v11aqnmv6zzfrfrkr3ed38",
+  "incentives": [],
+  "last_verified_at": "2026-10-13T16:20:12Z",
+  "location": {
+    "city": null,
+    "county_fips": "06067",
+    "county_name": "Sacramento",
+    "geocode_method": "osm",
+    "geometry_ref": "osm:way/32560290",
+    "lat": 38.6483571,
+    "lon": -121.4932985,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": "95834",
+    "precision": "footprint",
+    "state_abbr": "CA",
+    "street": "1312 Striker Avenue"
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [
+      {
+        "name": "NTT",
+        "org_id": null,
+        "source_ids": [
+          "s1",
+          "s4",
+          "s5"
+        ]
+      }
+    ],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/location/city",
+        "/location/county_name",
+        "/location/state_abbr",
+        "/location/street",
+        "/location/postcode",
+        "/buildings/0"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/32560290",
+      "url": "https://www.openstreetmap.org/way/32560290"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "Pacific Northwest National Laboratory (IM3)",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/site"
+      ],
+      "text_sha256": null,
+      "title": "IM3 Open Source Data Center Atlas v2026.02.09, web map file im3_datacenter_centroids.geojson",
+      "url": "https://doi.org/10.57931/3017294"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "NTT",
+      "quote": "CA3, one of three data centers on our 52.7MW campus, is powered by 100% green energy.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-13T03:32:41Z",
+      "source_type": "company_release",
+      "supports": [
+        "/buildings/2"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://services.global.ntt/en-us/services-and-products/global-data-centers/global-locations/americas/sacramento-ca-3-data-center"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/1"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/32560292",
+      "url": "https://www.openstreetmap.org/way/32560292"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/2"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/190868312",
+      "url": "https://www.openstreetmap.org/way/190868312"
+    },
+    {
+      "archive_url": null,
+      "id": "s6",
+      "license": null,
+      "published_at": null,
+      "publisher": "NTT",
+      "quote": "Discover our Sacramento data centers Sacramento CA1 Data Center Sacramento CA2 Data Center Sacramento CA3 Data Center",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-13T03:32:30Z",
+      "source_type": "company_release",
+      "supports": [
+        "/canonical_name"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://services.global.ntt/en-us/services-and-products/global-data-centers/global-locations/americas/sacramento-data-centers"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-09"
+      },
+      "event": "other",
+      "note": "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot date, not the date it began",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1",
+        "s4",
+        "s5"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-13T16:20:12Z"
+}

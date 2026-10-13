@@ -1,0 +1,196 @@
+{
+  "aliases": [],
+  "buildings": [
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/1547829414",
+      "sqft": null
+    }
+  ],
+  "canonical_name": "Lonestar Dream -Tarbush Site (Pecos County, TX)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [
+    {
+      "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+      "new": "out_of_scope",
+      "old": "in_scope",
+      "on": "2026-10-13",
+      "pointer": "/scope",
+      "reason": "Lonestar Dream's Tarbush site hosts Genesis Digital Assets' bitcoin miners; no source shows it converted to or marketed for computing (07 §2.2)"
+    }
+  ],
+  "created_at": "2026-10-13T16:20:12Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "osm": [
+      "way/1547829412",
+      "way/1547829413",
+      "way/1547829414"
+    ]
+  },
+  "field_meta": {
+    "/location/county_fips": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": []
+    },
+    "/status": {
+      "confidence": 0.6,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s3"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4v11enjd44pj2v31newv8ba",
+  "incentives": [],
+  "last_verified_at": "2026-10-13T16:20:12Z",
+  "location": {
+    "city": null,
+    "county_fips": "48371",
+    "county_name": "Pecos",
+    "geocode_method": "osm",
+    "geometry_ref": "osm:way/1547829412",
+    "lat": 31.1037239,
+    "lon": -103.23836,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": null,
+    "precision": "footprint",
+    "state_abbr": "TX",
+    "street": null
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "out_of_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/location/city",
+        "/location/county_name",
+        "/location/state_abbr"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1547829412",
+      "url": "https://www.openstreetmap.org/way/1547829412"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/buildings/0"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1547829414",
+      "url": "https://www.openstreetmap.org/way/1547829414"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": null,
+      "published_at": "2024-04-03T18:00:00Z",
+      "publisher": "Bitcoin Magazine",
+      "quote": "which was founded in 2013 and operates 19 mining facilities across North America, Europe and Central Asia, has entered into a strategic hosting arrangement with Lonestar Dream, developer of immersion cooling systems for bitcoin mining devices, to run the Tarbush operation.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-13T03:44:39Z",
+      "source_type": "news",
+      "supports": [],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://bitcoinmagazine.com/business/genesis-digital-assets-leverages-renewables-bitcoin-mining-texas"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-09"
+      },
+      "event": "other",
+      "note": "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot date, not the date it began",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s3"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-13T16:20:12Z"
+}

@@ -1,0 +1,234 @@
+{
+  "aliases": [],
+  "buildings": [
+    {
+      "name": "Digital Realty IAD55",
+      "phase_id": null,
+      "ref": "osm:way/1276518687",
+      "sqft": null
+    }
+  ],
+  "canonical_name": "Digital Realty IAD55 (Loudoun County, VA)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": 60.0,
+    "it_mw": null,
+    "mw_as_stated": "OSM input:electricity: Digital Realty IAD55 60 MW",
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [
+    {
+      "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+      "new": "22588 Relocation Drive",
+      "old": "22588 Fitness Court",
+      "on": "2026-10-13",
+      "pointer": "/location/street",
+      "reason": "Loudoun County's address point inside the building is 22588 Relocation Drive; the county has no 22588 Fitness Court (its one Fitness Court address, 22585, lies outside the way)"
+    }
+  ],
+  "created_at": "2026-10-13T16:20:12Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "osm": [
+      "way/1276518687"
+    ],
+    "pnnl_im3": [
+      "building@-77.433932,38.992269"
+    ]
+  },
+  "field_meta": {
+    "/capacity/facility_mw": {
+      "confidence": 0.7,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    },
+    "/location/county_fips": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": []
+    },
+    "/location/street": {
+      "confidence": 0.99,
+      "conflicts": [
+        {
+          "note": "replaced by a cited correction",
+          "source_ids": [
+            "s1"
+          ],
+          "value": "22588 Fitness Court"
+        }
+      ],
+      "method": "human_entered",
+      "source_ids": [
+        "s3"
+      ]
+    },
+    "/status": {
+      "confidence": 0.6,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4v11dyb5sy4xcb3m545h64f",
+  "incentives": [],
+  "last_verified_at": "2026-10-13T16:20:12Z",
+  "location": {
+    "city": null,
+    "county_fips": "51107",
+    "county_name": "Loudoun",
+    "geocode_method": "osm",
+    "geometry_ref": "osm:way/1276518687",
+    "lat": 38.9921868,
+    "lon": -77.4339379,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": "20166",
+    "precision": "footprint",
+    "state_abbr": "VA",
+    "street": "22588 Relocation Drive"
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [
+      {
+        "name": "Digital Realty",
+        "org_id": null,
+        "source_ids": [
+          "s1"
+        ]
+      }
+    ],
+    "owner": [],
+    "tenant": []
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/canonical_name",
+        "/location/lat",
+        "/location/lon",
+        "/location/city",
+        "/location/county_name",
+        "/location/state_abbr",
+        "/location/postcode",
+        "/capacity/mw_as_stated",
+        "/buildings/0"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/1276518687",
+      "url": "https://www.openstreetmap.org/way/1276518687"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "Pacific Northwest National Laboratory (IM3)",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/site"
+      ],
+      "text_sha256": null,
+      "title": "IM3 Open Source Data Center Atlas v2026.02.09, web map file im3_datacenter_centroids.geojson",
+      "url": "https://doi.org/10.57931/3017294"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "Loudoun County",
+      "quote": "22588 RELOCATION DR, STERLING",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-13T03:42:33Z",
+      "source_type": "government_record",
+      "supports": [
+        "/location/street"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://logis.loudoun.gov/gis/rest/services/COL/LandRecords/MapServer/2/query?geometry=-77.4360,38.9905,-77.4320,38.9935&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=FULL_ADDRESS&returnGeometry=true&outSR=4326&f=json"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-09"
+      },
+      "event": "other",
+      "note": "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot date, not the date it began",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-13T16:20:12Z"
+}

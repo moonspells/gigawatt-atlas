@@ -1,0 +1,529 @@
+{
+  "aliases": [
+    {
+      "kind": "osm_name",
+      "name": "Rackspace Richardson DFW3",
+      "source_ids": [
+        "s4"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Digital Realty Dallas DFW17",
+      "source_ids": [
+        "s5"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Digital Realty Dallas DFW29",
+      "source_ids": [
+        "s6"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Digital Realty Dallas DFW28",
+      "source_ids": [
+        "s8"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Digital Realty Dallas DFW35",
+      "source_ids": [
+        "s9"
+      ]
+    },
+    {
+      "kind": "osm_name",
+      "name": "Digital Realty Dallas DFW16",
+      "source_ids": [
+        "s10"
+      ]
+    }
+  ],
+  "buildings": [
+    {
+      "name": "Rackspace Richardson DFW3",
+      "phase_id": null,
+      "ref": "osm:way/597876719",
+      "sqft": null
+    },
+    {
+      "name": "Digital Realty Dallas DFW17",
+      "phase_id": null,
+      "ref": "osm:way/597876721",
+      "sqft": null
+    },
+    {
+      "name": "Digital Realty Dallas DFW29",
+      "phase_id": null,
+      "ref": "osm:way/597876722",
+      "sqft": null
+    },
+    {
+      "name": null,
+      "phase_id": null,
+      "ref": "osm:way/597876723",
+      "sqft": null
+    },
+    {
+      "name": "Digital Realty Dallas DFW28",
+      "phase_id": null,
+      "ref": "osm:way/597876724",
+      "sqft": null
+    },
+    {
+      "name": "Digital Realty Dallas DFW35",
+      "phase_id": null,
+      "ref": "osm:way/597876726",
+      "sqft": null
+    },
+    {
+      "name": "Digital Realty Dallas DFW18",
+      "phase_id": null,
+      "ref": "osm:way/597876730",
+      "sqft": null
+    },
+    {
+      "name": "Digital Realty Dallas DFW16",
+      "phase_id": null,
+      "ref": "osm:way/597876798",
+      "sqft": null
+    }
+  ],
+  "canonical_name": "Digital Realty Dallas (Richardson, TX)",
+  "capacity": {
+    "backup_generation_mw": null,
+    "facility_mw": null,
+    "it_mw": null,
+    "mw_as_stated": null,
+    "utility_request_mw": null
+  },
+  "cooling": {
+    "type": "unknown",
+    "water_source": "unknown",
+    "water_use_mgd": null
+  },
+  "corrections": [
+    {
+      "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+      "new": "Digital Realty Dallas (Richardson, TX)",
+      "old": "Digital Realty Dallas DFW18 (Richardson, TX)",
+      "on": "2026-10-13",
+      "pointer": "/canonical_name",
+      "reason": "The tenant's building name breaks the campus's common name; Digital Realty's Dallas campus keeps its name"
+    },
+    {
+      "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+      "new": "Rackspace",
+      "old": null,
+      "on": "2026-10-13",
+      "pointer": "/parties/tenant",
+      "reason": "Rackspace, the operator OpenStreetMap gives 1215 Integrity Drive, leases the building on Digital Realty's campus: it is the joined record's tenant"
+    }
+  ],
+  "created_at": "2026-10-13T16:20:12Z",
+  "dates": {},
+  "evidence_level": "reported",
+  "external_ids": {
+    "osm": [
+      "way/597876719",
+      "way/597876721",
+      "way/597876722",
+      "way/597876723",
+      "way/597876724",
+      "way/597876726",
+      "way/597876730",
+      "way/597876798"
+    ],
+    "pnnl_im3": [
+      "building@-96.710291,32.965046",
+      "building@-96.710546,32.967233",
+      "building@-96.711196,32.966254",
+      "building@-96.712609,32.965204",
+      "building@-96.713212,32.966281",
+      "building@-96.713308,32.967241",
+      "building@-96.715587,32.966077",
+      "building@-96.715877,32.964789"
+    ]
+  },
+  "field_meta": {
+    "/canonical_name": {
+      "confidence": 0.99,
+      "conflicts": [
+        {
+          "note": "replaced by a cited correction",
+          "source_ids": [
+            "s1"
+          ],
+          "value": "Digital Realty Dallas DFW18 (Richardson, TX)"
+        }
+      ],
+      "method": "human_entered",
+      "source_ids": [
+        "s3"
+      ]
+    },
+    "/location/county_fips": {
+      "confidence": 0.9,
+      "conflicts": [],
+      "method": "derived",
+      "source_ids": []
+    },
+    "/status": {
+      "confidence": 0.6,
+      "conflicts": [],
+      "method": "imported",
+      "source_ids": [
+        "s1",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10"
+      ]
+    }
+  },
+  "grid": {
+    "balancing_authority": null,
+    "iso_rto": "unknown",
+    "queue_ids": [],
+    "utility_eia_id": null,
+    "utility_name": null
+  },
+  "id": "gwa-01m4v11cf976348zkeb5aats26",
+  "incentives": [],
+  "last_verified_at": "2026-10-13T16:20:12Z",
+  "location": {
+    "city": "Richardson",
+    "county_fips": "48113",
+    "county_name": "Dallas",
+    "geocode_method": "osm",
+    "geometry_ref": "osm:way/597876730",
+    "lat": 32.9660269,
+    "lon": -96.7128255,
+    "municipality": null,
+    "parcel_apns": [],
+    "postcode": "75081",
+    "precision": "footprint",
+    "state_abbr": "TX",
+    "street": "1210 Integrity Drive"
+  },
+  "merged_into": null,
+  "money": {
+    "currency_year": null,
+    "investment_basis": null,
+    "investment_usd": null
+  },
+  "parent_id": null,
+  "parties": {
+    "developer": [],
+    "filing_entities": [],
+    "operator": [
+      {
+        "name": "Digital Realty",
+        "org_id": null,
+        "source_ids": [
+          "s1",
+          "s5",
+          "s6",
+          "s8",
+          "s9",
+          "s10"
+        ]
+      }
+    ],
+    "owner": [],
+    "tenant": [
+      {
+        "name": "Rackspace",
+        "org_id": null,
+        "source_ids": [
+          "s11"
+        ]
+      }
+    ]
+  },
+  "phases": [],
+  "purpose": "unknown",
+  "record_type": "campus",
+  "review": {
+    "pr_url": null,
+    "reviewed_at": null,
+    "state": "machine"
+  },
+  "schema_version": "1.0.0",
+  "scope": "in_scope",
+  "site": {
+    "acreage": null,
+    "building_count": null,
+    "building_sqft": null
+  },
+  "sources": [
+    {
+      "archive_url": null,
+      "id": "s1",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/location/city",
+        "/location/county_name",
+        "/location/state_abbr",
+        "/location/street",
+        "/buildings/6"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/597876730",
+      "url": "https://www.openstreetmap.org/way/597876730"
+    },
+    {
+      "archive_url": null,
+      "id": "s2",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "Pacific Northwest National Laboratory (IM3)",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/site"
+      ],
+      "text_sha256": null,
+      "title": "IM3 Open Source Data Center Atlas v2026.02.09, web map file im3_datacenter_centroids.geojson",
+      "url": "https://doi.org/10.57931/3017294"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "Digital Realty",
+      "quote": "Dallas DFW25 Located in the epicenter of North Dallas’ high technology corridor on our 69-acre Digital Dallas campus, this facility is offers over 100,000 square feet of space and access to over 60 network service providers. Request a tour DFW25 1215 Integrity Drive, Richardson, TX 75081",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-13T03:37:49Z",
+      "source_type": "company_release",
+      "supports": [
+        "/buildings/0",
+        "/canonical_name"
+      ],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://www.digitalrealty.com/data-centers/americas/dallas/dfw25"
+    },
+    {
+      "archive_url": null,
+      "id": "s4",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/location/postcode",
+        "/buildings/0"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/597876719",
+      "url": "https://www.openstreetmap.org/way/597876719"
+    },
+    {
+      "archive_url": null,
+      "id": "s5",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/location/postcode",
+        "/buildings/1"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/597876721",
+      "url": "https://www.openstreetmap.org/way/597876721"
+    },
+    {
+      "archive_url": null,
+      "id": "s6",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/location/postcode",
+        "/buildings/2"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/597876722",
+      "url": "https://www.openstreetmap.org/way/597876722"
+    },
+    {
+      "archive_url": null,
+      "id": "s7",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/location/postcode",
+        "/buildings/3"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/597876723",
+      "url": "https://www.openstreetmap.org/way/597876723"
+    },
+    {
+      "archive_url": null,
+      "id": "s8",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/location/postcode",
+        "/buildings/4"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/597876724",
+      "url": "https://www.openstreetmap.org/way/597876724"
+    },
+    {
+      "archive_url": null,
+      "id": "s9",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/buildings/5"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/597876726",
+      "url": "https://www.openstreetmap.org/way/597876726"
+    },
+    {
+      "archive_url": null,
+      "id": "s10",
+      "license": "ODbL-1.0",
+      "published_at": null,
+      "publisher": "OpenStreetMap contributors",
+      "quote": null,
+      "quote_end": null,
+      "quote_match": null,
+      "quote_start": null,
+      "retrieved_at": "2026-10-09T09:50:24.684005Z",
+      "source_type": "open_dataset",
+      "supports": [
+        "/location/lat",
+        "/location/lon",
+        "/location/postcode",
+        "/buildings/7"
+      ],
+      "text_sha256": null,
+      "title": "OpenStreetMap way/597876798",
+      "url": "https://www.openstreetmap.org/way/597876798"
+    },
+    {
+      "archive_url": null,
+      "id": "s11",
+      "license": null,
+      "published_at": null,
+      "publisher": "Baxtel",
+      "quote": "In 2012, US hosting company Rackspace signed a long-term lease for more than 58,000 sq ft of raised floor space at Digital Realty Trust's data center campus in Richardson, Texas (Dallas metro).",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-13T03:38:17Z",
+      "source_type": "commercial_aggregator",
+      "supports": [],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://baxtel.com/data-center/rackspace-richardson-dfw3"
+    }
+  ],
+  "status": "operating",
+  "status_history": [
+    {
+      "as_of": {
+        "precision": "day",
+        "value": "2026-10-09"
+      },
+      "event": "other",
+      "note": "Tagged telecom=data_center in OpenStreetMap; status per 07 §4.7, seen on the snapshot date, not the date it began",
+      "phase_id": null,
+      "planned": false,
+      "seq": 1,
+      "source_ids": [
+        "s1",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10"
+      ],
+      "status": "operating"
+    }
+  ],
+  "status_reason": null,
+  "updated_at": "2026-10-13T16:20:12Z"
+}
