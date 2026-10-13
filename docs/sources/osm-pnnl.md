@@ -923,7 +923,9 @@ without a join. Three cases are for a populated store:
   buildings): the `conflict` the entry leaves becomes the reviewer's merge, the part split where
   the target's record ends. On an empty store such a join changes nothing and stops the run;
 - `alone` on the element of a merged record: the split that takes it back (it stays valid once
-  the record is unmerged, and keeps the two apart);
+  the record is unmerged, and keeps the two apart). On an empty store no record was merged and
+  the dissolve leaves the element alone anyway, so, as with the in-cluster join, such an entry
+  changes nothing and stops the run: remove it before a reseed;
 - withdrawing a `join`: the merged record is taken back as well (docs/corrections.md).
 
 Entries of 2026-10-09 (every one read with the project's user agent from the cited page):

@@ -317,7 +317,9 @@ candidate matches only records whose values all lie within its own, so it is new
 that still lists the value drops it on its own update. An `alone` element that the dissolve
 leaves alone anyway is no redundant entry when a stored record that holds it is merged, or was
 (a `/merged_into` correction): it is the split that takes the record back, and it keeps the two
-apart from then on.
+apart from then on. On an empty store no record was merged, so, like the in-cluster join above,
+an `alone` entry that undid a join on a populated store changes nothing there and stops the run
+(`osm.check_alone`): remove it before a reseed.
 
 Withdrawing the join reverses its merge the same way (07 §6.6 step 7). Once the `join` entry is
 gone, the element is a candidate of its own again, with no join or split: when its values are

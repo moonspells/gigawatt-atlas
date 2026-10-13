@@ -411,10 +411,16 @@ _LOG_CHALLENGED_RE = re.compile(
 )
 _LOG_INCOMPLETE_RE = re.compile(r"\bincomplete\b", re.I)
 _LOG_UPHELD_RE = re.compile(r"\buph(?:eld|olds?|olding)\b", re.I)
+# The places a ban shuts data centers out of, and the words after one that make it a part of the
+# place ("the city's historic district", "the city center"): a ban from a part is none adopted.
+_BAN_PLACE = r"(?:city|county|township|town|village|borough|parish)"
+_PART_OF_PLACE = r"(?:['\u2019]s\b|\s+(?:cent(?:er|re)|core|downtown)\b)"
 _LOG_MORATORIUM_RE = re.compile(
     r"\b(?:pass(?:ed|es)?|adopt(?:ed|s)?|approv(?:e|ed|es)|enact(?:ed|s)?|impos(?:e|ed|es|ing)|"
     r"vot(?:ed|es)(?:\s+[\w-]+){0,3}\s+to\s+(?:adopt|approve|pass|enact|impose))"
-    r"(?:\W+[\w'-]+){0,8}?\W+(?:moratori(?:um|a)|bans?|banning|prohibit\w*\s+data cent(?:er|re)s?"
+    r"(?:\W+[\w'-]+){0,8}?\W+(?:moratori(?:um|a)|(?:bans?|banning)\b"
+    rf"(?!\s+(?:all\s+|new\s+)?data cent(?:er|re)s?\s+from\s+the\s+{_BAN_PLACE}{_PART_OF_PLACE})"
+    r"|prohibit\w*\s+data cent(?:er|re)s?"
     r"(?:\s+as\s+a\s+use)?\s+(?:in\s+all\s+zones|(?:township|county|city|town)[- ]?wide))\b"
     r"|\b(?:removing|removed|removes) data cent(?:er|re)s? as (?:a )?permitted use\b",
     re.I,
@@ -451,12 +457,12 @@ _MORATORIUM_LIFTED_RE = re.compile(
 # A ban written as a zoning code that shuts data centers out of the place (Palmetto: "approved a
 # rewritten industrial zoning code that permanently excludes data centers from the city"), not
 # out of a part of it ("excludes new data centers from the city's historic district", "from the
-# city center").
+# city center"). _LOG_MORATORIUM_RE's "bans" takes the same guard ("approved an ordinance that
+# bans data centers from the city center").
 _LOG_BAN_RE = re.compile(
     r"\b(?:pass(?:ed|es)?|adopt(?:ed|s)?|approv(?:e|ed|es)|enact(?:ed|s)?)(?:\W+[\w'-]+){0,8}?\W+"
     r"(?:exclud|prohibit|bann?)\w*\s+(?:all\s+|new\s+)?data cent(?:er|re)s?\s+from\s+the\s+"
-    r"(?:city|county|township|town|village|borough|parish)\b"
-    r"(?!['\u2019]s\b|\s+(?:cent(?:er|re)|core|downtown)\b)",
+    rf"{_BAN_PLACE}\b(?!{_PART_OF_PLACE})",
     re.I,
 )
 # Every way a log entry says a moratorium or ban on data centers was adopted (log_obstacle).

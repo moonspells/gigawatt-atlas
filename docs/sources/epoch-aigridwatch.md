@@ -502,8 +502,9 @@ the same exemption, hedge and end checks. A vote for lifting, ending, repealing 
 moratorium, for a hearing or a report on one, or one that failed, does not ("voted 4-1 for ending
 the moratorium", "voted 4-1 for a moratorium study", "voted for the moratorium to end", "voting for
 moratorium failed 2-3"), nor a moratorium or ban that the same clause lifts or ends, nor a code
-that shuts data centers out of a part of the place ("from the city's historic district", "from the
-city center"); fix round 6's review. A moratorium a later entry says ended does not ("Commission votes 3-2 against
+or ordinance that shuts data centers out of a part of the place ("from the city's historic
+district", "from the city center", and "approved an ordinance that bans data centers from the city
+center"); fix round 6's review and its verification. A moratorium a later entry says ended does not ("Commission votes 3-2 against
 extending moratorium; moratorium expires": Leavenworth County's, for Project Bluestem). A row
 Under construction is held when its log reports an injunction or a halt of its works that no later
 entry lifts (Matrix: the judge "issues a temporary injunction freezing new construction/development

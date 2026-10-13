@@ -120,6 +120,9 @@ def vote(summary: str, day: str = "2026-06-26") -> dict[str, Any]:
         "the city.",
         # epoch-agw-2 (review of fix round 6): words after the moratorium that are not a study.
         "Council voted 3-2 for a 12-month moratorium on new data centers.",
+        # The verification of fix round 6's review fixes: a ban from the whole place is one.
+        "The council approved an ordinance that bans data centers from the city.",
+        "The township passed an ordinance banning new data centers from the township.",
     ],
 )
 def test_ban_phrases(summary: str) -> None:
@@ -155,6 +158,16 @@ def test_ban_phrases(summary: str) -> None:
             "The council approved a zoning code that excludes data centers from the city center.",
             None,
         ),
+        # The verification of fix round 6's review fixes: the older "approved ... bans" phrase
+        # takes the same guard, a ban from part of the place adopting no ban.
+        ("The council approved an ordinance that bans data centers from the city center.", None),
+        (
+            "The board adopted an ordinance banning new data centers from the county's rural "
+            "areas.",
+            None,
+        ),
+        ("The commission passed an ordinance banning data centers from the town core.", None),
+        ("The council approved an ordinance that bans data centers from the city downtown.", None),
     ],
 )
 def test_no_ban(summary: str, public: date | None) -> None:

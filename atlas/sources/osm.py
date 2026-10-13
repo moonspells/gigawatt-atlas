@@ -690,7 +690,8 @@ def check_alone(
     elements in), unless a stored record that holds the element is merged into another, or was
     (merged: merged_refs). A join exists only where no dissolve rule joins the element, so once
     the join's merge is made, `alone` is the reviewed split that takes the record back
-    (Candidate.split_from, merge_import), and the entry keeps the two apart from then on."""
+    (Candidate.split_from, merge_import), and the entry keeps the two apart from then on. On an
+    empty store no record was merged, so such an entry stops a reseed until it is removed."""
     if not alone:
         return
     found = dissolve_with_notes(objects, radius_m=radius_m, regions=regions)
@@ -706,7 +707,9 @@ def check_alone(
         it = "it" if len(lone) == 1 else "them"
         raise override_error(
             f"{path}: alone sets {', '.join(lone)} apart, but no dissolve rule joins {it} to "
-            f"anything and no stored record of {it} was merged; remove the entry"
+            f"anything and no stored record of {it} was merged; remove the entry (an entry that "
+            "undid a join on a populated store changes nothing on an empty one: remove it before "
+            "a reseed)"
         )
 
 

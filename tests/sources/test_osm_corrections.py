@@ -840,7 +840,7 @@ def test_a_reviewed_join_is_undone_on_a_populated_store(
     record into the other. Withdrawing the join, or replacing it with `alone` (the documented
     split: check_alone accepts it, since a merged record holds the element), takes the merged
     record back: both facilities are published again with their own ids, and the next run, with
-    the same entries, changes nothing."""
+    the same entries, changes nothing. The `alone` entry stops a reseed on an empty store."""
     rerun(run, make_test_context, tmp_repo, FIX5, {})
     ca3, ca12 = (holding(RecordStore(tmp_repo / "data" / "records"), r) for r in REFS_CA)
     join = {"way/190868312": {**CITED, "join": "way/32560290"}}
@@ -863,6 +863,11 @@ def test_a_reviewed_join_is_undone_on_a_populated_store(
         merged.merged_into,
         None,
     )
+    if undo == "alone":
+        # On an empty store no record was merged: a reseed stops on the entry until it is removed.
+        empty = "was merged; remove the entry .*changes nothing on an empty one: remove it before"
+        with pytest.raises(FetchError, match=empty):
+            run(FIX5, entries)
 
 
 def test_a_join_of_two_stored_records_the_dissolve_joins_is_a_reviewed_merge(
