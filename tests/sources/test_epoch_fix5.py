@@ -32,11 +32,13 @@ from atlas.sources.epoch import (
     IMPORTER,
     Site,
     TimelineRow,
+    clean_text,
     event_note,
     noted_announcements,
     operation_period,
     operation_review,
     parse_period,
+    read_zip,
     selected_date,
     stated_capacity,
     status_events,
@@ -74,7 +76,10 @@ def row(day: str, text: str, operational: float | None = 0) -> TimelineRow:
 def write_overrides(
     tmp_path: Path, counties: CountyIndex, *, edit: Callable[[dict[str, Any]], None] | None = None
 ) -> Path:
-    entries = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
+    # An entry for a site the input does not have stops the run (fix round 6, docs/corrections.md).
+    names = {clean_text(r["Name"]) for r in read_zip(CASES_ZIP)[1]}
+    committed = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
+    entries = {name: entry for name, entry in committed.items() if name in names}
     for name, (state, county_name) in TEST_COUNTIES.items():
         county = counties.by_name(state, county_name)
         assert county is not None and "state_abbr" not in entries.get(name, {})

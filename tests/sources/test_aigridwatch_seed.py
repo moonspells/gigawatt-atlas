@@ -525,11 +525,12 @@ def test_the_overrides_file_is_checked(make_test_context: MakeContext, tmp_path:
             run(make_test_context, overrides=write_overrides(tmp_path, entries))
     with pytest.raises(FetchError, match="cannot read"):
         run(make_test_context, overrides=tmp_path / "missing.json")
-    result = run(
-        make_test_context,
-        overrides=write_overrides(
-            tmp_path,
-            {"no-such-row": {"release": ["id"], "reason": "r", "reviewed_at": "2026-10-09"}},
-        ),
-    )
-    assert (result.metrics["overrides_used"], result.metrics["overrides_unused"]) == (0, 1)
+    # An entry for a row the file does not have stops the run (fix round 6, docs/corrections.md).
+    with pytest.raises(FetchError, match="names 'no-such-row', which this input does not have"):
+        run(
+            make_test_context,
+            overrides=write_overrides(
+                tmp_path,
+                {"no-such-row": {"release": ["id"], "reason": "r", "reviewed_at": "2026-10-09"}},
+            ),
+        )

@@ -59,7 +59,11 @@ verified project becomes a `project` record at `locality` precision:
 - a row whose id begins with another row's name (AI GridWatch shifted the ids of a block of PA DEP
   rows) is held for review, since records are matched on that id;
 - a reviewer releases a held row through config/overrides/aigridwatch.json (one entry per row
-  id, with the checks released, a reason and the review date);
+  id, with the checks released, a reason and the review date), and corrects the record built from
+  a row with cited corrections (atlas.sources.corrections), applied where the row is imported,
+  after its holds; a cited first report lifts the first-report hold, and a reviewer's event that
+  would date the first report although it reports nothing (an approval, a denial) holds the row,
+  as the row's own milestones would;
 - parties hold organizations only (07 §5.3): a person, a capacity figure ("67 MW") or a
   parenthetical note ("(parcels)", "(AWS)") is never stored as a name. The "Operator/developer"
   field is the developer; an electric utility in it is left out, and so is a developer the row
@@ -83,10 +87,10 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, HttpUrl, TypeAdapter, ValidationError, model_validator
+from pydantic import Field, HttpUrl, JsonValue, TypeAdapter, ValidationError, model_validator
 
 from atlas.crosswalk import (
     UnknownStatus,
@@ -113,6 +117,16 @@ from atlas.schema.rollup import (
     period_start,
 )
 from atlas.sources.base import Candidate, ImportResult, ReviewItem, classify_source, load_input
+from atlas.sources.corrections import (
+    Fix,
+    apply_fixes,
+    check_entries,
+    check_expect,
+    check_fix_dates,
+    correction_metrics,
+    has_first_report,
+    mark_corrected,
+)
 from atlas.text import clean_text as _clean_text
 from atlas.text import find_personal_data
 
@@ -2536,6 +2550,34 @@ def _latest_actual(events: list[StatusEvent]) -> StatusEvent | None:
     return max(actual, key=event_key) if actual else None
 
 
+# The events that report a project, so that one may date its first report: an announcement, a
+# filing (as first_report reads the row's own filing) and a first report itself.
+_REPORT_EVENTS = frozenset({"first_reported", "announced", "application_filed"})
+
+
+def reviewer_first_report(built: FacilityRecord, corrected: FacilityRecord) -> StatusEvent | None:
+    """The reviewer's event that would date a corrected record's first report although it reports
+    no project, if any: the earliest dated event (the one rollup.derive_dates dates
+    first_reported by) when the corrections added it or changed its event, status or date, and it
+    is no announcement, filing or first report (an approval, a denial, a ban). The importer's
+    first-report checks hold a row whose first report its own milestones would date so (n41:
+    Project Riverjump's withdrawal); a reviewer's event is held the same way, until a cited
+    first_report op dates the first report."""
+
+    def what(e: StatusEvent) -> tuple[str, str, str, str | None, bool]:
+        return (e.event, e.status, e.as_of.value, e.phase_id, e.planned)
+
+    dated = sorted(
+        (e for e in corrected.status_history if not e.planned and e.event != "other"),
+        key=event_key,
+    )
+    if not dated or dated[0].event in _REPORT_EVENTS:
+        return None
+    if what(dated[0]) in {what(e) for e in built.status_history}:
+        return None  # AI GridWatch's own event, which the importer's checks have read
+    return dated[0]
+
+
 # ---------------------------------------------------------------------------- Epoch AI's sites
 
 
@@ -2989,8 +3031,9 @@ ReleaseCheck = Literal["epoch", "stage", "id", "scope", "first_report"]
 
 
 class RowRelease(AtlasModel):
-    """One entry of config/overrides/aigridwatch.json: a reviewer's decision that a check which
-    holds an AI GridWatch row is wrong for it, so the row is imported.
+    """One entry of config/overrides/aigridwatch.json, keyed by row id: a reviewer's decision that
+    a check which holds an AI GridWatch row is wrong for it, so the row is imported, and the
+    cited corrections of the record built from the row (docs/corrections.md).
 
     release names the checks: "epoch" (the Epoch AI site rules: the reviewer found the row is
     another site), "stage" (the event log's later milestone, or an obstacle, does not hold: the
@@ -3000,20 +3043,61 @@ class RowRelease(AtlasModel):
     as_of is the day the reviewer confirmed the stage of a row that has no as_of (the stage's
     observation is then noted as confirmed on that day instead of seen in the file).
     first_reported is the day the reviewer found the project first reported (the source's
-    publication day), for a row whose event log does not tell it.
-    reason says what the reviewer read; reviewed_at is when."""
+    publication day), for a row whose event log does not tell it; it cites nothing, so a new
+    entry gives a cited first_report op in its corrections instead.
+    reason says what the reviewer read and reviewed_at when: both go with release, as_of and
+    first_reported, and an entry with only corrections has neither (each Fix says why and when).
+
+    expect ({field: value, or null}) is a guard: the row's fields must have these values, or the
+    run stops. corrections are the record ops applied to the row's record where it is imported,
+    after the Epoch AI, id and stage holds (atlas.sources.corrections; each Fix cites its own
+    page). A first_report op among them lifts the first-report hold, as first_reported does; a
+    row another check holds needs that check released as well."""
 
     release: list[ReleaseCheck] = Field(default_factory=list)
     as_of: date | None = None
     first_reported: date | None = None
-    reason: str = Field(min_length=1, max_length=300)
-    reviewed_at: date
+    reason: str | None = Field(None, min_length=1, max_length=300)
+    reviewed_at: date | None = None
+    expect: dict[Annotated[str, Field(min_length=1)], JsonValue] = Field(default_factory=dict)
+    corrections: list[Fix] = Field(default_factory=list)
+
+    @property
+    def decides(self) -> bool:
+        """True when the entry releases a check or gives as_of or first_reported."""
+        return bool(self.release) or self.as_of is not None or self.first_reported is not None
+
+    @property
+    def decision(self) -> tuple[date, str]:
+        """(reviewed_at, reason) of the entry's release, as_of or first_reported."""
+        if self.reviewed_at is None or self.reason is None:
+            raise ValueError("the entry has only corrections: each Fix says why and when")
+        return self.reviewed_at, self.reason
 
     @model_validator(mode="after")
     def _releases_something(self) -> RowRelease:
-        if not self.release and self.as_of is None and self.first_reported is None:
+        if not self.decides:
+            if not self.corrections:
+                raise ValueError(
+                    "an entry releases at least one check, gives as_of or first_reported, or "
+                    "carries corrections"
+                )
+            if self.reason is not None or self.reviewed_at is not None:
+                raise ValueError(
+                    "an entry with only corrections has no reason or reviewed_at: each Fix says "
+                    "why and when"
+                )
+            return self
+        missing = [k for k in ("reason", "reviewed_at") if getattr(self, k) is None]
+        if missing:
             raise ValueError(
-                "an entry releases at least one check or gives as_of or first_reported"
+                f"a release, as_of or first_reported needs {' and '.join(missing)}: what the "
+                "reviewer read, and when"
+            )
+        if self.first_reported is not None and has_first_report(self.corrections):
+            raise ValueError(
+                "an entry gives first_reported or a first_report op in its corrections, not both: "
+                "one first report per row"
             )
         return self
 
@@ -3037,7 +3121,7 @@ def load_releases(path: Path) -> dict[str, RowRelease]:
     except ValidationError as e:
         raise agw_error(f"{resolved} is not a valid AI GridWatch overrides file: {e}") from e
     for pid, entry in releases.items():
-        if clean_text(pid) != pid or not pid or find_personal_data(entry.reason):
+        if clean_text(pid) != pid or not pid or find_personal_data(entry.reason or ""):
             raise agw_error(
                 f"{resolved}: entry {pid!r} needs a plain row id and a reason without contact details"
             )
@@ -3071,7 +3155,9 @@ class AIGridWatchImporter:
         )
 
     def run(self, ctx: ImportContext, args: argparse.Namespace) -> ImportResult:
-        releases = load_releases(getattr(args, "overrides", OVERRIDES_PATH))
+        overrides_path: Path = getattr(args, "overrides", OVERRIDES_PATH)
+        releases = load_releases(overrides_path)
+        file = str(overrides_path)
         if not getattr(args, "without_epoch", False) and not any(
             r.external_ids.get("epoch_name") and not r.merged_into for r in ctx.records.values()
         ):
@@ -3111,6 +3197,7 @@ class AIGridWatchImporter:
                     raise agw_error(
                         f"config/overrides/aigridwatch.json entry {pid!r}: {key} is after today"
                     )
+            check_fix_dates(pid, entry.corrections, file=file, today=ctx.today, now=ctx.now)
 
         gazetteer = ctx.gazetteer()  # with the county subdivisions (downloaded on first use)
         counties = ctx.counties()
@@ -3131,6 +3218,8 @@ class AIGridWatchImporter:
         retrieved_at = snapshot.retrieved_at.isoformat()
         candidates: list[Candidate] = []
         review: list[ReviewItem] = []
+        filed: list[ReviewItem] = []  # the items the corrections' hold and out_of_scope ops file
+        fixes_of: dict[str, list[Fix]] = {}
         stats: Counter[str] = Counter()
 
         def flag(
@@ -3157,13 +3246,14 @@ class AIGridWatchImporter:
         ) -> None:
             """A check that would hold the row, released by a reviewer: noted, and imported."""
             stats["released"] += 1
+            reviewed_at, reason = release.decision
             flag(
                 kind,
                 pid,
                 f"{why}; released by config/overrides/aigridwatch.json (reviewed "
-                f"{release.reviewed_at.isoformat()}: {release.reason}), so the row is imported",
+                f"{reviewed_at.isoformat()}: {reason}), so the row is imported",
                 released=check,
-                reviewed_at=release.reviewed_at.isoformat(),
+                reviewed_at=reviewed_at.isoformat(),
                 **data,
             )
 
@@ -3294,6 +3384,10 @@ class AIGridWatchImporter:
             if not pid:
                 flag("invalid", None, "a project row has an empty id")
                 continue
+            release = releases.get(pid)
+            if release is not None and release.expect:
+                fields = {k: clean_text(v) if isinstance(v, str) else v for k, v in project.items()}
+                check_expect(pid, release.expect, fields, file=file, what="row")
             if project.get("verified") is not True:
                 stats["unverified"] += 1
                 flag(
@@ -3309,7 +3403,6 @@ class AIGridWatchImporter:
             if state not in IN_SCOPE:
                 flag("out_of_scope", pid, f"{state} is outside the 50 states and DC")
                 continue
-            release = releases.get(pid)
             free = set(release.release) if release else set()
             direct = epoch_sites.match(project, state)
             if direct is not None and direct[0] != "epoch_source":
@@ -3398,8 +3491,54 @@ class AIGridWatchImporter:
             if holds:
                 stats["held_for_review"] += 1  # the row's items stay: they say why
                 continue
+            fixes = release.corrections if release is not None else []
+            if fixes:
+                applied = apply_fixes(
+                    record,
+                    [(pid, fixes)],
+                    file=file,
+                    source=self.name,
+                    today=ctx.today,
+                    counties=counties,
+                    gazetteer=gazetteer,
+                    external_id=pid,
+                )
+                early = reviewer_first_report(record, applied.record)
+                if early is not None:
+                    # The reviewer's event would date the first report: held, not dated by it
+                    # (check_entries then stops the run, since the correction built nothing).
+                    stats["held_for_review"] += 1
+                    flag(
+                        "conflict",
+                        pid,
+                        f"the earliest dated event of the corrected record would be the "
+                        f"{early.event} event of {early.as_of.value} that a correction in {file} "
+                        "adds or changes, and the row has no first report before it: imported, "
+                        "its first_reported would be that day, but a project is public before it "
+                        "is approved, built, denied or paused. The row is held for review, not "
+                        "imported: a cited first_report correction dates the first report",
+                        event=early.event,
+                        earliest=early.as_of.value,
+                    )
+                    continue
+                record = applied.record
+                filed.extend(applied.review)
+                fixes_of[pid] = fixes
+                stats["records_corrected"] += 1
             stats.update(row_stats)
             candidates.append(Candidate((pid,), record))
+
+        # The items about a corrected record say so; an entry with record ops whose row built no
+        # record (a hold, a row skipped) stops the run.
+        review = mark_corrected(review, fixes_of, file=file) + filed
+        entries = {pid: entry.corrections for pid, entry in releases.items()}
+        check_entries(
+            entries,
+            present=row_ids,
+            built={v for c in candidates for v in c.match_values},
+            review=review,
+            file=file,
+        )
 
         planned = sum(1 for c in candidates for e in c.record.status_history if e.planned)
         metrics: dict[str, float | int] = {
@@ -3431,6 +3570,7 @@ class AIGridWatchImporter:
                 if isinstance(p, dict) and isinstance(p.get("events"), list)
             ),
         }
+        metrics.update(correction_metrics(entries, corrected=stats["records_corrected"]))
         return ImportResult(self.name, [snapshot], candidates, review, metrics)
 
     @staticmethod
@@ -3484,6 +3624,9 @@ class AIGridWatchImporter:
         from atlas.geocode import GeocodeRequest, geocode
 
         free = set(release.release) if release else set()
+        # A cited first_report correction dates the first report after the build, so it lifts the
+        # first-report holds below as a release does (the corrected record is checked again).
+        cited_first = release is not None and has_first_report(release.corrections)
         holds: list[str] = []
 
         # Location ---------------------------------------------------------------------
@@ -3998,7 +4141,7 @@ class AIGridWatchImporter:
                     "source_ids": ["s1"],
                     "note": (
                         "First report dated by a reviewer "
-                        f"({release.reviewed_at.isoformat()}, config/overrides/aigridwatch.json)"
+                        f"({release.decision[0].isoformat()}, config/overrides/aigridwatch.json)"
                     ),
                 },
                 earliest=AgwDate(release.first_reported, "day"),
@@ -4033,6 +4176,16 @@ class AIGridWatchImporter:
             )
             if release is not None and "first_report" in free:
                 released(pid, release, "first_report", "conflict", why, **doubt_data)
+            elif cited_first:
+                flag(
+                    "conflict",
+                    pid,
+                    f"{why}; a cited first_report correction in config/overrides/aigridwatch.json "
+                    "dates the first report, so the row is imported",
+                    earliest=first.earliest.fuzzy()["value"],
+                    derived=derived.isoformat(),
+                    **doubt_data,
+                )
             else:
                 holds.append("first_report")
                 flag(
@@ -4057,6 +4210,16 @@ class AIGridWatchImporter:
             )
             if release is not None and "first_report" in free:
                 released(pid, release, "first_report", "conflict", why, **doubt_data)
+            elif cited_first:
+                flag(
+                    "conflict",
+                    pid,
+                    f"{why}; a cited first_report correction in config/overrides/aigridwatch.json "
+                    "dates the first report, so the row is imported",
+                    earliest=terminal["as_of"]["value"],
+                    derived=derived.isoformat() if derived else None,
+                    **doubt_data,
+                )
             else:
                 holds.append("first_report")
                 flag(

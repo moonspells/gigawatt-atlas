@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Protocol, Self, cast
@@ -1499,6 +1499,39 @@ def _names_key(item: ReviewItem, key: str) -> bool:
     if item.external_id == key:
         return True
     return any(v == key or (isinstance(v, list) and key in v) for v in item.data.values())
+
+
+def has_first_report(fixes: Iterable[Fix]) -> bool:
+    """True when a Fix has a first_report op: the cited first report the importer's first-report
+    hold asks for (Epoch AI's and AI GridWatch's lift it)."""
+    return any(isinstance(op, FirstReportOp) for fix in fixes for op in fix.ops)
+
+
+def check_expect(
+    key: str,
+    expect: Mapping[str, JsonValue],
+    found: Mapping[str, JsonValue],
+    *,
+    file: str,
+    what: str,
+) -> None:
+    """Stop the run when an entry's expect guard ({field: value, null for an empty one}) does not
+    match what the input has for its key (found: the input's fields, what: "row" or "site's CSV
+    row" in messages): the source changed upstream since the reviewer read it. A field the input
+    does not have stops it too, so a misspelt guard never passes."""
+    where = f"{file} entry {key!r}"
+    missing = sorted(k for k in expect if k not in found)
+    if missing:
+        raise correction_error(
+            f"{where}: expect names {missing}, which the {what} does not have; review the entry"
+        )
+    wrong = {k: found[k] for k, v in expect.items() if found[k] != v}
+    if wrong:
+        expected = {k: expect[k] for k in wrong}
+        raise correction_error(
+            f"{where}: expect {expected}, but the {what} has {wrong}; review the entry (the "
+            f"{what} changed upstream)"
+        )
 
 
 def check_entries(

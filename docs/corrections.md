@@ -17,17 +17,27 @@ An entry has two layers, with the same rule in all three files:
 
 - **Top-level keys** change what the source says *before* the importer builds. They are the
   source's own: OSM's element decisions (`drop`, `name`, `operator`, `join`, `alone`, `status`
-  with `status_as_of`, and the `expect` guard; `docs/sources/osm-pnnl.md` section 9), Epoch AI's
-  cited location, timeline, first report, facility status, capacity and
-  milestones (`docs/sources/epoch-aigridwatch.md`, "Overrides policy"), and AI GridWatch's
-  releases of held rows ("Releasing a held row" there). A file without the new keys is read as
-  before, byte for byte.
+  with `status_as_of`; `docs/sources/osm-pnnl.md` section 9), Epoch AI's cited location,
+  timeline, first report, facility status, capacity and milestones
+  (`docs/sources/epoch-aigridwatch.md`, "Overrides policy"), and AI GridWatch's releases of held
+  rows ("Reviewer entries" there). Each file also has an `expect` guard: the element's tags, the
+  site's `data_centers.csv` row or the AI GridWatch row must have the values it gives (null: an
+  absent tag, an empty CSV cell, a null field). A value that differs stops the run, and so does
+  a CSV column or row field the input does not have (an OSM tag that is absent reads as null). A
+  file without the new keys is read as before, byte for byte.
 - **`corrections`**, a list of `Fix`es, changes the record *built* from the source, with the shared
   ops below, applied after the build. Each Fix carries its own citation, so one record can be
   corrected from several pages: Crown Castle Baltimore's operator from Crown Castle's own page, its
-  name from PeeringDB. OSM applies an entry's corrections to the record that holds its element
-  after the dissolve, the joins and every hold (`osm.correct_candidates`); an OSM entry with only
-  corrections has no top-level citation.
+  name from PeeringDB. Where each importer applies them:
+  - OSM, to the record that holds the entry's element after the dissolve, the joins and every
+    hold (`osm.correct_candidates`);
+  - Epoch AI, to the campus record right after it is built, before its review items; the entries
+    of a shared campus's sites apply in the CSV's order;
+  - AI GridWatch, where the row is imported, after the Epoch AI, id and stage holds (a held row
+    needs its check released too).
+
+  An entry with only corrections has no top-level citation (OSM) or no `reason` and
+  `reviewed_at` (AI GridWatch): each Fix says why and when.
 
 ## A Fix
 
@@ -90,8 +100,15 @@ fuzzy date as its value string (`"2026-08"`).
 | `replace_event` | `match`, `set` {`event`, `status`, `as_of`, `planned`, `note`} | not exactly one event matches | Changes it in place. A new date or status makes the Fix its only source, and the old event goes to `field_meta["/status_history"]` conflicts; a retype (an announcement that is a first report, an event that is only an observation, `other`) keeps its sources and adds the Fix. |
 | `remove_event` | `match` | not exactly one event matches | Removes it; it is kept in `field_meta["/status_history"]` conflicts with its sources. |
 | `observe` | `status`, `as_of` (required: the day the page shows the status), `phase` | the same observation exists | Adds an `other` event: it sets the status and dates nothing. |
-| `first_report` | `from` (`dates.first_reported` now, or null), `as_of`, `status` (`announced`, `proposed` or `permitted`) | `from` differs, or `as_of` is not earlier than every dated event | The record's first-report events become `other`, and a `first_reported` event citing the Fix is added. A wrong first-report date is corrected with `replace_event`, not with this op. |
+| `first_report` | `from` (`dates.first_reported` now, or null), `as_of`, `status` (`announced`, `proposed` or `permitted`) | `from` differs, or `as_of` is not earlier than every dated event | The record's first-report events become `other`, and a `first_reported` event citing the Fix is added. A wrong first-report date is corrected with `replace_event`, not with this op. It is the cited first report the importers' first-report checks ask for: it lifts AI GridWatch's first-report hold and clears Epoch AI's first-report `unknown_status` item, so an Epoch entry has this op or a `first_report` part, not both, and an AI GridWatch entry this op or the uncited `first_reported`. |
 | `support` | `path` and `from`, or `event` (a match) | the value is not `from`, or not exactly one event matches, or the Fix already cites it | Cites the Fix for a value the record has, without changing it. |
+
+A reviewer's event goes through AI GridWatch's first-report checks like the row's own
+milestones: when the earliest dated event of the corrected record is one an op added or changed,
+and it is no announcement, filing or first report (an approval, a denial, a ban), it would date
+`first_reported` although the project was public before it. The row is then held with a
+`conflict` item, and the run stops (its correction built no record) until a cited `first_report`
+op dates the first report.
 
 An event match (`match`, `event`) has `event`, `status`, `as_of`, `phase` and `planned`, and names
 at least the event or the status. OSM observations are dated with each snapshot, so match them by
@@ -193,8 +210,8 @@ nothing (`--dry-run` behaves the same):
 
 | When | What stops it |
 |---|---|
-| Loading | unreadable or invalid JSON; an unknown key or op; a bad type or key; a missing citation field; a quote, reason or value as above; a `set` path outside the list; `status_reason` with an active status; a stopped status from a source type gate 6 does not allow; a date after today or now |
-| Against the input (`check_entries`) | a key the input does not have ("names X, which this input does not have"), in all three files |
+| Loading | unreadable or invalid JSON; an unknown key or op; a bad type or key; a missing citation field; a quote, reason or value as above; a `set` path outside the list; `status_reason` with an active status; a stopped status from a source type gate 6 does not allow; a date after today or now; an Epoch entry with a `first_report` part and op, or an AI GridWatch entry with `first_reported` and the op; an AI GridWatch `reason` or `reviewed_at` without a release, `as_of` or `first_reported` |
+| Against the input | a key the input does not have ("names X, which this input does not have"; `check_entries`), in all three files, with or without corrections; an `expect` guard the input does not meet |
 | After the build | a key with record ops other than `hold` and `out_of_scope` for which no record was built ("no record was built for X (held: ...)": the review items that name the key say why; release the check or remove the correction); a guard that does not match; an unknown phase; no event that has happened left; a name without its place suffix; a `status_reason` the final status does not have; a record that fails validation |
 
 An entry that only holds or puts out of scope a key the importer already held is fine. Failing
@@ -229,8 +246,8 @@ no op expresses them.
 
 `correction_metrics` gives the receipt's counts: `corrections_entries`, `corrections_ops`,
 `records_corrected`, `corrections_held`, `corrections_out_of_scope` and
-`corrections_importer_gap`. `overrides_used` and `overrides_unused` stay; an unused entry now stops
-the run, so `overrides_unused` is always 0.
+`corrections_importer_gap`, in all three importers' receipts. `overrides_used` and
+`overrides_unused` stay; an unused entry now stops the run, so `overrides_unused` is always 0.
 
 ## Guidance
 

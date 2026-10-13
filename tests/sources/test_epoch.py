@@ -31,8 +31,10 @@ from atlas.sources.epoch import (
     Site,
     TimelineRow,
     check_license,
+    clean_text,
     event_note,
     load_overrides,
+    read_zip,
     selected_links,
     site_record,
     status_events,
@@ -452,9 +454,16 @@ def test_every_committed_override_is_cited(counties: CountyIndex) -> None:
 
 
 def test_committed_override_places_meta_hyperion(
-    make_test_context: MakeContext, counties: CountyIndex, today: date
+    make_test_context: MakeContext, counties: CountyIndex, today: date, tmp_path: Path
 ) -> None:
-    result = IMPORTER.run(make_test_context(input_path=EPOCH_ZIP), run_args(REPO_OVERRIDES))
+    # The committed entries for the fixture's sites: one for a site the input does not have stops
+    # the run (fix round 6, docs/corrections.md).
+    names = {clean_text(r["Name"]) for r in read_zip(EPOCH_ZIP)[1]}
+    committed = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
+    path = tmp_path / "overrides.json"
+    entries = {name: entry for name, entry in committed.items() if name in names}
+    path.write_text(json.dumps(entries), encoding="utf-8")
+    result = IMPORTER.run(make_test_context(input_path=EPOCH_ZIP), run_args(path))
     hyperion = by_name(result.candidates)["Meta Hyperion"]
     rec = hyperion
     loc = rec.location
@@ -811,7 +820,8 @@ def test_cli_runs_offline_and_a_second_run_changes_no_file(
     assert by_epoch["Colossus 2"].location.precision == "address"
     assert by_epoch["Colossus 2"].location.city == "Memphis"
     receipt = json.loads((tmp_repo / "data" / "imports" / "epoch.json").read_text("utf-8"))
-    assert receipt["source"] == "epoch" and receipt["importer_version"] == "5"  # first reports
+    # Version 6: cited corrections and the unused-entry check (fix round 6).
+    assert receipt["source"] == "epoch" and receipt["importer_version"] == "6"
     assert receipt["inputs"][0]["license"] == "CC-BY-4.0"
     records_before = snapshot(tmp_repo / "data" / "records", tmp_repo / "review")
 

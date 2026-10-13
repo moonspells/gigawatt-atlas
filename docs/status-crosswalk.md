@@ -203,3 +203,11 @@ and dates are then rolled up again. A removed event, and the old values of a red
 `field_meta["/status_history"]` conflicts with their sources, and when a reviewer's event decides
 the status, `field_meta["/status"]` cites it as `human_entered`. OSM's element `status` (above)
 is an observation of the same kind, made before the build.
+
+A reviewer's event never dates a first report it is not. AI GridWatch's first-report checks hold
+a row whose earliest dated milestone is a denial, a withdrawal or a pause, or is later than the row
+shows the project public; they read the corrected record the same way: when its earliest dated
+event is one a correction added or changed and it is no announcement, filing or first report (an
+approval, a denial, a ban), the row is held until a cited `first_report` op dates the first
+report. Epoch AI's record type follows its corrected events too: a campus once a non-planned
+event says a building operates, a project otherwise.
