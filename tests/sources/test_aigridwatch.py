@@ -22,7 +22,6 @@ from atlas.net import FetchError, fetch, make_client
 from atlas.schema.record import FacilityRecord
 from atlas.sources.aigridwatch import (
     IMPORTER,
-    OVERRIDES_PATH,
     PROJECTS_URL,
     PartyName,
     filing_names,
@@ -49,6 +48,10 @@ from atlas.store import RecordStore
 from atlas.validate import validate_record
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "aigridwatch" / "projects.json"
+# Fixture runs read no entry of the committed config/overrides/aigridwatch.json: its entries are
+# the reviewers' cited corrections of fix round 6 (a release there goes with its corrections),
+# read against today's sources after these fixtures and their run date (docs/corrections.md).
+NO_ENTRIES = FIXTURE.parent / "overrides-none.json"
 MakeContext = Callable[..., ImportContext]
 SAMPLES = Path(__file__).resolve().parents[1] / "fixtures" / "aigridwatch"
 
@@ -129,7 +132,7 @@ def run(
     without_epoch: bool = True,
     **ctx: Any,
 ) -> ImportResult:
-    args = argparse.Namespace(without_epoch=without_epoch)
+    args = argparse.Namespace(without_epoch=without_epoch, overrides=NO_ENTRIES)
     return IMPORTER.run(make_test_context(input_path=path, **ctx), args)
 
 
@@ -1294,11 +1297,12 @@ def test_a_reviewer_releases_a_held_row(
     )
     assert "google-bristow" in records(by_name)
     assert [i.data["matched_by"] for i in duplicates(by_name).values()] == ["name"]
-    # With no overrides file at the default path, nothing is released.
+    # With no entry for the row, nothing is released (the committed file holds fix round 6's
+    # entries, for the seed's rows: NO_ENTRIES stands in for it, as in every fixture run).
     assert (
         IMPORTER.run(
             make_test_context(input_path=FIXTURE, records=stored(near)),
-            argparse.Namespace(without_epoch=False, overrides=OVERRIDES_PATH),
+            argparse.Namespace(without_epoch=False, overrides=NO_ENTRIES),
         ).metrics["overrides_used"]
         == 0
     )
@@ -1460,7 +1464,7 @@ def test_a_stored_record_for_a_row_now_held_is_named(
     for r in (site, old):
         store.write(r)
     ctx = make_test_context(input_path=FIXTURE, records=store.load())
-    result = IMPORTER.run(ctx, argparse.Namespace(without_epoch=False))
+    result = IMPORTER.run(ctx, argparse.Namespace(without_epoch=False, overrides=NO_ENTRIES))
     item = duplicates(result)["google-bristow"]
     assert (item.record_id, item.data["stored_record"]) == (site.id, old.id)
     assert old.id in item.reason and "merged_into" in item.reason
@@ -1532,6 +1536,8 @@ def test_cli_run_is_idempotent(
         "--now",
         "2026-10-12T12:00:00Z",
         "--offline",
+        "--overrides",
+        str(NO_ENTRIES),
     ]
     # The store holds no Epoch record, so the run refuses until told it may go without them.
     assert main(common) == 1
@@ -1575,7 +1581,7 @@ def test_fetch_uses_the_published_url(
         return httpx.Response(404, request=request)
 
     ctx = make_test_context(handler=handler)
-    result = IMPORTER.run(ctx, argparse.Namespace(without_epoch=True))
+    result = IMPORTER.run(ctx, argparse.Namespace(without_epoch=True, overrides=NO_ENTRIES))
     (snap,) = result.inputs
     assert snap.upstream_version == "2026-10-07" and snap.etag == '"e1"'
     assert ctx.raw_path("aigridwatch", snap.sha256, "json").read_bytes() == body

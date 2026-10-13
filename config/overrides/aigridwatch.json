@@ -1,1 +1,839 @@
-{}
+{
+  "abei-energy-data-center-starke-in": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "county_fips": "18149",
+            "from": {
+              "lat": 41.335,
+              "lon": -86.62,
+              "precision": "locality"
+            },
+            "op": "set_location",
+            "precision": "county",
+            "state_abbr": "IN"
+          }
+        ],
+        "published_at": "2025-11-05T11:03:00+00:00",
+        "publisher": "WKVI",
+        "quote": "In the screen shot, the company states that they are planning a data center project in Starke County, and that they had questions in regards to rezoning two parcels of land from Agricultural to Industrial.",
+        "reason": "The parcels were never disclosed (WKVI, and the row's own note), so AI GridWatch's point names no site: the record is placed at Starke County, county precision",
+        "retrieved_at": "2026-10-13T04:34:28Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://wkvi.com/2025/11/starke-county-commissioners-discuss-data-centers-with-citizens/"
+      }
+    ]
+  },
+  "aligned-pataskala-oh": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2023-11-02",
+            "from": "2025-11",
+            "op": "first_report",
+            "status": "announced"
+          }
+        ],
+        "published_at": "2023-11-02T19:27:50-04:00",
+        "publisher": "NBC4 WCMH-TV (Columbus Business First)",
+        "quote": "Aligned Data Centers, which recently broke into the Ohio market with a $202 million project in Sandusky, appears to be targeting Pataskala for its second development in the Buckeye State.",
+        "reason": "The project was first reported on 2023-11-02, when Columbus Business First (via NBC4) reported Aligned's purchase of the Mink St site for its second Ohio development; the row's log starts with the 2025-11 filing",
+        "retrieved_at": "2026-10-13T04:21:20Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://digital-dev.nbc4i.com/news/columbus-business-first/aligned-data-centers-buys-pataskala-property-for-nearly-14-million/amp/"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2026-08-25",
+            "event": "denied",
+            "note": "Pataskala city council rejected the site plan unanimously",
+            "op": "add_event",
+            "status": "denied",
+            "status_reason": "local_denial"
+          }
+        ],
+        "published_at": "2026-08-26T02:15:38+00:00",
+        "publisher": "The Reporting Project",
+        "quote": "Cheers erupted in Pataskala City Hall and hugs abounded after the city council voted unanimously to reject a proposal for a large-scale data center in the city’s industrial park.",
+        "reason": "AI GridWatch still shows Awaiting decision (as_of 2026-08-07); the Pataskala city council rejected Aligned's site plan unanimously at its meeting of 2026-08-25",
+        "retrieved_at": "2026-10-13T04:21:05Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.thereportingproject.org/pataskala-residents-cheer-city-council-vote-to-reject-site-plan-for-proposed-large-scale-data-center/"
+      }
+    ]
+  },
+  "amazon-floydada-floyd": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2026-08-05",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2026-05-12",
+              "note": "First report, per the Floyd County Record"
+            }
+          }
+        ],
+        "published_at": "2026-05-12T15:44:02-05:00",
+        "publisher": "Floyd County Record",
+        "quote": "The court also approved a similar agreement with Amazon Data Services, Inc.",
+        "reason": "The Floyd County Record of 2026-05-12 reports the commissioners court's road use agreement with Amazon Data Services, the row's filing entity: the project's first report, earlier than the log's 2026-08-05",
+        "retrieved_at": "2026-10-13T04:24:03Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.floydcountyrecord.com/2026/05/12/floyd-county-commissioners-approve-road-agreements-courthouse-improvements-during-monday-meeting/"
+      }
+    ]
+  },
+  "amazon-warrenton-blackwell-road-va": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2022-04",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2021-06",
+              "note": "First report, per Baxtel",
+              "status": "announced"
+            }
+          }
+        ],
+        "published_at": "2021-06-17T00:00:00Z",
+        "publisher": "Baxtel",
+        "quote": "The Fauquier Times reports that Amazon Web Services is planning to buy 41.7 acres of land in Warrenton, North Virginia if the town finally changes its rules to allow the construction of data centers.",
+        "reason": "Baxtel's report of 2021-06-17, after the Fauquier Times, gives AWS's plan for the Warrenton land: the project's first report, announced, before the 2022-04 filing",
+        "retrieved_at": "2026-10-13T04:33:55Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "commercial_aggregator",
+        "source_url": "https://baxtel.com/news/aws-wants-to-buy-41-acres-of-land-in-warrenton-north-virginia-if-town-reverses-regulation-barring-the-construction-of-data-centers"
+      }
+    ]
+  },
+  "aws-calvert-technology-center-md": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2026-02",
+            "from": "2026-05-04",
+            "op": "first_report",
+            "status": "announced"
+          }
+        ],
+        "published_at": "2026-08-13T17:31:52-04:00",
+        "publisher": "WJLA",
+        "quote": "Residents first learned in February about plans for the data centers, which would have been built on a portion of the Calvert Cliffs property in Lusby.",
+        "reason": "The project was public in February 2026, before the 2026-05-04 filing that dates the record's first report (WJLA, 2026-08-13)",
+        "retrieved_at": "2026-10-13T04:22:29Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://wjla.com/news/local/amazon-abandons-calvert-county-data-centers-after-community-pushes-back"
+      }
+    ]
+  },
+  "burkhalter-road-statesboro-ga": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2026-08-18",
+            "event": "approved",
+            "note": "Statesboro City Council approved the rezoning for the data center; the mayor broke a tie",
+            "op": "add_event",
+            "status": "permitted"
+          }
+        ],
+        "published_at": "2026-08-19T00:18:00-04:00",
+        "publisher": "WTOC",
+        "quote": "Statesboro City Council voted to approve a zoning map amendment that allows land previously zoned for residential development to be used for a data center.",
+        "reason": "AI GridWatch still shows Awaiting decision (as_of 2026-08-07); WTOC reports the city council's approval of the rezoning at its meeting of Tuesday 2026-08-18, the mayor breaking a tie",
+        "retrieved_at": "2026-10-13T04:20:41Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.wtoc.com/2026/08/19/statesboro-city-council-approves-rezoning-data-center-amid-protests/"
+      }
+    ]
+  },
+  "cloudburst-san-marcos-tx": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": 96,
+            "op": "set",
+            "path": "/site/acreage",
+            "value": null
+          }
+        ],
+        "published_at": "2026-04-30T14:33:00-05:00",
+        "publisher": "Herald-Zeitung",
+        "quote": "Commissioners OK’d the development for 706 acres of land for Cloudburst Texas LLC on Tuesday, allowing the company to construct a data center facility in northern Guadalupe County, bordering Hays County.",
+        "reason": "AI GridWatch's 96 acres is the Hays County site of 2025; Guadalupe County's development agreement of 2026 covers 706 acres and another source gives about 220: the acreage is withheld until a reviewer settles it",
+        "retrieved_at": "2026-10-13T04:26:24Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://herald-zeitung.com/news/guadalupe-county-oks-data-center-tax-abatements-development-agreement/article_51cd3ee7-759e-4536-a7ae-f8d1b3b0f589.html"
+      }
+    ]
+  },
+  "dc-blox-warren-township-in": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2026-04-27",
+              "event": "announced"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2026-04-09"
+            }
+          }
+        ],
+        "published_at": "2026-04-09T22:01:36+00:00",
+        "publisher": "Mirror Indy",
+        "quote": "Georgia-based developer DC Blox is looking to build a $2 billion data center campus at the corner of South Kitley Avenue and the Pennsy Trail.",
+        "reason": "Mirror Indy reported DC Blox's plan on 2026-04-09, before AI GridWatch's announced date of 2026-04-27",
+        "retrieved_at": "2026-10-13T04:33:37Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://mirrorindy.org/east-side-indianapolis-data-center-dc-blox-irvington/"
+      }
+    ]
+  },
+  "google-botetourt-greenfield-va": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2025-06-20",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2025-06-24",
+              "event": "announced",
+              "note": "Publicly announced, per Botetourt County"
+            }
+          }
+        ],
+        "publisher": "Botetourt County",
+        "quote": "The proposed Google Data Center in Botetourt County was publicly announced June 24, 2025, following months of coordinated planning among the Virginia Economic Development Partnership (VEDP), the Roanoke Regional Partnership (RRP), Google, and Botetourt County.",
+        "reason": "The county's page dates the public announcement 2025-06-24, when the supervisors' approval of the performance agreement announced Google's land purchase; AI GridWatch's 2025-06-20 is the land sale and the economic development authority's vote before it",
+        "retrieved_at": "2026-10-13T04:33:43Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "government_record",
+        "source_url": "https://www.botetourtva.gov/1021/Google-Data-Center"
+      }
+    ]
+  },
+  "kearney-data-center-ne": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2026-08-18",
+            "from": null,
+            "op": "first_report",
+            "status": "proposed"
+          }
+        ],
+        "published_at": "2026-08-18T19:33:15+00:00",
+        "publisher": "Central Nebraska Today",
+        "quote": "Worldwide Mission Critical is seeking approval for a conditional use permit (CUP) for a data center, the location would be east of Antelope Ave. and south of Tech One Blvd and Global Drive.",
+        "reason": "The earliest report found that names the project is Central Nebraska Today of 2026-08-18 (the same story as the row's dead link): Worldwide Mission Critical's conditional use permit application",
+        "retrieved_at": "2026-10-13T04:39:06Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.centralnebraskatoday.com/2026/08/18/data-center-conditional-use-permit-to-be-discussed-at-kearney-planning-commission-meeting/"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2026-09-08",
+            "event": "approved",
+            "note": "Kearney city council approved the conditional use permit",
+            "op": "add_event",
+            "status": "permitted"
+          }
+        ],
+        "published_at": "2026-09-09T14:01:18+00:00",
+        "publisher": "Rock 101.5 (Central Nebraska Today)",
+        "quote": "KEARNEY — A conditional use permit for a data center to be located east of Kearney received approval from the Kearney city council, with stricter regulations in place during their meeting on Tuesday, Sept. 8.",
+        "reason": "AI GridWatch still shows Awaiting decision (as_of 2026-08-19); the Kearney city council approved the conditional use permit on Tuesday 2026-09-08",
+        "retrieved_at": "2026-10-13T04:28:51Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://rock1015.com/2026/09/09/data-center-project-gets-approval-from-kearney-city-council-with-new-stricter-regulations/"
+      },
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "county_fips": "31019",
+            "from": {
+              "city": "Kearney",
+              "county_fips": null
+            },
+            "lat": 40.7,
+            "lon": -99.08,
+            "op": "set_location",
+            "precision": "county",
+            "state_abbr": "NE"
+          }
+        ],
+        "published_at": "2026-08-21T22:00:55Z",
+        "publisher": "KSNB Local4",
+        "quote": "Because Tech oNE Crossing is outside Kearney city limits, property tax revenue from the project would go to other local taxing entities rather than the city.",
+        "reason": "The site, at Tech oNE Crossing, is outside Kearney's city limits: the record names Buffalo County, where the row's point lies, at county precision, and not the city",
+        "retrieved_at": "2026-10-13T04:30:46Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.ksnblocal4.com/2026/08/21/kearney-planning-commission-recommends-approval-proposed-data-center/"
+      },
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": "31019",
+            "op": "support",
+            "path": "/location/county_fips"
+          }
+        ],
+        "published_at": "2026-08-21T22:00:55Z",
+        "publisher": "KSNB Local4",
+        "quote": "Phase 1 is projected to generate about $20 million annually in property taxes for entities including Buffalo County, Kearney Public Schools, Central Community College and the Central Platte Natural Resources District.",
+        "reason": "The project's property taxes go to Buffalo County, the county of the site",
+        "retrieved_at": "2026-10-13T04:30:46Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.ksnblocal4.com/2026/08/21/kearney-planning-commission-recommends-approval-proposed-data-center/"
+      }
+    ]
+  },
+  "king-of-prussia-mlp-pa": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2026-08-14",
+              "event": "denied"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2026-08-13"
+            }
+          }
+        ],
+        "published_at": "2026-08-13T23:20:09-04:00",
+        "publisher": "FOX 29 Philadelphia",
+        "quote": "The Upper Merion Board of Supervisors denied all five proposed data center sites by MLP Ventures on Thursday, August 13.",
+        "reason": "AI GridWatch dates the denial 2026-08-14, the day its source reported it; the Upper Merion supervisors denied the five sites on Thursday 2026-08-13",
+        "retrieved_at": "2026-10-13T04:22:22Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.fox29.com/news/upper-merion-board-supervisors-denies-all-5-data-center-sites-mlp-ventures"
+      }
+    ]
+  },
+  "microsoft-cheyenne-expansion": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2026-04-14",
+            "event": "announced",
+            "note": "Microsoft announced its intent to buy about 3,200 acres in Cheyenne for a datacenter",
+            "op": "add_event",
+            "status": "announced"
+          },
+          {
+            "match": {
+              "event": "other",
+              "status": "operating"
+            },
+            "op": "remove_event"
+          }
+        ],
+        "published_at": "2026-04-14T18:00:03+00:00",
+        "publisher": "Microsoft",
+        "quote": "CHEYENNE, Wyo. — April 14, 2026 — Microsoft Corp. on Tuesday announced its intent to purchase approximately 3,200 acres of land to develop a datacenter in Cheyenne, Wyoming.",
+        "reason": "The row's stage 'Operating' comes from Microsoft's older Cheyenne campus; this expansion is a plan Microsoft announced on 2026-04-14, and nothing reports it operating",
+        "retrieved_at": "2026-10-13T04:26:59Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "company_release",
+        "source_url": "https://news.microsoft.com/source/2026/04/14/microsoft-announces-intent-to-expand-datacenter-operations-in-cheyenne-accelerating-innovation-and-economic-growth/"
+      },
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2026-07-13",
+            "event": "approved",
+            "note": "Cheyenne City Council approved the annexation (6-3) and the development's zoning ordinances",
+            "op": "add_event",
+            "status": "permitted"
+          }
+        ],
+        "published_at": "2026-07-14T13:07:30+00:00",
+        "publisher": "County 17",
+        "quote": "Zoning ordinances relevant to the Microsoft development also passed on their third and final readings.",
+        "reason": "At its meeting of Monday 2026-07-13, which ran past midnight, the Cheyenne City Council approved the 3,460-acre annexation 6-3 and passed the development's zoning ordinances; a referendum petition on the annexation followed",
+        "retrieved_at": "2026-10-13T04:27:07Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://county17.com/2026/07/14/cheyenne-passes-microsoft-data-center-land-annexation-after-more-than-5-hours-of-discussion/"
+      }
+    ],
+    "expect": {
+      "as_of": "",
+      "stage": "Operating"
+    },
+    "reason": "The stage 'Operating' is the older campus's; the expansion was announced on 2026-04-14 and its annexation and zoning approved on 2026-07-13, so the row is imported with those cited events and without the operating observation",
+    "release": [
+      "stage"
+    ],
+    "reviewed_at": "2026-10-13"
+  },
+  "monticello-tech-monticello-mn": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2025-11",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2025-09-11",
+              "note": "First report, per the Monticello Times"
+            }
+          }
+        ],
+        "published_at": "2025-09-11T07:00:00-05:00",
+        "publisher": "Monticello Times",
+        "quote": "Separate from the ordinance debate, two developers have already floated early concepts for potential data center campuses in Monticello — one a 550-acre site near Highway 25 and 85th Street, the other a smaller 106-acre site near Bertram Park.",
+        "reason": "The Monticello Times of 2025-09-11, which the log's 2025 entries cite, reports the 550-acre concept near Highway 25 and 85th Street: the project's first report, earlier than the log's 2025-11",
+        "retrieved_at": "2026-10-13T04:23:57Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.hometownsource.com/monticello_times/future-of-data-centers-fuels-debate/article_2c3cd0dd-7fe5-475d-8968-2b007c0c25cf.html"
+      }
+    ]
+  },
+  "pahrump-manse-technology-campus": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2026-07-15",
+            "from": null,
+            "op": "first_report",
+            "status": "proposed"
+          }
+        ],
+        "published_at": "2026-07-15T12:02:20Z",
+        "publisher": "Pahrump Valley Times",
+        "quote": "However, there were already applications for these facilities filed with the county prior to the moratorium, including two proposals for the Pahrump area - the Blackjack Data Center and the Osprey Data Center, neither of which has secured full county approval at this point.",
+        "reason": "The earliest report found that names the project (Blackjack, the campus's former name) is the Pahrump Valley Times of 2026-07-15: an application filed before the county's June moratorium",
+        "retrieved_at": "2026-10-13T04:31:49Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://pvtimes.com/news/data-centers-generating-community-angst-187770/"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2026-08-18",
+            "event": "paused",
+            "note": "Nye County adopted Bill No. 2026-11, which prohibits data center development in the Pahrump Valley",
+            "op": "add_event",
+            "status": "paused",
+            "status_reason": "moratorium"
+          }
+        ],
+        "published_at": "2026-08-21T11:59:14Z",
+        "publisher": "Pahrump Valley Times",
+        "quote": "The Nye County Commissioners' Chambers was packed once again as hundreds of area residents turned out for the board's August 18 meeting, at which commissioners voted 5-0 to ban data centers in Pahrump.",
+        "reason": "AI GridWatch still shows Awaiting decision (as_of 2026-08-14); on 2026-08-18 the Nye County commissioners voted 5-0 to ban data center development in the Pahrump Valley (Bill No. 2026-11); companies have sued over the ban",
+        "retrieved_at": "2026-10-13T04:32:26Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://pvtimes.com/news/data-centers-banned-in-pahrump-189671/"
+      }
+    ]
+  },
+  "platte-county-wy-site-layer-4": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2026-09-02",
+            "event": "approved",
+            "note": "Platte County commissioners approved the industrial rezoning unanimously",
+            "op": "add_event",
+            "status": "permitted"
+          }
+        ],
+        "published_at": "2026-09-02T18:19:00-06:00",
+        "publisher": "Cowboy State Daily",
+        "quote": "After nearly four hours of questions, debate and tense exchanges, the Platte County commissioners unanimously approved a controversial request Wednesday to rezone 5,344 acres of private ranchland for industrial use for a data center.",
+        "reason": "AI GridWatch still shows Awaiting decision (as_of 2026-08-14); the Platte County commissioners approved Site Layer 4's rezoning unanimously on Wednesday 2026-09-02",
+        "retrieved_at": "2026-10-13T04:26:05Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://cowboystatedaily.com/2026/09/02/platte-county-commissioners-push-back-then-ok-industrial-zoning-for-data-center/"
+      }
+    ]
+  },
+  "plymouth-township-conshohocken-road-pa": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2025-10",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2025-09-28",
+              "note": "First report, per MoreThanTheCurve",
+              "status": "proposed"
+            }
+          }
+        ],
+        "published_at": "2025-09-28T15:55:45+00:00",
+        "publisher": "MoreThanTheCurve",
+        "quote": "On the agenda for the October 1st meeting of Plymouth Township’s planning commission is an application that seeks a special exception to allow a data center at 900 Conshohocken Road in Conshohocken (Plymouth Township).",
+        "reason": "The first report is MoreThanTheCurve of 2025-09-28 on the special exception application for 900 Conshohocken Road, then on the planning commission's agenda: proposed, earlier than the log's 2025-10",
+        "retrieved_at": "2026-10-13T04:23:47Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://morethanthecurve.com/special-exception-for-data-center-sought-for-steel-plant-property-in-conshohocken-application-on-agenda-for-plymouth-townships-planning-commission/"
+      }
+    ]
+  },
+  "posey-county-boberg-hoenert-in": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2026-06-03",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2026-06-04",
+              "note": "First report, per 14 News"
+            }
+          }
+        ],
+        "published_at": "2026-06-04T22:29:00-05:00",
+        "publisher": "14 News (WFIE)",
+        "quote": "Close to 100 Posey County residents filled the Alexandrian Public Library in Mount Vernon Thursday night to learn about possible data center development in the area.",
+        "reason": "The first report is 14 News of 2026-06-04 on that Thursday night's meeting in Mount Vernon; the log's 2026-06-03 is a day early",
+        "retrieved_at": "2026-10-13T04:22:36Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.14news.com/2026/06/05/posey-co-residents-pack-meeting-over-potential-data-center-development/"
+      }
+    ]
+  },
+  "powder-mill-works-lawrence-pa": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2026-09-10",
+            "event": "denied",
+            "note": "North Beaver zoning hearing board upheld the rejection of the application (4-0); Mahoning's board followed on 2026-09-15",
+            "op": "add_event",
+            "status": "denied",
+            "status_reason": "local_denial"
+          }
+        ],
+        "published_at": "2026-09-11T18:45:00-04:00",
+        "publisher": "New Castle News",
+        "quote": "a 4-0 vote by the North Beaver Township Zoning Hearing Board on Thursday created yet another legal hurdle for S.S. Penn LLC, an affiliate of Stonebridge Associates LLC of Bethesda, Maryland, to proceed with plans for a proposed data center that would straddle both North Beaver and Mahoning townships",
+        "reason": "North Beaver's zoning hearing board rejected, 4-0 on Thursday 2026-09-10, the developer's appeal of the township's rejection of its land development application; Mahoning's board did the same on 2026-09-15, and a court appeal is possible",
+        "retrieved_at": "2026-10-13T04:22:54Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.ncnewsonline.com/news/local_news/north-beaver-zoning-board-nixes-data-appeal/article_6491e892-b90b-4595-846a-e17d6a72ad18.html",
+        "title": "North Beaver zoning board nixes data appeal"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "event": {
+              "as_of": "2026-09-10",
+              "event": "denied"
+            },
+            "op": "support"
+          }
+        ],
+        "publisher": "New Castle News",
+        "quote": "The board voted 2-0 to reject the appeal filed by Stonebridge Associates Inc., of Bethesda, Maryland, and its affiliate company, S.S. Penn, LLC, which contested the township’s zoning office rejecting its June 2 and 9 permit applications for a data center, due to errors in the applications.",
+        "reason": "Mahoning Township's zoning hearing board also upheld the rejection of the applications (2026-09-15), after North Beaver's: the denial stands in both townships",
+        "retrieved_at": "2026-10-13T04:23:26Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.ncnewsonline.com/news/local_news/mahoning-zoning-board-denies-data-center-application-appeal/article_b6ecd3de-1dfd-476b-ae2a-716e063961a7.html"
+      }
+    ]
+  },
+  "stack-berry-hill-pittsylvania-va": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2026-02-20",
+              "event": "announced"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2026-03-09",
+              "event": "first_reported",
+              "note": "First report, per WDBJ7"
+            }
+          }
+        ],
+        "published_at": "2026-03-09T16:05:00-04:00",
+        "publisher": "WDBJ7",
+        "quote": "The Danville-Pittsylvania Regional Industrial Facility Authority has voted to approve an agreement to sell property at the Southern Virginia Megasite at Berry Hill to SAC III Acquisition, according to the director of economic development for Pittsylvania County.",
+        "reason": "The first report is WDBJ's of 2026-03-09 on the sale agreement for the Berry Hill megasite; AI GridWatch's announced date of 2026-02-20 is cited to an article of 2026-05-18",
+        "retrieved_at": "2026-10-13T04:27:26Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.wdbj7.com/2026/03/09/sale-approved-pittsylvania-county-land-data-center-developer/"
+      },
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2026-09-05",
+              "event": "other",
+              "status": "permitted"
+            },
+            "op": "remove_event"
+          }
+        ],
+        "published_at": "2026-05-19T08:05:00+00:00",
+        "publisher": "Cardinal News",
+        "quote": "At a called meeting Monday, the Danville-Pittsylvania Regional Industrial Facilities Authority unanimously approved a local performance agreement with Stack Infrastructure, the Colorado-based data center developer behind the project.",
+        "reason": "The approval behind AI GridWatch's stage 'Approved' is a local performance agreement, an incentive; no rezoning, permit or other land-use approval is known, so the project is announced",
+        "retrieved_at": "2026-10-13T04:28:32Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://cardinalnews.org/2026/05/19/a-data-center-project-in-pittsylvania-was-approved-monday-with-higher-investment-and-jobs-than-previously-announced/"
+      }
+    ],
+    "expect": {
+      "announced": "2026-02-20",
+      "as_of": "2026-09-05",
+      "stage": "Approved"
+    },
+    "reason": "The stage 'Approved' rests on a performance agreement, an incentive, and the row's 2026-02-20 date on a report of 2026-05-18: imported as announced, first reported 2026-03-09 with the land sale agreement",
+    "release": [
+      "stage"
+    ],
+    "reviewed_at": "2026-10-13"
+  },
+  "stamp-double-reed-alabama-ny": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": "AI GridWatch size_mw: 600",
+            "op": "set",
+            "path": "/capacity/mw_as_stated",
+            "value": "will use 500 megawatts of electricity"
+          }
+        ],
+        "published_at": "2026-03-18T10:00:51+00:00",
+        "publisher": "Investigative Post",
+        "quote": "To operate the data campus, Stream has said it will use 500 megawatts of electricity, more than 80 percent of all the power available at the STAMP industrial park.",
+        "reason": "AI GridWatch's 600 MW is the STAMP park's power; Stream has said the campus will use 500 MW (Investigative Post, 2026-03-18). The figure is kept as stated, with no basis",
+        "retrieved_at": "2026-10-13T04:22:44Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://investigativepost.org/2026/03/18/subsidies-for-stamp-data-center-among-largest-ever/"
+      }
+    ]
+  },
+  "stokes-county-project-delta": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2026-09-14",
+            "event": "approved",
+            "note": "Stokes County commissioners approved the rezoning 3-2",
+            "op": "add_event",
+            "status": "permitted"
+          }
+        ],
+        "published_at": "2026-09-15T13:04:00-04:00",
+        "publisher": "WUNC",
+        "quote": "The board voted Monday night to rezone roughly 1,800 acres of farmland for the development known as Project Delta.",
+        "reason": "AI GridWatch still shows the reapplication pending; the Stokes County commissioners approved the rezoning 3-2 on Monday 2026-09-14 (WUNC, 2026-09-15)",
+        "retrieved_at": "2026-10-13T04:25:55Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.wunc.org/2026-09-15/inside-stokes-countys-latest-vote-on-the-project-delta-data-center"
+      }
+    ]
+  },
+  "vermaland-la-osa-pinal-az": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2025-07",
+            "from": null,
+            "op": "first_report",
+            "status": "proposed"
+          }
+        ],
+        "published_at": "2025-08-08T22:25:00-07:00",
+        "publisher": "KVOA",
+        "quote": "In July, Vermaland presented rezoning requests to Pinal County’s Planning and Zoning Commission.",
+        "reason": "KVOA's report of 2025-08-08 on the La Osa Project, the earliest found that names it, says Vermaland presented its rezoning requests to the county in July 2025: proposed",
+        "retrieved_at": "2026-10-13T04:32:44Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.kvoa.com/news/local/data-center-proposed-south-of-eloy/article_ef75d52b-7604-4d6c-95db-821da77f98bd.html"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2026-08-26",
+            "event": "denied",
+            "note": "Pinal County supervisors rejected the rezoning request and development plans 4-1",
+            "op": "add_event",
+            "status": "denied",
+            "status_reason": "local_denial"
+          }
+        ],
+        "published_at": "2026-08-26T20:50:09Z",
+        "publisher": "KJZZ",
+        "quote": "Pinal County supervisors on Wednesday rejected plans to build La Osa Energy Center, a massive development planned outside Eloy.",
+        "reason": "AI GridWatch still shows Awaiting decision (as_of 2026-08-19); the Pinal County supervisors rejected La Osa's rezoning and plans 4-1 on Wednesday 2026-08-26",
+        "retrieved_at": "2026-10-13T04:33:27Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.kjzz.org/politics/2026-08-26/pinal-county-rejects-massive-la-osa-data-center-residents-want-more-rules-for-future-projects"
+      }
+    ]
+  },
+  "yerington-monarch-data-center": {
+    "corrections": [
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "match": {
+              "as_of": "2026-07-14",
+              "event": "first_reported"
+            },
+            "op": "replace_event",
+            "set": {
+              "as_of": "2025-07",
+              "note": "First report, per the Nevada Business Exchange",
+              "status": "proposed"
+            }
+          }
+        ],
+        "published_at": "2025-07-17T12:00:00-07:00",
+        "publisher": "Nevada Business Exchange",
+        "quote": "The Lyon County Planning Commission, during its July 8 meeting,unanimously recommended approval of Copia Power Devco LLC’s request for a master plan amendment from Agriculture to Specific Plan for its proposed 1,000MW data center.",
+        "reason": "The project was public in July 2025, when the Lyon County Planning Commission recommended Copia's master plan amendment for Monarch: proposed, a year before the log's 2026-07-14",
+        "retrieved_at": "2026-10-13T04:25:37Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "trade_press",
+        "source_url": "https://nevbex.com/2025/07/17/monarch-data-center-lyon-county-approval/"
+      }
+    ]
+  }
+}

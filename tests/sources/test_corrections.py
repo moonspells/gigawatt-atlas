@@ -1529,7 +1529,10 @@ def test_ops_on_an_aigridwatch_fixture_record(
 ) -> None:
     built = aigridwatch.IMPORTER.run(
         make_test_context(input_path=FIXTURES / "aigridwatch" / "projects.json"),
-        argparse.Namespace(without_epoch=True),
+        # No committed entry: they are fix round 6's, for the seed's rows, read after this fixture.
+        argparse.Namespace(
+            without_epoch=True, overrides=FIXTURES / "aigridwatch" / "overrides-none.json"
+        ),
     )
     candidate = next(c for c in built.candidates if c.record.status == "proposed")
     before = candidate.record

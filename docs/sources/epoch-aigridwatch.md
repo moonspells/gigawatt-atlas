@@ -572,8 +572,10 @@ outside says.
 The overrides file takes cited `corrections` and an `expect` guard since the same round
 ([Reviewer entries](#reviewer-entries)), and Epoch AI's file the same (importer version 6,
 ["Overrides policy"](#overrides-policy-configoverridesepochjson)); an entry either file names that
-its input does not have now stops the run. With the committed entries (none of them corrections),
-the seed's records and review items are byte for byte those of the importer rules alone.
+its input does not have now stops the run. With the entries committed then (none of them
+corrections), the seed's records and review items were byte for byte those of the importer rules
+alone; the owner's 26 reviewed corrections followed as cited entries
+([Reviewer entries](#reviewer-entries), "Entries of fix round 6").
 
 ## Geocoding (`atlas/geocode.py`)
 
@@ -1135,8 +1137,56 @@ the items about a corrected row carry `data.corrected_by`. An entry for a row AI
 longer lists stops the run (since fix round 6; `metrics.overrides_unused` is always 0), and the
 receipt counts the corrections (`corrections_entries`, `corrections_ops`, `records_corrected`, …).
 Other corrections to an imported record are such cited entries, applied on every run: an edit to
-a record file does not last, since the next import overwrites it. The file holds no entry on
-2026-10-13.
+a record file does not last, since the next import overwrites it.
+
+Entries of fix round 6 (reviewed 2026-10-13: the owner's corrections of the fifth seed's review,
+PR #2). The file holds 23 entries with 32 cited Fixes, each quoting a page fetched on 2026-10-13
+(04:20–04:39 UTC) with the project's user agent and found verbatim in it, with its `basis` and the
+review PR as `issue_url`. Two entries release a stage hold together with their corrections and
+guard the row with `expect` (Microsoft Cheyenne Expansion, STACK Berry Hill); the others have only
+corrections:
+
+| Row | Correction | Source |
+|---|---|---|
+| `burkhalter-road-statesboro-ga` | approved 2026-08-18: permitted (was proposed) | WTOC, 2026-08-19 |
+| `aligned-pataskala-oh` | first report 2023-11-02, announced (the 2025-11 filing stays as an observation); denied 2026-08-25, `local_denial` | NBC4 (Columbus Business First); The Reporting Project |
+| `king-of-prussia-mlp-pa` | the denial dated 2026-08-13 (was 2026-08-14) | FOX 29 |
+| `aws-calvert-technology-center-md` | first report 2026-02, a month (was the 2026-05-04 filing) | WJLA |
+| `posey-county-boberg-hoenert-in` | first report 2026-06-04 (was 2026-06-03) | 14 News |
+| `stamp-double-reed-alabama-ny` | MW as stated "will use 500 megawatts of electricity" (AI GridWatch's 600 MW, the park's, in conflicts) | Investigative Post |
+| `powder-mill-works-lawrence-pa` | denied 2026-09-10, `local_denial`: North Beaver's zoning board upheld the rejection, Mahoning's on 2026-09-15 | New Castle News (both boards) |
+| `plymouth-township-conshohocken-road-pa` | first report 2025-09-28, proposed (was 2025-10) | MoreThanTheCurve |
+| `monticello-tech-monticello-mn` | first report 2025-09-11 (was 2025-11) | Monticello Times |
+| `amazon-floydada-floyd` | first report 2026-05-12, the county's road agreement with Amazon Data Services (was 2026-08-05) | Floyd County Record |
+| `pahrump-manse-technology-campus` | first report 2026-07-15, proposed (as the Blackjack Data Center); paused 2026-08-18, `moratorium` (Bill No. 2026-11 bans data centers in the Pahrump Valley) | Pahrump Valley Times (both) |
+| `yerington-monarch-data-center` | first report 2025-07, proposed: the Planning Commission's recommendation of July 8 (was 2026-07-14) | Nevada Business Exchange |
+| `stokes-county-project-delta` | approved 2026-09-14: permitted | WUNC |
+| `platte-county-wy-site-layer-4` | approved 2026-09-02: permitted | Cowboy State Daily |
+| `cloudburst-san-marcos-tx` | acreage withheld (96 acres, about 220 and 706 disagree); the Hays County location is the importer's | Herald-Zeitung |
+| `microsoft-cheyenne-expansion` | `release: ["stage"]`; announced 2026-04-14, approved 2026-07-13: permitted, without the stage's operating observation; Laramie County is the importer's | Microsoft; County 17 |
+| `vermaland-la-osa-pinal-az` | first report 2025-07, proposed (the rezoning requests presented to the county); denied 2026-08-26, `local_denial` | KVOA; KJZZ |
+| `kearney-data-center-ne` | first report 2026-08-18, proposed (the conditional use permit application); approved 2026-09-08: permitted; Buffalo County at county precision, without the city (the site is outside Kearney's limits) | Central Nebraska Today; Rock 101.5; KSNB |
+| `dc-blox-warren-township-in` | the announcement dated 2026-04-09 (was 2026-04-27) | Mirror Indy |
+| `abei-energy-data-center-starke-in` | Starke County's centroid at county precision (no parcel was disclosed) | WKVI |
+| `google-botetourt-greenfield-va` | announced and first reported 2025-06-24 (was a first report of 2025-06-20, the land sale) | Botetourt County |
+| `stack-berry-hill-pittsylvania-va` | `release: ["stage"]`; first report 2026-03-09 (was an announcement of 2026-02-20 cited to a page of 2026-05-18); the stage's permitted observation removed: announced | WDBJ7; Cardinal News |
+| `amazon-warrenton-blackwell-road-va` | first report 2021-06, announced (was the 2022-04 filing) | Baxtel |
+
+Three of the 26 corrections need no entry, because the importer rules of fix round 6 make them:
+T5@ATL IV (Palmetto) and Sarasota County are held (a ban adopted after the filing; a moratorium
+on an application stage with no filing), as their corrections ask, and Amazon Bridgefield's
+announced date is its first report (a property deal). Pahrump, La Osa and Kearney had no first
+report in the row: a reviewer's pause, denial or approval would have dated it, so each entry
+gives the earliest report found that names the project as a cited `first_report`. Two parts of
+the corrections are not expressible: Kearney's dead link stays among the record's sources (the
+row names it; no op removes a source, and it supports no value), and no review item marks
+CloudBurst's withheld acreage (its correction entry does). On the fifth seed's saved inputs,
+offline, after the Epoch AI import into an empty store: 162 AI GridWatch records (the two
+releases), of which exactly these 23 change, 280 review items, `atlas validate` 0 issues, and a
+second run `unchanged`. `tests/sources/test_aigridwatch_corrections.py` checks every committed
+Fix (mechanism §11.6); the fixture runs read none of the entries
+(`tests/fixtures/aigridwatch/overrides-none.json`), since every one carries corrections read
+after the fixtures.
 
 ## Limits (M1)
 

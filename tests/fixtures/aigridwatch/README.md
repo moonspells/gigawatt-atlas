@@ -1,6 +1,7 @@
 # AI GridWatch fixtures
 
-Five small subsets of the AI GridWatch data center project tracker, and four Census samples:
+Five small subsets of the AI GridWatch data center project tracker, an empty overrides file, and
+four Census samples:
 
 - `projects.json`, used by `tests/sources/test_aigridwatch.py`: one row per stage;
 - `seed-2026-10-08.json`, used by `tests/sources/test_aigridwatch_seed.py`: rows of the
@@ -11,6 +12,9 @@ Five small subsets of the AI GridWatch data center project tracker, and four Cen
   seed import (2026-10-09) that its record checks found mapped wrongly;
 - `fix6-2026-10-08.json`, used by `tests/sources/test_aigridwatch_fix6.py`: rows of the fifth seed
   import that the importer rules of fix round 6 change, and rows they must leave as they are;
+- `overrides-none.json`, an empty overrides file: the fixture runs read none of the committed
+  entries of `config/overrides/aigridwatch.json` (fix round 6's cited corrections, read after
+  these fixtures and their run dates; a release there goes with its corrections);
 - `places/agw_places.zip` and `gazetteer/agw_cousubs.zip`: the Census place polygons and county
   subdivisions those rows' points and localities need (below), and `places/agw_places_check3.zip`
   and `gazetteer/agw_cousubs_check3.zip` for `check3-2026-10-08.json`.
