@@ -1,0 +1,149 @@
+{
+  "name": "AI GridWatch data center project tracker",
+  "generated": "2026-10-08",
+  "license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "attribution": "AI GridWatch (https://aigridwatch.com)",
+  "source_page": "https://aigridwatch.com/projects",
+  "count": 1,
+  "verified_count": 1,
+  "caveat": "A working set of identified proposals a community can track, not a census — most of the country's activity is not in here yet. Pennsylvania is the exception: its rows are synced from PA DEP's own data-center permit tracker, so the state's coverage is close to complete and carries the permit trail with it.\n\n**Each row carries its own provenance.** Rows showing a verification date link to reporting or the governing body's own record and were read on that date; rows marked *unverified* have no source on record — a lead to check, not a fact to cite.\n\n**Stage is derived, not asserted.** *Hearing scheduled*, *Awaiting decision*, *Approved* and *Withdrawn* are computed from each row's milestone dates on every rebuild, so a hearing date that has passed stops reading 'scheduled'. Hearings get moved and projects re-file under new names — treat a scheduled date as the earliest to act by, and confirm with the clerk before relying on it. Leads are mined into data/project_candidates.json and promoted here only after a human reads a primary source.",
+  "schema": {
+    "id": "Stable slug, unique per project.",
+    "name": "Project or code name.",
+    "operator": "Operator/developer, or blank if unknown.",
+    "owner": "Owner/financier, or blank.",
+    "tenant": "Named end tenant, or blank.",
+    "filing_llc": "Shell LLC on the filing (ties to the campus registry), or blank.",
+    "locality": "Town or county the project sits in.",
+    "state": "Two-letter state abbreviation.",
+    "lat": "Approximate locality latitude, or blank.",
+    "lon": "Approximate locality longitude, or blank.",
+    "size_mw": "Planned IT/critical load in MW, or blank.",
+    "acres": "Site acreage, or blank.",
+    "announced": "ISO date first publicly proposed, or blank.",
+    "rezoning_filed": "ISO date the rezoning/permit application was filed, or blank.",
+    "hearing_date": "ISO date of the next/decisive public hearing, or blank.",
+    "decided_date": "ISO date a terminal decision was reached, or blank.",
+    "outcome": "approved | denied | withdrawn | blank (blank = still live).",
+    "stage": "DERIVED status shown on the page (Hearing scheduled, Awaiting decision, In review, Proposed, Rumored, Approved, Under construction, Operating, Denied, Withdrawn, Blocked by ban).",
+    "days_to_hearing": "DERIVED days until the hearing (negative once past), or blank.",
+    "note": "One-line plain-language status.",
+    "source": "Primary URL backing the current status.",
+    "as_of": "ISO date the source was read, or blank.",
+    "verified": "true if a source is on record."
+  },
+  "projects": [
+    {
+      "id": "google-west-memphis-ar",
+      "name": "Google West Memphis",
+      "operator": "Google",
+      "owner": "Google",
+      "tenant": "",
+      "filing_llc": "",
+      "locality": "West Memphis",
+      "state": "AR",
+      "lat": "",
+      "lon": "",
+      "size_mw": "",
+      "acres": 1178,
+      "announced": "",
+      "rezoning_filed": "",
+      "hearing_date": "",
+      "decided_date": "",
+      "outcome": "",
+      "stage": "In review",
+      "days_to_hearing": null,
+      "note": "$4B, 1,178-acre campus with 5 buildings in West Memphis, Arkansas. Under construction.",
+      "source": "https://www.electricchoice.com/datacenters/",
+      "as_of": "",
+      "verified": true,
+      "events": [
+        {
+          "date": "2024-11-01",
+          "kind": "filing",
+          "summary": "Groot LLC, a Google-linked entity, paid $16.5 million to buy roughly 1,117 acres of agricultural land on Bollinger Road in West Memphis, Crittenden County.",
+          "source": "https://www.arkansasbusiness.com/article/google-data-center-west-memphis/"
+        },
+        {
+          "date": "2025-05-15",
+          "kind": "vote",
+          "summary": "West Memphis City Council unanimously approved a MOU, development agreement, and PILOT incentive package with Groot LLC for a project valued at up to $10 billion, with potential for up to $50 billion in personal-property tax abatements over 30 years.",
+          "source": "https://www.arkansasonline.com/news/2025/may/22/data-center-campus-planned-for-west-memphis-after/"
+        },
+        {
+          "date": "2025-09-01",
+          "kind": "filing",
+          "summary": "Entergy Arkansas and Google jointly sought Arkansas Public Service Commission approval of a special electricity rate contract to power the West Memphis data center.",
+          "source": "https://talkbusiness.net/2025/09/entergy-arkansas-google-seek-psc-approval-for-west-memphis-data-center-agreement/"
+        },
+        {
+          "date": "2025-09-05",
+          "kind": "coverage",
+          "summary": "Reporting confirmed Google (via Groot LLC) as the company behind the planned $10 billion, five-building data center campus on 1,178 acres south of Bollinger Road, dubbed Project Pyramid.",
+          "source": "https://www.arkansasonline.com/news/2025/sep/05/google-behind-10b-data-center-in-west-memphis/"
+        },
+        {
+          "date": "2025-10-02",
+          "kind": "announcement",
+          "summary": "Google, the Governor, and state/local officials formally announced a $4 billion AI/cloud data center project in West Memphis — Google first data center in Arkansas — with a $25 million Energy Impact Fund for low-income households in Crittenden County.",
+          "source": "https://talkbusiness.net/2025/10/google-announces-plan-to-build-4-billion-data-center-in-west-memphis/"
+        },
+        {
+          "date": "2025-10-02",
+          "kind": "utility",
+          "summary": "Entergy Arkansas announced it would power the Google project with a 600 MW Cypress Solar project and 350 MW of battery storage, with Google saying the deal would deliver over $1.1 billion in net benefits to Entergy customers.",
+          "source": "https://www.entergy.com/news/entergy-arkansas-powers-googles-4b-investment-in-the-state"
+        },
+        {
+          "date": "2025-11-17",
+          "kind": "hearing",
+          "summary": "Arkansas PSC held a hearing on the special rate contract between Entergy and Google; the public was asked to leave during portions covering confidential contract details, drawing transparency criticism.",
+          "source": "https://www.arkansasonline.com/news/2025/nov/17/special-rate-contract-between-google-and-entergy/"
+        },
+        {
+          "date": "2025-12-05",
+          "kind": "ruling",
+          "summary": "Arkansas PSC approved Entergy special rate contract with Google but denied the utility requested ratemaking treatment and deferred a decision on investment tax credit treatment for the Cypress Solar facility.",
+          "source": "https://www.nwaonline.com/news/2025/dec/05/psc-approves-google-entergy-power-contract/"
+        },
+        {
+          "date": "2025-12-12",
+          "kind": "coverage",
+          "summary": "Arkansas Advocate reported state officials were largely declining to scrutinize fiscal and environmental tradeoffs of the data center boom out of fear of losing investment to other states.",
+          "source": "https://arkansasadvocate.com/2025/12/12/fear-of-missing-out-on-data-center-boom-leads-arkansas-officials-to-ignore-hard-questions/"
+        },
+        {
+          "date": "2026-01-01",
+          "kind": "ruling",
+          "summary": "Arkansas PSC issued a follow-up order reversing itself to allow investment tax credits from the Cypress Solar facility to be used in pricing under the Google contract.",
+          "source": "https://arkansasadvocate.com/2025/12/12/fear-of-missing-out-on-data-center-boom-leads-arkansas-officials-to-ignore-hard-questions/"
+        },
+        {
+          "date": "2026-02-26",
+          "kind": "coverage",
+          "summary": "Google began actively hiring for electrical engineer and facilities technician roles at the West Memphis data center, which remained under construction with an expected 18-24 month build timeline.",
+          "source": "https://www.actionnews5.com/2026/02/26/google-hiring-new-west-memphis-data-center/"
+        },
+        {
+          "date": "2026-05-03",
+          "kind": "coverage",
+          "summary": "Reporting revealed Google and Entergy were keeping the full terms of their energy rate contract sealed/confidential, raising transparency concerns among ratepayer advocates.",
+          "source": "https://www.arkansasonline.com/news/2026/may/03/google-entergy-keeping-energy-rate-contract/"
+        },
+        {
+          "date": "2026-06-04",
+          "kind": "financing",
+          "summary": "Reporting detailed that bond issuances tied to the West Memphis Google data center PILOT financing could total as much as $60 billion in permanent financing authority over the deal 30-year term.",
+          "source": "https://www.arkansasonline.com/news/2026/jun/04/google-data-center-poises-west-memphis-for-boom/"
+        },
+        {
+          "date": "2026-07-29",
+          "kind": "public-comment",
+          "summary": "At an Arkansas PSC hearing on Entergy proposed residential rate increase, speakers including the Little Rock NAACP chapter head cited the sealed Google contract as evidence of a lack of transparency.",
+          "source": "https://arktimes.com/arkansas-blog/2026/07/29/entergy-gets-earful-about-rate-increase-and-secret-dealings-with-google-data-center"
+        }
+      ]
+    }
+  ]
+}

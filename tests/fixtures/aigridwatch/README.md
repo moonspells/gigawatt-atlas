@@ -1,6 +1,6 @@
 # AI GridWatch fixtures
 
-Five small subsets of the AI GridWatch data center project tracker, an empty overrides file, and
+Six small subsets of the AI GridWatch data center project tracker, an empty overrides file, and
 four Census samples:
 
 - `projects.json`, used by `tests/sources/test_aigridwatch.py`: one row per stage;
@@ -12,6 +12,8 @@ four Census samples:
   seed import (2026-10-09) that its record checks found mapped wrongly;
 - `fix6-2026-10-08.json`, used by `tests/sources/test_aigridwatch_fix6.py`: rows of the fifth seed
   import that the importer rules of fix round 6 change, and rows they must leave as they are;
+- `fix7-2026-10-08.json`, used by `tests/sources/test_aigridwatch_fix7.py`: the row of the round 6
+  seed that the importer rules of fix round 7 change;
 - `overrides-none.json`, an empty overrides file: the fixture runs read none of the committed
   entries of `config/overrides/aigridwatch.json` (fix round 6's cited corrections, read after
   these fixtures and their run dates; a release there goes with its corrections);
@@ -130,6 +132,17 @@ License: Creative Commons Attribution 4.0 International (CC BY 4.0),
   in Bridgefield's entries of 2026-03-17, 2026-07-31 and 2026-08-04; the Hays County judge in
   CloudBurst's 2025-04-01 entry; Wyoming's governor in Cheyenne's 2010-03-05 entry; and
   Cartersville's city planner in DataBank's 2026-06-25 entry (each replaced by the role).
+
+## fix7-2026-10-08.json: what was taken and what was changed
+
+- Source: the same file as `fix6-2026-10-08.json` (generated 2026-10-08), as the round 6 seed
+  import read it. The top-level metadata is copied unchanged; `count` and `verified_count` are the
+  subset's (1 and 1).
+- 1 project, field for field except as listed: Google West Memphis (`google-west-memphis-ar`), with
+  every `events` entry. It has no coordinates; with `--without-epoch` it is held for review, as on
+  the seed's inputs.
+- Personal names are taken out: Arkansas's governor in the 2025-10-02 announcement entry (replaced
+  by the role).
 
 ## places/agw_places.zip
 

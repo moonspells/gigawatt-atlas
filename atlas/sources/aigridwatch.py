@@ -402,6 +402,20 @@ _LOG_GROUNDBREAKING_RE = re.compile(
     r"ongoing|began|begun|started|continu\w*)|(?:began|begun|started) construction)\b",
     re.I,
 )
+# The site reported under construction on the entry's day ("the West Memphis data center, which
+# remained under construction"; a note's "Under construction."): a milestone the stage may be
+# behind, but an observation of that day, not the start of construction. Only the words before it
+# void it ("will be", "expected to be", "not yet"): those after it may be the build's timeline
+# ("with an expected 18-24 month build timeline"); "under construction or planned" is no report.
+_LOG_UNDER_CONSTRUCTION_RE = re.compile(
+    r"\b(?:remain(?:s|ed|ing)?\s+)?under[- ]construction\b(?!\s+or\s+(?:planned|proposed)\b)",
+    re.I,
+)
+# Words just before it that make it one of several sites, not the row's ("10 data centers, with one
+# already under construction in Texas"; "with multiple campuses under construction").
+_OTHER_SITES_BEFORE_RE = re.compile(
+    r"\b(?:with|including)\s+(?:one|several|multiple|many|other|some)\b[^,;]{0,30}$", re.I
+)
 # A lawsuit that seeks to undo an approval says there is one (Wolcott: "to overturn the
 # rezoning").
 _LOG_CHALLENGED_RE = re.compile(
@@ -1687,6 +1701,49 @@ def _names_org(text: str, org: str, places: tuple[str, ...] = ()) -> bool:
     )
 
 
+# An LLC an entry ties to an organization: "Google (via Groot LLC)", "Google (via subsidiary
+# Design LLC)", "Groot LLC, a Google-linked entity".
+_LLC_NAME = r"[A-Z][\w&.'-]*(?:\s+[A-Z0-9][\w&.'-]*){0,4},?\s+(?:LLC|L\.L\.C\.)"
+_ORG_WORDS = r"[A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*){0,3}"
+_TIED_LLC_RES = (
+    re.compile(
+        rf"(?P<org>{_ORG_WORDS})\s+\(\s*via\s+(?:(?:its|a|an)\s+)?(?:subsidiary\s+|affiliate\s+)?"
+        rf"(?P<llc>{_LLC_NAME})\s*\)"
+    ),
+    re.compile(
+        rf"(?P<llc>{_LLC_NAME}),\s+an?\s+(?P<org>{_ORG_WORDS})-(?:linked|affiliated|owned|"
+        r"controlled)\s+(?:entity|company)\b"
+    ),
+)
+
+
+def tied_llcs(project: dict[str, Any]) -> list[str]:
+    """The LLCs the row's own entries tie to its operator ("Google (via Groot LLC)", "Groot LLC,
+    a Google-linked entity"), other than the row's organizations: names_project counts them as
+    the project's organizations, as it does the filing LLCs (Google West Memphis: the council's
+    vote "with Groot LLC" names the project with its place, months before the PSC filing that
+    names Google)."""
+    operators = [
+        name
+        for part in split_names(clean_text(project.get("operator")), r"\s+/\s+|\s*;\s*|\s*,\s+")
+        if (name := party_name(part).name)
+    ]
+    known = {o.casefold() for o in _row_orgs(project)}
+    out: list[str] = []
+    for e in row_events(project):
+        summary = clean_text(e.get("summary"))
+        for pattern in _TIED_LLC_RES:
+            for m in pattern.finditer(summary):
+                llc = m.group("llc")
+                if (
+                    any(_names_org(m.group("org"), op) for op in operators)
+                    and llc.casefold() not in known
+                    and llc not in out
+                ):
+                    out.append(llc)
+    return out
+
+
 def _place_names(project: dict[str, Any]) -> list[str]:
     """The places the locality names: the place, the parenthesis and the counties ("Lansing",
     "Tompkins County"), and each part of a compound place."""
@@ -1765,7 +1822,8 @@ def names_project(project: dict[str, Any], summary: str) -> ReportHow | None:
     """How an entry names the row's project: its name, a site word of the name, its acreage, its
     size_mw with a data center ("the 24 MW data center"), or one of its organizations with its
     place or a data center ("TeraWulf ... the Lansing site", "the Prime Group data center
-    project"). None when it does not."""
+    project"); an LLC the row's entries tie to its operator is one of them (tied_llcs: West
+    Memphis' council vote "with Groot LLC"). None when it does not."""
     folded = summary.casefold()
     name = _project_name(project)
     if len(name) > 3 and name.casefold() in folded:
@@ -1798,7 +1856,8 @@ def names_project(project: dict[str, Any], summary: str) -> ReportHow | None:
     ):
         return "size"
     places = tuple(_place_names(project))
-    if any(_names_org(summary, o, places) for o in _row_orgs(project)) and (
+    orgs = _row_orgs(project) + tied_llcs(project)
+    if any(_names_org(summary, o, places) for o in orgs) and (
         any(re.search(rf"(?<!\w){re.escape(p)}(?!\w)", summary, re.I) for p in places)
         or _mentions_data_center(project, summary)
     ):
@@ -2011,6 +2070,10 @@ def first_report(
     return result(None, *doubt) if doubt else filed_month()
 
 
+_SEEN_UNDER_CONSTRUCTION = "the site under construction"
+_OBSERVED_DETAIL = ", an observation that dates no start of construction"
+
+
 @dataclass(frozen=True)
 class LogMilestone:
     """A milestone the row's event log or note reports that the stage has not reached, or an
@@ -2023,6 +2086,10 @@ class LogMilestone:
     kind: str
     source: str | None
     detail: str = ""  # appended to the reason (", with no filing after it")
+    # The entry or the note reports the status on its day ("remained under construction"), which
+    # dates no start: cited, it is an `other` observation (the observe op), not a
+    # construction_start.
+    observed: bool = False
 
     def where(self) -> str:
         """ "on 2026-04-01 (event kind 'vote')", or "in its note"."""
@@ -2074,10 +2141,13 @@ def log_milestone(project: dict[str, Any], status: Status, today: date) -> LogMi
     rezoning"), one that a lawsuit seeks to overturn (Wolcott: a suit "to overturn the
     rezoning"), and a groundbreaking or construction under way that is not the power supply's
     (Meta Lebanon's note: "groundbreaking construction reported ongoing"; its log: construction
-    disruption "during Meta campus build-out"). The kinds alone do not say it (a `vote` may go
-    either way, a `construction` entry may be another site's), so only these phrases count, and a
-    word close before them that defers, conditions or denies them voids them. The note is read
-    for all but the denial (which needs the date of the filing after it)."""
+    disruption "during Meta campus build-out"), or the site under construction (Google West
+    Memphis: the data center "remained under construction"; its note's "Under construction."),
+    an observation of the entry's day that dates no start (LogMilestone.observed). The kinds
+    alone do not say it (a `vote` may go either way, a `construction` entry may be another
+    site's), so only these phrases count, and a word close before them that defers, conditions or
+    denies them voids them. The note is read for all but the denial (which needs the date of the
+    filing after it)."""
     if status not in ACTIVE_ORDER:
         return None
     events = _log_entries(project)
@@ -2108,24 +2178,31 @@ def log_milestone(project: dict[str, Any], status: Status, today: date) -> LogMi
                 found.append(
                     ("permitted", "an approval of its land-use application, under court challenge")
                 )
-            if (
-                not _LOG_ENERGY_RE.search(clause)
-                and (
-                    _about_the_site(project, clause)
-                    or (day is None and bool(_NOTE_SUBJECT_RE.search(clause)))
-                )
-                and any(
-                    _unhedged(clause, m.start(), m.end(), 20)
-                    for m in _LOG_GROUNDBREAKING_RE.finditer(clause)
-                )
+            site = not _LOG_ENERGY_RE.search(clause) and (
+                _about_the_site(project, clause)
+                or (day is None and bool(_NOTE_SUBJECT_RE.search(clause)))
+            )
+            if site and any(
+                _unhedged(clause, m.start(), m.end(), 20)
+                for m in _LOG_GROUNDBREAKING_RE.finditer(clause)
             ):
                 found.append(("under_construction", "a groundbreaking or construction under way"))
+            elif not _LOG_ENERGY_RE.search(clause) and any(
+                _unhedged(clause, m.start(), m.start())
+                and not _OTHER_SITES_BEFORE_RE.search(clause[: m.start()])
+                and (site or (day is None and not clause[: m.start()].strip()))
+                for m in _LOG_UNDER_CONSTRUCTION_RE.finditer(clause)
+            ):
+                # A note's clause that starts with it ("Under construction.") is the row's.
+                found.append(("under_construction", _SEEN_UNDER_CONSTRUCTION))
             for reported, what in found:
                 rank = ACTIVE_ORDER.index(reported)
                 if rank > ACTIVE_ORDER.index(status) and (
                     best is None or best.status is None or rank > ACTIVE_ORDER.index(best.status)
                 ):
-                    best = LogMilestone(reported, what, day, kind, source)
+                    observed = what == _SEEN_UNDER_CONSTRUCTION
+                    detail = _OBSERVED_DETAIL if observed else ""
+                    best = LogMilestone(reported, what, day, kind, source, detail, observed)
     return best
 
 
@@ -4321,6 +4398,7 @@ class AIGridWatchImporter:
                 "event_date": log.day.fuzzy()["value"] if log.day else None,
                 "event_kind": log.kind or None,
                 "event_source": log.source,
+                **({"observation": True} if log.observed else {}),
             }
             if release is not None and "stage" in free:
                 released(pid, release, "stage", "conflict", why, **evidence)
