@@ -7,7 +7,7 @@ version the site's lockfile pins, where `npx` would download the newest release 
 scripts on. Replace every `<placeholder>` before running a line: the shell reads a bare `<` as
 "read from this file" and the command never starts. No Cloudflare API token goes
 into GitHub or into a Claude session; the pipeline only ever holds bucket-scoped R2 tokens.
-Source of truth: the site plan, 07 §11.2, 10 §3.6 and §11.8, 13 §2.4 step 15 and §5.3. Release
+Source of truth: the site plan, 07 §11.2, 10 §3.4, §3.6 and §11.8, 13 §2.4 step 15 and §5.3. Release
 layout and workflows: [publishing.md](publishing.md).
 
 Needs: the `moonspells.dev` zone on Cloudflare (step 3) and the public repo
@@ -64,11 +64,16 @@ are rate-limited and uncached, and `atlas-raw` must have no public URL at all.
 | Cache eligibility | **Eligible for cache** |
 | Edge TTL | **Use cache-control header if present, use default Cloudflare caching behavior if not** (API mode `respect_origin`) |
 | Origin Range Requests | **On** (API `origin_range_requests: {"mode": "on"}`): Cloudflare fetches from R2 in cache-aligned ranges instead of whole files |
+| Browser TTL | **Respect origin TTL** (API `browser_ttl: {"mode": "respect_origin"}`) |
 | Everything else | default |
 
 Cloudflare does not cache `.pmtiles`, `.json` or `.parquet` without this rule. Objects carry
 their own Cache-Control (immutable for `v/`, `rec/`, `basemap/`; 60 s for `atlas/latest.json`),
 set at upload by `atlas publish`.
+Without the Browser TTL setting, the zone's Browser Cache TTL (4 hours by default) raises any
+shorter `max-age`, so browsers keep `atlas/latest.json`, `atlas/pending.json` and
+`runs/latest.json` for 4 hours instead of 60 s: the first release (2026-10-13) answered
+`max-age=14400` until this setting was added.
 
 ## 5. Smart Tiered Cache
 
@@ -115,7 +120,9 @@ counts them as `renewed`. A plain upload skips those objects and leaves their ag
 fixture still fails (publishing.md §6). The release the site pins must likewise stay younger
 than 120 days, which every merged site data PR renews.
 
-## 8. Response headers: Transform Rule `tiles-hardening`
+## 8. Response headers and the bot check
+
+### Transform Rule `tiles-hardening`
 
 **Rules → Transform Rules → Modify Response Header → Create rule** (10 §3.6):
 
@@ -129,6 +136,22 @@ than 120 days, which every merged site data PR renews.
 Any HTML or SVG that ever lands in the bucket is inert when opened directly. MapLibre, PMTiles
 and DuckDB fetches ignore a response CSP, so the map is unaffected. The uploader's allow-list
 refuses `.html`, `.svg` and `.js` in the first place.
+
+### Configuration Rule `tiles-no-bic`
+
+**Rules → Configuration Rules → Create rule** (10 §3.4):
+
+| Field | Value |
+|---|---|
+| Rule name | `tiles-no-bic` |
+| When incoming requests match | `(http.host eq "tiles.moonspells.dev")` |
+| Browser Integrity Check | **Off** |
+
+Browser Integrity Check is on for the zone, and it refuses Python's default `urllib` client with
+403 (error code 1010). `pandas.read_csv(url)` uses that client, so without this rule a reader
+loading the published CSV in pandas gets 403 (found at the first release, 2026-10-13). curl,
+wget, `requests`, httpx, R, DuckDB, GDAL and browsers pass either way. The tiles host serves
+only public, static files, so the check adds little there.
 
 ## 9. Bucket-scoped tokens into the `production` Environment
 
@@ -203,7 +226,10 @@ curl -s -o /dev/null -D - -H 'Origin: https://moonspells.dev' -H 'Range: bytes=0
 
 curl -sI https://tiles.moonspells.dev/atlas/latest.json
 #   404 until the first real release; then 200, content-type: application/json,
-#   cache-control: public, max-age=60
+#   cache-control: public, max-age=60 (max-age=14400: the Cache Rule's Browser TTL is missing, §4)
+
+python3 -c 'import urllib.request as u; print(u.urlopen("https://tiles.moonspells.dev/v/20000101-0000/manifest.json").status)'
+#   200 (urllib.error.HTTPError: HTTP Error 403: the tiles-no-bic rule is missing, §8)
 
 curl -sI https://tiles.moonspells.dev/v/20000101-0000/facilities.parquet | grep -i '^content-type'
 #   content-type: application/vnd.apache.parquet (GeoParquet 1.1), no content-encoding
