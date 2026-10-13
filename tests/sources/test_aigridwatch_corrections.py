@@ -2,10 +2,10 @@
 docs/corrections.md, docs/sources/epoch-aigridwatch.md "Reviewer entries"): corrections applied
 where a row is imported, after its holds; expect; rows the file does not have; reason and
 reviewed_at only with a release; a cited first report that lifts the first-report hold; and a
-reviewer's event that would date a first report it is not, which holds the row. The rows are the
-fixtures' (Microsoft Cheyenne Expansion, Kearney, Amazon Bridgefield); the corrections are the
-reviewers' kind, cited to an example page. tests/sources/test_corrections.py tests the shared
-ops themselves."""
+reviewer's event that would date a first report it is not, which holds the row; and the citation
+of every committed Fix (mechanism §11.6). The rows are the fixtures' (Microsoft Cheyenne
+Expansion, Kearney, Amazon Bridgefield); the corrections are the reviewers' kind, cited to an
+example page. tests/sources/test_corrections.py tests the shared ops themselves."""
 
 from __future__ import annotations
 
@@ -22,8 +22,27 @@ import pytest
 from atlas.geo.counties import CountyIndex
 from atlas.net import FetchError
 from atlas.schema.record import FacilityRecord
+from atlas.schema.rollup import STOPPED, period_start
 from atlas.sources.aigridwatch import IMPORTER, RowRelease, load_releases
 from atlas.sources.base import ImportContext, ImportResult, ReviewItem
+from atlas.sources.corrections import (
+    STOP_SOURCE_TYPES,
+    AddAlias,
+    AddEvent,
+    AddParty,
+    FirstReportOp,
+    Fix,
+    Observe,
+    Rename,
+    RenameParty,
+    ReplaceEvent,
+    SetLocation,
+    SetParty,
+    SetValue,
+    Support,
+    fuzzy_date,
+)
+from atlas.text import find_personal_data
 from atlas.validate import validate_record
 
 MakeContext = Callable[..., ImportContext]
@@ -133,6 +152,113 @@ def test_the_committed_file_gives_cited_first_reports() -> None:
     raw = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
     assert set(load_releases(REPO_OVERRIDES)) == set(raw)
     assert [pid for pid, entry in raw.items() if {"first_reported", "as_of"} & set(entry)] == []
+
+
+# ---------------------------------------------------------------------------- the committed file
+
+FIX_KEYS = (
+    "source_url",
+    "publisher",
+    "source_type",
+    "quote",
+    "retrieved_at",
+    "basis",
+    "reason",
+    "reviewed_at",
+    "issue_url",
+)
+REVIEWS = "https://github.com/moonspells/gigawatt-atlas/"
+WAYBACK = "https://web.archive.org/web/"
+
+
+def written(fix_: Fix, counties: CountyIndex) -> list[str]:
+    """What a Fix's ops write into the record, as text its quote must state: a value, a name, an
+    organization, the place of a set_location (its city or municipality, its county)."""
+    out: list[str] = []
+    for op in fix_.ops:
+        if isinstance(op, SetValue) and op.value is not None:
+            value = op.value
+            out.append(f"{value:g}" if isinstance(value, int | float) else str(value))
+        elif isinstance(op, Rename):
+            out.append(op.base)
+        elif isinstance(op, AddAlias | AddParty):
+            out.append(op.name)
+        elif isinstance(op, SetParty):
+            out += op.names
+        elif isinstance(op, RenameParty):
+            out.append(op.to)
+        elif isinstance(op, SetLocation):
+            out += [p for p in (op.city, op.municipality) if p is not None]
+            county = counties.get(op.county_fips) if op.county_fips is not None else None
+            if county is not None:
+                out.append(f"{county.name} County")
+    return out
+
+
+def dated(fix_: Fix) -> list[str]:
+    """The dates of the events a Fix's ops add or redate, other than planned ones."""
+    out: list[str] = []
+    for op in fix_.ops:
+        if (isinstance(op, AddEvent) and not op.planned) or isinstance(op, Observe | FirstReportOp):
+            out.append(op.as_of)
+        elif isinstance(op, ReplaceEvent) and op.set.as_of is not None and not op.set.planned:
+            out.append(op.set.as_of)
+    return out
+
+
+def test_every_committed_correction_is_cited(counties: CountyIndex) -> None:
+    """Each Fix of config/overrides/aigridwatch.json (mechanism §11.6): its citation fields, a
+    verbatim quote of at most 300 characters read before now, a decision on or after that day and
+    no later than today, the review it came from, no personal data, a Wayback snapshot of the page
+    when it refused the project's client, a stopped status only from a source gate 6 allows. What
+    it writes is in its quote; a county may instead be in the quote of a Fix of the same entry that
+    supports /location/county_fips (Kearney's county, named where its taxes go). Every date it
+    gives is no later than today, its year in the quote, the page's date or the URL. The file is
+    canonical JSON."""
+    text = REPO_OVERRIDES.read_text(encoding="utf-8")
+    raw = json.loads(text)
+    assert text == json.dumps(raw, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    now, today = datetime.now(UTC), date.today()
+    fixes = 0
+    for pid, entry in load_releases(REPO_OVERRIDES).items():
+        supported = [
+            f.quote
+            for f in entry.corrections
+            if any(isinstance(op, Support) and op.path == "/location/county_fips" for op in f.ops)
+        ]
+        for i, fix_ in enumerate(entry.corrections):
+            fixes += 1
+            where = (pid, i)
+            for key in FIX_KEYS:
+                assert raw[pid]["corrections"][i].get(key), (where, key)
+            assert 0 < len(fix_.quote) <= 300 and fix_.retrieved_at <= now, where
+            assert fix_.retrieved_at.astimezone(UTC).date() <= fix_.reviewed_at <= today, where
+            assert str(fix_.issue_url).startswith(REVIEWS), where
+            assert find_personal_data(fix_.quote) == find_personal_data(fix_.reason) == [], where
+            if fix_.archive_url is not None:
+                assert str(fix_.archive_url).startswith(WAYBACK), where
+                assert str(fix_.archive_url).endswith(str(fix_.source_url)), where
+            for value in written(fix_, counties):
+                elsewhere = value.endswith(" County") and any(value in q for q in supported)
+                assert value in fix_.quote or elsewhere, (where, value)
+            for op in fix_.ops:
+                if isinstance(op, AddEvent | Observe) and op.status in STOPPED:
+                    assert fix_.source_type in STOP_SOURCE_TYPES, where
+            for as_of in dated(fix_):
+                assert period_start(fuzzy_date(as_of)) <= today, (where, as_of)
+                year = as_of[:4]
+                published = fix_.published_at is not None and fix_.published_at.year == int(year)
+                found = year in fix_.quote or year in str(fix_.source_url) or published
+                assert found, (where, as_of)
+    assert fixes > 0
+
+
+def test_fixture_runs_lose_no_committed_entry() -> None:
+    """The fixture runs read no committed entry (NO_ENTRIES in the fixture tests): every one
+    carries cited corrections, read after the fixtures and their run date, and a release there
+    goes with its corrections. An entry without corrections would have to run on the fixtures."""
+    raw = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
+    assert raw and [pid for pid, entry in raw.items() if not entry.get("corrections")] == []
 
 
 # ---------------------------------------------------------------------------- against the input

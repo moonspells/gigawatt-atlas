@@ -37,6 +37,10 @@ from atlas.validate import validate_record
 
 SAMPLES = Path(__file__).resolve().parents[1] / "fixtures" / "aigridwatch"
 CHECK2 = SAMPLES / "check2-2026-10-08.json"
+# Fixture runs read no entry of the committed config/overrides/aigridwatch.json: its entries are
+# the reviewers' cited corrections of fix round 6 (a release there goes with its corrections),
+# read against today's sources after these fixtures and their run date (docs/corrections.md).
+NO_ENTRIES = SAMPLES / "overrides-none.json"
 COUSUBS = SAMPLES / "gazetteer" / "agw_cousubs.zip"
 NOW = datetime(2026, 10, 9, 9, 52, 35, tzinfo=UTC)
 TODAY = NOW.date()
@@ -82,7 +86,7 @@ def make_context(
 
 def run(make_context: MakeContext, *, overrides: Path | None = None, **ctx: Any) -> ImportResult:
     without_epoch = "records" not in ctx
-    args = argparse.Namespace(without_epoch=without_epoch)
+    args = argparse.Namespace(without_epoch=without_epoch, overrides=NO_ENTRIES)
     if overrides is not None:
         args.overrides = overrides
     return IMPORTER.run(make_context(input_path=CHECK2, **ctx), args)
