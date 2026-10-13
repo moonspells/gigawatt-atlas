@@ -189,7 +189,7 @@ NVA04C's node, which is a record of its own here instead of a member of STACK's 
 
 ## `overpass-fix7.json`
 
-15 elements copied verbatim, one per line under the `version`, `generator` and `osm3s` header,
+16 elements copied verbatim, one per line under the `version`, `generator` and `osm3s` header,
 from the same response as `overpass-fix6.json` (the Overpass response of 2026-10-09,
 `osm3s.timestamp_osm_base` 2026-10-09T09:47:46Z, which the seed imports read). Elements are sorted
 by type and id. Each group is a campus whose name a naming rule of fix round 7 changes
@@ -202,3 +202,4 @@ the place in the name is the county where the test place index has no place:
 | Buildings named only by the operator, generic words and a number | Microsoft Data Center 1 relation 19787207, 2 way 1447029365, 3 way 1561752474 |
 | Named points that name their campus like buildings | DartPoints Baton Rouge 1 and 2 (nodes 14124761022, 14124760832); Digital Fortress - Portland 2 and 3 (nodes 13746843367, 13746843368); Lumen McLean 1 way 239147373 and Lumen McLean node 9669639033; NTT VA10 way 1561771299 and VA11 node 13154826379; EdgeConnex - DEN02 way 918943458 and EdgeConneX - DEN01 node 14212611951 |
 | A name that starts with the operator misspelt by one letter | Date Center West - Eugene node 13748859030 and way 967131562 (Medford), operator Data Center West, Inc. |
+| Points whose common words with a number are another site's name | Digital Fortress - Portland 1 node 13746843366 (511 SW 10th Ave, Portland), a record of its own beside Portland 2 and 3 in Beaverton, which it gives the series name (round 7 review) |

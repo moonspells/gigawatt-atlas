@@ -105,10 +105,15 @@ def site(summary: str, *, note: str = "", stage: str = "In review") -> dict[str,
 @pytest.mark.parametrize(
     "summary",
     [
-        "Hiring began at the data center, which remained under construction with an expected "
-        "18-24 month build timeline.",
-        "KCUR named the LLC behind the data center, noting the facility was under construction.",
-        "The data center remains under-construction.",
+        # Each names the project before it: "the data center" alone may be another site (round 7
+        # review, R3; these read "the data center" before).
+        "Hiring began at the Example data center, which remained under construction with an "
+        "expected 18-24 month build timeline.",
+        "KCUR named the LLC behind the Example data center, noting the facility was under "
+        "construction.",
+        "The Example data center remains under-construction.",
+        "Example Campus remained under construction.",  # the row's name is the subject
+        "The 1,178-acre Example campus is still under construction.",
     ],
 )
 def test_under_construction_phrases(summary: str) -> None:
@@ -130,10 +135,102 @@ def test_under_construction_phrases(summary: str) -> None:
         "construction or planned in the area.",
         "The warehouse next door is under construction.",  # no data center, campus or the row's
         "The solar farm powering the data center is under construction.",  # the power supply's
+        # Words that name no project before it: any data center may be meant (round 7 review, R3).
+        "Hiring began at the data center, which remained under construction with an expected "
+        "18-24 month build timeline.",
+        "KCUR named the LLC behind the data center, noting the facility was under construction.",
+        "The data center remains under-construction.",
+        "Residents pointed to the campus under construction in Richland Parish as a warning.",
+        # The project named, but another site, several sites or no state its subject.
+        "Example said its Omaha campus remained under construction.",
+        "The Example data center goes under construction in 2027, officials said.",
+        "Example has three data centers under construction.",
+        "Example's campus, unlike the Meta campus under construction, awaits a vote.",
+        "Near the Example campus, those under construction drew complaints.",
     ],
 )
 def test_no_site_under_construction(summary: str) -> None:
     assert log_milestone(site(summary), "proposed", TODAY) is None
+
+
+@pytest.mark.parametrize(
+    "summary",
+    [
+        "Google said its Omaha campus remained under construction while West Memphis awaited "
+        "permits.",
+        "Arkansas has three data centers under construction, according to the state.",
+        "Unlike the West Memphis data center, Google's Council Bluffs campus is under "
+        "construction.",
+        "The West Memphis data center is not under construction yet.",
+        "Officials said the data center would be under construction by spring.",
+        "The data center goes under construction in 2027, officials said.",
+        "Neighbors near other campuses under construction in Mississippi voiced concerns about "
+        "the West Memphis data center.",
+    ],
+)
+def test_another_sites_construction_holds_no_row(summary: str) -> None:
+    """West Memphis's row without its note's "Under construction." and its 2026-02-26 entry, with
+    one entry about another site, several sites or no state of its own (the round 7 review's
+    probes, R3): none is the row's site under construction. The entry it replaces is."""
+    row = memphis()
+    row["note"] = "$4B, 1,178-acre campus with 5 buildings in West Memphis, Arkansas."
+    (own,) = [e for e in row["events"] if e["date"] == "2026-02-26"]
+    row["events"].remove(own)
+    assert log_milestone(row, "proposed", TODAY) is None
+    entry = {"date": "2026-02-26", "kind": "coverage", "source": "https://x.test/a"}
+    assert log_milestone({**row, "events": [*row["events"], own]}, "proposed", TODAY) is not None
+    row["events"].append({**entry, "summary": summary})
+    assert log_milestone(row, "proposed", TODAY) is None
+
+
+def test_a_neighbours_construction_in_the_note_holds_no_row() -> None:
+    """A1 Data Center (Millville)'s note says "Millville borders Vineland, where the 300 MW
+    DataOne/Nebius campus was already under construction": the seed's row is Blocked by ban,
+    but at any active stage it read as the row's site under construction (round 7 review, R3)."""
+    row: dict[str, Any] = {
+        "id": "a1-data-center-millville-nj",
+        "name": "A1 Data Center (Millville)",
+        "operator": "",
+        "locality": "Millville",
+        "state": "NJ",
+        "stage": "In review",
+        "note": "A 2.9 million sq ft campus on 66 acres, with building heights to 150 feet, that "
+        "would have drawn roughly 1.4 GW from the grid - the largest data center proposal ever "
+        "blocked in New Jersey. Millville borders Vineland, where the 300 MW DataOne/Nebius "
+        "campus was already under construction.",
+        "events": [],
+    }
+    for status in ("announced", "proposed", "permitted"):
+        assert log_milestone(row, status, TODAY) is None, status
+
+
+def test_another_companys_campus_in_an_entry_holds_no_row() -> None:
+    """Hexa Builders' Monroe Township row (In review) with an entry about Meta's campus: the
+    round 7 review's weekly-style input withdrew the published record for it (R3)."""
+    row: dict[str, Any] = {
+        "id": "hexa-monroe-township-nj",
+        "name": "Hexa Builders data center (Black Horse Pike)",
+        "operator": "",
+        "filing_llc": "Hexa Builders LLC",
+        "locality": "Monroe Township (Gloucester County)",
+        "state": "NJ",
+        "stage": "In review",
+        "note": "",
+        "events": [
+            {
+                "date": "2026-09-30",
+                "kind": "coverage",
+                "summary": "Residents pointed to the Meta campus under construction in Richland "
+                "Parish as a warning.",
+                "source": "https://x.test/a",
+            }
+        ],
+    }
+    assert log_milestone(row, "proposed", TODAY) is None
+    row["events"][0]["summary"] = (
+        "Residents said the Hexa Builders data center was under construction."
+    )
+    assert log_milestone(row, "proposed", TODAY) is not None
 
 
 def test_the_rows_own_note_says_it_without_a_subject() -> None:
@@ -201,6 +298,41 @@ def test_without_the_tie_the_llc_names_no_project() -> None:
     assert names_project(row, VOTE) is None
     found = first_report(row, "proposed", milestone_events(row, TODAY), TODAY)
     assert found.event is not None and found.event["as_of"]["value"] == "2025-09"
+
+
+def test_a_tied_llc_names_the_project_only_by_its_full_name() -> None:
+    """The Dalles' entries tie Design LLC to Google ("Google (via subsidiary Design LLC)"): its
+    bare name is a common word, so only "Design LLC" in full names the project, never "design"
+    with the place (round 7 review, R4)."""
+    row: dict[str, Any] = {
+        "id": "google-the-dalles",
+        "name": "Google The Dalles",
+        "operator": "Google",
+        "owner": "Google",
+        "locality": "The Dalles",
+        "state": "OR",
+        "stage": "Under construction",
+        "events": [
+            {
+                "date": "2021-11-08",
+                "kind": "vote",
+                "summary": "The Dalles city council authorized an infrastructure agreement with "
+                "Google (via subsidiary Design LLC) worth $28.5 million for water system "
+                "improvements.",
+            }
+        ],
+    }
+    assert tied_llcs(row) == ["Design LLC"]
+    for summary in [
+        "The Dalles city council adopted new design standards for industrial buildings.",
+        "The Dalles planning commission reviewed a design for a downtown parking garage near a "
+        "proposed data center.",
+        "A local firm presented a design study for The Dalles waterfront.",
+        "The Dalles approved a design llc permit.",  # written otherwise than the LLC's name
+    ]:
+        assert names_project(row, summary) is None, summary
+    assert names_project(row, "The Dalles issued a permit to Design LLC.") == "org_place"
+    assert names_project(row, "The Dalles issued a permit to Design, LLC.") == "org_place"
 
 
 def tied(summary: str, operator: str = "Google") -> list[str]:

@@ -407,15 +407,36 @@ _LOG_GROUNDBREAKING_RE = re.compile(
 # behind, but an observation of that day, not the start of construction. Only the words before it
 # void it ("will be", "expected to be", "not yet"): those after it may be the build's timeline
 # ("with an expected 18-24 month build timeline"); "under construction or planned" is no report.
+# The words before it must also make the row's site its subject (_own_site_under_construction).
 _LOG_UNDER_CONSTRUCTION_RE = re.compile(
     r"\b(?:remain(?:s|ed|ing)?\s+)?under[- ]construction\b(?!\s+or\s+(?:planned|proposed)\b)",
     re.I,
 )
-# Words just before it that make it one of several sites, not the row's ("10 data centers, with one
-# already under construction in Texas"; "with multiple campuses under construction").
-_OTHER_SITES_BEFORE_RE = re.compile(
-    r"\b(?:with|including)\s+(?:one|several|multiple|many|other|some)\b[^,;]{0,30}$", re.I
+# Words before it that make its subject another site: a relative "where" (Millville's note:
+# "Millville borders Vineland, where the 300 MW DataOne/Nebius campus was already under
+# construction"), a comparison ("Unlike the West Memphis data center, ...").
+_ANOTHER_SITE_BEFORE_RE = re.compile(r"\b(?:where|unlike)\b", re.I)
+# Words between the row's last mention and it that make its subject several sites, or a count of
+# them ("other campuses", "three data centers", "among those", "with one already").
+_SEVERAL_SITES_RE = re.compile(
+    r"\b(?:other|others|another|those|these|several|multiple|many|some|both|all|one|two|three|"
+    r"four|five|six|seven|eight|nine|ten|dozens?|data[- ]?cent(?:er|re)s|datacenters|campuses|"
+    r"facilities|sites|buildings|projects)\b",
+    re.I,
 )
+# The words that may stand between the subject and it ("the facility was", "the data center, which
+# remained", "the campus is still"), and the site words that may be its subject.
+_LINKING_TAIL_RE = re.compile(
+    r"(?:\W|\b(?:which|that|is|was|are|were|has|have|had|been|being|remains?|remained|"
+    r"stays?|stayed|still|already|now|currently|also|largely|actively|well|officially|"
+    r"reportedly)\b)*$",
+    re.I,
+)
+_SITE_SUBJECT_RE = re.compile(
+    r"\b(?:data[- ]?cent(?:er|re)|datacenter|campus|facility|site|project)$", re.I
+)
+# Capitalized words that name no place or company ("the 300 MW campus", "the AI data center").
+_NOT_NAMES = frozenset({"mw", "gw", "kw", "mwh", "gwh", "ai", "it", "hpc", "llc", "inc", "us"})
 # A lawsuit that seeks to undo an approval says there is one (Wolcott: "to overturn the
 # rezoning").
 _LOG_CHALLENGED_RE = re.compile(
@@ -1744,6 +1765,14 @@ def tied_llcs(project: dict[str, Any]) -> list[str]:
     return out
 
 
+def _names_llc(text: str, llc: str) -> bool:
+    """Whether the text names a tied LLC (tied_llcs) by its full name as written, its suffix
+    included ("Groot LLC", "Groot, LLC"): its bare name may be a common word (The Dalles' "Design
+    LLC" names no project in "new design standards")."""
+    bare = re.sub(r",?\s+(?:LLC|L\.L\.C\.)$", "", llc)
+    return bool(re.search(rf"(?<!\w){re.escape(bare)},?\s+(?:LLC|L\.L\.C\.)(?!\w)", text))
+
+
 def _place_names(project: dict[str, Any]) -> list[str]:
     """The places the locality names: the place, the parenthesis and the counties ("Lansing",
     "Tompkins County"), and each part of a compound place."""
@@ -1822,8 +1851,9 @@ def names_project(project: dict[str, Any], summary: str) -> ReportHow | None:
     """How an entry names the row's project: its name, a site word of the name, its acreage, its
     size_mw with a data center ("the 24 MW data center"), or one of its organizations with its
     place or a data center ("TeraWulf ... the Lansing site", "the Prime Group data center
-    project"); an LLC the row's entries tie to its operator is one of them (tied_llcs: West
-    Memphis' council vote "with Groot LLC"). None when it does not."""
+    project"); an LLC the row's entries tie to its operator is one of them, named in full
+    (tied_llcs, _names_llc: West Memphis' council vote "with Groot LLC"). None when it does
+    not."""
     folded = summary.casefold()
     name = _project_name(project)
     if len(name) > 3 and name.casefold() in folded:
@@ -1856,8 +1886,10 @@ def names_project(project: dict[str, Any], summary: str) -> ReportHow | None:
     ):
         return "size"
     places = tuple(_place_names(project))
-    orgs = _row_orgs(project) + tied_llcs(project)
-    if any(_names_org(summary, o, places) for o in orgs) and (
+    if (
+        any(_names_org(summary, o, places) for o in _row_orgs(project))
+        or any(_names_llc(summary, llc) for llc in tied_llcs(project))
+    ) and (
         any(re.search(rf"(?<!\w){re.escape(p)}(?!\w)", summary, re.I) for p in places)
         or _mentions_data_center(project, summary)
     ):
@@ -2132,6 +2164,82 @@ def _about_the_site(project: dict[str, Any], clause: str) -> bool:
     )
 
 
+def _row_mentions(project: dict[str, Any]) -> list[re.Pattern[str]]:
+    """Patterns of the row's own names, as names_project reads them: its name and site words, its
+    organizations (their bare name, or their distinctive first word as written, as _names_org),
+    the LLCs tied to its operator (in full) and its places."""
+    out: list[re.Pattern[str]] = []
+    name = _project_name(project)
+    if len(name) > 3:
+        out.append(re.compile(re.escape(name), re.I))
+    out += [re.compile(rf"(?<!\w){re.escape(w)}(?!\w)", re.I) for w in _site_words(project)]
+    places = _place_names(project)
+    place_words = {w.casefold() for p in places for w in p.split()}
+    for org in _row_orgs(project):
+        bare = clean_text(_ORG_SUFFIX_RE.sub(" ", org)).strip(" ,.")
+        if len(bare) >= 3:
+            out.append(re.compile(rf"(?<!\w){re.escape(bare)}(?!\w)", re.I))
+        first = bare.split()[0] if bare.split() else ""
+        if (
+            len(first) >= 4
+            and first.casefold() not in _GENERIC_WORDS
+            and first.casefold() not in place_words
+        ):
+            out.append(re.compile(rf"(?<!\w){re.escape(first)}(?!\w)"))
+    for llc in tied_llcs(project):
+        bare = re.sub(r",?\s+(?:LLC|L\.L\.C\.)$", "", llc)
+        out.append(re.compile(rf"(?<!\w){re.escape(bare)},?\s+(?:LLC|L\.L\.C\.)(?!\w)"))
+    out += [re.compile(rf"(?<!\w){re.escape(p)}(?!\w)", re.I) for p in places]
+    return out
+
+
+def _row_words(project: dict[str, Any]) -> set[str]:
+    """The words of the row's name, organizations, tied LLCs, locality and state, casefolded."""
+    texts = [
+        clean_text(project.get(key))
+        for key in ("name", "operator", "owner", "tenant", "filing_llc", "locality", "state")
+    ] + tied_llcs(project)
+    return {w.casefold() for text in texts for w in re.findall(r"[A-Za-z][\w&.]*", text)}
+
+
+def _own_site_under_construction(project: dict[str, Any], before: str, *, note: bool) -> bool:
+    """Whether "under construction" after these words of a clause is said of the row's site. A
+    clause of the row's own note that starts with it is ("Under construction."). Else the words
+    before it must name the project (names_project), or the row's place with a site word for its
+    subject ("at the West Memphis data center, which remained under construction"); after the
+    row's last mention they must name no other place or company ("Google said its Omaha campus
+    remained ...") and no several sites ("other campuses", "three data centers", "among those"),
+    and end in its subject: a site word ("the facility was", "the data center, which") or, for a
+    project named, the mention itself. A relative "where" or an "unlike" before it voids it (the
+    Millville note's "Vineland, where the ... campus was already under construction")."""
+    if note and not before.strip():
+        return True
+    if _ANOTHER_SITE_BEFORE_RE.search(before):
+        return False
+    named = names_project(project, before) is not None
+    if not named and not _names_a_place(project, before):
+        return False
+    end = max(
+        (m.end() for pattern in _row_mentions(project) for m in pattern.finditer(before)), default=0
+    )
+    tail = before[end:]
+    if _SEVERAL_SITES_RE.search(tail):
+        return False
+    own = _row_words(project)
+    for i, word in enumerate(re.findall(r"[A-Za-z][\w&.]*", tail)):
+        key = word.strip(".").casefold()
+        if (
+            word[0].isupper()
+            and len(key) > 1
+            and key not in own
+            and key not in _NOT_NAMES
+            and not (i == 0 and end == 0 and key in {"the", "a", "an", "its", "this"})
+        ):
+            return False
+    rest = _LINKING_TAIL_RE.sub("", tail).strip()
+    return bool(_SITE_SUBJECT_RE.search(rest)) or (named and end > 0 and not rest)
+
+
 def log_milestone(project: dict[str, Any], status: Status, today: date) -> LogMilestone | None:
     """A milestone the event log or the note reports that an active stage has not reached: a
     denial of the project's land-use application with no filing after it (Forsyth County "voted
@@ -2189,11 +2297,9 @@ def log_milestone(project: dict[str, Any], status: Status, today: date) -> LogMi
                 found.append(("under_construction", "a groundbreaking or construction under way"))
             elif not _LOG_ENERGY_RE.search(clause) and any(
                 _unhedged(clause, m.start(), m.start())
-                and not _OTHER_SITES_BEFORE_RE.search(clause[: m.start()])
-                and (site or (day is None and not clause[: m.start()].strip()))
+                and _own_site_under_construction(project, clause[: m.start()], note=day is None)
                 for m in _LOG_UNDER_CONSTRUCTION_RE.finditer(clause)
             ):
-                # A note's clause that starts with it ("Under construction.") is the row's.
                 found.append(("under_construction", _SEEN_UNDER_CONSTRUCTION))
             for reported, what in found:
                 rank = ACTIVE_ORDER.index(reported)

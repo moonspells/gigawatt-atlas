@@ -381,7 +381,10 @@ project"). An LLC the row's own entries tie to its operator counts as one of its
 its filing LLCs do (`tied_llcs`, fix round 7: "Google (via Groot LLC)", "Google (via subsidiary
 Design LLC)", "Groot LLC, a Google-linked entity"), so Google West Memphis's council vote of
 2025-05-15 "with Groot LLC" in West Memphis is its first report, not the PSC filing of 2025-09
-that names Google; Groot's land purchase of 2024-11-01 is still a property deal. Other wordings
+that names Google; Groot's land purchase of 2024-11-01 is still a property deal. Such an LLC
+names the project only by its full name as written, its suffix included ("Groot LLC", "Groot,
+LLC"), since its bare name may be a common word: The Dalles' "Design LLC" names nothing in "The
+Dalles city council adopted new design standards". Other wordings
 are not read: an affiliate or subsidiary a row names may be another site's or serve another
 purpose (Magellan Enterprises LLC, Google's LLC in Columbus, in Google Lancaster's row; Dotier
 LLC, which finances Meta's solar supply, in Meta Montgomery's). Logs often start with the site's history or the place's rules, and the second seed check
@@ -484,12 +487,20 @@ County's Journey 2A building under Approved; in the note, "the company", "the de
 project" is the row's: Nebius Independence's "Council approved Chapter 100 abatement 5-2 and the
 company has broken ground", under Approved), or, since fix round 7, the site under construction
 ("under construction", "remains" or "remained under construction": Google West Memphis's 2026-02-26
-entry, the data center "which remained under construction with an expected 18-24 month build
-timeline", under In review, and its note's "Under construction.", a clause of the row's own note
-that starts with it). Only the words before the phrase void it ("will be", "expected to be", "not
-yet"; those after it may be the build's timeline), and so do "or planned" after it and words that
-make it one of several sites ("10 data centers, with one already under construction in Texas";
-"with multiple campuses under construction"). Such an entry reports the status on its day, not
+entry, Google hiring "at the West Memphis data center, which remained under construction with an
+expected 18-24 month build timeline", under In review, and its note's "Under construction.", a
+clause of the row's own note that starts with it). Only the words before the phrase void it ("will
+be", "expected to be", "not yet"; those after it may be the build's timeline), and so does "or
+planned" after it. The phrase is so often said of other sites (neighbours, comparisons, counts)
+that the words before it must make the row's site its subject: they name the project (as for the
+first report, above), or the row's place with a site word; after the row's last mention they name
+no other place or company ("Google said its Omaha campus remained under construction"; the Meta
+campus "under construction in Richland Parish" in Hexa's Monroe Township row) and no several
+sites ("three data centers", "other campuses", "among those", "with one already under
+construction in Texas"), and they end in its subject, a site word ("the facility was", "the data
+center, which") or the project named. A relative "where" or an "unlike" before it voids it: A1
+Data Center (Millville)'s note, "Millville borders Vineland, where the 300 MW DataOne/Nebius campus
+was already under construction", is no report of the row's site. Such an entry reports the status on its day, not
 when construction began, so its item says it dates no start (`data.observation`): a cited
 correction gives it as an `observe` op, never a `construction_start` of that day. For a row at announced or proposed it is also held
 when the log or note leaves no application under review: the application refused as incomplete

@@ -6,7 +6,7 @@ first-report stop of the same round is in tests/sources/test_osm_corrections.py.
 from __future__ import annotations
 
 import argparse
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import date
 from pathlib import Path
 
@@ -25,6 +25,7 @@ from atlas.sources.osm import (
 from atlas.validate import validate_record
 
 MakeContext = Callable[..., ImportContext]
+Elements = Mapping[str, frozenset[tuple[str, str | None]]]  # osm._Context.named_elements
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 FIX7 = FIXTURES / "osm" / "overpass-fix7.json"
 NO_OVERRIDES = FIXTURES / "osm" / "overrides-empty.json"
@@ -124,13 +125,65 @@ def test_named_points_name_their_campus_like_buildings(run: ImportResult) -> Non
     assert dartpoints.canonical_name.startswith("DartPoints Baton Rouge (")
     assert sorted(aliases(dartpoints)) == ["DartPoints Baton Rouge 1", "DartPoints Baton Rouge 2"]
     expected = {
-        "node/13746843367": "Digital Fortress - Portland (",
+        # Not "Digital Fortress - Portland": with a number that is Portland 1's name, another
+        # record of the same operator (round 7 review, R2b; test_a_stem_that_names_another_site).
+        "node/13746843367": "Digital Fortress - Portland 2 and 3 (",
         "way/239147373": "Lumen McLean (",
         "way/1561771299": "NTT VA10 and VA11 (",
         "way/918943458": "EdgeConneX DEN01 and DEN02 (",
     }
     for ref, start in expected.items():
         assert record(run, ref).canonical_name.startswith(start), ref
+
+
+def test_a_stem_that_names_another_site_gives_the_series(run: ImportResult) -> None:
+    """Digital Fortress' nodes 'Portland 2' and '3' in Beaverton have the common words 'Digital
+    Fortress - Portland', which with a number are the name of node 'Digital Fortress - Portland 1'
+    in Portland, a record of its own of the same operator: the campus is called by its series,
+    not by a name that reads as every Portland site's (round 7 review, R2b). DartPoints keeps its
+    stem: no other element is 'DartPoints Baton Rouge' with a number."""
+    beaverton = record(run, "node/13746843367")
+    assert beaverton.external_ids["osm"] == ["node/13746843367", "node/13746843368"]
+    assert beaverton.canonical_name.startswith("Digital Fortress - Portland 2 and 3 (")
+    assert sorted(aliases(beaverton)) == [
+        "Digital Fortress - Portland 2",
+        "Digital Fortress - Portland 3",
+    ]
+    portland = record(run, "node/13746843366")
+    assert portland.external_ids["osm"] == ["node/13746843366"]
+    assert portland.canonical_name.startswith("Digital Fortress - Portland 1 (")
+    assert record(run, "node/14124760832").canonical_name.startswith("DartPoints Baton Rouge (")
+
+
+def test_the_series_only_when_another_element_has_the_name() -> None:
+    """The stem with a number must be the name of an element outside the campus, of one of its
+    operators or of none; and buildings alone keep their common words, as before points named
+    campuses (Digital Realty Silicon Valley, SJC10 to SJC30, beside SJC31, SJC34 and SJC37)."""
+    points = [
+        member("node/2", "Fortress - Portland 2", "Fortress", "point"),
+        member("node/3", "Fortress - Portland 3", "Fortress", "point"),
+    ]
+    ops = frozenset({"fortress"})
+
+    def name(members: list[OsmObject], elements: Elements) -> str:
+        return _canonical_name(members[0], members, "Fortress", "Place", "OR", ops, elements)[0]
+
+    other = {"fortress portland 1": frozenset({("node/1", "fortress")})}
+    assert name(points, other) == "Fortress - Portland 2 and 3 (Place, OR)"
+    unknown = {"fortress portland 1": frozenset({("node/1", None)})}  # no operator tag
+    assert name(points, unknown) == "Fortress - Portland 2 and 3 (Place, OR)"
+    assert name(points, {}) == "Fortress - Portland (Place, OR)"
+    another = {"fortress portland 1": frozenset({("node/1", "someone else")})}
+    assert name(points, another) == "Fortress - Portland (Place, OR)"
+    own = {"fortress portland 2": frozenset({("node/2", "fortress")})}  # the campus's own name
+    assert name(points, own) == "Fortress - Portland (Place, OR)"
+    words = {"fortress portland east": frozenset({("node/1", "fortress")})}  # no number
+    assert name(points, words) == "Fortress - Portland (Place, OR)"
+    buildings = [
+        member("way/2", "Fortress - Portland 2", "Fortress"),
+        member("way/3", "Fortress - Portland 3", "Fortress"),
+    ]
+    assert name(buildings, other) == "Fortress - Portland (Place, OR)"
 
 
 def test_a_point_does_not_break_the_buildings_series() -> None:

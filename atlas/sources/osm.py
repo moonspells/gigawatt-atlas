@@ -1247,6 +1247,9 @@ class _Context:
     existing: Mapping[str, FacilityRecord]
     existing_by_ref: Mapping[str, set[str]]
     operators: frozenset[str]  # normalize_org of every operator and operator:short in the input
+    # normalize_name of every element name in the input: the refs that carry it, with their
+    # operators (normalize_org; None without one), for _stem_names_another
+    named_elements: Mapping[str, frozenset[tuple[str, str | None]]]
     overrides: Mapping[str, ElementOverride]  # the config/overrides/osm.json entries applied
     dropped: frozenset[str]  # refs the overrides drop from scope (each its own cluster)
     alone: frozenset[str] = frozenset()  # refs the overrides set alone (each its own cluster)
@@ -1980,18 +1983,49 @@ def _numbered_name(name: str, words: frozenset[str]) -> bool:
     )
 
 
+def _stem_names_another(
+    stem: str,
+    cluster: Sequence[OsmObject],
+    named_elements: Mapping[str, frozenset[tuple[str, str | None]]],
+) -> bool:
+    """True when the stem, with a number or a code with one after it, is the name of a named
+    element of the input outside the cluster, of one of the cluster's operators or of none: then
+    the stem reads as the name of every such site, and drops the numbers that tell this one apart
+    (Digital Fortress' nodes "Digital Fortress - Portland 2" and "3" in Beaverton, beside the
+    separate "Digital Fortress - Portland 1" in Portland)."""
+    key = normalize_name(stem)
+    refs = {m.ref for m in cluster}
+    ops = {normalize_org(m.operator) for m in cluster if m.operator}
+    for name, holders in named_elements.items():
+        rest = name[len(key) + 1 :] if name.startswith(key + " ") else ""
+        if (
+            rest
+            and _SERIES_SUFFIX_RE.match(rest)
+            and any(ref not in refs and (op is None or op in ops) for ref, op in holders)
+        ):
+            return True
+    return False
+
+
 def _members_name(
-    members: Sequence[OsmObject], words: frozenset[str], operators: frozenset[str]
+    members: Sequence[OsmObject],
+    words: frozenset[str],
+    operators: frozenset[str],
+    taken: Callable[[str], bool] = lambda stem: False,
 ) -> tuple[str, list[OsmObject]] | None:
     """(the name several named members give a campus, the members it comes from), or None: by
-    campus_name of the specific names (specific_name), or by _series_name when they are no
+    campus_name of the specific names (specific_name), as a series when their common words with a
+    number name another site (taken: _stem_names_another), or by _series_name when they are no
     siblings as they stand; else by the series of the names that differ only by their number
     (_numbered_name)."""
     specific = [m for m in members if specific_name(m.name, words)]
     by_key = {normalize_name(m.name or ""): m for m in specific}
     if len(by_key) >= 2:
         named = sorted(by_key.values(), key=lambda m: ref_key(m.ref))
-        found = campus_name([m.name or "" for m in named], words, operators)
+        names = [m.name or "" for m in named]
+        found = campus_name(names, words, operators)
+        if found is not None and taken(found):
+            found = campus_name(names, words, operators, series_first=True)
         if found is not None:
             return found, [m for m in specific if normalize_name(m.name or "") in by_key]
         retried = _series_name(named, words, operators)
@@ -2014,6 +2048,7 @@ def _base_name(
     ordered: Sequence[OsmObject],
     words: frozenset[str],
     operators: frozenset[str] = frozenset(),
+    named_elements: Mapping[str, frozenset[tuple[str, str | None]]] | None = None,
 ) -> tuple[str | None, list[OsmObject]]:
     """(the name a record is called by before its operator and place, the members it comes from).
 
@@ -2026,7 +2061,11 @@ def _base_name(
       leading operator, or without a name that is only words of another's), or when their names
       are only the operator, generic words and a number (_numbered_name), as a series ("Microsoft
       Data Center 1 to 3", not its first building's name). When the buildings name none, the
-      named points take part like buildings (DartPoints' two nodes: "DartPoints Baton Rouge").
+      named points take part like buildings (DartPoints' two nodes: "DartPoints Baton Rouge"),
+      but common words of theirs that with a number are another named element's name
+      (named_elements, the input's names: _stem_names_another) give the series instead
+      ("Digital Fortress - Portland 2 and 3", beside the separate "Digital Fortress - Portland
+      1").
     - Else the representative's name (unless it is tagged with another primary use, the USPO
       Terminal Annex: then the most common name of a member without one, "CoreSite - LA2"), else
       the most common member name.
@@ -2048,9 +2087,18 @@ def _base_name(
     named = [m for m in own if m.kind in _NAMED_MEMBER_KINDS and m.name]
     buildings = [m for m in named if m.kind == "building"]
     # Buildings alone first: a point's name may break their series (the node "Equinix Ashburn
-    # DC18" among Equinix DC1 to DC22).
+    # DC18" among Equinix DC1 to DC22). With the points, common words that with a number name
+    # another element of the input give the series (_stem_names_another); buildings alone keep
+    # their common words, as before points named campuses ("Digital Realty Silicon Valley" for
+    # SJC10 to SJC30, beside SJC31 and SJC37).
+    elements = named_elements or {}
+
+    def taken(stem: str) -> bool:
+        return _stem_names_another(stem, ordered, elements)
+
     for members in (buildings, named) if len(named) > len(buildings) else (buildings,):
-        found = _members_name(members, words, operators)
+        points = any(m.kind == "point" for m in members)
+        found = _members_name(members, words, operators, taken if points else lambda stem: False)
         if found is not None:
             return found
     base = (
@@ -2068,13 +2116,14 @@ def _canonical_name(
     place: str,
     st: str,
     operators: frozenset[str] = frozenset(),
+    named_elements: Mapping[str, frozenset[tuple[str, str | None]]] | None = None,
 ) -> tuple[str, str | None, list[OsmObject], bool]:
     """(canonical_name, the base name, the members it comes from, whether the operator was
     prefixed). See _base_name (with the words of the cluster's own operators, so that a word
     another operator of the input happens to use still names a site: "Pacific" in "PowerHouse
     Pacific"); then "{operator} data center" or "Data center", the operator prefixed unless the
     base already names it, and " ({place}, {ST})"."""
-    base_name, named = _base_name(rep, ordered, operator_words(ordered), operators)
+    base_name, named = _base_name(rep, ordered, operator_words(ordered), operators, named_elements)
     base = base_name or (f"{operator} data center" if operator else "Data center")
     short = rep.tags.get("operator:short") or _most_common(
         m.tags.get("operator:short") for m in ordered if m.operator == operator
@@ -2566,7 +2615,7 @@ def _build_one(
     owner, owned_by = _owner(ordered)
     place = city or ctx.gazetteer.county_full_name(county.fips) or county.name
     name, base_name, named_from, prefixed = _canonical_name(
-        rep, ordered, operator, place, st, ctx.operators
+        rep, ordered, operator, place, st, ctx.operators, ctx.named_elements
     )
     capacity_from = _capacity(cluster, ordered, review)
     members = [m for m in ordered if m.kind not in AREA_KINDS]
@@ -3275,6 +3324,11 @@ def build_candidates(
         for value in (m.operator, m.tags.get("operator:short"))
         if value and (key := normalize_org(value))
     )
+    named_elements: dict[str, set[tuple[str, str | None]]] = {}
+    for m in objects:
+        if m.name:
+            op = normalize_org(m.operator) if m.operator else None
+            named_elements.setdefault(normalize_name(m.name), set()).add((m.ref, op or None))
     ctx = _Context(
         counties=counties,
         gazetteer=gazetteer,
@@ -3288,6 +3342,7 @@ def build_candidates(
         existing=stored,
         existing_by_ref=by_ref,
         operators=operators,
+        named_elements={k: frozenset(v) for k, v in named_elements.items()},
         overrides=dict(overrides or {}),
         dropped=frozenset(dropped),
         alone=frozenset(alone),
