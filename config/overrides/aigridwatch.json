@@ -328,10 +328,38 @@
         "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
         "ops": [
           {
+            "city": "Kearney",
             "county_fips": "31019",
             "from": {
               "city": "Kearney",
               "county_fips": null
+            },
+            "lat": 40.7,
+            "lon": -99.08,
+            "op": "set_location",
+            "precision": "locality",
+            "state_abbr": "NE"
+          }
+        ],
+        "published_at": "2026-08-21T22:00:55Z",
+        "publisher": "KSNB Local4",
+        "quote": "Phase 1 is projected to generate about $20 million annually in property taxes for entities including Buffalo County, Kearney Public Schools, Central Community College and the Central Platte Natural Resources District.",
+        "reason": "The project's property taxes go to Buffalo County, the county of the site, where the row's point lies; the record had no county",
+        "retrieved_at": "2026-10-13T04:30:46Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.ksnblocal4.com/2026/08/21/kearney-planning-commission-recommends-approval-proposed-data-center/"
+      },
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "county_fips": "31019",
+            "from": {
+              "city": "Kearney",
+              "county_fips": "31019",
+              "precision": "locality"
             },
             "lat": 40.7,
             "lon": -99.08,
@@ -343,26 +371,7 @@
         "published_at": "2026-08-21T22:00:55Z",
         "publisher": "KSNB Local4",
         "quote": "Because Tech oNE Crossing is outside Kearney city limits, property tax revenue from the project would go to other local taxing entities rather than the city.",
-        "reason": "The site, at Tech oNE Crossing, is outside Kearney's city limits: the record names Buffalo County, where the row's point lies, at county precision, and not the city",
-        "retrieved_at": "2026-10-13T04:30:46Z",
-        "reviewed_at": "2026-10-13",
-        "source_type": "news",
-        "source_url": "https://www.ksnblocal4.com/2026/08/21/kearney-planning-commission-recommends-approval-proposed-data-center/"
-      },
-      {
-        "basis": "upstream_error",
-        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
-        "ops": [
-          {
-            "from": "31019",
-            "op": "support",
-            "path": "/location/county_fips"
-          }
-        ],
-        "published_at": "2026-08-21T22:00:55Z",
-        "publisher": "KSNB Local4",
-        "quote": "Phase 1 is projected to generate about $20 million annually in property taxes for entities including Buffalo County, Kearney Public Schools, Central Community College and the Central Platte Natural Resources District.",
-        "reason": "The project's property taxes go to Buffalo County, the county of the site",
+        "reason": "The site, at Tech oNE Crossing, is outside Kearney's city limits: the record names no city, at county precision in Buffalo County (the Fix before)",
         "retrieved_at": "2026-10-13T04:30:46Z",
         "reviewed_at": "2026-10-13",
         "source_type": "news",

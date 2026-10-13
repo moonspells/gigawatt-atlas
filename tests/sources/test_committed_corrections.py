@@ -35,7 +35,6 @@ from atlas.sources.corrections import (
     SetLocation,
     SetParty,
     SetValue,
-    Support,
     fuzzy_date,
 )
 from atlas.text import find_personal_data, normalize_name
@@ -81,8 +80,8 @@ STATED_OTHERWISE: dict[tuple[str, str, str], str] = {
     ("osm.json", "way/1486780799", "601 North Star Road"): "street",
     # The county a cited OpenStreetMap element's outline gives, named in the Fix's reason.
     ("epoch.json", "Meta Kuna", "Ada County"): "reason",
-    # The county the entry's Fix that supports /location/county_fips names (where Kearney's
-    # taxes go).
+    # The county the entry's Fix that sets it names (where Kearney's taxes go), which the Fix
+    # that takes the city off restates.
     ("aigridwatch.json", "kearney-data-center-ne", "Buffalo County"): "entry",
 }
 # The year of a Fix's date is in its quote, its published_at or its URL, except where the page
@@ -165,7 +164,7 @@ def stated_otherwise(reading: str, value: str, fix_: Fix, others: Sequence[Fix])
     """Whether a value its quote does not hold verbatim is in the page by its reading: "words"
     (_quoted), "street" (abbreviations spelled out), "reason" (a place the outline of the cited
     OpenStreetMap element gives, named in the reason), "entry" (a county in the quote of a Fix of
-    the same entry that supports /location/county_fips)."""
+    the same entry whose set_location gives a county)."""
     if reading == "words":
         return _quoted(value, fix_.quote, fix_.publisher)
     if reading == "street":
@@ -176,7 +175,7 @@ def stated_otherwise(reading: str, value: str, fix_: Fix, others: Sequence[Fix])
     return value.endswith(" County") and any(
         value in f.quote
         for f in others
-        if any(isinstance(op, Support) and op.path == "/location/county_fips" for op in f.ops)
+        if any(isinstance(op, SetLocation) and op.county_fips is not None for op in f.ops)
     )
 
 
@@ -260,13 +259,14 @@ def test_every_committed_correction_is_cited(file: str, counties: CountyIndex) -
             if stops(fix_):
                 assert fix_.source_type in STOP_SOURCE_TYPES, where
             for value in written(fix_, counties):
+                if value in fix_.quote:
+                    continue
+                # Each exception is needed by a Fix of its entry (the set check below); another
+                # Fix of the entry may quote the value (Kearney's county).
                 reading = STATED_OTHERWISE.get((file, key, value))
-                if reading is None:
-                    assert value in fix_.quote, (where, value)
-                else:
-                    assert value not in fix_.quote, (where, value, "no longer stated otherwise")
-                    assert stated_otherwise(reading, value, fix_, corrections), (where, value)
-                    otherwise.add((file, key, value))
+                assert reading is not None, (where, value)
+                assert stated_otherwise(reading, value, fix_, corrections), (where, value)
+                otherwise.add((file, key, value))
             for as_of in dated(fix_):
                 assert period_start(fuzzy_date(as_of)) <= today, (where, as_of)
                 year = as_of[:4]

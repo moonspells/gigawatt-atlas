@@ -2313,6 +2313,64 @@ def test_set_location_keeps_the_point_its_source_gives(
     assert valid(rec, counties)
 
 
+def test_two_set_locations_cite_each_field_to_the_quote_that_states_it(
+    correct: Correct, counties: CountyIndex
+) -> None:
+    """Kearney as committed (the verification of fix round 6's review fixes): the first
+    set_location gives the county, citing the sentence that names Buffalo County, and the second
+    takes the city off at county precision, citing the city-limits sentence. Each field's
+    field_meta and support is the source whose quote states it; the point stays AI GridWatch's."""
+    before = seed("aigridwatch_id:kearney-data-center-ne")
+    url = "https://www.ksnblocal4.com/2026/08/21/kearney-planning-commission/"
+    point = {"op": "set_location", "state_abbr": "NE", "lat": 40.7, "lon": -99.08}
+    county = {"from": {"city": "Kearney", "county_fips": None}, "city": "Kearney"}
+    limits = {"from": {"city": "Kearney", "county_fips": "31019", "precision": "locality"}}
+    rec = correct(
+        before,
+        fix(
+            url,
+            "property taxes for entities including Buffalo County",
+            {**point, **county, "county_fips": "31019", "precision": "locality"},
+        ),
+        fix(
+            url,
+            "Because Tech oNE Crossing is outside Kearney city limits",
+            {**point, **limits, "county_fips": "31019", "precision": "county"},
+        ),
+    ).record
+    loc = rec.location
+    assert (loc.city, loc.county_fips, loc.county_name, loc.precision, loc.geocode_method) == (
+        None,
+        "31019",
+        "Buffalo",
+        "county",
+        "source_coords",
+    )
+    assert source(rec, "s3")["supports"] == ["/location/county_fips", "/location/county_name"]
+    assert source(rec, "s4")["supports"] == []  # a null city and the precision claim nothing
+    for pointer, sid in (
+        ("/location/county_fips", "s3"),
+        ("/location/county_name", "s3"),
+        ("/location/city", "s4"),
+        ("/location/precision", "s4"),
+    ):
+        assert meta(rec, pointer)["source_ids"] == [sid], pointer
+    assert meta(rec, "/location") == meta(before, "/location")  # AI GridWatch's, for the point
+    assert changes(rec) == [
+        (
+            "/location",
+            {"county_fips": None, "county_name": None},
+            {"county_fips": "31019", "county_name": "Buffalo"},
+        ),
+        (
+            "/location",
+            {"city": "Kearney", "precision": "locality"},
+            {"city": None, "precision": "county"},
+        ),
+    ]
+    assert valid(rec, counties)
+
+
 def test_flag_files_an_item_and_changes_nothing(correct: Correct) -> None:
     """entries-4: a flag files a review item with the Fix's reason, URL and quote and changes
     nothing else (the record does not cite a page that only flags); counted in the receipt."""

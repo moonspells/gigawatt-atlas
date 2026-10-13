@@ -165,9 +165,12 @@ For each Fix, `apply_fixes` works on the record's JSON:
 
    A `set_location` that keeps the record's point (the same `lat` and `lon`) keeps the method that
    placed it and the source that gave it: Kearney's AI GridWatch coordinates stay
-   `source_coords`, with s1 supporting `/location/lat` and `/location/lon`, while the city,
-   county and precision the op changes go to the Fix, each with its own `field_meta` (the
-   importer's `field_meta["/location"]` stays, for the point). A point the op moves takes all of
+   `source_coords`, with s1 supporting `/location/lat` and `/location/lon`, while the fields the
+   op changes go to the Fix, each with its own `field_meta` (the importer's
+   `field_meta["/location"]` stays, for the point). So each field can go to the quote that states
+   it: Kearney's first `set_location` gives the county, citing KSNB's sentence that the project's
+   taxes go to Buffalo County, and its second takes the city off at county precision, citing
+   "Tech oNE Crossing is outside Kearney city limits". A point the op moves takes all of
    `/location` to the Fix.
 4. **`field_meta`.** `set`, `set_party`, `set_location` and `rename` write `field_meta[pointer]`:
    `method: "human_entered"`, the Fix's source, the confidence below, and in `conflicts` the old
@@ -361,7 +364,9 @@ against its own citation, so CI catches a value its quote does not state before 
   the quote or the publisher's name: "NTT Sacramento CA1 to CA3" from NTT's page of its
   Sacramento sites), `street` (abbreviations spelled out: Rd, Dr, E), `reason` (the county that
   a cited OpenStreetMap element's outline gives, named in the Fix's reason) or `entry` (a county
-  in the quote of the entry's Fix that supports `/location/county_fips`);
+  in the quote of another Fix of the entry whose `set_location` gives it: Kearney's second Fix,
+  which takes the city off, restates the county its first Fix sets). Each listed value is needed
+  by a Fix of its entry, whose quote does not hold it;
 - every date of an event that has happened is no later than today, and its year is in the quote,
   the page's `published_at` or the URL, or `YEAR_ELSEWHERE` says how the page gives it;
 - an announced event (one an `add_event` adds, or a `replace_event` retypes or redates) quotes

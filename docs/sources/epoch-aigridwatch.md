@@ -1181,7 +1181,7 @@ corrections:
 | `cloudburst-san-marcos-tx` | acreage withheld (96 acres, about 220 and 706 disagree); the Hays County location is the importer's, and a `flag` files a `conflict` item that leaves the county open (the Herald-Zeitung puts the 706 acres in northern Guadalupe County, Community Impact the 96-acre site across both counties) | Herald-Zeitung (both) |
 | `microsoft-cheyenne-expansion` | `release: ["stage"]`; announced 2026-04-14, approved 2026-07-13: permitted, without the stage's operating observation; Laramie County is the importer's | Microsoft; County 17 |
 | `vermaland-la-osa-pinal-az` | first report 2025-07, proposed (the rezoning requests presented to the county); denied 2026-08-26, `local_denial` | KVOA; KJZZ |
-| `kearney-data-center-ne` | first report 2026-08-18, proposed (the conditional use permit application); approved 2026-09-08: permitted; Buffalo County at county precision, without the city (the site is outside Kearney's limits) | Central Nebraska Today; Rock 101.5; KSNB |
+| `kearney-data-center-ne` | first report 2026-08-18, proposed (the conditional use permit application); approved 2026-09-08: permitted; Buffalo County (where its taxes go), then county precision without the city (the site is outside Kearney's limits) | Central Nebraska Today; Rock 101.5; KSNB (one sentence each) |
 | `dc-blox-warren-township-in` | the announcement dated 2026-04-09 (was 2026-04-27) | Mirror Indy |
 | `abei-energy-data-center-starke-in` | Starke County's centroid at county precision (no parcel was disclosed) | WKVI |
 | `google-botetourt-greenfield-va` | announced and first reported 2025-06-24 (was a first report of 2025-06-20, the land sale) | Botetourt County |
