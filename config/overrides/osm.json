@@ -462,6 +462,25 @@
         "reviewed_at": "2026-10-13",
         "source_type": "government_record",
         "source_url": "https://www.yorkville.il.us/941/Project-Cardinal-Data-Center-Campus-Anne"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2025-03-14",
+            "from": null,
+            "op": "first_report",
+            "status": "proposed"
+          }
+        ],
+        "publisher": "United City of Yorkville",
+        "quote": "ANNEXATION, REZONING & PUD APPLICATIONS UNITED CITY OF YORKVILLE MARCH 14, 2025 Table of Contents Section 1. Project Cardinal Introduction",
+        "reason": "Pioneer Development's annexation, rezoning and PUD applications for the Project Cardinal data center campus are dated 2025-03-14, before the approval of 2025-11-10; local news reported the proposal on 2025-03-24",
+        "retrieved_at": "2026-10-13T12:13:01Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "government_record",
+        "source_url": "https://www.yorkville.il.us/DocumentCenter/View/11328"
       }
     ]
   },
@@ -571,6 +590,27 @@
         "reviewed_at": "2026-10-13",
         "source_type": "commercial_aggregator",
         "source_url": "https://baxtel.com/data-center/aligned-ord-03"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2023-06-09",
+            "from": null,
+            "op": "first_report",
+            "status": "proposed"
+          }
+        ],
+        "published_at": "2023-06-09T13:25:53-05:00",
+        "publisher": "Journal & Topics",
+        "quote": "Texas-based Aligned Data Centers has also submitted plans to the village for a five-building data center campus in the new Elk Grove Innovation Park located on Northwest Point Boulevard",
+        "reason": "By 2023-06-09 Aligned had submitted plans for its data center campus on Northwest Point Boulevard, where ORD-03 is built at No. 50, before construction began in 2024",
+        "retrieved_at": "2026-10-13T12:16:12Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://www.journal-topics.com/articles/elk-grove-village-to-review-plans-for-2-new-data-center-campuses/",
+        "title": "Elk Grove Village To Review Plans For 2 New Data Center Campuses"
       }
     ]
   },
@@ -940,6 +980,27 @@
         "reviewed_at": "2026-10-13",
         "source_type": "news",
         "source_url": "https://www.newschannel6now.com/2026/08/13/datanovax-data-center-approved-airport-drive-wichita-falls/"
+      },
+      {
+        "basis": "out_of_date",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2024-06-05",
+            "from": null,
+            "op": "first_report",
+            "status": "announced"
+          }
+        ],
+        "published_at": "2024-06-05T23:42:05+00:00",
+        "publisher": "Dallas Innovates",
+        "quote": "Today DataNovaX, a Wylie-based build-to-suit data center provider, announced its first campus, a $1 billion Pioneer Park project in Wichita Falls.",
+        "reason": "DataNovaX announced Pioneer Park, on Airport Drive in Wichita Falls, on 2024-06-05; KAUZ calls the 2236 Airport Drive building part of it, so the 2026-08 approval is not the first report",
+        "retrieved_at": "2026-10-13T12:10:43Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "news",
+        "source_url": "https://dallasinnovates.com/datanovax-announces-1-billion-wichita-falls-data-center-amid-north-texas-boom/",
+        "title": "DataNovaX Announces $1 Billion Wichita Falls Data Center Amid North Texas Boom"
       }
     ]
   },

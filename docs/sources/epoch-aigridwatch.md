@@ -1172,7 +1172,7 @@ Other corrections to an imported record are such cited entries, applied on every
 a record file does not last, since the next import overwrites it.
 
 Entries of fix round 6 (reviewed 2026-10-13: the owner's corrections of the fifth seed's review,
-PR #2). The file holds 23 entries with 32 cited Fixes, each quoting a page fetched on 2026-10-13
+PR #2). The file holds 23 entries with 33 cited Fixes, each quoting a page fetched on 2026-10-13
 (04:20–04:39 UTC) with the project's user agent and found verbatim in it, with its `basis` and the
 review PR as `issue_url`. Two entries release a stage hold together with their corrections and
 guard the row with `expect` (Microsoft Cheyenne Expansion, STACK Berry Hill); the others have only
@@ -1221,6 +1221,20 @@ issues, and a second run `unchanged`. `tests/sources/test_committed_corrections.
 committed Fix ([corrections.md](../corrections.md), "Checks on the committed files"); the
 fixture runs read none of the entries (`tests/fixtures/aigridwatch/overrides-none.json`), since
 every one carries corrections read after the fixtures.
+
+Entries of fix round 7 (reviewed 2026-10-13: two cited errors of the sixth seed's sample, PR #2).
+Two entries with one Fix each, `basis` upstream_error (the row's own cited article states
+otherwise), each quoting a government page fetched on 2026-10-13 (12:10 and 12:17 UTC) with the
+project's user agent and found verbatim in it. The file now holds 25 entries with 35 cited Fixes:
+
+| Row | Correction | Source |
+|---|---|---|
+| `brookfield-paducah-ky` | first report 2025-11-04, announced: DOE's Request for Offer for AI data centers on its Paducah site, after which the row's Spectrum News 1 article says Brookfield was chosen ("in Nov. 2025"); announced 2026-07-29 stays | U.S. Department of Energy, 2025-11-04 |
+| `lovejoy-panhandle-road-data-center` | filing entity and `filing_llc` alias Stillwater Development, LLC, the developer and applicant of DRI 4794, which the row's Atlanta News First article links (was The Stillwater Group, LLC, the row's `filing_llc`: a land bidder per its News-Daily entry) | Georgia Department of Community Affairs, DRI 4794 |
+
+On the saved inputs, offline, after the Epoch AI import into an empty store, exactly these two AI
+GridWatch records change (161 records, 280 review items, `atlas validate` 0 issues, a second run
+`unchanged`).
 
 ## Limits (M1)
 

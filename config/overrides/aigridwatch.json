@@ -157,6 +157,30 @@
       }
     ]
   },
+  "brookfield-paducah-ky": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "as_of": "2025-11-04",
+            "from": "2026-07-29",
+            "op": "first_report",
+            "status": "announced"
+          }
+        ],
+        "publisher": "U.S. Department of Energy",
+        "quote": "The U.S. Department of Energy Office of Environmental Management today issued a Request for Offer seeking proposals from companies to build and power AI data centers on DOE’s Paducah site. Office of Environmental Management November 4, 2025",
+        "reason": "The row's own Spectrum News 1 article says Brookfield was chosen after DOE's Request for Offers of Nov. 2025: DOE sought AI data centers on its Paducah site on 2025-11-04, the project's first report",
+        "retrieved_at": "2026-10-13T12:10:46Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "government_record",
+        "source_url": "https://www.energy.gov/em/articles/us-energy-department-seeks-proposals-ai-data-centers-energy-projects-paducah-site",
+        "title": "U.S. Energy Department Seeks Proposals for AI Data Centers, Energy Projects at Paducah Site"
+      }
+    ]
+  },
   "burkhalter-road-statesboro-ga": {
     "corrections": [
       {
@@ -404,6 +428,43 @@
         "reviewed_at": "2026-10-13",
         "source_type": "news",
         "source_url": "https://www.fox29.com/news/upper-merion-board-supervisors-denies-all-5-data-center-sites-mlp-ventures"
+      }
+    ]
+  },
+  "lovejoy-panhandle-road-data-center": {
+    "corrections": [
+      {
+        "basis": "upstream_error",
+        "issue_url": "https://github.com/moonspells/gigawatt-atlas/pull/2",
+        "ops": [
+          {
+            "from": [
+              "The Stillwater Group, LLC"
+            ],
+            "names": [
+              "Stillwater Development, LLC"
+            ],
+            "op": "set_party",
+            "role": "filing_entities"
+          },
+          {
+            "name": "The Stillwater Group, LLC",
+            "op": "remove_alias"
+          },
+          {
+            "kind": "filing_llc",
+            "name": "Stillwater Development, LLC",
+            "op": "add_alias"
+          }
+        ],
+        "publisher": "Georgia Department of Community Affairs",
+        "quote": "Name of Proposed Project: Stillwater Technology Park DRI ID Number: 4794 Developer/Applicant: Stillwater Development, LLC.",
+        "reason": "The DRI filing that the row's Atlanta News First article links names Stillwater Development, LLC as developer and applicant; The Stillwater Group, LLC, the row's filing LLC, bid for the land",
+        "retrieved_at": "2026-10-13T12:17:52Z",
+        "reviewed_at": "2026-10-13",
+        "source_type": "government_record",
+        "source_url": "https://apps.dca.ga.gov/DRI/AdditionalForm.aspx?driid=4794",
+        "title": "DRI Information Form Part 2"
       }
     ]
   },

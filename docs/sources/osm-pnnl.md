@@ -995,7 +995,7 @@ record ops are cited `corrections` with `basis` and the review PR as `issue_url`
 | way/597835788 (Stream DFW IV) | operator Stream removed: Stream sold the building in 2011 | Stream Data Centers, Dallas |
 | way/597876719 (Rackspace Richardson DFW3, 1215 Integrity Drive) | joins way/597876730, Digital Realty's DFW18; the record keeps "Digital Realty Dallas" (`rename`) and gains tenant Rackspace; no owner, though the correction asked for owner Digital Realty: no page read states who owns the building (Baxtel says only that Rackspace does not, Digital Realty that DFW25 is on "our 69-acre Digital Dallas campus") | Digital Realty, DFW25; Baxtel, Rackspace Richardson DFW3 |
 | way/1560827941 (44725 Gigabit Plaza, under construction) | name "NTT VA8" → "NTT VA9": Baxtel's VA9, under construction for 2027, has its map point 40 m from the way (its address reads 44470 Gigabit Plaza); the NTT VA8 conflict item goes | Baxtel, NTT: VA9 |
-| way/747985149 (2236 Airport Drive, Wichita Falls) | OSM's operating observation replaced by an approval of 2026-08 (`remove_event`, `add_event`) | KAUZ News Channel 6, 2026-08-13 |
+| way/747985149 (2236 Airport Drive, Wichita Falls) | OSM's operating observation replaced by an approval of 2026-08 (`remove_event`, `add_event`); first report 2024-06-05, announced: DataNovaX's Pioneer Park on Airport Drive (`first_report`, fix round 7) | KAUZ News Channel 6, 2026-08-13; Dallas Innovates, 2024-06-05 |
 | way/818167571 (1623 Farnam Street, Omaha) | postcode 68106 → 68102 | 1623 Farnam |
 | way/818790301 (Credit Suisse: Clifton Data Center) | operator and owner DXC Technology; renamed "DXC Technology Clifton Data Center", OSM's name an osm_name alias | DXC Technology, release of 2019-05-13; The Register, 2019-05-14 |
 | way/1000784035, way/1059030596, way/1280340215 (9750, 9740 and 9730 Hornbaker Road) | name "AWS" removed, operator Amazon Web Services → Stack Infrastructure: rule 2 joins them to STACK's way/1059036248 | Baxtel, Stack: NVA02A, NVA02B and NVA02C |
@@ -1005,11 +1005,25 @@ record ops are cited `corrections` with `basis` and the review PR as `issue_url`
 | way/1343774537 (CloudHQ's LC campus, joined by rule 9) | renamed "CloudHQ LC Campus", "CloudHQ Ashburn Campus" an osm_name alias | CloudHQ, LC Campus |
 | way/1081973944 (QTS San Antonio II) | street 8635 → 8535 Potranco Road | QTS, San Antonio |
 | way/1387391200, way/909455922, way/1292897241 to way/1292897243 (True North Data Centers) | operator True North Data Solutions → Compass Datacenters: rule 1 takes Compass IAD IE (way/1387391201) into the polygon; renamed "Compass Loudoun County I", "True North Data Centers" an osm_name alias | Dgtl Infra, 2022-03-09; OpenStreetMap way 1387391200 |
-| way/1483070134 (Project Cardinal, Yorkville) | the under-construction observation of the planned outlines replaced by the approval of 2025-11-10 (Ordinance No. 2025-78); the land is still farmed | United City of Yorkville |
+| way/1483070134 (Project Cardinal, Yorkville) | the under-construction observation of the planned outlines replaced by the approval of 2025-11-10 (Ordinance No. 2025-78); the land is still farmed; first report 2025-03-14, proposed: Pioneer Development's annexation, rezoning and PUD applications (`first_report`, fix round 7) | United City of Yorkville (the project page; the application package of 2025-03-14) |
 | way/1486780799 (Aligned DFW-04) | street 401 → 601 North Star Road | Texas Department of Licensing and Regulation, TABS2025024707 |
 | way/1539603380 (32 container-sized buildings, Venango County) | `out_of_scope` for the whole cluster: the Scrubgrass bitcoin mine | explore Clarion, 2026-06-02 |
 | way/1547829412 (Lonestar Dream -Tarbush Site) | `out_of_scope` for the whole cluster: a bitcoin-mining hosting site | Bitcoin Magazine, 2024-04-03 |
-| way/1558344919 (unnamed, 50 NW Point Boulevard, Elk Grove Village) | OSM's operating observation replaced by construction start 2024: Aligned's ORD-03 | Baxtel, Aligned: ORD-03 |
+| way/1558344919 (unnamed, 50 NW Point Boulevard, Elk Grove Village) | OSM's operating observation replaced by construction start 2024: Aligned's ORD-03; first report 2023-06-09, proposed: Aligned's plans for its Northwest Point Boulevard campus submitted to the village (`first_report`, fix round 7) | Baxtel, Aligned: ORD-03; Journal & Topics, 2023-06-09 |
+
+Fix round 7 stops a run whose correction dates the first report by an approval or a construction
+start (`corrections.reviewer_first_report`, "Corrections" above), which three entries did: round 6
+published Wichita Falls' approval of 2026-08, Project Cardinal's of 2025-11-10 and the Elk Grove
+Village building's construction start of 2024 as their first reports. Each entry now ends with a
+cited `first_report` Fix (`from` null, `basis` out_of_date, reviewed 2026-10-13, every page read
+with the project's user agent on 2026-10-13, 12:10–12:17 UTC): the earliest public report found
+that names the project, before the event. Dallas Innovates reported DataNovaX's Pioneer Park on
+Airport Drive on 2024-06-05 (KAUZ calls the building part of it); Pioneer Development's application
+package for Project Cardinal is dated 2025-03-14 (local news reported it on 2025-03-24); and
+Journal & Topics reported on 2023-06-09 that Aligned had submitted plans for its campus on
+Northwest Point Boulevard (its May 2023 report of Aligned's purchases states no plan; The Real
+Deal's and DCD's 2023 pages refuse the project's user agent, and no Wayback copy of them could be
+read).
 
 The importer rules of fix round 6 make eight of the owner's corrections without an entry (an
 entry would change nothing, and a join, alone or name that is true already stops the run): the

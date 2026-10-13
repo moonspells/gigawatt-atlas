@@ -21,6 +21,7 @@ from atlas.schema.rollup import STOPPED, period_start
 from atlas.sources import aigridwatch, epoch, osm
 from atlas.sources.corrections import (
     FIXES,
+    REPORT_EVENTS,
     STOP_SOURCE_TYPES,
     STOPPED_EVENTS,
     AddAlias,
@@ -298,6 +299,45 @@ def test_an_announcement_quotes_the_plan() -> None:
                 deal = aigridwatch._PROPERTY_RE.search(fix_.quote)
                 assert deal is None or aigridwatch._PLAN_RE.search(fix_.quote), (file, key, i)
     assert announcements > 0
+
+
+def osm_reviewer_events(corrections: Sequence[Fix]) -> tuple[list[tuple[str, str]], str | None]:
+    """The dated events an OSM entry's ops give, as (as_of, event), and its first_report op's
+    as_of. An event a replace_event leaves an observation (`other`) dates nothing."""
+    events: list[tuple[str, str]] = []
+    first: str | None = None
+    for fix_ in corrections:
+        for op in fix_.ops:
+            if isinstance(op, FirstReportOp):
+                first = op.as_of
+            elif isinstance(op, AddEvent) and not op.planned:
+                events.append((op.as_of, op.event))
+            elif isinstance(op, ReplaceEvent) and op.set.as_of is not None and not op.set.planned:
+                event = op.set.event or op.match.event
+                if event != "other":
+                    events.append((op.set.as_of, event or "?"))
+    return events, first
+
+
+def test_an_osm_entry_that_dates_an_event_dates_its_first_report() -> None:
+    """Fix round 7 (R1, R5): OpenStreetMap's observations date nothing, so the earliest event an
+    OSM entry's ops date would be its record's first_reported. When that is no announcement,
+    filing or first report (an approval, a construction start), the import stops
+    (corrections.reviewer_first_report) unless the entry has a cited first_report op, earlier
+    than the event's period. Round 6 published Wichita Falls' approval of 2026-08 as its first
+    report; its entry, Project Cardinal's and the Elk Grove Village building's now date one."""
+    stopped: list[str] = []
+    for ref, corrections in entries("osm.json").items():
+        events, first = osm_reviewer_events(corrections)
+        if not events:
+            continue
+        as_of, event = min(events, key=lambda e: period_start(fuzzy_date(e[0])))
+        if event in REPORT_EVENTS:
+            continue
+        stopped.append(ref)
+        assert first is not None, (ref, event, as_of)
+        assert period_start(fuzzy_date(first)) < period_start(fuzzy_date(as_of)), (ref, first)
+    assert {"way/747985149", "way/1483070134", "way/1558344919"} <= set(stopped)
 
 
 def test_the_osm_element_decisions_of_fix_round_6_are_quoted() -> None:

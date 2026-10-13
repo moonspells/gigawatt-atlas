@@ -127,7 +127,8 @@ names every such entry, the event and its date) until the entry has a cited `fir
 Its `from` is null, since the built record has no first report, and its `as_of` must be earlier
 than every dated event: before the first day of the event's period, so a `construction_start` of
 `2024` needs a first report in 2023 or before. Round 6 published Wichita Falls' approval of
-2026-08 as its first report although DataNovaX announced the project in 2024.
+2026-08 as its first report although DataNovaX announced the project in 2024; its entry now ends
+with a `first_report` Fix citing that announcement (Dallas Innovates, 2024-06-05).
 
 An event match (`match`, `event`) has `event`, `status`, `as_of`, `phase` and `planned`, and names
 at least the event or the status. OSM observations are dated with each snapshot, so match them by
