@@ -447,6 +447,33 @@ def test_narrow_supports() -> None:
     assert doc["sources"][2]["supports"] == []
 
 
+def test_narrow_supports_keeps_only_the_items_a_source_cites() -> None:
+    # Items that cite their own sources (events, aliases, organizations): a source's
+    # "/status_history" becomes the other events that cite it, never the ones citing others only.
+    # Epoch's first report (s4) dates event 2; Epoch's own rows (s1) are events 0 and 1.
+    def doc() -> dict[str, Any]:
+        return {
+            "status_history": [
+                {"event": "construction_start", "source_ids": ["s1"]},
+                {"event": "energized", "source_ids": ["s1"]},
+                {"event": "first_reported", "source_ids": ["s4"]},
+            ],
+            "sources": [
+                {"id": "s1", "supports": ["/status_history"]},
+                {"id": "s4", "supports": ["/status_history"]},
+            ],
+        }
+
+    redated = doc()  # a correction redates the first report: s4 claims no other event
+    assert narrow_supports(redated, "/status_history/2", keep="s9") == ["s1", "s4"]
+    assert redated["sources"][0]["supports"] == ["/status_history/0", "/status_history/1"]
+    assert redated["sources"][1]["supports"] == []
+    added = doc()  # a correction's event at index 0: s4 keeps its own event
+    assert narrow_supports(added, "/status_history/0", keep="s9") == ["s1", "s4"]
+    assert added["sources"][0]["supports"] == ["/status_history/1"]
+    assert added["sources"][1]["supports"] == ["/status_history/2"]
+
+
 def test_remap_list_pointers() -> None:
     doc = pointer_doc()
     remap_list_pointers(doc, "/aliases", 1)

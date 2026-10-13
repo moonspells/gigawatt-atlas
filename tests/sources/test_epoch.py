@@ -450,7 +450,9 @@ def test_every_committed_override_is_cited(counties: CountyIndex) -> None:
             assert period_start(ms.fuzzy) <= date.today(), name
         for i, conflict in enumerate(ov.conflicts if ov is not None else []):
             check_citation(f"{name} conflict {i}", raw[name]["conflicts"][i], conflict)
-        assert entry.citations(), name
+        # An entry may have only corrections, each a cited Fix (fix round 6; checked by
+        # test_epoch_corrections.py::test_every_committed_correction_is_cited).
+        assert entry.citations() or entry.corrections, name
 
 
 def test_committed_override_places_meta_hyperion(
@@ -461,7 +463,15 @@ def test_committed_override_places_meta_hyperion(
     names = {clean_text(r["Name"]) for r in read_zip(EPOCH_ZIP)[1]}
     committed = json.loads(REPO_OVERRIDES.read_text(encoding="utf-8"))
     path = tmp_path / "overrides.json"
-    entries = {name: entry for name, entry in committed.items() if name in names}
+    # The committed entries' corrections and expect guards (fix round 6) were read and reviewed
+    # against today's sources, after these fixture rows and their run date: fixture runs use the
+    # entries' parts without them (an entry with only corrections is left out).
+    entries = {
+        name: parts
+        for name, entry in committed.items()
+        if name in names
+        and (parts := {k: v for k, v in entry.items() if k not in ("corrections", "expect")})
+    }
     path.write_text(json.dumps(entries), encoding="utf-8")
     result = IMPORTER.run(make_test_context(input_path=EPOCH_ZIP), run_args(path))
     hyperion = by_name(result.candidates)["Meta Hyperion"]
