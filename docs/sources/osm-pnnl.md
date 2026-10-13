@@ -322,6 +322,16 @@ last two): `county_line`, `county_blocked`, `mixed_operators` (an object an area
 operator does not hold), `address_conflict`, `same_operator_nearby` and `tenant_building`;
 `dissolve` returns the clusters only.
 
+**Reviewers' joins and splits** (section 9) come around the dissolve, in `osm.py`; the rules
+themselves are unchanged. An element a config/overrides/osm.json entry sets `alone` is left out
+of the dissolve and is a cluster of its own. After the dissolve, `osm.join_clusters` merges, for
+each `join` entry in ref order, the clusters that hold the element and its target, whatever rules
+1 to 9, the operator guard and the county regions say; the representative is chosen as above. A
+join across a county line adds a `county_line` note (rule `join`): the record keeps its
+representative's county and gets a `county_mismatch` item naming the members across the line.
+Every other note between two refs that now share a cluster is dropped, since the two are one
+campus (the "may be one campus" notes, a `county_blocked` note that would hold one side).
+
 Two campus objects join each other directly only when they adjoin (rule 2), by name (rule 4) or
 inside one site. Joins are
 transitive, so a row of same-operator buildings 250 m apart forms one cluster; the widest
@@ -603,6 +613,25 @@ a building tag gets no status. Members are grouped by the resulting status.
   construction appears next to an operating campus, or later goes, the operating event moves
   between no phase and `osm-operating` but its status has not changed. A status change replaces
   the event; recording transitions as new events is the M2 diff (07 §4.2 step 5).
+- **A reviewer's status** (an entry's `status`, section 9) replaces the crosswalk for the element,
+  and an entry on a campus or site polygon for every member of its cluster without an entry of its
+  own (a site polygon has no status of its own). Those members form a group of their own: one
+  `other` event dated the entry's `status_as_of`, else the snapshot date, so it dates nothing
+  either, citing the entry's source (s3, ...), not the members' elements; as a phase it is
+  `review-{status}`, named after the source's publisher ("Announced per Baxtel: Equinix Ashburn
+  DC18"). Its `opening_date` path is unchanged (PowerHouse CTP-02's site still adds its planned
+  energized event), its `start_date` is not read, and the construction-site rule leaves it alone.
+  When such a group leads the record, `field_meta["/status"]` is `human_entered` with the 07 §3.4
+  confidence of the entry's source, the conflict term counted against OpenStreetMap's tag. A
+  paused, denied or cancelled status ranks after the active ones. On later runs, an undated entry's
+  observation keeps the earliest stored `as_of` of an observation of its status citing the same
+  URL; a dated one keeps its `status_as_of`.
+- **Corrections** (an entry's `corrections`, section 9) change the built record's events after all
+  of this: `add_event`, `replace_event`, `remove_event`, `observe` and `first_report` (Wichita
+  Falls' approval replaces OSM's operating observation, matched as `{"event": "other", "status":
+  "operating"}`, never by its snapshot date). The status and dates are then rolled up again, and a
+  removed or redated event stays in `field_meta["/status_history"]` conflicts
+  (docs/corrections.md).
 
 ## 6. PNNL inputs
 
@@ -727,19 +756,28 @@ warning.
 | `osm.jsonl` | `unverified_upstream` | a `start_date` not used as a date; a position OSM calls approximate; a held cluster planned only in OSM, with no name and no operator; an operator tag that names a general contractor (not used); two operators one letter apart, read as one; buildings of one record with one numbered name and different statuses (way 1560827941, under construction, and the operating way 1188691868 are both "NTT VA8" once the override gives the second its name back; Stack Infrastructure's four "POR03" ways) |
 | `osm.jsonl` | `conflict` | an `opening_date` that has passed while OSM still tags the site as not operating (not used); members read as operating on a construction site whose `opening_date` is still to come (the record is under construction; `data.refs`, `opening_date`); a held cluster of a site OSM names two ways (section 5); an `it_power` above the `input:electricity` it is drawn from (neither is published; `data.it_mw`, `facility_mw`, `members`); a config/overrides/osm.json entry that gives an element a name another element carries within 2 km (section 9; `data.osm`, `other`, `name`, `gap_m`) |
 | `osm.jsonl` | `possible_duplicate` | records with the same canonical name chained within 1 km (one item per group); an object inside a campus or site that has no building of its own, or lists its house number, or a node inside a building, whose operator disagrees; an area without an operator that does not hold all its box covers; a held unnamed building drawn over another, or a member drawn over another of its own record (left out of `buildings[]`); a held carrier hotel's building (section 5); a cluster held after building (an area its buildings contradict, the smaller side of a county line, a hall of a development mapped hall by hall; section 5); two records of one operator that a series, a street or a web page links, and a lone building beside another operator's row (section 5) |
-| `osm.jsonl` | `county_mismatch` | a record whose site outline holds members across a county line (they are named; the record has its representative's county) |
+| `osm.jsonl` | `county_mismatch` | a record whose site outline, or a reviewed join (section 9), holds members across a county line (they are named; the record has its representative's county) |
 | `osm.jsonl` | `invalid` | a cluster that does not fit the record schema (for example a point in Guam, whose longitude the schema does not accept) |
 | `pnnl.jsonl` | `unmatched` | a PNNL row that no data center element the import read takes |
 | `pnnl.jsonl` | `county_mismatch` | PNNL's county is not the record's county (no row with that key agrees) |
 | `pnnl.jsonl` | `possible_duplicate` | a second building row on one OSM building |
 | `pnnl.jsonl` | `conflict` | a campus row on a building; a building row larger than its building's box, or whose name gives the building another number; a campus row on a member whose position OSM calls approximate, or more than 5% off its outline (or above its box) |
 
+A config/overrides/osm.json correction (section 9) adds items of these kinds too: its `hold` op
+files one of the kind it names (default `conflict`) and its `out_of_scope` op an `out_of_scope`
+item, each naming the cluster's representative, with `data: {source_url, quote, reviewed_at,
+basis, file}`. The items about a record whose corrections were applied (any of its refs) get
+`data.corrected_by`, "config/overrides/osm.json (reviewed {date}): {reason}", so the review page
+shows the decision; no item is dropped.
+
 `atlas import` adds its own kinds (`conflict`, `held_human_reviewed`, `held_merged`, `invalid`,
 `removed_upstream`) to `osm.jsonl`. Review files are rewritten on every run, sorted.
 
 The receipt `data/imports/osm.json` has the metrics `objects`, `clusters`, `held` (clusters held
 for review, with no record), `out_of_scope`, `unit_parse`, `skipped`, `overrides` (the entries
-applied), and with PNNL `pnnl_rows`,
+applied), the corrections counts (`corrections_entries`, `corrections_ops`, `records_corrected`,
+`corrections_held`, `corrections_out_of_scope`, `corrections_importer_gap`; docs/corrections.md),
+and with PNNL `pnnl_rows`,
 `pnnl_matched`, `pnnl_matched_by_id`, `pnnl_matched_by_name`, `pnnl_on_held` and
 `pnnl_match_rate`.
 
@@ -750,8 +788,11 @@ site, run by Data Canopy since it bought Ntirety's colocation business), a tenan
 building it left (the Virginia Information Technologies Agency at 11751 Meadowville Lane). The
 importer cannot see them, so a reviewer records the decision in `config/overrides/osm.json`, the
 smallest form of the plan's `/drop` memory (07 §6.7): the next run applies it, and no later run
-proposes the stale value again. Each entry is keyed by OSM ref and either drops the element from
-scope or replaces its name or operator:
+proposes the stale value again. Each entry is keyed by OSM ref and has two layers
+(docs/corrections.md). Its top-level keys are **element decisions**, applied before the dissolve
+with one top-level citation: it drops the element from scope, replaces its name or operator, joins
+it to another element's campus, sets it alone or gives its status. Its `corrections` are cited
+**record ops**, applied to the record built from the element (below):
 
 ```json
 "node/10780794741": {
@@ -771,13 +812,39 @@ scope or replaces its name or operator:
 | `drop` | `true`: the element is not a data center in scope (07 §2.2). It leaves the dissolve and becomes its own record with `scope: "out_of_scope"`, never published, and an `out_of_scope` item gives the reason and the source. |
 | `name` | replaces the element's `name` tag; `null` removes it (a tenant that left: the record is then named by its operator or "Data center"). |
 | `operator` | replaces the element's `operator` tag and removes `operator:wikidata`, `operator:short` and `operator:wikipedia`, which name the old operator; `null` removes it. |
+| `join` | `"<ref>"`: the element is one campus with that element. After the dissolve, the clusters that hold the two are merged, whatever the dissolve rules, the operator guard and the county regions say (section 4): NTT's RagingWire CA3, 720 m from CA1 and CA2, beyond every rule. The record cites the entry for the element's building entry. |
+| `alone` | `true`: the element is a campus of its own: it leaves the dissolve and is its own cluster, in scope unless the scope screen doubts it (`drop` without the scope change). |
+| `status`, `status_as_of` | the element's lifecycle status as the source gives it, in place of the crosswalk's; on a campus or site polygon, the status of every member of its cluster without an entry of its own. `status_as_of` (`YYYY`, `YYYY-Qn`, `YYYY-MM` or `YYYY-MM-DD`, never after the run's day) is the day the source shows it; without it the observation is dated with the snapshot (section 5). A building planned on an operating campus (Equinix DC18) becomes a phase of its own. |
+| `expect` | `{tag: value}`, `null` for a tag the element must not have: a guard on the element's tags as read, before any decision; a mismatch stops the import (the element was retagged upstream). |
+| `corrections` | a list of cited `Fix`es with record ops (below, and docs/corrections.md). |
 | `reason`, `reviewed_at` | why, and the day of the decision. |
 | `source_url`, `publisher`, `source_type`, `quote`, `retrieved_at` | the source that states the correction, the verbatim span (at most 300 characters) that states it, and when it was read; `archive_url` is the Wayback snapshot read when the page refuses the project's user agent. `source_type` defaults to `base.classify_source`. |
 
-An entry must drop the element or replace its name or operator, not both; any other key, a key
-that is not a ref, or a malformed value stops the import (exit 1), and so does an entry whose
-element the input does not have: an element deleted or retagged upstream must be reviewed, not
-silently stop applying. An entry that gives an element a name another element of the input
+The element decisions are `drop`, `name`, `operator`, `join`, `alone` and `status`; an entry with
+one of them has the top-level citation (`reason`, `source_url`, `publisher`, `quote`,
+`retrieved_at` and `reviewed_at`, as before), and an entry with none must have `corrections` and
+no top-level citation: each Fix cites its own page. An entry must drop the element or replace its
+name or operator (or join it, set it alone or give its status), or carry corrections; `drop`
+excludes every other decision and `corrections`, `join` and `alone` exclude each other,
+`status_as_of` needs `status`, and a paused, denied or cancelled status needs a government,
+regulator, utility or ISO, SEC, company, trade press or news source (07 §6.4 gate 6). Any other
+key, a key that is not a ref, or a malformed value stops the import (exit 1), and so does, before
+anything is built:
+
+- an entry whose element the input does not have: an element deleted or retagged upstream must be
+  reviewed, not silently stop applying (also for the target of a `join`);
+- an `expect` guard the element's tags do not meet;
+- a decision that changes nothing: a `name` or `operator` the element has already (an operator
+  entry that also removes `operator:wikidata` changes something), a `join` whose two elements are
+  in one cluster already (by the dissolve or an earlier join; joins apply in ref order), an
+  `alone` element the dissolve would leave alone anyway, a `status` the crosswalk gives every
+  member it decides already;
+- a `join` whose target an entry drops or sets alone, or that joins its own element;
+- two campus or site polygons of one cluster that each give a status, or two entries of one
+  status in one cluster with different `status_as_of`;
+- a `status_as_of` or a Fix's date after the run's day (`check_fix_dates`).
+
+An entry that gives an element a name another element of the input
 carries within 2 km (`OVERRIDE_NAME_GAP_M`, centers, `normalize_name`), when no entry drops that
 element or replaces its name, is a `conflict` item instead, and the import goes on
 (`osm.override_name_items`, fix round 6): the entry naming way/1188691868 "NTT VA8" while way
@@ -787,8 +854,51 @@ element or replaces its name, is a `conflict` item instead, and the import goes 
 A record built from an element an entry changed cites the entry's source (s3, s4, ...) with its
 quote (`quote_match: "human"`): the operator's `source_ids` and, when the record's name comes from
 the entry, `/canonical_name`; the element's own OSM source then no longer supports those values
-(the element's building entry cites both). The receipt's metric
+(the element's building entry cites both). A `join` entry's source supports the joined element's
+building entry, an `alone` entry's source is listed with no value of its own, and a `status`
+entry's source is cited by its group's event and phase in place of the members' elements. The receipt's metric
 `overrides` counts the entries applied.
+
+**Corrections.** After the build and every hold, `osm.correct_candidates` applies each entry's
+`corrections` to the record that holds its element, whatever cluster the dissolve and the joins
+put it in, the entries of one record in ref order (`corrections.apply_fixes`: the ops, their
+guards and provenance are in docs/corrections.md). A correction whose guard no longer matches the
+built record stops the import, and so does one for an element whose cluster was held (no record
+was built: release the hold, by a `join` for example, or remove the correction); an entry whose
+corrections only `hold` or put out of scope an element the importer held already is fine. The
+review items about a corrected record name the decision (`data.corrected_by`, section 8). A
+postcode OSM gives wrong:
+
+```json
+"way/818167571": {"corrections": [{
+  "basis": "upstream_error",
+  "ops": [{"op": "set", "path": "/location/postcode", "from": "68106", "value": "68102"}],
+  "publisher": "1623 Farnam", "source_type": "company_release",
+  "quote": "1623 Farnam Street, Suite 860 Omaha, NE 68102",
+  "reason": "The way's addr:postcode 68106 is wrong; the building's own site gives 68102",
+  "retrieved_at": "2026-10-10T12:00:00Z", "reviewed_at": "2026-10-10",
+  "source_url": "https://www.1623farnam.com/"}]}
+```
+
+A join with a cited rename: `"way/190868312": {"join": "way/32560290", "expect": {"name":
+"RagingWire CA3"}, <the citation of NTT's CA3 page>, "corrections": [<a Fix with {"op": "rename",
+"from": "NTT RagingWire", "base": "NTT Sacramento CA1 to CA3"}, cited to NTT's campus page>]}`.
+
+How the reviewers' kinds of correction are written: a duplicate within OSM is a `join` (a building
+that is a tenant's is then an `add_party` with role `tenant`, citing the way, and a `set_party`
+operator where the most common operator is wrong); a split is `alone`; a campus name is the
+record op `rename` (`old_as_alias` keeps OSM's name as an alias); a whole multi-element site that
+is not a data center is the record op `out_of_scope` (`drop` takes one element out of the
+dissolve); a wrong address or owner is the record op `set` on `/location/street` or
+`/location/postcode`, or `set_party` owner, not a tag change, since none of the address
+corrections needs the corrected tag inside the dissolve; a stale status is an element `status` or
+the event ops (`remove_event` of OSM's observation, matched by event and status, with `add_event`
+or `observe`).
+
+On a store that holds the records already, the candidate of a joined cluster names its values in
+`Candidate.joined` and an alone element's in `split_from`, so `merge_import` merges the stored
+records into the oldest one (`merged_into`, 07 §6.6) or takes the element back out
+(docs/corrections.md); on the empty-store seed a join gives one record and no `merged_into`.
 
 Entries of 2026-10-09 (every one read with the project's user agent from the cited page):
 
@@ -888,10 +998,13 @@ Lenoir campus by rule 2, which names the record "Google Lenoir Data Center").
   left, or a data center tag on a clinic is what OSM says; the scope screen and the rules catch
   some, and a reviewer corrects the rest with a cited entry (section 9). Twelve entries on
   2026-10-09; the seed check's other stale tags (SEGRA, Charlotte) have no source that states
-  the present, so they stay as tagged. An entry sets a name, an operator or scope, not a status:
-  the pre-check's stale statuses (Microsoft East Point, EdgeCore AS02, Crane PDX01, Prime SJC03,
-  Lambda's Kansas City building, EdgeConneX POR03 and others) wait for a status override or the
-  M2 diff.
+  the present, so they stay as tagged. Since fix round 6 an entry can also give a status or
+  correct the record's events, so the pre-check's stale statuses (Microsoft East Point, EdgeCore
+  AS02, Crane PDX01, Prime SJC03, Lambda's Kansas City building, EdgeConneX POR03 and others) are
+  the reviewers' to enter with a cited source; until then they stay as tagged.
+- **A reviewer's join is not checked.** A `join` bypasses the operator guard and the county
+  regions, so a wrong one can merge two operators' buildings; `atlas validate` catches only a
+  record whose point lies outside its county, not a wrong campus.
 - **Cross-source duplicates.** OSM and Epoch or AI GridWatch can describe the same site; entity
   resolution is M4 (owner decision of 2026-10-08).
 
@@ -1060,3 +1173,7 @@ Silicon Valley SJC31 and SJC37" renamed. No record of the sample that the review
 changes. The NTT VA8 entry's name is a `conflict` item until the owner's entry for way 1560827941
 lands. A second run on the same store leaves every candidate unchanged, and `atlas validate`
 passes.
+
+The cited-correction keys of section 9 (`join`, `alone`, `status`, `expect` and `corrections`)
+change nothing while no entry uses them: the same run with the committed overrides gives
+byte-identical records and review items, and the receipt gains the corrections counts, all 0.

@@ -16,15 +16,18 @@ record file by hand does not last: the next import overwrites it.
 An entry has two layers, with the same rule in all three files:
 
 - **Top-level keys** change what the source says *before* the importer builds. They are the
-  source's own: OSM's element decisions (`drop`, `name`, `operator`; `docs/sources/osm-pnnl.md`
-  section 9), Epoch AI's cited location, timeline, first report, facility status, capacity and
+  source's own: OSM's element decisions (`drop`, `name`, `operator`, `join`, `alone`, `status`
+  with `status_as_of`, and the `expect` guard; `docs/sources/osm-pnnl.md` section 9), Epoch AI's
+  cited location, timeline, first report, facility status, capacity and
   milestones (`docs/sources/epoch-aigridwatch.md`, "Overrides policy"), and AI GridWatch's
   releases of held rows ("Releasing a held row" there). A file without the new keys is read as
   before, byte for byte.
 - **`corrections`**, a list of `Fix`es, changes the record *built* from the source, with the shared
   ops below, applied after the build. Each Fix carries its own citation, so one record can be
   corrected from several pages: Crown Castle Baltimore's operator from Crown Castle's own page, its
-  name from PeeringDB.
+  name from PeeringDB. OSM applies an entry's corrections to the record that holds its element
+  after the dissolve, the joins and every hold (`osm.correct_candidates`); an OSM entry with only
+  corrections has no top-level citation.
 
 ## A Fix
 

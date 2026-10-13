@@ -9,20 +9,26 @@ with PNNL IM3 (07 §4.1, §4.2, §5.1, §6.5 step 1). docs/sources/osm-pnnl.md d
    response instead (no element minimum).
 2. Parse every element into an OsmObject (center = node position or bounding-box midpoint), keep
    the containers that hold data center objects (keep_containers), and apply the reviewers'
-   decisions in config/overrides/osm.json (load_overrides, apply_overrides: an entry drops an
-   element from scope or replaces its name or operator, with a cited source; an entry whose name
-   another element carries nearby is a conflict item, override_name_items).
+   element decisions in config/overrides/osm.json (load_overrides, apply_overrides: an entry
+   drops an element from scope or replaces its name or operator, with a cited source, after its
+   expect guard; an entry whose name another element carries nearby is a conflict item,
+   override_name_items).
 3. Dissolve objects into campuses (atlas.dissolve.dissolve_with_notes), each within one county
-   unless a site outline holds it across the line.
+   unless a site outline holds it across the line; an element an entry sets `alone` stays out and
+   is a campus of its own (check_alone), and the clusters of an entry's `join` are merged
+   (join_clusters).
 4. Join PNNL rows to the clusters (atlas.sources.pnnl) unless --no-pnnl.
 5. Build one campus record per cluster, with external_ids["osm"] = every member ref, unless the
    cluster is held for review (_hold before building; _hold_after_build when two records would
-   describe one site). OSM dates no status (`other` events), and the scope screen keeps what may
-   not be a data center out of scope for a reviewer (scope_doubt). The record's city is the
-   Census place that contains its point (atlas.geo.places, ImportContext.places()), never
-   addr:city, the postal city. A campus of several named buildings goes by its site polygon's
-   name or their common name (campus_name), and every member whose tags give a value is a source
-   of its own, so each value cites the element that states it (_build_one).
+   describe one site). OSM dates no status (`other` events; an entry's `status` replaces the
+   crosswalk's, check_statuses), and the scope screen keeps what may not be a data center out of
+   scope for a reviewer (scope_doubt). The record's city is the Census place that contains its
+   point (atlas.geo.places, ImportContext.places()), never addr:city, the postal city. A campus
+   of several named buildings goes by its site polygon's name or their common name
+   (campus_name), and every member whose tags give a value is a source of its own, so each value
+   cites the element that states it (_build_one).
+6. Apply the entries' cited corrections to the records that hold their elements
+   (correct_candidates, atlas.sources.corrections); an entry that no longer applies stops the run.
 
 Data is © OpenStreetMap contributors, ODbL 1.0; PNNL IM3 is ODbL 1.0 (07 §5.1).
 """
@@ -36,11 +42,11 @@ import re
 import sys
 import time
 from collections import Counter
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 from pydantic import (
     AwareDatetime,
@@ -63,10 +69,12 @@ from atlas.dissolve import (
     Bounds,
     Cluster,
     DissolveNote,
+    DissolveResult,
     ObjectKind,
     OsmObject,
     Polyline,
     box_overlap,
+    choose_representative,
     dissolve_with_notes,
     haversine_m,
     one_edit,
@@ -96,9 +104,10 @@ from atlas.schema.record import (
     Site,
     Source,
     SourceType,
+    Status,
     StatusEvent,
 )
-from atlas.schema.rollup import ACTIVE_ORDER, apply_rollup, period_start
+from atlas.schema.rollup import ACTIVE_ORDER, STOPPED, apply_rollup, period_start
 from atlas.sources import pnnl
 from atlas.sources.base import (
     Candidate,
@@ -108,6 +117,18 @@ from atlas.sources.base import (
     ReviewItem,
     classify_source,
     load_input,
+)
+from atlas.sources.corrections import (
+    STOP_SOURCE_TYPES,
+    Fix,
+    FuzzyStr,
+    apply_fixes,
+    check_entries,
+    check_fix_dates,
+    correction_metrics,
+    fuzzy_date,
+    human_confidence,
+    mark_corrected,
 )
 from atlas.text import clean_text, normalize_name, normalize_org
 from atlas.validate import EARLIEST_DATE, FUTURE_YEARS, add_years
@@ -205,6 +226,12 @@ _PHASE_LABEL = {
     "operating": "Operating",
     "under_construction": "Under construction",
     "announced": "Announced",
+    # Only a config/overrides/osm.json entry gives these (no OSM tag does).
+    "proposed": "Proposed",
+    "permitted": "Permitted",
+    "paused": "Paused",
+    "denied": "Denied",
+    "cancelled": "Cancelled",
 }
 _POWER_RE = re.compile(r"^(\d+(?:\.\d+)?)\s*(gw|mw|kw)?$", re.IGNORECASE)
 _POWER_FACTOR = {"gw": 1000.0, "mw": 1.0, "kw": 0.001}
@@ -311,37 +338,143 @@ _REF_RE = re.compile(r"^(?:node|way|relation)/[1-9]\d*$")
 OVERRIDE_NAME_GAP_M = 2_000.0
 
 
-class ElementOverride(AtlasModel):
-    """One entry of config/overrides/osm.json: a reviewer's decision about one OSM element whose
-    tags a cited source shows to be out of date or wrong (07 §6.7 /drop, in its M1 form).
+# The top-level citation of an entry's element decisions (archive_url and source_type optional).
+_CITATION = ("reason", "source_url", "publisher", "quote", "retrieved_at", "reviewed_at")
+# The tags that name an element's operator besides `operator`: an operator entry removes them.
+_OPERATOR_KEYS = ("operator:wikidata", "operator:short", "operator:wikipedia")
 
-    drop: the element is not a data center in scope (07 §2.2); it is kept as its own record with
-    scope out_of_scope and never published. name / operator: the value replaces the element's
-    name or operator tag (an operator also replaces operator:wikidata and operator:short, which
-    name the old one); null removes the tag. quote is the span of source_url (or of archive_url,
-    the snapshot read when the page refuses automated clients) that states the correction, read
-    at retrieved_at; reviewed_at is the day of the decision.
+
+def _cited[T](value: T | None, key: str) -> T:
+    if value is None:
+        raise ValueError(f"the entry has no top-level {key}: it has only corrections")
+    return value
+
+
+class ElementOverride(AtlasModel):
+    """One entry of config/overrides/osm.json: a reviewer's decisions about one OSM element whose
+    tags a cited source shows to be out of date or wrong (07 §6.7 /drop, in its M1 form), and
+    the cited corrections of the record built from it (docs/corrections.md).
+
+    Element decisions, applied before the dissolve, each with the entry's top-level citation:
+
+    - drop: the element is not a data center in scope (07 §2.2); it is kept as its own record
+      with scope out_of_scope and never published. It excludes every other decision and
+      corrections.
+    - name / operator: the value replaces the element's name or operator tag (an operator also
+      replaces operator:wikidata, operator:short and operator:wikipedia, which name the old one);
+      null removes the tag.
+    - join: the element is one campus with the element of that ref: after the dissolve, the
+      clusters holding the two are merged (join_clusters), whatever the dissolve rules, the
+      operator guard and the county regions say.
+    - alone: the element is a campus of its own: it leaves the dissolve and is its own in-scope
+      cluster. join and alone exclude each other.
+    - status (with status_as_of, YYYY[-MM[-DD]] or YYYY-Qn, the day the source shows it): the
+      element's lifecycle status, in place of the crosswalk's (osm_status), and on a campus or
+      site polygon that of every member of its cluster without an entry of its own. It is an
+      `other` observation dated status_as_of (the snapshot date without one) citing the entry,
+      so a building planned on an operating campus (Equinix DC18) is a phase of its own.
+
+    expect ({tag: value, or null for absent}) is a guard: the element's tags as read must have
+    these values, or the run stops. corrections are the record ops applied to the record that
+    holds the element, after every hold (atlas.sources.corrections; each Fix cites its own page).
+    An entry with only corrections has no top-level citation. quote is the span of source_url (or
+    of archive_url, the snapshot read when the page refuses automated clients) that states the
+    decision, read at retrieved_at; reviewed_at is the day of the decision. The citation fields
+    are read through the properties of the same name.
     """
 
     drop: bool = False
     name: str | None = Field(None, min_length=1, max_length=200)
     operator: str | None = Field(None, min_length=1, max_length=200)
-    reason: str = Field(min_length=1, max_length=300)
-    source_url: HttpUrl
+    join: str | None = Field(None, pattern=_REF_RE.pattern)
+    alone: bool = False
+    status: Status | None = None
+    status_as_of: FuzzyStr | None = None
+    expect: dict[Annotated[str, Field(min_length=1)], str | None] = Field(default_factory=dict)
+    corrections: list[Fix] = Field(default_factory=list)
+    reason_: str | None = Field(None, alias="reason", min_length=1, max_length=300)
+    source_url_: HttpUrl | None = Field(None, alias="source_url")
     archive_url: HttpUrl | None = None
-    publisher: str = Field(min_length=1, max_length=200)
+    publisher_: str | None = Field(None, alias="publisher", min_length=1, max_length=200)
     source_type: SourceType | None = None
-    quote: str = Field(min_length=1, max_length=300)
-    retrieved_at: AwareDatetime
-    reviewed_at: date
+    quote_: str | None = Field(None, alias="quote", min_length=1, max_length=300)
+    retrieved_at_: AwareDatetime | None = Field(None, alias="retrieved_at")
+    reviewed_at_: date | None = Field(None, alias="reviewed_at")
+
+    @property
+    def reason(self) -> str:
+        return _cited(self.reason_, "reason")
+
+    @property
+    def source_url(self) -> HttpUrl:
+        return _cited(self.source_url_, "source_url")
+
+    @property
+    def publisher(self) -> str:
+        return _cited(self.publisher_, "publisher")
+
+    @property
+    def quote(self) -> str:
+        return _cited(self.quote_, "quote")
+
+    @property
+    def retrieved_at(self) -> datetime:
+        return _cited(self.retrieved_at_, "retrieved_at")
+
+    @property
+    def reviewed_at(self) -> date:
+        return _cited(self.reviewed_at_, "reviewed_at")
+
+    @property
+    def decides(self) -> bool:
+        """True when the entry makes an element decision (drop, name, operator, join, alone or
+        status), which its top-level citation supports."""
+        replaces = bool({"name", "operator"} & self.model_fields_set)
+        return (
+            self.drop or replaces or self.join is not None or self.alone or self.status is not None
+        )
+
+    @property
+    def kind(self) -> SourceType:
+        """The source_type of the entry's source: the given one, else classify_source's."""
+        return self.source_type or classify_source(str(self.source_url))
 
     @model_validator(mode="after")
     def _one_decision(self) -> ElementOverride:
+        given = {type(self).model_fields[n].alias or n for n in self.model_fields_set}
+        if self.status_as_of is not None and self.status is None:
+            raise ValueError("status_as_of dates a status: give status too")
         replaces = {"name", "operator"} & self.model_fields_set
-        if self.drop and replaces:
-            raise ValueError("an entry that drops the element replaces nothing")
-        if not self.drop and not replaces:
-            raise ValueError("an entry must drop the element or replace its name or operator")
+        others = self.join is not None or self.alone or self.status is not None
+        if self.drop and (replaces or others or self.corrections):
+            raise ValueError(
+                "an entry that drops the element replaces nothing: it joins nothing, sets no "
+                "status and has no corrections"
+            )
+        if not self.decides:
+            if not self.corrections:
+                raise ValueError(
+                    "an entry must drop the element or replace its name or operator, join it, "
+                    "set it alone or give its status (with a top-level citation), or carry "
+                    "corrections"
+                )
+            cited = sorted(given & {*_CITATION, "archive_url", "source_type"})
+            if cited:
+                raise ValueError(
+                    f"an entry with only corrections has no top-level citation ({cited}): each "
+                    "Fix cites its own source"
+                )
+            return self
+        missing = [key for key in _CITATION if key not in given]
+        if missing:
+            raise ValueError(f"an element decision needs its citation: {missing} missing")
+        if self.join is not None and self.alone:
+            raise ValueError("join and alone exclude each other")
+        if self.status in STOPPED and self.kind not in STOP_SOURCE_TYPES:
+            raise ValueError(
+                f"status {self.status} needs a government, regulator, utility or ISO, SEC, "
+                f"company, trade press or news source, not {self.kind} (07 §6.4 gate 6)"
+            )
         return self
 
 
@@ -370,7 +503,78 @@ def load_overrides(path: Path) -> dict[str, ElementOverride]:
     bad = sorted(ref for ref in entries if not _REF_RE.match(ref))
     if bad:
         raise override_error(f"{path}: keys must be OSM refs such as way/123, not {bad}")
+    own = sorted((ref for ref, ov in entries.items() if ov.join == ref), key=ref_key)
+    if own:
+        raise override_error(f"{path}: an entry joins its own element: {', '.join(own)}")
     return entries
+
+
+def check_override_dates(
+    overrides: Mapping[str, ElementOverride],
+    path: Path = OVERRIDES_PATH,
+    *,
+    today: date,
+    now: datetime,
+) -> None:
+    """An entry dated after the run stops it before anything is fetched: a Fix whose reviewed_at,
+    published_at or event date is after today or whose retrieved_at is after now
+    (corrections.check_fix_dates), or a status_as_of after today."""
+    for ref in sorted(overrides, key=ref_key):
+        ov = overrides[ref]
+        check_fix_dates(ref, ov.corrections, file=str(path), today=today, now=now)
+        if ov.status_as_of is not None and period_start(fuzzy_date(ov.status_as_of)) > today:
+            raise override_error(
+                f"{path} entry {ref!r}: status_as_of {ov.status_as_of} is after today ({today})"
+            )
+
+
+def _check_entry(
+    ref: str,
+    obj: OsmObject,
+    ov: ElementOverride,
+    by_ref: Mapping[str, OsmObject],
+    overrides: Mapping[str, ElementOverride],
+    path: Path,
+) -> None:
+    """The input checks of one entry (apply_overrides): its expect guard on the element's tags as
+    read, no name or operator decision that changes nothing, and a join target that the input
+    has, that no entry drops and that does not stand alone."""
+    where = f"{path} entry {ref!r}"
+    wrong = {
+        tag: obj.tags.get(tag) for tag, value in ov.expect.items() if obj.tags.get(tag) != value
+    }
+    if wrong:
+        expected = {tag: ov.expect[tag] for tag in wrong}
+        raise override_error(
+            f"{where}: expect {expected}, but the element has {wrong}; review the entry (the "
+            "element was retagged upstream)"
+        )
+
+    def unchanged(key: str, value: str | None) -> FetchError:
+        now = f"has no {key} tag" if value is None else f"has the {key} {value!r}"
+        return override_error(
+            f"{where}: the element {now} already, so the entry changes nothing; remove its {key}"
+        )
+
+    if "name" in ov.model_fields_set and obj.tags.get("name") == ov.name:
+        raise unchanged("name", ov.name)
+    if (
+        "operator" in ov.model_fields_set
+        and obj.tags.get("operator") == ov.operator
+        and not any(key in obj.tags for key in _OPERATOR_KEYS)
+    ):
+        raise unchanged("operator", ov.operator)
+    if ov.join is not None:
+        target = overrides.get(ov.join)
+        if ov.join not in by_ref:
+            raise override_error(
+                f"{where}: join names {ov.join}, which this input does not have; review the entry"
+            )
+        if target is not None and (target.drop or target.alone):
+            raise override_error(
+                f"{where}: join names {ov.join}, which an entry "
+                f"{'drops' if target.drop else 'sets alone'}"
+            )
 
 
 def apply_overrides(
@@ -380,7 +584,10 @@ def apply_overrides(
 ) -> tuple[list[OsmObject], list[OsmObject]]:
     """(objects with the replaced names and operators, the objects the overrides drop). A ref the
     input does not have is an error: an entry that no longer applies must be reviewed, not
-    silently ignored."""
+    silently ignored; so are an expect guard the tags do not meet, a name or operator decision
+    that changes nothing and a join target the input does not have, or that an entry drops or
+    sets alone (_check_entry). An element an entry sets alone stays among the objects: the run
+    takes it out of the dissolve."""
     by_ref = {o.ref: o for o in objects}
     unknown = sorted((ref for ref in overrides if ref not in by_ref), key=ref_key)
     if unknown:
@@ -388,6 +595,8 @@ def apply_overrides(
             f"{path} names OSM elements this input does not have: {', '.join(unknown)}; review "
             "the entries (the element may be deleted or retagged upstream)"
         )
+    for ref in sorted(overrides, key=ref_key):
+        _check_entry(ref, by_ref[ref], overrides[ref], by_ref, overrides, path)
     kept: list[OsmObject] = []
     dropped: list[OsmObject] = []
     for obj in objects:
@@ -404,7 +613,7 @@ def apply_overrides(
             if ov.name is not None:
                 tags["name"] = ov.name
         if "operator" in ov.model_fields_set:
-            for key in ("operator", "operator:wikidata", "operator:short", "operator:wikipedia"):
+            for key in ("operator", *_OPERATOR_KEYS):
                 tags.pop(key, None)
             if ov.operator is not None:
                 tags["operator"] = ov.operator
@@ -450,6 +659,164 @@ def override_name_items(
                 )
             )
     return items
+
+
+def check_alone(
+    objects: Sequence[OsmObject],
+    alone: Collection[str],
+    path: Path = OVERRIDES_PATH,
+    *,
+    radius_m: float = DEFAULT_RADIUS_M,
+    regions: Mapping[str, str | None] | None = None,
+) -> None:
+    """An `alone` entry whose element the dissolve would leave in a cluster of its own anyway
+    changes nothing and stops the run (the objects are dissolved once more with the alone
+    elements in)."""
+    if not alone:
+        return
+    found = dissolve_with_notes(objects, radius_m=radius_m, regions=regions)
+    lone = sorted(
+        (c.members[0].ref for c in found.clusters if len(c.members) == 1 and c.refs[0] in alone),
+        key=ref_key,
+    )
+    if lone:
+        raise override_error(
+            f"{path}: alone sets {', '.join(lone)} apart, but no dissolve rule joins "
+            f"{'it' if len(lone) == 1 else 'them'} to anything; remove the entry"
+        )
+
+
+def join_clusters(
+    dissolved: DissolveResult,
+    overrides: Mapping[str, ElementOverride],
+    path: Path = OVERRIDES_PATH,
+    *,
+    regions: Mapping[str, str | None] | None = None,
+) -> DissolveResult:
+    """The clusters with the reviewers' joins made: for each `join` entry, in ref order, the
+    clusters that hold the element and its target are merged into one, whatever the dissolve
+    rules, the operator guard and the county regions say, led by the representative
+    choose_representative picks. A join across a county line adds a county_line note (rule
+    "join"), so the record gets a county_mismatch item; its county is still its point's. Every
+    other note between two refs that now share a cluster is dropped: the two are one campus, so
+    "one record may describe the other's site" and a county line that blocked a rule no longer
+    apply. A join whose two refs are in one cluster already, by the dissolve or an earlier join,
+    changes nothing and stops the run."""
+    joins = sorted(
+        ((ref, ov.join) for ref, ov in overrides.items() if ov.join is not None),
+        key=lambda pair: ref_key(pair[0]),
+    )
+    if not joins:
+        return dissolved
+    clusters = dissolved.clusters
+    index = {m.ref: i for i, c in enumerate(clusters) for m in c.members}
+    parent = list(range(len(clusters)))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            i = parent[i]
+        return i
+
+    notes = list(dissolved.notes)
+    for ref, target in joins:
+        if ref not in index or target not in index:
+            missing = ref if ref not in index else target
+            raise override_error(f"{path} entry {ref!r}: {missing} is in no cluster to join")
+        a, b = find(index[ref]), find(index[target])
+        if a == b:
+            raise override_error(
+                f"{path} entry {ref!r}: {ref} and {target} are one campus already, so the join "
+                "changes nothing; remove it"
+            )
+        parent[max(a, b)] = min(a, b)
+        if regions is not None and regions.get(ref) != regions.get(target):
+            notes.append(DissolveNote("county_line", (ref, target), "join"))
+    grouped: dict[int, list[Cluster]] = {}
+    for i, cluster in enumerate(clusters):
+        grouped.setdefault(find(i), []).append(cluster)
+    merged: list[Cluster] = []
+    for parts in grouped.values():
+        if len(parts) == 1:
+            merged.append(parts[0])
+            continue
+        members = sorted((m for c in parts for m in c.members), key=lambda m: ref_key(m.ref))
+        merged.append(
+            Cluster(members=tuple(members), representative=choose_representative(members))
+        )
+    cluster_of = {m.ref: i for i, c in enumerate(merged) for m in c.members}
+    kept = [
+        n
+        for n in notes
+        if n.kind == "county_line" or cluster_of.get(n.refs[0]) != cluster_of.get(n.refs[1])
+    ]
+    return DissolveResult(
+        clusters=sorted(merged, key=lambda c: ref_key(c.representative.ref)),
+        notes=sorted(kept, key=lambda n: (n.kind, ref_key(n.refs[0]), ref_key(n.refs[1]), n.rule)),
+    )
+
+
+def _status_entries(
+    members: Sequence[OsmObject], overrides: Mapping[str, ElementOverride]
+) -> dict[str, tuple[str, Status]]:
+    """Member ref -> (the entry that gives its status, the status): the member's own entry, else
+    the entry of the cluster's campus or site member that gives one (the first in ref order)."""
+    given = {
+        m.ref: (m.ref, ov.status)
+        for m in members
+        if (ov := overrides.get(m.ref)) is not None and ov.status is not None
+    }
+    areas = sorted((m.ref for m in members if m.kind in AREA_KINDS and m.ref in given), key=ref_key)
+    if areas:
+        for m in members:
+            given.setdefault(m.ref, given[areas[0]])
+    return given
+
+
+def check_statuses(
+    clusters: Sequence[Cluster],
+    overrides: Mapping[str, ElementOverride],
+    path: Path = OVERRIDES_PATH,
+) -> None:
+    """Status entries that stop the run, cluster by cluster: two campus or site members that each
+    give a status (which one would the other members take?), two entries of one status with
+    different status_as_of (one observation per status), and an entry that gives every member it
+    decides the status the crosswalk gives it already (it changes nothing)."""
+    for cluster in clusters:
+        given = _status_entries(cluster.members, overrides)
+        if not given:
+            continue
+        entries = sorted({entry for entry, _ in given.values()}, key=ref_key)
+        areas = [
+            r for r in entries if any(m.ref == r and m.kind in AREA_KINDS for m in cluster.members)
+        ]
+        if len(areas) > 1:
+            raise override_error(
+                f"{path}: {' and '.join(areas)} each give a status to the campus of "
+                f"{cluster.representative.ref}; give it on one site polygon, or on each building"
+            )
+        dated: dict[str, set[str | None]] = {}
+        for entry in entries:
+            ov = overrides[entry]
+            if ov.status is not None:
+                dated.setdefault(ov.status, set()).add(ov.status_as_of)
+        for status, days in sorted(dated.items()):
+            if len(days) > 1:
+                raise override_error(
+                    f"{path}: the entries of {cluster.representative.ref}'s campus that give "
+                    f"status {status} give different status_as_of {sorted(days, key=str)}: give "
+                    "them one"
+                )
+        for entry in entries:
+            decided = [m for m in cluster.members if m.ref in given and given[m.ref][0] == entry]
+            wanted = overrides[entry].status
+            if all(
+                (found := osm_status(m.tags)) is not None and found.status == wanted
+                for m in decided
+            ):
+                raise override_error(
+                    f"{path} entry {entry!r}: OpenStreetMap's tags give {wanted} already, so the "
+                    "status changes nothing; remove it"
+                )
 
 
 # ---------------------------------------------------------------------------- parse
@@ -786,6 +1153,7 @@ class _Context:
     operators: frozenset[str]  # normalize_org of every operator and operator:short in the input
     overrides: Mapping[str, ElementOverride]  # the config/overrides/osm.json entries applied
     dropped: frozenset[str]  # refs the overrides drop from scope (each its own cluster)
+    alone: frozenset[str] = frozenset()  # refs the overrides set alone (each its own cluster)
 
 
 @dataclass
@@ -824,25 +1192,46 @@ def _existing_id(cluster: Cluster, ctx: _Context) -> str | None:
 
 @dataclass(frozen=True)
 class _Group:
-    """Members that share a crosswalked status; status is that of the first member."""
+    """Members that share a status: the crosswalk's (status is that of the first member), or the
+    one config/overrides/osm.json entries give (entries: their refs, in ref order)."""
 
     status: Crosswalked
     members: tuple[OsmObject, ...]
+    entries: tuple[str, ...] = ()
 
 
-def _status_groups(ordered: Sequence[OsmObject]) -> list[_Group]:
+def _status_groups(
+    ordered: Sequence[OsmObject], given: Mapping[str, tuple[str, Status]] | None = None
+) -> list[_Group]:
     """Members grouped by crosswalked status (osm_status), most advanced first (operating,
-    under_construction, announced). Members are kept in `ordered` order, so the representative
-    leads its group."""
-    by_status: dict[str, list[tuple[Crosswalked, OsmObject]]] = {}
+    under_construction, announced; a paused, denied or cancelled status after them). given
+    (_status_entries) is the status an entry gives a member in place of the crosswalk's: such
+    members make groups of their own, one per status. Members are kept in `ordered` order, so the
+    representative leads its group."""
+    by_status: dict[tuple[Status, bool], list[tuple[Crosswalked, OsmObject, str | None]]] = {}
     for m in ordered:
-        found = osm_status(m.tags)
-        if found is not None:
-            by_status.setdefault(found.status, []).append((found, m))
-    ordered_groups = sorted(
-        by_status.values(), key=lambda items: ACTIVE_ORDER.index(items[0][0].status), reverse=True
-    )
-    return [_Group(items[0][0], tuple(m for _, m in items)) for items in ordered_groups]
+        entry = (given or {}).get(m.ref)
+        if entry is not None:
+            ref, status = entry
+            label = f"status={status} in {OVERRIDES_PATH}"
+            found = Crosswalked(status, "other", None, None, STATUS_CONFIDENCE, label)
+            by_status.setdefault((status, True), []).append((found, m, ref))
+            continue
+        crosswalked = osm_status(m.tags)
+        if crosswalked is not None:
+            by_status.setdefault((crosswalked.status, False), []).append((crosswalked, m, None))
+
+    def rank(key: tuple[Status, bool]) -> int:
+        return ACTIVE_ORDER.index(key[0]) if key[0] in ACTIVE_ORDER else -1
+
+    return [
+        _Group(
+            items[0][0],
+            tuple(m for _, m, _ in items),
+            tuple(sorted({r for _, _, r in items if r is not None}, key=ref_key)),
+        )
+        for items in (by_status[k] for k in sorted(by_status, key=rank, reverse=True))
+    ]
 
 
 @dataclass(frozen=True)
@@ -988,18 +1377,21 @@ def _construction_site_groups(
     industrial=data_centre, opening_date=2027), holds a hall tagged only telecom=data_center,
     which made the record operating. A construction site without a future opening_date keeps
     its groups: Meta Cheyenne, QTS NAL1, Digital Realty IAD51 and Meta Rosemount operate on
-    theirs."""
+    theirs. A status a config/overrides/osm.json entry gives is a reviewer's and is never
+    regrouped (an entry on the site decides all its members)."""
     if rep.kind not in AREA_KINDS or not rep.planned:
         return groups
     opening = osm_date(rep.tags.get("opening_date"), latest=ctx.latest_date)
     if opening is None or _period_after(opening) <= ctx.as_of_date:
         return groups
-    operating = [g for g in groups if g.status.status == "operating"]
+    operating = [g for g in groups if g.status.status == "operating" and not g.entries]
     if not operating:
         return groups
     moved = tuple(m for g in operating for m in g.members if m.ref != rep.ref)
-    rest = [g for g in groups if g.status.status != "operating"]
-    building = next((g for g in rest if g.status.status == "under_construction"), None)
+    rest = [g for g in groups if g not in operating]
+    building = next(
+        (g for g in rest if g.status.status == "under_construction" and not g.entries), None
+    )
     tag = (
         "landuse=construction"
         if rep.tags.get("landuse") == "construction"
@@ -1025,10 +1417,23 @@ def _construction_site_groups(
     return [site] + [g for g in rest if g is not building]
 
 
-def _phase_name(group: _Group) -> str:
+def _publishers(group: _Group, ctx: _Context) -> str:
+    """The publishers of the sources that the entries giving a group's status cite."""
+    return ", ".join(dict.fromkeys(ctx.overrides[e].publisher for e in group.entries))
+
+
+def _phase_name(group: _Group, ctx: _Context) -> str:
     names = list(dict.fromkeys(m.name or m.ref for m in group.members))
     shown = ", ".join(names[:3]) + (f" and {len(names) - 3} more" if len(names) > 3 else "")
-    return f"{_PHASE_LABEL[group.status.status]} in OpenStreetMap: {shown}"
+    where = f"per {_publishers(group, ctx)}" if group.entries else "in OpenStreetMap"
+    return f"{_PHASE_LABEL[group.status.status]} {where}: {shown}"
+
+
+def _opening(group: _Group, ctx: _Context) -> tuple[FuzzyDate | None, list[OsmObject]]:
+    """The opening_date of a group's first member, else the one its members agree on, and the
+    members that give it."""
+    raw, dated = _pick(group.members[0], group.members, lambda m: m.tags.get("opening_date"))
+    return osm_date(raw, latest=ctx.latest_date), dated
 
 
 def _events(
@@ -1037,6 +1442,7 @@ def _events(
     ctx: _Context,
     review: list[ReviewItem],
     cite: Callable[[Sequence[OsmObject]], list[str]] | None = None,
+    entry_sid: Callable[[str], str] | None = None,
 ) -> tuple[list[StatusEvent], list[Phase], dict[str, str]]:
     """Status events, phases and each member's phase_id.
 
@@ -1051,11 +1457,22 @@ def _events(
     under construction stays operating and is expanding (07 §2.3). A non-operating group with an
     opening_date adds a planned energized event, unless that date has passed (a `conflict` item).
     cite gives the source ids of the members whose tags decide a group's status (default s1).
+
+    A group whose status config/overrides/osm.json entries give (_Group.entries) has one `other`
+    event dated the entries' status_as_of, else the snapshot date (an observation that dates
+    nothing either), citing the entries' sources (entry_sid), not the members' elements; as a
+    phase it is "review-{status}", named after the sources' publishers. Its start_date is not
+    read: the status is the reviewer's.
     """
     rep = cluster.representative
 
     def sources_of(members: Sequence[OsmObject]) -> list[str]:
         return (cite(members) if cite is not None else []) or [OSM_SOURCE_ID]
+
+    def group_sources(group: _Group) -> list[str]:
+        if group.entries and entry_sid is not None:
+            return sorted({entry_sid(e) for e in group.entries}, key=_sid_number)
+        return sources_of(group.members)
 
     phased = len(groups) > 1
     events: list[StatusEvent] = []
@@ -1064,17 +1481,38 @@ def _events(
     phase_ids: list[str | None] = []
     for group in groups:
         status = group.status
-        phase_id = f"osm-{status.status}" if phased else None
+        prefix = "review" if group.entries else "osm"
+        phase_id = f"{prefix}-{status.status}" if phased else None
         phase_ids.append(phase_id)
         if phase_id is not None:
             phases.append(
                 Phase(
                     phase_id=phase_id,
-                    name=_phase_name(group),
-                    source_ids=sources_of(group.members),
+                    name=_phase_name(group, ctx),
+                    source_ids=group_sources(group),
                 )
             )
             phase_of.update(dict.fromkeys((m.ref for m in group.members), phase_id))
+        if group.entries:
+            entries = [ctx.overrides[e] for e in group.entries]
+            day = entries[0].status_as_of
+            reviewed = max(ov.reviewed_at for ov in entries)
+            note = (
+                f"Status per {_publishers(group, ctx)}, entered in review on {reviewed} "
+                f"({OVERRIDES_PATH}); it replaces the status OpenStreetMap's tags give"
+            )
+            events.append(
+                StatusEvent(
+                    seq=len(events) + 1,
+                    status=status.status,
+                    event="other",
+                    as_of=fuzzy_date(day) if day is not None else ctx.as_of,
+                    phase_id=phase_id,
+                    source_ids=group_sources(group),
+                    note=note[:200],
+                )
+            )
+            continue
         # The note names no date: as_of is the first snapshot that saw the status, and a note
         # that changed every week would rewrite every record.
         note = (
@@ -1109,16 +1547,20 @@ def _events(
     for group, phase_id in zip(groups, phase_ids, strict=True):
         if group.status.status == "operating":
             continue
-        raw, dated = _pick(group.members[0], group.members, lambda m: m.tags.get("opening_date"))
-        opening = osm_date(raw, latest=ctx.latest_date)
+        opening, dated = _opening(group, ctx)
         if opening is None:
             continue
         if _period_after(opening) <= ctx.as_of_date:
+            tagged = (
+                f"{OVERRIDES_PATH} gives the site {group.status.status}"
+                if group.entries
+                else f"OpenStreetMap still tags the site {group.status.label}"
+            )
             review.append(
                 _review(
                     "conflict",
-                    f"opening_date={opening.value} has passed, but OpenStreetMap still tags the "
-                    f"site {group.status.label} on {ctx.as_of.value}; the date is not used",
+                    f"opening_date={opening.value} has passed, but {tagged} on "
+                    f"{ctx.as_of.value}; the date is not used",
                     external_id=rep.ref,
                     data={"opening_date": opening.value, "status": group.status.status},
                 )
@@ -1143,7 +1585,9 @@ _OBSERVATIONS = ("first_reported", "other")  # the events OSM writes for a statu
 
 
 def _keep_first_reported(
-    events: list[StatusEvent], existing: FacilityRecord | None
+    events: list[StatusEvent],
+    existing: FacilityRecord | None,
+    entry_urls: Mapping[str, str | None] | None = None,
 ) -> list[StatusEvent]:
     """Keep the earliest stored as_of of an observation (an `other` event, or the
     `first_reported` event that earlier versions wrote) with the same status that OpenStreetMap
@@ -1153,19 +1597,37 @@ def _keep_first_reported(
     Neither the phase nor the source ids are compared: when a cluster gains or loses a status
     group, its events move between phase_id None and "osm-{status}", and when it gains or loses a
     member, the members its event cites change, but the status itself has not changed.
+
+    The same holds for an observation that config/overrides/osm.json entries give without a
+    status_as_of: it keeps the earliest stored as_of of an observation of its status that cites
+    the same URLs. One the entries date (status_as_of) keeps that date. entry_urls: the new
+    record's source id of each status entry -> its URL, or None when the entry gives a
+    status_as_of.
     """
     if existing is None:
         return events
     osm_ids = {s.id for s in existing.sources if s.url.host == OSM_HOST}
+    url_of = {s.id: str(s.url) for s in existing.sources}
     stored: dict[str, FuzzyDate] = {}
+    reviewed: dict[tuple[str, frozenset[str | None]], FuzzyDate] = {}
     for e in existing.status_history:
-        if e.planned or e.event not in _OBSERVATIONS or not set(e.source_ids) <= osm_ids:
+        if e.planned or e.event not in _OBSERVATIONS:
             continue
-        if e.status not in stored or period_start(e.as_of) < period_start(stored[e.status]):
-            stored[e.status] = e.as_of
+        if set(e.source_ids) <= osm_ids:
+            if e.status not in stored or period_start(e.as_of) < period_start(stored[e.status]):
+                stored[e.status] = e.as_of
+        elif e.event == "other" and e.source_ids:
+            key = (e.status, frozenset(url_of.get(s, "") for s in e.source_ids))
+            if key not in reviewed or period_start(e.as_of) < period_start(reviewed[key]):
+                reviewed[key] = e.as_of
+    urls = entry_urls or {}
     out: list[StatusEvent] = []
     for e in events:
-        old = stored.get(e.status)
+        if e.source_ids and all(s in urls for s in e.source_ids):
+            # An entry's observation: a dated one (URL None) matches nothing and keeps its date.
+            old = reviewed.get((e.status, frozenset(urls[s] for s in e.source_ids)))
+        else:
+            old = stored.get(e.status)
         if (
             e.event in _OBSERVATIONS
             and not e.planned
@@ -1650,10 +2112,13 @@ def _hold(cluster: Cluster, ctx: _Context) -> ReviewItem | None:
     - an unnamed building without an operator drawn over another building's footprint (its box
       covers most of the other's): the same building mapped twice (Apple Mesa, way 567575425
       on way 300974499).
+
+    A status a config/overrides/osm.json entry gives counts as known, and is never held as
+    planned in OSM only.
     """
     rep = cluster.representative
     data: dict[str, JsonValue] = {"refs": list(cluster.refs), "pnnl": _pnnl_keys(cluster, ctx)}
-    groups = _status_groups(cluster.members)
+    groups = _status_groups(cluster.members, _status_entries(cluster.members, ctx.overrides))
     if not groups:
         if any(m.kind == "site" for m in cluster.members):
             reason = (
@@ -1665,8 +2130,10 @@ def _hold(cluster: Cluster, ctx: _Context) -> ReviewItem | None:
         return _review(
             "unknown_status", reason, external_id=rep.ref, data=data | {"name": rep.name}
         )
-    if [g.status.status for g in groups] == ["announced"] and not any(
-        m.name or m.has_operator for m in cluster.members
+    if (
+        [g.status.status for g in groups] == ["announced"]
+        and not groups[0].entries
+        and not any(m.name or m.has_operator for m in cluster.members)
     ):
         label = groups[0].status.label
         return _review(
@@ -1869,7 +2336,12 @@ def _build_one(
     (when a row matched), s3... the config/overrides/osm.json entries applied, and then one
     source per other member that gives a value (its name as the record's name or an alias, the
     operator, owner, street, postcode or a power tag, its building entry, or the status of its
-    group), so a reviewer can find each value on the element that states it."""
+    group), so a reviewer can find each value on the element that states it.
+
+    An entry's source supports what its element decisions give: the name and the operator; the
+    joined element's building entry (join); the status of the members it decides, through their
+    group's event (status). The candidate's joined names its match values when a join entry made
+    the cluster, and split_from the element an alone entry sets apart (merge_import)."""
     rep = cluster.representative
     twins = _drawn_twice(cluster)
     ordered = [rep] + [m for m in cluster.members if m.ref != rep.ref and m.ref not in twins]
@@ -1884,8 +2356,9 @@ def _build_one(
             )
         )
         return None
-    groups = _status_groups(ordered) or _status_groups(
-        [rep] + [m for m in cluster.members if m.ref != rep.ref]
+    statuses = _status_entries(ordered, ctx.overrides)  # a twin's tags are not read
+    groups = _status_groups(ordered, statuses) or _status_groups(
+        [rep] + [m for m in cluster.members if m.ref != rep.ref], statuses
     )
     groups = _construction_site_groups(groups, rep, ctx, review)
     dropped = ctx.overrides.get(rep.ref) if rep.ref in ctx.dropped else None
@@ -1936,8 +2409,11 @@ def _build_one(
     members = [m for m in ordered if m.kind not in AREA_KINDS]
     members.sort(key=lambda m: ref_key(m.ref))
 
-    # Values a config/overrides/osm.json entry gave, and the source each one cites (s3, ...).
-    applied = {m.ref: ov for m in ordered if (ov := ctx.overrides.get(m.ref)) is not None}
+    # Values a config/overrides/osm.json entry gave, and the source each one cites (s3, ...). An
+    # entry with only corrections has no source of its own here: each Fix is cited after the build.
+    applied = {
+        m.ref: ov for m in ordered if (ov := ctx.overrides.get(m.ref)) is not None and ov.decides
+    }
     override_sid = {ref: f"s{3 + i}" for i, ref in enumerate(sorted(applied, key=ref_key))}
     override_supports: dict[str, list[str]] = {ref: [] for ref in applied}
 
@@ -1967,7 +2443,8 @@ def _build_one(
             name_members += operated
     else:
         name_members = operated  # "{operator} data center", or "Data center" (s1)
-    group_members = [m for g in groups for m in g.members]
+    # A group whose status an entry gives cites the entry; its members give only an opening_date.
+    group_members = [m for g in groups for m in (_opening(g, ctx)[1] if g.entries else g.members)]
     suppliers = {
         m.ref
         for m in [
@@ -2041,8 +2518,15 @@ def _build_one(
         supports[rep.ref].append("/purpose")
 
     existing = ctx.existing.get(existing_id) if existing_id else None
-    events, phases, phase_of = _events(groups, cluster, ctx, review, cite)
-    events = _keep_first_reported(events, existing)
+    events, phases, phase_of = _events(
+        groups, cluster, ctx, review, cite, lambda ref: override_sid[ref]
+    )
+    entry_urls = {
+        override_sid[ref]: None if ov.status_as_of else str(ov.source_url)
+        for ref, ov in applied.items()
+        if ov.status is not None
+    }
+    events = _keep_first_reported(events, existing, entry_urls)
     review.extend(_same_number_items(rep, members, groups))
 
     join = ctx.pnnl_join
@@ -2056,6 +2540,8 @@ def _build_one(
         support([m], f"/buildings/{i}", name=True)
         if named_by(m.ref):
             supports[m.ref].append(f"/buildings/{i}")  # the ref is OSM's; the name the entry's
+        if m.ref in applied and applied[m.ref].join is not None:
+            override_supports[m.ref].append(f"/buildings/{i}")  # a building of this campus
 
     def osm_source(ref: str, sid: str) -> Source:
         return Source(
@@ -2105,6 +2591,16 @@ def _build_one(
             source_ids=(cite(groups[0].members) if groups else []) or [OSM_SOURCE_ID],
         ),
     }
+    if groups and groups[0].entries:
+        # The record's status is the one entries give: entered in review from their sources
+        # (07 §3.4), in place of OpenStreetMap's where a member's tags gave one.
+        lead = groups[0]
+        replaced = ["open_dataset"] if any(osm_status(m.tags) for m in lead.members) else []
+        field_meta["/status"] = FieldMeta(
+            confidence=max(human_confidence(applied[e].kind, replaced) for e in lead.entries),
+            method="human_entered",
+            source_ids=sorted({override_sid[e] for e in lead.entries}, key=_sid_number),
+        )
     for pointer in capacity_from.pointers:
         field_meta[pointer] = FieldMeta(
             confidence=CAPACITY_CONFIDENCE,
@@ -2170,7 +2666,14 @@ def _build_one(
                 "until a reviewer decides"
             )
         review.append(_review("out_of_scope", why, external_id=rep.ref))
-    return Candidate(match_values=tuple(external_ids["osm"]), record=apply_rollup(record))
+    refs = tuple(external_ids["osm"])
+    joined = any((ov := ctx.overrides.get(r)) is not None and ov.join for r in refs)
+    return Candidate(
+        match_values=refs,
+        record=apply_rollup(record),
+        joined=refs if joined else (),
+        split_from=rep.ref if rep.ref in ctx.alone else None,
+    )
 
 
 def _extent(cluster: Cluster) -> Bounds:
@@ -2488,12 +2991,39 @@ def _hold_after_build(
 
     # Items about records that stay.
     lines: dict[tuple[str, str | None], list[str]] = {}
+    joined: dict[tuple[str, str | None], list[str]] = {}
     for note in notes:
         line = cluster_of.get(note.refs[0])
-        if note.kind == "county_line" and line is not None and line.representative.ref not in held:
-            lines.setdefault((line.representative.ref, regions.get(note.refs[0])), []).append(
-                note.refs[0]
+        if note.kind != "county_line" or line is None or line.representative.ref in held:
+            continue
+        if note.rule == "join":  # the members outside the record's county
+            rep = line.representative.ref
+            home = record_of[rep].record.location.county_fips
+            for m in line.members:
+                if regions.get(m.ref) != home:
+                    joined.setdefault((rep, regions.get(m.ref)), []).append(m.ref)
+            continue
+        lines.setdefault((line.representative.ref, regions.get(note.refs[0])), []).append(
+            note.refs[0]
+        )
+    for key, refs in sorted(joined.items(), key=lambda kv: (kv[0][0], str(kv[0][1]))):
+        rep, line_fips = key
+        outlined = set(lines.get(key, []))
+        rest = sorted(set(refs) - outlined, key=ref_key)
+        if not rest:
+            continue
+        record = record_of[rep].record
+        items.append(
+            _review(
+                "county_mismatch",
+                f"{', '.join(rest)} lie in {county_name(line_fips)}, not in "
+                f"{county_name(record.location.county_fips)}, the record's county: a reviewed "
+                f"join ({OVERRIDES_PATH}) makes the campus one record across the county line, "
+                "with its representative's county",
+                external_id=rep,
+                data={"osm": _json_refs(rest), "county_fips": line_fips},
             )
+        )
     for (rep, line_fips), refs in sorted(lines.items(), key=lambda kv: (kv[0][0], str(kv[0][1]))):
         record = record_of[rep].record
         inside = _json_refs(refs)
@@ -2548,6 +3078,7 @@ def build_candidates(
     regions: Mapping[str, str | None] | None = None,
     overrides: Mapping[str, ElementOverride] | None = None,
     dropped: Iterable[str] = (),
+    alone: Iterable[str] = (),
 ) -> BuildResult:
     """One campus candidate per cluster that is not held for review, the review items, and
     metrics. places (the Census place polygons) gives the city: the place that contains the
@@ -2555,7 +3086,9 @@ def build_candidates(
     record names no city and its canonical name gives the county's full name, from gazetteer
     (default: the committed Census Gazetteer). notes are dissolve_with_notes's (regions: each
     object's county FIPS, looked up when not given); overrides are the config/overrides/osm.json
-    entries applied to the objects, and dropped the refs they drop (each its own cluster)."""
+    entries applied to the objects, dropped the refs they drop and alone the refs they set alone
+    (each its own cluster). The entries' corrections are applied afterwards
+    (correct_candidates)."""
     if snapshot.upstream_version is None:
         raise ValueError("the Overpass snapshot has no timestamp_osm_base")
     if gazetteer is None:
@@ -2590,6 +3123,7 @@ def build_candidates(
         operators=operators,
         overrides=dict(overrides or {}),
         dropped=frozenset(dropped),
+        alone=frozenset(alone),
     )
     # The record's county is the representative's: a mean point can fall in the next county.
     points = [_cluster_point(c) for c in clusters]
@@ -2684,6 +3218,71 @@ def build_candidates(
     return BuildResult(candidates=candidates, review=review, metrics=metrics)
 
 
+def correct_candidates(
+    built: BuildResult,
+    clusters: Sequence[Cluster],
+    overrides: Mapping[str, ElementOverride],
+    path: Path = OVERRIDES_PATH,
+    *,
+    present: Collection[str],
+    today: date,
+    counties: CountyIndex,
+    gazetteer: Callable[[], Gazetteer],
+) -> int:
+    """Apply the entries' corrections to the candidates, in place, and return how many records
+    they corrected (docs/corrections.md):
+
+    - each candidate whose match values hold refs with corrections gets them, through
+      corrections.apply_fixes, the entries in ref order: the record that holds the element after
+      every hold, whatever cluster the dissolve and the joins put it in. The hold and
+      out_of_scope ops' items name the cluster's representative, like the importer's own;
+    - the review items about a corrected record (any of its refs) get data.corrected_by
+      (corrections.mark_corrected);
+    - corrections.check_entries then stops the run for an entry the input does not have
+      (present: its refs) or whose record ops found no record (its cluster was held).
+
+    gazetteer is called only when an entry has corrections."""
+    file = str(path)
+    entries = {ref: ov.corrections for ref, ov in overrides.items()}
+    rep_of = {min(c.refs, key=ref_key): c.representative.ref for c in clusters}
+    candidates: list[Candidate] = []
+    filed: list[ReviewItem] = []
+    fixes_of: dict[str, list[Fix]] = {}
+    corrected = 0
+    for candidate in built.candidates:
+        found = [(ref, entries[ref]) for ref in candidate.match_values if entries.get(ref)]
+        if not found:
+            candidates.append(candidate)
+            continue
+        corrected += 1
+        key = candidate.match_values[0]
+        applied = apply_fixes(
+            candidate.record,
+            found,
+            file=file,
+            source="osm",
+            today=today,
+            counties=counties,
+            gazetteer=gazetteer(),
+            external_id=rep_of.get(key, key),
+        )
+        candidates.append(dataclasses.replace(candidate, record=applied.record))
+        filed.extend(applied.review)
+        fixes = [fix for _, fs in found for fix in fs]
+        fixes_of.update(dict.fromkeys(candidate.match_values, fixes))
+    review = mark_corrected(built.review, fixes_of, file=file) + filed
+    check_entries(
+        entries,
+        present=present,
+        built={v for c in candidates for v in c.match_values},
+        review=review,
+        file=file,
+    )
+    built.candidates = candidates
+    built.review = review
+    return corrected
+
+
 # ---------------------------------------------------------------------------- importer
 
 
@@ -2756,27 +3355,36 @@ class OsmImporter:
         endpoints: list[str] = list(getattr(args, "overpass_url", None) or OVERPASS_ENDPOINTS)
         overrides_path: Path = getattr(args, "overrides", None) or OVERRIDES_PATH
         overrides = load_overrides(overrides_path)
+        check_override_dates(overrides, overrides_path, today=ctx.today, now=ctx.now)
         overpass = fetch_overpass(
             ctx, endpoints, min_elements=self.min_elements, retries=self.retries, sleep=self.sleep
         )
         parsed, skipped = parse_overpass(overpass.doc)
         read = keep_containers(parsed)
         objects, dropped = apply_overrides(read, overrides, overrides_path)
+        alone = [o for o in objects if (ov := overrides.get(o.ref)) is not None and ov.alone]
         counties = ctx.counties()
         everything = objects + dropped
         found = counties.lookup_many([(o.lat, o.lon) for o in everything])
         regions = {
             o.ref: c.fips if c is not None else None for o, c in zip(everything, found, strict=True)
         }
-        dissolved = dissolve_with_notes(
-            objects,
-            radius_m=float(getattr(args, "dissolve_m", DEFAULT_RADIUS_M)),
+        radius_m = float(getattr(args, "dissolve_m", DEFAULT_RADIUS_M))
+        apart = {o.ref for o in alone}
+        check_alone(objects, apart, overrides_path, radius_m=radius_m, regions=regions)
+        dissolved = join_clusters(
+            dissolve_with_notes(
+                [o for o in objects if o.ref not in apart], radius_m=radius_m, regions=regions
+            ),
+            overrides,
+            overrides_path,
             regions=regions,
         )
         # A container polygon that holds nothing after all is not a data center object.
         clusters = [c for c in dissolved.clusters if not all(m.container for m in c.members)]
-        clusters += [Cluster(members=(o,), representative=o) for o in dropped]
+        clusters += [Cluster(members=(o,), representative=o) for o in dropped + alone]
         clusters.sort(key=lambda c: ref_key(c.representative.ref))
+        check_statuses(clusters, overrides, overrides_path)
         inputs = [overpass.snapshot]
         join: pnnl.JoinResult | None = None
         pnnl_snapshot: InputSnapshot | None = None
@@ -2799,6 +3407,7 @@ class OsmImporter:
             regions=regions,
             overrides=overrides,
             dropped=[o.ref for o in dropped],
+            alone=apart,
         )
         built.metrics["overrides"] = len(overrides)
         built.review.extend(override_name_items(read, overrides, overrides_path))
@@ -2807,6 +3416,21 @@ class OsmImporter:
                 _review("missing_location", "the Overpass element has no position", external_id=ref)
             )
         built.metrics["skipped"] = len(skipped)
+        corrected = correct_candidates(
+            built,
+            clusters,
+            overrides,
+            overrides_path,
+            present={o.ref for o in read},
+            today=ctx.today,
+            counties=counties,
+            gazetteer=ctx.gazetteer,
+        )
+        built.metrics.update(
+            correction_metrics(
+                {ref: ov.corrections for ref, ov in overrides.items()}, corrected=corrected
+            )
+        )
         if join is not None and join.match_rate < pnnl.MATCH_RATE_TARGET:
             print(
                 f"warning: {join.match_rate:.1%} of PNNL rows matched an OSM-derived record, below "

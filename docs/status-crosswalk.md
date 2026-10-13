@@ -38,6 +38,12 @@ not open yet (PowerHouse CTP-02's hall, tagged only `telecom=data_center`, on a 
 tag is a filing (07 §2.3): `proposed=yes` on an anonymous lot in Manchester Township, NJ (way
 1549253250) was published as `proposed` before the third review round.
 
+A reviewer's `status` entry in `config/overrides/osm.json` replaces this crosswalk for its element
+(and, on a campus or site polygon, for the members of its cluster without an entry of their own):
+the status the cited source gives, as an `other` observation citing the entry, dated its
+`status_as_of` or the snapshot date ([osm-pnnl.md](sources/osm-pnnl.md#status-events-and-phases),
+section 9).
+
 An object is a data center when `telecom`, `building`, `construction:telecom`, `proposed:telecom`,
 `construction`, `construction:building` or `proposed:building` is `data_center`, or when it has a
 building tag (`building`, `proposed:building` or `construction:building`, other than `no`) and
@@ -187,3 +193,13 @@ Importers add one event per upstream status change; `atlas.schema.rollup.apply_r
 phases; with phases, the most advanced active phase wins, and a stopped status applies only when
 every phase is stopped. `atlas validate` fails a record whose `status` or `dates` disagree with its
 events.
+
+A reviewer's events go through the same rollup. A cited correction in `config/overrides/`
+([corrections.md](corrections.md)) adds an event (`add_event`), an observation (`observe`: an
+`other` event, which sets the status and dates nothing, like OSM's and AI GridWatch's), or an
+earlier first report (`first_report`), changes one (`replace_event`) or removes one
+(`remove_event`), each found by what it says, never by its place in the list; the record's status
+and dates are then rolled up again. A removed event, and the old values of a redated one, stay in
+`field_meta["/status_history"]` conflicts with their sources, and when a reviewer's event decides
+the status, `field_meta["/status"]` cites it as `human_entered`. OSM's element `status` (above)
+is an observation of the same kind, made before the build.
