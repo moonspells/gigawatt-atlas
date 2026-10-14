@@ -82,7 +82,10 @@ shorter `max-age`, so browsers keep `atlas/latest.json`, `atlas/pending.json` an
 ## 6. CORS on `atlas-tiles`
 
 The file is [`r2/cors.json`](../r2/cors.json) in this repo (Wrangler format): origins
-`https://moonspells.dev` and `http://localhost:4321`, methods `GET` and `HEAD`, request headers
+`https://moonspells.dev`, `http://localhost:4321` and `https://*-moonspells.moonman36.workers.dev`
+(the site's Workers Builds previews: the branch alias and every version preview of the
+`moonspells` Worker end in `-moonspells.moonman36.workers.dev`; without it the preview's map and
+facility data fail with a CORS error), methods `GET` and `HEAD`, request headers
 `range` and `if-match`, exposed `etag`, `content-length` and `content-range`, max age 3000 s.
 The command runs from the site clone like the others, so `--file` names the file in the
 `gigawatt-atlas` clone.
