@@ -12,7 +12,8 @@
         ],
         "origins": [
           "https://moonspells.dev",
-          "http://localhost:4321"
+          "http://localhost:4321",
+          "https://*-moonspells.moonman36.workers.dev"
         ]
       },
       "exposeHeaders": [
