@@ -97,6 +97,20 @@
     "source_type": "company_release",
     "source_url": "https://www.1547realty.com/data-center/portland-or-ptor1/"
   },
+  "node/8641856300": {
+    "drop": true,
+    "expect": {
+      "name": "Chick-fil-A Hiring Center",
+      "telecom": "data_center"
+    },
+    "publisher": "OpenStreetMap contributors",
+    "quote": "\"name\":\"Chick-fil-A Hiring Center\"",
+    "reason": "The node is named Chick-fil-A Hiring Center: a fast-food chain's hiring center, not a site that houses computing equipment (07 §2.2). Only its bare telecom=data_center tag made it read as an operating data center; its operator tag is a person's name, not an organization's.",
+    "retrieved_at": "2026-10-16T16:24:13Z",
+    "reviewed_at": "2026-10-16",
+    "source_type": "open_dataset",
+    "source_url": "https://api.openstreetmap.org/api/0.6/node/8641856300.json"
+  },
   "node/9669340912": {
     "corrections": [
       {

@@ -1046,6 +1046,17 @@ since the campus name counts the named buildings whatever their phase. Equinix's
 D.C. metro page refuses the project's user agent, and the Wayback Machine could not be reached,
 so it is not cited.
 
+The review of the integrated Phase 2 build (reviewed 2026-10-16) adds one element decision:
+node/8641856300 in Macomb County, MI, `drop`, with `expect` name "Chick-fil-A Hiring Center" and
+telecom data_center. The node is a fast-food chain's hiring center whose bare
+`telecom=data_center` made it an operating data center in release 20261013-1702, and its
+operator tag is a person's name, which that release published as the record's operator and in
+its name. The entry cites the node's own tags, read through the OSM API with the project's user
+agent on 2026-10-16, 16:24 UTC (the website challenged automated clients; the node is at
+version 1, its tags as in the seed input), and quotes the name tag only. The record keeps its id
+and is out of scope, so no later release publishes it; a dropped element replaces nothing, so
+the stored record still holds the operator tag as OSM gives it (section 10, "Names").
+
 ## 10. Known limits
 
 - **Bounding-box containment in saved inputs.** A response saved before 2026-10-09's second
@@ -1099,7 +1110,11 @@ so it is not cited.
   round 5). A campus's common name can be a former brand rather than the site ("NTT RagingWire"
   for RagingWire CA1 and CA2), and a series names its buildings, not the campus ("Equinix DC1,
   DC2, DC4 and 5 more"). Operator tags are copied as written; a few
-  name a person or a non-data-center business, which the seed review should catch. The place is
+  name a person or a non-data-center business, which the seed review should catch: release
+  20261013-1702 published a fast-food chain's hiring center whose operator tag is a person's name
+  (node/8641856300, dropped since, section 9). No OSM rule reads an operator tag as a person (the
+  AI GridWatch importer drops persons from its parties), and a dropped element's out-of-scope record still holds the
+  tag in `data/records/`, unpublished. The place is
   the Census place that contains the point, else the county, never the postal city; a point within
   about 100 m of a place's line names the county.
 - **Doubly mapped buildings.** An unnamed way drawn on another building's footprint is held
