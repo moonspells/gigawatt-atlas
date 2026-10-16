@@ -8,11 +8,11 @@
     "merged": 0,
     "new": 0,
     "removed_upstream": 0,
-    "review": 244,
-    "unchanged": 963,
-    "updated": 1
+    "review": 246,
+    "unchanged": 962,
+    "updated": 2
   },
-  "git_commit": "c0053a490ad0e8c62ec30576c81315796abefd63",
+  "git_commit": "8699d6284192062be987913e4d812b6b76515e5a",
   "importer_version": "5",
   "inputs": [
     {
@@ -48,8 +48,8 @@
     "corrections_out_of_scope": 2,
     "held": 50,
     "objects": 2046,
-    "out_of_scope": 93,
-    "overrides": 52,
+    "out_of_scope": 95,
+    "overrides": 54,
     "pnnl_match_rate": 0.9928,
     "pnnl_matched": 1372,
     "pnnl_matched_by_id": 0,
@@ -60,6 +60,6 @@
     "skipped": 0,
     "unit_parse": 0
   },
-  "ran_at": "2026-10-16T16:30:13Z",
+  "ran_at": "2026-10-16T17:42:28Z",
   "source": "osm"
 }
