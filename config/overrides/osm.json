@@ -1108,6 +1108,20 @@
       }
     ]
   },
+  "way/828228235": {
+    "drop": true,
+    "expect": {
+      "name": "StrongMind",
+      "telecom": "data_center"
+    },
+    "publisher": "City of Chandler",
+    "quote": "Headquartered in Chandler, StrongMind develops technology and curriculum for online and blended-learning schools. The company has approximately 250 employees.",
+    "reason": "The way is StrongMind's head office: the Maricopa County Assessor's parcel under it is 2501 N Arizona Ave, the address StrongMind's contact page gives. An online-learning company's offices, not a site that houses computing equipment (07 §2.2); only its bare telecom=data_center tag made it one.",
+    "retrieved_at": "2026-10-16T17:35:23Z",
+    "reviewed_at": "2026-10-16",
+    "source_type": "government_record",
+    "source_url": "https://www.chandleraz.gov/business/economic-development/key-industries-and-employers/software-development"
+  },
   "way/903642490": {
     "drop": true,
     "publisher": "FamilySearch",
@@ -1130,5 +1144,20 @@
     "reviewed_at": "2026-10-13",
     "source_type": "trade_press",
     "source_url": "https://dgtlinfra.com/compass-datacenters-loudoun-county-true-north-data/"
+  },
+  "way/958728802": {
+    "drop": true,
+    "expect": {
+      "addr:housenumber": "550",
+      "name": "E-Foam",
+      "telecom": "data_center"
+    },
+    "publisher": "E-Foam, LLC",
+    "quote": "E-Foam, LLC. is a family-operated company founded in 2007 dedicated to manufacturing and the commercialization of Architectural Decorative Foam for interior and exterior decor.",
+    "reason": "The way is E-Foam, LLC's building: its site gives the way's address (number 550, Winter Garden) as its own and says it makes architectural decorative foam. A manufacturer's building, not a site that houses computing equipment (07 §2.2); only its bare telecom=data_center tag made it one.",
+    "retrieved_at": "2026-10-16T17:06:00Z",
+    "reviewed_at": "2026-10-16",
+    "source_type": "company_release",
+    "source_url": "https://www.efoamllc.com/"
   }
 }

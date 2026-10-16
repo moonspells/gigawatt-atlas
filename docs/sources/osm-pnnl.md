@@ -1057,6 +1057,35 @@ version 1, its tags as in the seed input), and quotes the name tag only. The rec
 and is out of scope, so no later release publishes it; a dropped element replaces nothing, so
 the stored record still holds the operator tag as OSM gives it (section 10, "Names").
 
+The same review's scan of the published records found nine more elements, each named for a business
+that does not run data centers, whose only data center signal is a bare `telecom=data_center`
+(PNNL's rows, for the eight it has, repeat OSM's names and footprints, section 6). Each was checked
+against the company's own pages, PeeringDB, Baxtel and the county's or city's records, every page
+read with the project's user agent on 2026-10-16. Two are entries (reviewed 2026-10-16), `drop`
+with `expect` on the tags they read:
+
+| Element | Decision | Source |
+|---|---|---|
+| way/828228235 (StrongMind, Chandler, AZ) | dropped: StrongMind's head office; the Maricopa County Assessor's parcel under the way is 2501 N Arizona Ave, the address StrongMind's contact page gives | City of Chandler, software development employers |
+| way/958728802 (E-Foam, Winter Garden, FL) | dropped: the building of E-Foam, LLC, which makes architectural decorative foam and gives the way's address as its own (`expect` also on the house number) | E-Foam, LLC |
+
+Five stay as tagged, because a source shows a data center at the site: way/223783259 at 3101
+Western Avenue, Seattle, named for a biopharma tenant, is PeeringDB's Digital Fortress (SEA) at
+that address; way/451413811 at 150 South 1st Street, San Jose, the former Pavilion mall, is the
+data center Digital Realty sold to Hines in 2021 (Rackspace SJC2, PeeringDB's DataPipe Silicon
+Valley One; Baxtel calls it fully operational); way/195165374 at 7901 NW 112th Street, Kansas City,
+named for a financial-management firm, is Liberty Mutual's building in the city's energy
+benchmarking, with a site energy use of about 400 kBtu per square foot a year, several times an
+office's, and Site Selection reported Liberty Mutual's 100,000 sq ft Kansas City data center in
+2003; way/553884511 is the Carfax Data Center in Columbia, MO (Digital Dealer); and way/1227550179
+is Baxtel's Novartis data center at 6549 South Freeway, Fort Worth. The Seattle and Kansas City
+names are an occupant's, not the data center's, for a reviewer to correct with a cited `name`
+entry. Not entered: way/837139011 ("ForceAmp.com", Coralville, IA) and way/1528887658 (Landmax Data
+Systems, Rush, NY) name a software developer and a property-data company, but no page read places
+the company in the building or says what the building is used for (a building of a commercial
+condominium; a one-story small structure on New York's assessment roll), so they stay as tagged
+until a reviewer decides.
+
 ## 10. Known limits
 
 - **Bounding-box containment in saved inputs.** A response saved before 2026-10-09's second
@@ -1126,7 +1155,9 @@ the stored record still holds the operator tag as OSM gives it (section 10, "Nam
 - **OSM's own errors.** An operator tag that outlived a sale, a tenant's name on a building it
   left, or a data center tag on a clinic is what OSM says; the scope screen and the rules catch
   some, and a reviewer corrects the rest with a cited entry (section 9). Twelve entries on
-  2026-10-09, 38 more (and two of them replaced) in fix round 6; the seed check's other stale
+  2026-10-09, 38 more (and two of them replaced) in fix round 6, one in the re-check of
+  2026-10-13 and three in the review of 2026-10-16 (a hiring center, a foam maker's building and
+  a company's head office, each tagged only `telecom=data_center`); the seed check's other stale
   tags (SEGRA, Charlotte) have no source that states the present, so they stay as tagged. Since
   fix round 6 an entry can also give a status or correct the record's events, so the pre-check's
   stale statuses (Microsoft East Point, EdgeCore AS02, Crane PDX01, Prime SJC03, Lambda's Kansas
