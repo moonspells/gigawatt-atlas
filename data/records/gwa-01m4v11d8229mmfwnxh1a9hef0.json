@@ -58,7 +58,7 @@
   },
   "id": "gwa-01m4v11d8229mmfwnxh1a9hef0",
   "incentives": [],
-  "last_verified_at": "2026-10-13T16:20:12Z",
+  "last_verified_at": "2026-10-16T17:42:28Z",
   "location": {
     "city": "Winter Garden",
     "county_fips": "12095",
@@ -97,7 +97,7 @@
     "state": "machine"
   },
   "schema_version": "1.0.0",
-  "scope": "in_scope",
+  "scope": "out_of_scope",
   "site": {
     "acreage": null,
     "building_count": null,
@@ -149,6 +149,23 @@
       "text_sha256": null,
       "title": "IM3 Open Source Data Center Atlas v2026.02.09, web map file im3_datacenter_centroids.geojson",
       "url": "https://doi.org/10.57931/3017294"
+    },
+    {
+      "archive_url": null,
+      "id": "s3",
+      "license": null,
+      "published_at": null,
+      "publisher": "E-Foam, LLC",
+      "quote": "E-Foam, LLC. is a family-operated company founded in 2007 dedicated to manufacturing and the commercialization of Architectural Decorative Foam for interior and exterior decor.",
+      "quote_end": null,
+      "quote_match": "human",
+      "quote_start": null,
+      "retrieved_at": "2026-10-16T17:06:00Z",
+      "source_type": "company_release",
+      "supports": [],
+      "text_sha256": null,
+      "title": null,
+      "url": "https://www.efoamllc.com/"
     }
   ],
   "status": "operating",
@@ -170,5 +187,5 @@
     }
   ],
   "status_reason": null,
-  "updated_at": "2026-10-13T16:20:12Z"
+  "updated_at": "2026-10-16T17:42:28Z"
 }
